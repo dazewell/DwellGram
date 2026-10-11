@@ -13600,7 +13600,7 @@ public class ChatActivity extends BaseFragment implements
         final boolean islandResizing = chatLayoutManager != null && lastIslandHeight >= 0
             && islandHeightNow != (int) lastIslandHeight;
         final boolean paddingMoving = lastPaddingBottom >= 0 && (int) paddingBottom != (int) lastPaddingBottom;
-        if (islandResizing && !islandPinActive && !chatListView.fastScrollAnimationRunning
+        if (islandResizing && !islandPinActive && !chatListView.fastScrollAnimationRunning && !forceScrollToTop // NagramX (#round-send-hang-fix): a jump to the newest message is pending
                 && chatLayoutManager.findFirstVisibleItemPosition() != 0) {
             for (int i = 0; i < chatListView.getChildCount(); i++) {
                 final View child = chatListView.getChildAt(i);
@@ -17464,6 +17464,9 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void moveScrollToLastMessage(boolean skipSponsored) {
+        // NagramX (#round-send-hang-fix): the input island pin (checkUi_chatListViewPaddings) re-pins the old scroll
+        // position every frame while the composer resizes, e.g. when a recording ends on send, and would undo this jump.
+        islandPinActive = false;
         if (chatListView != null && !messages.isEmpty() && !pinchToZoomHelper.isInOverlayMode()) {
             int position = 0;
             if (skipSponsored) {
@@ -39164,13 +39167,6 @@ public class ChatActivity extends BaseFragment implements
         }
 
         animatorRoundMessageCameraVisibility.setValue(false, true);
-
-        if (videoEditedInfo != null && videoEditedInfo.roundVideo && chatListView != null && chatLayoutManager != null && chatLayoutManager.findFirstVisibleItemPosition() > 0) {
-            // NagramX (#round-send-hang-fix): sent from a chat scrolled up, the new row is inserted off-screen and its cell
-            // isn't bound for seconds, so the camera sits over a frozen chat until the 3 s fallback below closes it.
-            // moveScrollToLastMessage() was tried and gets consumed without moving the list; this is the jump-down button's path.
-            scrollToLastMessage(true, false);
-        }
 
         if (editingMessageObject != null && editingMessageObject.needResendWhenEdit() && !ChatObject.canManageMonoForum(currentAccount, editingMessageObject.getDialogId())) {
             final MessageSuggestionParams params = messageSuggestionParams != null ? messageSuggestionParams :

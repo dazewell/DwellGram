@@ -2639,19 +2639,22 @@ offset inside the view.
 ## Sending a round video from a scrolled-up chat leaves the camera frozen over the list
 
 `sendMedia` arms a 3 s fallback that retires the camera circle
-(`ChatActivity.java:39188-39192`). Normally the new round cell binds within
-milliseconds and cancels it, flying the circle into the bubble. When the chat
-is scrolled up, the row is inserted at position 0 off-screen, no cell binds, and
-the fallback fires: the full-screen camera view stays up and swallows touches
-for about 3 s, then the list catches up. Measured on a device, every such send.
+(`ChatActivity.java:39184-39188`). Normally the new round cell binds within
+milliseconds and cancels it, flying the circle into the bubble. Sent from a
+chat scrolled up, the row is inserted off-screen, no cell binds, and the fallback
+fires: the full-screen camera view stays up and swallows touches for about 3 s.
 
-Not a stall: the main thread, frames and GPU were all healthy, and the chat
-list's layout flags were clear. `processNewMessages` does ask to scroll
-(`moveScrollToLastMessage(true)`, `:28556`, defined `:17466`), but the plain
-`scrollToPositionWithOffset(0, 0)` it issues was consumed without moving the
-list (first visible stayed at 4-5 across sends). The jump-down button's path,
-`scrollToLastMessage(true, false)` (`:17586`, scrolls via `chatScrollHelper`),
-does move it. `#round-send-hang-fix` calls that before the send (`:39168-39173`).
-Cost: the message is inserted about 0.6 s after Send, while the list animates down.
+Cause: `processNewMessages` asks for a jump to the newest message
+(`moveScrollToLastMessage(true)`, `:28559`, defined `:17466`), but the fork's input
+island pin (`#fullscreen-input`, `checkUi_chatListViewPaddings`, `:13603-13637`)
+re-issues `scrollToPositionWithOffset` to the old position every frame while the
+composer resizes, which is what the recording UI leaving does. It arms only when
+the list is not at position 0, which is why a send from the bottom is fine. The
+jump was therefore consumed without moving the list, and the pin is also a plain
+`scrollToPositionWithOffset`, so nothing else in the layout flags shows it.
+
+`#round-send-hang-fix` clears the pin in `moveScrollToLastMessage` and does not arm
+a new one while `forceScrollToTop` is set (`:13603`). Any new code that re-asserts a
+scroll position per frame has to yield to that jump.
 
 *(Established 2026-10-11, `#round-send-hang-fix`.)*

@@ -1112,7 +1112,8 @@ baseline between sends. `releasePlayer`, `getSentFile` and the `prepareSendingVi
 thread were all fast. `gfxinfo` times drawn frames, so a block shows as a missing
 frame rather than a long one; a ticker started late, or only inside `send()`, misses
 it. The hang was the 3 s camera fallback waiting for a cell that never bound, not
-any of these. See the scrolled-up send trap in `upstream-traps.md`.
+any of these. The cell never bound because the input island pin undid the scroll to
+the newest message; see the scrolled-up send trap in `upstream-traps.md`.
 
 Also dead: a stale layout request on a parent (every ancestor reported no pending
 layout, a forced root layout changed nothing) and a suppressed or deferred
