@@ -28478,6 +28478,11 @@ public class ChatActivity extends BaseFragment implements
                     chatAdapter.checkRemoveBotForumRowsStartThreadRow(false);
                     chatAdapter.notifyItemChanged(chatAdapter.messagesStartRow + placeToPaste);
                     chatAdapter.notifyItemInserted(chatAdapter.messagesStartRow + placeToPaste);
+                    if (obj.type == MessageObject.TYPE_ROUND_VIDEO && obj.isOut()) {
+                        org.telegram.ui.Components.InstantCameraView.naxProbe("notifyItemInserted pos=" + (chatAdapter.messagesStartRow + placeToPaste) + " scrollState=" + chatListView.getScrollState() + " computingLayout=" + chatListView.isComputingLayout() + " animRunning=" + chatListItemAnimator.isRunning() + " layoutRequested=" + chatListView.isLayoutRequested() + " animating=" + animatingMessageObjects.size() + " children=" + chatListView.getChildCount()); // NAX_SMOKE_round-send-hang
+                        final MessageObject naxObj = obj;
+                        AndroidUtilities.runOnUIThread(() -> org.telegram.ui.Components.InstantCameraView.naxProbe("+250ms after insert: animRunning=" + chatListItemAnimator.isRunning() + " children=" + chatListView.getChildCount() + " stillQueued=" + animatingMessageObjects.contains(naxObj) + " scrollState=" + chatListView.getScrollState()), 250); // NAX_SMOKE_round-send-hang
+                    }
                 }
                 if ((obj.isOut() || chatMode == MODE_WELCOME_MESSAGES) && waitingForSendingMessageLoad) {
                     waitingForSendingMessageLoad = false;
@@ -41594,6 +41599,9 @@ public class ChatActivity extends BaseFragment implements
                     }
                     if (highlightMessageId != Integer.MAX_VALUE) {
                         startMessageUnselect();
+                    }
+                    if (message.type == MessageObject.TYPE_ROUND_VIDEO && message.isOut()) {
+                        org.telegram.ui.Components.InstantCameraView.naxProbe("round cell bind idx=" + animatingMessageObjects.indexOf(message) + " queued=" + animatingMessageObjects.size() + " id=" + message.getId() + " cameraTexture=" + (instantCameraView != null && instantCameraView.getTextureView() != null) + " fallbackArmed=" + (closeInstantCameraAnimation != null) + " handedOff=" + (instantCameraView != null && instantCameraView.isFileHandedOff())); // NAX_SMOKE_round-send-hang
                     }
                     int index;
                     if ((index = animatingMessageObjects.indexOf(message)) != -1) {
