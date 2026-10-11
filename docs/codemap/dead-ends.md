@@ -1102,3 +1102,21 @@ they stayed. Moving them would also mean porting `checkCustomTitleRows` (`:427`)
 over those three rows and the style link, left as is.
 
 *(Established 2026-10-04, `#interface-style`.)*
+
+## "The round video send hang is a main-thread stall or a leak that grows with video messages"
+
+Measured with timing probes on a chat full of playing round videos: `send()` to
+`sendMedia` took 45-76 ms, a 100 ms main-thread ticker saw no gap, no frame ran
+past 109 ms, GPU p99 was 7 ms, and native, graphics and view counts returned to
+baseline between sends. `releasePlayer`, `getSentFile` and the `prepareSendingVideo`
+thread were all fast. `gfxinfo` times drawn frames, so a block shows as a missing
+frame rather than a long one; a ticker started late, or only inside `send()`, misses
+it. The hang was the 3 s camera fallback waiting for a cell that never bound, not
+any of these. See the scrolled-up send trap in `upstream-traps.md`.
+
+Also dead: a stale layout request on a parent (every ancestor reported no pending
+layout, a forced root layout changed nothing) and a suppressed or deferred
+RecyclerView (`mLayoutSuppressed`, `mLayoutWasDefered` and the intercept depth were
+all clear, no pending scroll position).
+
+*(Established 2026-10-11, `#round-send-hang-fix`.)*

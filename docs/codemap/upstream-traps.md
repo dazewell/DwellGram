@@ -2635,3 +2635,23 @@ title drew about 55dp to the right of the name. Subtract `getX()` to get the
 offset inside the view.
 
 *(Established 2026-10-09, `#header-avatar-bg`.)*
+
+## Sending a round video from a scrolled-up chat leaves the camera frozen over the list
+
+`sendMedia` arms a 3 s fallback that retires the camera circle
+(`ChatActivity.java:39188-39192`). Normally the new round cell binds within
+milliseconds and cancels it, flying the circle into the bubble. When the chat
+is scrolled up, the row is inserted at position 0 off-screen, no cell binds, and
+the fallback fires: the full-screen camera view stays up and swallows touches
+for about 3 s, then the list catches up. Measured on a device, every such send.
+
+Not a stall: the main thread, frames and GPU were all healthy, and the chat
+list's layout flags were clear. `processNewMessages` does ask to scroll
+(`moveScrollToLastMessage(true)`, `:28556`, defined `:17466`), but the plain
+`scrollToPositionWithOffset(0, 0)` it issues was consumed without moving the
+list (first visible stayed at 4-5 across sends). The jump-down button's path,
+`scrollToLastMessage(true, false)` (`:17586`, scrolls via `chatScrollHelper`),
+does move it. `#round-send-hang-fix` calls that before the send (`:39168-39173`).
+Cost: the message is inserted about 0.6 s after Send, while the list animates down.
+
+*(Established 2026-10-11, `#round-send-hang-fix`.)*

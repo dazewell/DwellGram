@@ -1370,64 +1370,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
     }
 
-    // NAX_SMOKE_round-send-hang: temporary timing probe. Logs each step of a send relative to its start and
-    // runs a 100 ms main-thread ticker for 6 s that reports any gap over 250 ms, so a stall shows where it sits.
-    public static long naxProbeT0;
-
-    public static void naxProbe(String step) {
-        // Log.e, not FileLog.e: that one is silent whenever the app's debug logs preference is off
-        android.util.Log.e("NaxSmoke", "NAX_SMOKE_round-send-hang +" + (android.os.SystemClock.uptimeMillis() - naxProbeT0) + "ms " + step);
-    }
-
-    private static void naxProbeStart(final View host, int state) {
-        naxProbeT0 = android.os.SystemClock.uptimeMillis();
-        naxProbe("send state=" + state);
-        final long[] last = {naxProbeT0};
-        final long[] lastFrame = {0};
-        final long[] lastDraw = {naxProbeT0};
-        final android.view.ViewTreeObserver.OnPreDrawListener drawProbe = new android.view.ViewTreeObserver.OnPreDrawListener() {
-            @Override
-            public boolean onPreDraw() {
-                long now = android.os.SystemClock.uptimeMillis();
-                if (now - lastDraw[0] > 100) {
-                    naxProbe("window draw gap " + (now - lastDraw[0]) + "ms");
-                }
-                lastDraw[0] = now;
-                if (now - naxProbeT0 >= 6000) {
-                    host.getViewTreeObserver().removeOnPreDrawListener(this);
-                }
-                return true;
-            }
-        };
-        host.getViewTreeObserver().addOnPreDrawListener(drawProbe);
-        android.view.Choreographer.getInstance().postFrameCallback(new android.view.Choreographer.FrameCallback() {
-            @Override
-            public void doFrame(long frameTimeNanos) {
-                long now = android.os.SystemClock.uptimeMillis();
-                if (lastFrame[0] != 0 && now - lastFrame[0] > 100) {
-                    naxProbe("frame gap " + (now - lastFrame[0]) + "ms");
-                }
-                lastFrame[0] = now;
-                if (now - naxProbeT0 < 6000) {
-                    android.view.Choreographer.getInstance().postFrameCallback(this);
-                }
-            }
-        });
-        AndroidUtilities.runOnUIThread(new Runnable() {
-            @Override
-            public void run() {
-                long now = android.os.SystemClock.uptimeMillis();
-                if (now - last[0] > 250) {
-                    naxProbe("main thread gap " + (now - last[0]) + "ms");
-                }
-                last[0] = now;
-                if (now - naxProbeT0 < 6000) {
-                    AndroidUtilities.runOnUIThread(this, 100);
-                }
-            }
-        }, 100);
-    }
-
     public void send(int state, boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
         if (cameraFileHandedOff) {
             return; // NagramX (#round-video-restart-guard-fix): this file already went; a second send would duplicate it
@@ -1438,13 +1380,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             // adoptRestoredDraft, so let the state==4 send through instead of silently dropping the message.
             return;
         }
-        naxProbeStart(this, state); // NAX_SMOKE_round-send-hang
         stopProgressTimer();
         if (videoPlayer != null) {
-            naxProbe("release player begin"); // NAX_SMOKE_round-send-hang
             videoPlayer.releasePlayer(true);
             videoPlayer = null;
-            naxProbe("release player end"); // NAX_SMOKE_round-send-hang
         }
         if (state == 4) {
             // NagramX (#round-video-restart-guard-fix): with a terminal stop already queued the recorder is quitting and
@@ -1496,9 +1435,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             entry.effectId = effectId;
             // NagramX (#round-video-restart-guard-fix): set before sendMedia, which on stories calls cancel() back
             cameraFileHandedOff = true;
-            naxProbe("sendMedia begin"); // NAX_SMOKE_round-send-hang
             delegate.sendMedia(entry, videoEditedInfo, notify, scheduleDate, scheduleRepeatPeriod, false, stars);
-            naxProbe("sendMedia end"); // NAX_SMOKE_round-send-hang
             if (scheduleDate != 0) {
                 startAnimation(false, false);
             }

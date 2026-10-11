@@ -5572,11 +5572,7 @@ public class ChatActivity extends BaseFragment implements
 
             @Override
             protected void onLayout(boolean changed, int l, int t, int r, int b) {
-                long naxLayoutStart = android.os.SystemClock.uptimeMillis(); // NAX_SMOKE_round-send-hang
                 super.onLayout(changed, l, t, r, b);
-                if (naxLayoutStart - org.telegram.ui.Components.InstantCameraView.naxProbeT0 < 6000) { // NAX_SMOKE_round-send-hang
-                    org.telegram.ui.Components.InstantCameraView.naxProbe("chatListView onLayout took " + (android.os.SystemClock.uptimeMillis() - naxLayoutStart) + "ms children=" + getChildCount() + " firstVisible=" + (chatLayoutManager != null ? chatLayoutManager.findFirstVisibleItemPosition() : -2));
-                }
 
                 if (lastWidth != r - l) {
                     if (lastWidth != 0) {
@@ -17468,7 +17464,6 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void moveScrollToLastMessage(boolean skipSponsored) {
-        org.telegram.ui.Components.InstantCameraView.naxProbe("moveScrollToLastMessage skipSponsored=" + skipSponsored + " sponsored=" + getSponsoredMessagesCount() + " firstVisibleBefore=" + (chatLayoutManager != null ? chatLayoutManager.findFirstVisibleItemPosition() : -2) + " overlay=" + pinchToZoomHelper.isInOverlayMode()); // NAX_SMOKE_round-send-hang
         if (chatListView != null && !messages.isEmpty() && !pinchToZoomHelper.isInOverlayMode()) {
             int position = 0;
             if (skipSponsored) {
@@ -24280,7 +24275,6 @@ public class ChatActivity extends BaseFragment implements
             FileLog.d("ChatActivity didReceiveNewMessages start");
             long did = (Long) args[0];
             ArrayList<MessageObject> arr = (ArrayList<MessageObject>) args[1];
-            org.telegram.ui.Components.InstantCameraView.naxProbe("didReceiveNewMessages n=" + arr.size() + " first type=" + (arr.isEmpty() ? -1 : arr.get(0).type) + " mine=" + (did == dialog_id)); // NAX_SMOKE_round-send-hang
             if (isInsideContainer) return;
             if (did == dialog_id) {
                 boolean scheduled = (Boolean) args[2];
@@ -28012,7 +28006,6 @@ public class ChatActivity extends BaseFragment implements
         if (justCreatedTopic) {
             forwardEndReached[0] = true;
         }
-        org.telegram.ui.Components.InstantCameraView.naxProbe("processNewMessages forwardEndReached=" + forwardEndReached[0]); // NAX_SMOKE_round-send-hang
         if (!forwardEndReached[0] && !hasAyuDeleted) {
             int currentMaxDate = Integer.MIN_VALUE;
 
@@ -28237,9 +28230,6 @@ public class ChatActivity extends BaseFragment implements
                 final boolean canAnimateMessage = a == 0 && obj.shouldAnimateSending() && chatMode != MODE_SCHEDULED && !isKeepRecordingSegment(obj)
                     && (chatMode != MODE_QUICK_REPLIES || messages.size() + 1 < getMessagesController().config.quickReplyMessagesLimit.get())
                     && (chatMode != MODE_WELCOME_MESSAGES || messages.size() + 1 < getMessagesController().config.ephemeralWelcomeMessagesMax.get());
-                if (obj.type == MessageObject.TYPE_ROUND_VIDEO) {
-                    org.telegram.ui.Components.InstantCameraView.naxProbe("processNewMessages round canAnimate=" + canAnimateMessage + " a=" + a + " shouldAnimate=" + obj.shouldAnimateSending() + " wasJustSent=" + obj.wasJustSent); // NAX_SMOKE_round-send-hang
-                }
                 if (canAnimateMessage) {
                     animatingMessageObjects.add(obj);
                 }
@@ -28483,47 +28473,6 @@ public class ChatActivity extends BaseFragment implements
                     chatAdapter.checkRemoveBotForumRowsStartThreadRow(false);
                     chatAdapter.notifyItemChanged(chatAdapter.messagesStartRow + placeToPaste);
                     chatAdapter.notifyItemInserted(chatAdapter.messagesStartRow + placeToPaste);
-                    if (obj.type == MessageObject.TYPE_ROUND_VIDEO && obj.isOut()) {
-                        org.telegram.ui.Components.InstantCameraView.naxProbe("notifyItemInserted pos=" + (chatAdapter.messagesStartRow + placeToPaste) + " scrollState=" + chatListView.getScrollState() + " computingLayout=" + chatListView.isComputingLayout() + " animRunning=" + chatListItemAnimator.isRunning() + " layoutRequested=" + chatListView.isLayoutRequested() + " animating=" + animatingMessageObjects.size() + " children=" + chatListView.getChildCount()); // NAX_SMOKE_round-send-hang
-                        final MessageObject naxObj = obj;
-                        AndroidUtilities.runOnUIThread(() -> org.telegram.ui.Components.InstantCameraView.naxProbe("+250ms after insert: animRunning=" + chatListItemAnimator.isRunning() + " children=" + chatListView.getChildCount() + " stillQueued=" + animatingMessageObjects.contains(naxObj) + " scrollState=" + chatListView.getScrollState()), 250); // NAX_SMOKE_round-send-hang
-                        AndroidUtilities.runOnUIThread(() -> { // NAX_SMOKE_round-send-hang
-                            StringBuilder naxChain = new StringBuilder();
-                            View naxV = chatListView;
-                            while (naxV != null) {
-                                naxChain.append(naxV.getClass().getSimpleName()).append(naxV.isLayoutRequested() ? "[REQ]" : "[ok]").append(" < ");
-                                naxV = naxV.getParent() instanceof View ? (View) naxV.getParent() : null;
-                            }
-                            org.telegram.ui.Components.InstantCameraView.naxProbe("parents at +300ms: " + naxChain); // NAX_SMOKE_round-send-hang
-                            try { // NAX_SMOKE_round-send-hang
-                                StringBuilder naxRv = new StringBuilder("recycler state:");
-                                for (String f : new String[]{"mInterceptRequestLayoutDepth", "mLayoutSuppressed", "mLayoutWasDefered", "mFirstLayoutComplete", "mIsAttached", "mDispatchItemsChangedEvent"}) {
-                                    java.lang.reflect.Field fl = androidx.recyclerview.widget.RecyclerView.class.getDeclaredField(f);
-                                    fl.setAccessible(true);
-                                    naxRv.append(' ').append(f).append('=').append(fl.get(chatListView));
-                                }
-                                for (String f : new String[]{"mPendingScrollPosition", "mPendingScrollPositionOffset"}) {
-                                    java.lang.reflect.Field fl = androidx.recyclerview.widget.LinearLayoutManager.class.getDeclaredField(f);
-                                    fl.setAccessible(true);
-                                    naxRv.append(' ').append(f).append('=').append(fl.get(chatLayoutManager));
-                                }
-                                naxRv.append(" hasPendingAdapterUpdates=").append(chatListView.hasPendingAdapterUpdates())
-                                        .append(" isAnimating=").append(chatListView.isAnimating())
-                                        .append(" itemCount=").append(chatAdapter.getItemCount())
-                                        .append(" messages=").append(messages.size())
-                                        .append(" firstVisible=").append(chatLayoutManager.findFirstVisibleItemPosition())
-                                        .append(" scrollState=").append(chatListView.getScrollState())
-                                        .append(" layoutSuppressedApi=").append(chatListView.isLayoutSuppressed());
-                                org.telegram.ui.Components.InstantCameraView.naxProbe(naxRv.toString());
-                            } catch (Throwable t) {
-                                org.telegram.ui.Components.InstantCameraView.naxProbe("recycler state probe failed " + t);
-                            }
-                            if (animatingMessageObjects.contains(naxObj)) {
-                                chatListView.getRootView().requestLayout();
-                                AndroidUtilities.runOnUIThread(() -> org.telegram.ui.Components.InstantCameraView.naxProbe("after forced root layout: children=" + chatListView.getChildCount() + " stillQueued=" + animatingMessageObjects.contains(naxObj)), 100);
-                            }
-                        }, 300); // NAX_SMOKE_round-send-hang
-                    }
                 }
                 if ((obj.isOut() || chatMode == MODE_WELCOME_MESSAGES) && waitingForSendingMessageLoad) {
                     waitingForSendingMessageLoad = false;
@@ -28594,7 +28543,6 @@ public class ChatActivity extends BaseFragment implements
                 }
                 if (!isAd && (!hasAyuDeleted || wasAtBottom)) {
                     boolean shouldScrollToBottom = lastVisible == 0 && diff <= AndroidUtilities.dp(5) && !hasDraftsReplaces || hasFromMe;
-                    org.telegram.ui.Components.InstantCameraView.naxProbe("scroll decision shouldScrollToBottom=" + shouldScrollToBottom + " hasFromMe=" + hasFromMe + " lastVisible=" + lastVisible + " diff=" + diff + " firstLoading=" + firstLoading + " paused=" + paused + " isAd=" + isAd); // NAX_SMOKE_round-send-hang
                     if (hasAyuDeleted) {
                         shouldScrollToBottom = wasAtBottom;
                     }
@@ -39215,14 +39163,14 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
 
-        org.telegram.ui.Components.InstantCameraView.naxProbe("ChatActivity.sendMedia"); // NAX_SMOKE_round-send-hang
+        animatorRoundMessageCameraVisibility.setValue(false, true);
+
         if (videoEditedInfo != null && videoEditedInfo.roundVideo && chatListView != null && chatLayoutManager != null && chatLayoutManager.findFirstVisibleItemPosition() > 0) {
-            // NagramX (#round-send-hang-fix): sent from a chat scrolled up, the new row is inserted off-screen and its
-            // cell isn't bound until seconds later, so the camera sits over a frozen chat until the 3 s fallback
-            // closes it. Landing at the bottom first makes it the same as sending from the bottom, which binds at once.
+            // NagramX (#round-send-hang-fix): sent from a chat scrolled up, the new row is inserted off-screen and its cell
+            // isn't bound for seconds, so the camera sits over a frozen chat until the 3 s fallback below closes it.
+            // moveScrollToLastMessage() was tried and gets consumed without moving the list; this is the jump-down button's path.
             scrollToLastMessage(true, false);
         }
-        animatorRoundMessageCameraVisibility.setValue(false, true);
 
         if (editingMessageObject != null && editingMessageObject.needResendWhenEdit() && !ChatObject.canManageMonoForum(currentAccount, editingMessageObject.getDialogId())) {
             final MessageSuggestionParams params = messageSuggestionParams != null ? messageSuggestionParams :
@@ -39240,7 +39188,6 @@ public class ChatActivity extends BaseFragment implements
         if (videoEditedInfo != null && videoEditedInfo.roundVideo) {
             AndroidUtilities.runOnUIThread(closeInstantCameraAnimation = () -> {
                 closeInstantCameraAnimation = null;
-                org.telegram.ui.Components.InstantCameraView.naxProbe("3s fallback fired"); // NAX_SMOKE_round-send-hang
                 runCloseInstantCameraAnimation();
             }, 3000);
         }
@@ -39481,7 +39428,6 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void runCloseInstantCameraAnimation() {
-        org.telegram.ui.Components.InstantCameraView.naxProbe("runCloseInstantCameraAnimation"); // NAX_SMOKE_round-send-hang
         keepRecordingSegmentPaths.clear();
         // NagramX: no texture means the sent camera is already gone (restored draft, scheduled send). Animating
         // anyway would let a recording opened during the animation be hidden when it ends.
@@ -41648,15 +41594,9 @@ public class ChatActivity extends BaseFragment implements
                     if (highlightMessageId != Integer.MAX_VALUE) {
                         startMessageUnselect();
                     }
-                    if (message.type == MessageObject.TYPE_ROUND_VIDEO && message.isOut()) {
-                        org.telegram.ui.Components.InstantCameraView.naxProbe("round cell bind idx=" + animatingMessageObjects.indexOf(message) + " queued=" + animatingMessageObjects.size() + " id=" + message.getId() + " cameraTexture=" + (instantCameraView != null && instantCameraView.getTextureView() != null) + " fallbackArmed=" + (closeInstantCameraAnimation != null) + " handedOff=" + (instantCameraView != null && instantCameraView.isFileHandedOff())); // NAX_SMOKE_round-send-hang
-                    }
                     int index;
                     if ((index = animatingMessageObjects.indexOf(message)) != -1) {
                         boolean applyAnimation = false;
-                        if (message.type == MessageObject.TYPE_ROUND_VIDEO) {
-                            org.telegram.ui.Components.InstantCameraView.naxProbe("new round cell bound"); // NAX_SMOKE_round-send-hang
-                        }
                         // NagramX: the pending close is what marks a sent camera still waiting to be retired. Without it,
                         // the open camera belongs to a later recording and must not be flown away.
                         if (message.type == MessageObject.TYPE_ROUND_VIDEO && instantCameraView != null && instantCameraView.getTextureView() != null && closeInstantCameraAnimation != null

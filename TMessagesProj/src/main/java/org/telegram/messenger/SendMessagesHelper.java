@@ -12155,9 +12155,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         if (videoPath == null || videoPath.length() == 0) {
             return;
         }
-        org.telegram.ui.Components.InstantCameraView.naxProbe("prepareSendingVideo thread start round=" + (info != null && info.roundVideo)); // NAX_SMOKE_round-send-hang
         new Thread(() -> {
-            org.telegram.ui.Components.InstantCameraView.naxProbe("prepareSendingVideo thread running"); // NAX_SMOKE_round-send-hang
             final VideoEditedInfo videoEditedInfo = info != null ? info : createCompressionSettings(videoPath, 0);
 
             boolean isEncrypted = DialogObject.isEncryptedDialog(dialogId);
@@ -12187,9 +12185,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 TLRPC.TL_document document = null;
                 String parentObject = null;
                 if (!isEncrypted && ttl == 0 && (videoEditedInfo == null || videoEditedInfo.filterState == null && videoEditedInfo.paintPath == null && videoEditedInfo.mediaEntities == null && videoEditedInfo.cropState == null)) {
-                    org.telegram.ui.Components.InstantCameraView.naxProbe("getSentFile begin"); // NAX_SMOKE_round-send-hang
                     Object[] sentData = accountInstance.getMessagesStorage().getSentFile(originalPath, !isEncrypted ? MessagesStorage.SENT_FILE_TYPE_VIDEO : MessagesStorage.SENT_FILE_TYPE_VIDEO_ENCRYPTED);
-                    org.telegram.ui.Components.InstantCameraView.naxProbe("getSentFile end"); // NAX_SMOKE_round-send-hang
                     if (sentData != null && sentData[0] instanceof TLRPC.TL_document) {
                         document = (TLRPC.TL_document) sentData[0];
                         parentObject = (String) sentData[1];
@@ -12358,9 +12354,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 }
                 // NagramX: preserve repost-as-copy correlation markers for single-video copy sends.
                 copyNagramxCopyParams(messageParams, params);
-                org.telegram.ui.Components.InstantCameraView.naxProbe("prepareSendingVideo posting to UI"); // NAX_SMOKE_round-send-hang
                 AndroidUtilities.runOnUIThread(() -> {
-                    org.telegram.ui.Components.InstantCameraView.naxProbe("prepareSendingVideo UI post running"); // NAX_SMOKE_round-send-hang
                     if (thumbFinal != null && thumbKeyFinal != null) {
                         ImageLoader.getInstance().putImageToCache(new BitmapDrawable(thumbFinal), thumbKeyFinal, false);
                     }
