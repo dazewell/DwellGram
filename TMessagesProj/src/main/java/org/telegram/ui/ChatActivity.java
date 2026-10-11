@@ -39163,6 +39163,7 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
 
+        org.telegram.ui.Components.InstantCameraView.naxProbe("ChatActivity.sendMedia"); // NAX_SMOKE_round-send-hang
         animatorRoundMessageCameraVisibility.setValue(false, true);
 
         if (editingMessageObject != null && editingMessageObject.needResendWhenEdit() && !ChatObject.canManageMonoForum(currentAccount, editingMessageObject.getDialogId())) {
@@ -41590,6 +41591,9 @@ public class ChatActivity extends BaseFragment implements
                     int index;
                     if ((index = animatingMessageObjects.indexOf(message)) != -1) {
                         boolean applyAnimation = false;
+                        if (message.type == MessageObject.TYPE_ROUND_VIDEO) {
+                            org.telegram.ui.Components.InstantCameraView.naxProbe("new round cell bound"); // NAX_SMOKE_round-send-hang
+                        }
                         // NagramX: the pending close is what marks a sent camera still waiting to be retired. Without it,
                         // the open camera belongs to a later recording and must not be flown away.
                         if (message.type == MessageObject.TYPE_ROUND_VIDEO && instantCameraView != null && instantCameraView.getTextureView() != null && closeInstantCameraAnimation != null
