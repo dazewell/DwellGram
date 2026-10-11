@@ -499,14 +499,8 @@ public class TextMemoActivity extends Activity {
                 return true;
             }
         });
-        // Not with the window: the card settles first, and an automation that swaps the keyboard per app (Tasker) gets
-        // to switch it before it comes up, rather than the wrong one opening and then reopening
         field.requestFocus();
-        field.postDelayed(() -> {
-            if (!dismissing && !isFinishing()) {
-                AndroidUtilities.showKeyboard(field);
-            }
-        }, 500);
+        AndroidUtilities.showKeyboard(field);
     }
 
     private void animateBackdropIn() {
