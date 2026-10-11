@@ -13600,7 +13600,7 @@ public class ChatActivity extends BaseFragment implements
         final boolean islandResizing = chatLayoutManager != null && lastIslandHeight >= 0
             && islandHeightNow != (int) lastIslandHeight;
         final boolean paddingMoving = lastPaddingBottom >= 0 && (int) paddingBottom != (int) lastPaddingBottom;
-        if (islandResizing && !islandPinActive && !chatListView.fastScrollAnimationRunning
+        if (islandResizing && !islandPinActive && !chatListView.fastScrollAnimationRunning && !forceScrollToTop // NagramX (#round-send-hang-fix): a jump to the newest message is pending
                 && chatLayoutManager.findFirstVisibleItemPosition() != 0) {
             for (int i = 0; i < chatListView.getChildCount(); i++) {
                 final View child = chatListView.getChildAt(i);
@@ -17464,6 +17464,9 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void moveScrollToLastMessage(boolean skipSponsored) {
+        // NagramX (#round-send-hang-fix): the input island pin (checkUi_chatListViewPaddings) re-pins the old scroll
+        // position every frame while the composer resizes, e.g. when a recording ends on send, and would undo this jump.
+        islandPinActive = false;
         if (chatListView != null && !messages.isEmpty() && !pinchToZoomHelper.isInOverlayMode()) {
             int position = 0;
             if (skipSponsored) {

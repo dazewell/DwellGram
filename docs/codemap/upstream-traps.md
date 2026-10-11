@@ -2635,3 +2635,28 @@ title drew about 55dp to the right of the name. Subtract `getX()` to get the
 offset inside the view.
 
 *(Established 2026-10-09, `#header-avatar-bg`.)*
+
+## Sending a round video from a scrolled-up chat leaves the camera frozen over the list
+
+`sendMedia` arms a 3 s fallback that retires the camera circle
+(`ChatActivity.java:39184-39188`). Normally the new round cell binds within
+milliseconds and cancels it, flying the circle into the bubble. Sent from a
+chat scrolled up, the row is inserted off-screen, no cell binds, and the fallback
+fires: the full-screen camera view stays up and swallows touches for about 3 s.
+
+Cause: `processNewMessages` asks for a jump to the newest message
+(`moveScrollToLastMessage(true)`, `:28559`, defined `:17466`), but the fork's input
+island pin (`#fullscreen-input`, `checkUi_chatListViewPaddings`, `:13603-13637`)
+re-issues `scrollToPositionWithOffset` to the old position every frame while the
+composer resizes, which is what the recording UI leaving does. It arms only when
+the list is not at position 0, which is why a send from the bottom is fine. The
+jump was therefore consumed without moving the list, and the pin is also a plain
+`scrollToPositionWithOffset`, so nothing else in the layout flags shows it.
+
+`#round-send-hang-fix` clears the pin in `moveScrollToLastMessage` and does not arm
+a new one while `forceScrollToTop` is set (`:13603`). Any new code that re-asserts a
+scroll position per frame has to yield to that jump.
+The animated `chatScrollHelper` jumps (`scrollToLastMessage`, the postponed scroll) do not go
+through `moveScrollToLastMessage`, so a pin already active when one starts is not cleared.
+
+*(Established 2026-10-11, `#round-send-hang-fix`.)*
