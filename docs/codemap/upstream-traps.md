@@ -2656,5 +2656,7 @@ jump was therefore consumed without moving the list, and the pin is also a plain
 `#round-send-hang-fix` clears the pin in `moveScrollToLastMessage` and does not arm
 a new one while `forceScrollToTop` is set (`:13603`). Any new code that re-asserts a
 scroll position per frame has to yield to that jump.
+The animated `chatScrollHelper` jumps (`scrollToLastMessage`, the postponed scroll) do not go
+through `moveScrollToLastMessage`, so a pin already active when one starts is not cleared.
 
 *(Established 2026-10-11, `#round-send-hang-fix`.)*
