@@ -1375,7 +1375,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     public static long naxProbeT0;
 
     public static void naxProbe(String step) {
-        FileLog.e("NAX_SMOKE_round-send-hang +" + (android.os.SystemClock.uptimeMillis() - naxProbeT0) + "ms " + step);
+        // Log.e, not FileLog.e: that one is silent whenever the app's debug logs preference is off
+        android.util.Log.e("NaxSmoke", "NAX_SMOKE_round-send-hang +" + (android.os.SystemClock.uptimeMillis() - naxProbeT0) + "ms " + step);
     }
 
     private static void naxProbeStart(final View host, int state) {

@@ -5575,7 +5575,7 @@ public class ChatActivity extends BaseFragment implements
                 long naxLayoutStart = android.os.SystemClock.uptimeMillis(); // NAX_SMOKE_round-send-hang
                 super.onLayout(changed, l, t, r, b);
                 if (naxLayoutStart - org.telegram.ui.Components.InstantCameraView.naxProbeT0 < 6000) { // NAX_SMOKE_round-send-hang
-                    org.telegram.ui.Components.InstantCameraView.naxProbe("chatListView onLayout took " + (android.os.SystemClock.uptimeMillis() - naxLayoutStart) + "ms children=" + getChildCount());
+                    org.telegram.ui.Components.InstantCameraView.naxProbe("chatListView onLayout took " + (android.os.SystemClock.uptimeMillis() - naxLayoutStart) + "ms children=" + getChildCount() + " firstVisible=" + (chatLayoutManager != null ? chatLayoutManager.findFirstVisibleItemPosition() : -2));
                 }
 
                 if (lastWidth != r - l) {
@@ -17468,7 +17468,7 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void moveScrollToLastMessage(boolean skipSponsored) {
-        org.telegram.ui.Components.InstantCameraView.naxProbe("moveScrollToLastMessage overlay=" + pinchToZoomHelper.isInOverlayMode()); // NAX_SMOKE_round-send-hang
+        org.telegram.ui.Components.InstantCameraView.naxProbe("moveScrollToLastMessage skipSponsored=" + skipSponsored + " sponsored=" + getSponsoredMessagesCount() + " firstVisibleBefore=" + (chatLayoutManager != null ? chatLayoutManager.findFirstVisibleItemPosition() : -2) + " overlay=" + pinchToZoomHelper.isInOverlayMode()); // NAX_SMOKE_round-send-hang
         if (chatListView != null && !messages.isEmpty() && !pinchToZoomHelper.isInOverlayMode()) {
             int position = 0;
             if (skipSponsored) {
@@ -39220,7 +39220,7 @@ public class ChatActivity extends BaseFragment implements
             // NagramX (#round-send-hang-fix): sent from a chat scrolled up, the new row is inserted off-screen and its
             // cell isn't bound until seconds later, so the camera sits over a frozen chat until the 3 s fallback
             // closes it. Landing at the bottom first makes it the same as sending from the bottom, which binds at once.
-            moveScrollToLastMessage(true);
+            scrollToLastMessage(true, false);
         }
         animatorRoundMessageCameraVisibility.setValue(false, true);
 
