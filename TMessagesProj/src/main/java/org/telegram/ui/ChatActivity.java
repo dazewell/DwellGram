@@ -5572,7 +5572,11 @@ public class ChatActivity extends BaseFragment implements
 
             @Override
             protected void onLayout(boolean changed, int l, int t, int r, int b) {
+                long naxLayoutStart = android.os.SystemClock.uptimeMillis(); // NAX_SMOKE_round-send-hang
                 super.onLayout(changed, l, t, r, b);
+                if (naxLayoutStart - org.telegram.ui.Components.InstantCameraView.naxProbeT0 < 6000) { // NAX_SMOKE_round-send-hang
+                    org.telegram.ui.Components.InstantCameraView.naxProbe("chatListView onLayout took " + (android.os.SystemClock.uptimeMillis() - naxLayoutStart) + "ms children=" + getChildCount());
+                }
 
                 if (lastWidth != r - l) {
                     if (lastWidth != 0) {
