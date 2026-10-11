@@ -17464,6 +17464,7 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void moveScrollToLastMessage(boolean skipSponsored) {
+        org.telegram.ui.Components.InstantCameraView.naxProbe("moveScrollToLastMessage overlay=" + pinchToZoomHelper.isInOverlayMode()); // NAX_SMOKE_round-send-hang
         if (chatListView != null && !messages.isEmpty() && !pinchToZoomHelper.isInOverlayMode()) {
             int position = 0;
             if (skipSponsored) {
@@ -28553,6 +28554,7 @@ public class ChatActivity extends BaseFragment implements
                 }
                 if (!isAd && (!hasAyuDeleted || wasAtBottom)) {
                     boolean shouldScrollToBottom = lastVisible == 0 && diff <= AndroidUtilities.dp(5) && !hasDraftsReplaces || hasFromMe;
+                    org.telegram.ui.Components.InstantCameraView.naxProbe("scroll decision shouldScrollToBottom=" + shouldScrollToBottom + " hasFromMe=" + hasFromMe + " lastVisible=" + lastVisible + " diff=" + diff + " firstLoading=" + firstLoading + " paused=" + paused + " isAd=" + isAd); // NAX_SMOKE_round-send-hang
                     if (hasAyuDeleted) {
                         shouldScrollToBottom = wasAtBottom;
                     }

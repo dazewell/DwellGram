@@ -1382,6 +1382,20 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         naxProbeT0 = android.os.SystemClock.uptimeMillis();
         naxProbe("send state=" + state);
         final long[] last = {naxProbeT0};
+        final long[] lastFrame = {0};
+        android.view.Choreographer.getInstance().postFrameCallback(new android.view.Choreographer.FrameCallback() {
+            @Override
+            public void doFrame(long frameTimeNanos) {
+                long now = android.os.SystemClock.uptimeMillis();
+                if (lastFrame[0] != 0 && now - lastFrame[0] > 100) {
+                    naxProbe("frame gap " + (now - lastFrame[0]) + "ms");
+                }
+                lastFrame[0] = now;
+                if (now - naxProbeT0 < 6000) {
+                    android.view.Choreographer.getInstance().postFrameCallback(this);
+                }
+            }
+        });
         AndroidUtilities.runOnUIThread(new Runnable() {
             @Override
             public void run() {
