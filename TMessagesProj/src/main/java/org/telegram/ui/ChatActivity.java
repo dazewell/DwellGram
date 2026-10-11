@@ -24275,6 +24275,7 @@ public class ChatActivity extends BaseFragment implements
             FileLog.d("ChatActivity didReceiveNewMessages start");
             long did = (Long) args[0];
             ArrayList<MessageObject> arr = (ArrayList<MessageObject>) args[1];
+            org.telegram.ui.Components.InstantCameraView.naxProbe("didReceiveNewMessages n=" + arr.size() + " first type=" + (arr.isEmpty() ? -1 : arr.get(0).type) + " mine=" + (did == dialog_id)); // NAX_SMOKE_round-send-hang
             if (isInsideContainer) return;
             if (did == dialog_id) {
                 boolean scheduled = (Boolean) args[2];
@@ -28006,6 +28007,7 @@ public class ChatActivity extends BaseFragment implements
         if (justCreatedTopic) {
             forwardEndReached[0] = true;
         }
+        org.telegram.ui.Components.InstantCameraView.naxProbe("processNewMessages forwardEndReached=" + forwardEndReached[0]); // NAX_SMOKE_round-send-hang
         if (!forwardEndReached[0] && !hasAyuDeleted) {
             int currentMaxDate = Integer.MIN_VALUE;
 
@@ -28230,6 +28232,9 @@ public class ChatActivity extends BaseFragment implements
                 final boolean canAnimateMessage = a == 0 && obj.shouldAnimateSending() && chatMode != MODE_SCHEDULED && !isKeepRecordingSegment(obj)
                     && (chatMode != MODE_QUICK_REPLIES || messages.size() + 1 < getMessagesController().config.quickReplyMessagesLimit.get())
                     && (chatMode != MODE_WELCOME_MESSAGES || messages.size() + 1 < getMessagesController().config.ephemeralWelcomeMessagesMax.get());
+                if (obj.type == MessageObject.TYPE_ROUND_VIDEO) {
+                    org.telegram.ui.Components.InstantCameraView.naxProbe("processNewMessages round canAnimate=" + canAnimateMessage + " a=" + a + " shouldAnimate=" + obj.shouldAnimateSending() + " wasJustSent=" + obj.wasJustSent); // NAX_SMOKE_round-send-hang
+                }
                 if (canAnimateMessage) {
                     animatingMessageObjects.add(obj);
                 }
@@ -39182,6 +39187,7 @@ public class ChatActivity extends BaseFragment implements
         if (videoEditedInfo != null && videoEditedInfo.roundVideo) {
             AndroidUtilities.runOnUIThread(closeInstantCameraAnimation = () -> {
                 closeInstantCameraAnimation = null;
+                org.telegram.ui.Components.InstantCameraView.naxProbe("3s fallback fired"); // NAX_SMOKE_round-send-hang
                 runCloseInstantCameraAnimation();
             }, 3000);
         }
@@ -39422,6 +39428,7 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void runCloseInstantCameraAnimation() {
+        org.telegram.ui.Components.InstantCameraView.naxProbe("runCloseInstantCameraAnimation"); // NAX_SMOKE_round-send-hang
         keepRecordingSegmentPaths.clear();
         // NagramX: no texture means the sent camera is already gone (restored draft, scheduled send). Animating
         // anyway would let a recording opened during the animation be hidden when it ends.
