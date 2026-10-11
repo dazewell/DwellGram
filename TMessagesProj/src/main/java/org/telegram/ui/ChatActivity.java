@@ -28494,7 +28494,30 @@ public class ChatActivity extends BaseFragment implements
                                 naxChain.append(naxV.getClass().getSimpleName()).append(naxV.isLayoutRequested() ? "[REQ]" : "[ok]").append(" < ");
                                 naxV = naxV.getParent() instanceof View ? (View) naxV.getParent() : null;
                             }
-                            org.telegram.ui.Components.InstantCameraView.naxProbe("parents at +300ms: " + naxChain);
+                            org.telegram.ui.Components.InstantCameraView.naxProbe("parents at +300ms: " + naxChain); // NAX_SMOKE_round-send-hang
+                            try { // NAX_SMOKE_round-send-hang
+                                StringBuilder naxRv = new StringBuilder("recycler state:");
+                                for (String f : new String[]{"mInterceptRequestLayoutDepth", "mLayoutSuppressed", "mLayoutWasDefered", "mFirstLayoutComplete", "mIsAttached", "mDispatchItemsChangedEvent"}) {
+                                    java.lang.reflect.Field fl = androidx.recyclerview.widget.RecyclerView.class.getDeclaredField(f);
+                                    fl.setAccessible(true);
+                                    naxRv.append(' ').append(f).append('=').append(fl.get(chatListView));
+                                }
+                                for (String f : new String[]{"mPendingScrollPosition", "mPendingScrollPositionOffset"}) {
+                                    java.lang.reflect.Field fl = androidx.recyclerview.widget.LinearLayoutManager.class.getDeclaredField(f);
+                                    fl.setAccessible(true);
+                                    naxRv.append(' ').append(f).append('=').append(fl.get(chatLayoutManager));
+                                }
+                                naxRv.append(" hasPendingAdapterUpdates=").append(chatListView.hasPendingAdapterUpdates())
+                                        .append(" isAnimating=").append(chatListView.isAnimating())
+                                        .append(" itemCount=").append(chatAdapter.getItemCount())
+                                        .append(" messages=").append(messages.size())
+                                        .append(" firstVisible=").append(chatLayoutManager.findFirstVisibleItemPosition())
+                                        .append(" scrollState=").append(chatListView.getScrollState())
+                                        .append(" layoutSuppressedApi=").append(chatListView.isLayoutSuppressed());
+                                org.telegram.ui.Components.InstantCameraView.naxProbe(naxRv.toString());
+                            } catch (Throwable t) {
+                                org.telegram.ui.Components.InstantCameraView.naxProbe("recycler state probe failed " + t);
+                            }
                             if (animatingMessageObjects.contains(naxObj)) {
                                 chatListView.getRootView().requestLayout();
                                 AndroidUtilities.runOnUIThread(() -> org.telegram.ui.Components.InstantCameraView.naxProbe("after forced root layout: children=" + chatListView.getChildCount() + " stillQueued=" + animatingMessageObjects.contains(naxObj)), 100);
