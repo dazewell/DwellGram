@@ -39193,6 +39193,12 @@ public class ChatActivity extends BaseFragment implements
         }
 
         org.telegram.ui.Components.InstantCameraView.naxProbe("ChatActivity.sendMedia"); // NAX_SMOKE_round-send-hang
+        if (videoEditedInfo != null && videoEditedInfo.roundVideo && chatListView != null && chatLayoutManager != null && chatLayoutManager.findFirstVisibleItemPosition() > 0) {
+            // NagramX (#round-send-hang-fix): sent from a chat scrolled up, the new row is inserted off-screen and its
+            // cell isn't bound until seconds later, so the camera sits over a frozen chat until the 3 s fallback
+            // closes it. Landing at the bottom first makes it the same as sending from the bottom, which binds at once.
+            moveScrollToLastMessage(true);
+        }
         animatorRoundMessageCameraVisibility.setValue(false, true);
 
         if (editingMessageObject != null && editingMessageObject.needResendWhenEdit() && !ChatObject.canManageMonoForum(currentAccount, editingMessageObject.getDialogId())) {
