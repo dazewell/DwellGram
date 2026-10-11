@@ -28487,6 +28487,19 @@ public class ChatActivity extends BaseFragment implements
                         org.telegram.ui.Components.InstantCameraView.naxProbe("notifyItemInserted pos=" + (chatAdapter.messagesStartRow + placeToPaste) + " scrollState=" + chatListView.getScrollState() + " computingLayout=" + chatListView.isComputingLayout() + " animRunning=" + chatListItemAnimator.isRunning() + " layoutRequested=" + chatListView.isLayoutRequested() + " animating=" + animatingMessageObjects.size() + " children=" + chatListView.getChildCount()); // NAX_SMOKE_round-send-hang
                         final MessageObject naxObj = obj;
                         AndroidUtilities.runOnUIThread(() -> org.telegram.ui.Components.InstantCameraView.naxProbe("+250ms after insert: animRunning=" + chatListItemAnimator.isRunning() + " children=" + chatListView.getChildCount() + " stillQueued=" + animatingMessageObjects.contains(naxObj) + " scrollState=" + chatListView.getScrollState()), 250); // NAX_SMOKE_round-send-hang
+                        AndroidUtilities.runOnUIThread(() -> { // NAX_SMOKE_round-send-hang
+                            StringBuilder naxChain = new StringBuilder();
+                            View naxV = chatListView;
+                            while (naxV != null) {
+                                naxChain.append(naxV.getClass().getSimpleName()).append(naxV.isLayoutRequested() ? "[REQ]" : "[ok]").append(" < ");
+                                naxV = naxV.getParent() instanceof View ? (View) naxV.getParent() : null;
+                            }
+                            org.telegram.ui.Components.InstantCameraView.naxProbe("parents at +300ms: " + naxChain);
+                            if (animatingMessageObjects.contains(naxObj)) {
+                                chatListView.getRootView().requestLayout();
+                                AndroidUtilities.runOnUIThread(() -> org.telegram.ui.Components.InstantCameraView.naxProbe("after forced root layout: children=" + chatListView.getChildCount() + " stillQueued=" + animatingMessageObjects.contains(naxObj)), 100);
+                            }
+                        }, 300); // NAX_SMOKE_round-send-hang
                     }
                 }
                 if ((obj.isOut() || chatMode == MODE_WELCOME_MESSAGES) && waitingForSendingMessageLoad) {
