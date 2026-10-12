@@ -345,6 +345,7 @@ public final class VideoHoldToSend {
     private static int learnedSends() {
         return Math.max(0, Math.min(LEARNED_SENDS, NaConfig.INSTANCE.getVideoMessagesHoldToSendSends().Int()));
     }
+
     private void arm() {
         if (!tracking) {
             return;
