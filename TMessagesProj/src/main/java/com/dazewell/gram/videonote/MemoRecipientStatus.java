@@ -112,8 +112,8 @@ public class MemoRecipientStatus implements NotificationCenter.NotificationCente
         muted = controller.isDialogMuted(userId);
     }
 
-    // Read from storage, not dialogs_dict: a memo opened cold from the launcher never loads the chat list. The storage
-    // write is committed before the update that announces it is posted, so a read queued from that update sees it.
+    // Read from storage, not dialogs_dict: a memo opened cold from the launcher never loads the chat list. Some paths post
+    // the update before their write (markDialogAsUnread), so this read can miss it; the 30 s recheck picks it up.
     private void readUnread() {
         if (reading) {
             readAgain = true;
