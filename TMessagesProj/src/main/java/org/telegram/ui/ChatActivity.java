@@ -49058,6 +49058,7 @@ public class ChatActivity extends BaseFragment implements
 
             }
             case nkbtn_personal_replies: {
+                // NagramX: inside the reply view this id is the View in chat item, since View Thread is hidden there
                 if (personalRepliesTopId != 0) {
                     viewPersonalReplyInChat(selectedObject);
                     break;
