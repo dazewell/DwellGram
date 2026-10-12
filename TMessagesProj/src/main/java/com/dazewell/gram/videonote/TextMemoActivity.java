@@ -347,6 +347,8 @@ public class TextMemoActivity extends Activity {
         unreadView.setVisibility(View.GONE);
         // Fixed width: CounterView measures like a bare View, so wrap_content would take the whole row from the names
         unreadView.setGravity(Gravity.RIGHT);
+        // Its first measure would otherwise re-run setCount with the last count, turning "99+" or the marked-unread dot into "1"
+        unreadView.counterDrawable.setSize(dp(24), dp(44));
         header.addView(unreadView, LayoutHelper.createLinear(44, 24, Gravity.CENTER_VERTICAL, 0, 0, 4, 0));
 
         closeButton = new ImageView(this);
