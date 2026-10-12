@@ -31,9 +31,9 @@ Save sets of auto-lock timeouts under Nagram Settings → Passcode and switch be
 
 A Panic Code that matches an unlock code is a security risk, so setup now requires yours to be unique — it can't match your app passcode or any account's passcode. The setup screens also name which code you're setting (App, Panic, or Account). Codes set before this check existed may clash, so the settings screen will prompt you to re-set your Panic Code.
 
-### Reply threads in private chats <!-- #personal-replies --> <!-- #reply-threads --> <!-- #thread-upwards -->
+### Reply threads in private chats <!-- #personal-replies --> <!-- #reply-threads --> <!-- #thread-upwards --> <!-- #thread-in-chat -->
 
-Private chats now show a reply glyph and count next to a message's timestamp, bringing group-style reply threads to 1-to-1 chats. *View Thread* in the message menu, on any reply or replied-to message, swaps the history for the whole thread it belongs to and lands on the one you picked, without leaving the chat.
+Private chats now show a reply glyph and count next to a message's timestamp, bringing group-style reply threads to 1-to-1 chats. *View Thread* in the message menu, on any reply or replied-to message, swaps the history for its whole thread, landing on the one you picked, without leaving the chat. *View in chat* on a thread message jumps to it in the real history.
 
 <img height="150" alt="private chat message bubble showing a reply glyph and count next to its timestamp" src="docs/images/features/reply-threads.png" />
 
