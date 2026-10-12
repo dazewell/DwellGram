@@ -2660,3 +2660,17 @@ The animated `chatScrollHelper` jumps (`scrollToLastMessage`, the postponed scro
 through `moveScrollToLastMessage`, so a pin already active when one starts is not cleared.
 
 *(Established 2026-10-11, `#round-send-hang-fix`.)*
+
+## A chat opened behind a cover still marks its history read
+
+`ChatActivity`'s visible-messages check marks the chat read from what the list
+holds, not from what the user can see (`ChatActivity.java:18483`, calling
+`markDialogAsRead` at `:18520` and `:18530`). It only skips a paused chat, a
+preview or `ignoreSetOnline`. A view drawn over the history, like the video memo's
+locked-app shield (`VideoNoteShortcut.onChatViewCreated`), changes nothing: the
+chat is resumed, so the unread messages are read locally and on the server.
+`#video-note-shortcut` gates that check with `VideoNoteShortcut.hidesHistory`. Any
+other overlay that hides an open chat needs the same gate. `markDialogAsReadNow` in
+`onPause` (`:32688`) only flushes a read already queued, so it needs none.
+
+*(Established 2026-10-12, `#video-note-shortcut`.)*

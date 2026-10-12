@@ -457,6 +457,11 @@ public final class VideoNoteShortcut {
     }
 
     public static boolean blocksSwipeBack(ChatActivity chat) {
+        return hidesHistory(chat);
+    }
+
+    /** ChatActivity's visible-messages read check. The shield is up, so nothing on screen has been read. */
+    public static boolean hidesHistory(ChatActivity chat) {
         return isSessionChat(chat) || phase == STARTING && isPendingChat(chat);
     }
 
