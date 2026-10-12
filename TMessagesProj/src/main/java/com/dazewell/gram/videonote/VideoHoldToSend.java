@@ -305,7 +305,7 @@ public final class VideoHoldToSend {
         drawHint(canvas, host, circle, cx, labelRect.top, alpha);
     }
 
-    // A static, dimmer pill above the how-to label that only says the swipes exist. It is the top of the 64dp the
+    // A static, smaller pill above the how-to label that only says the swipes exist. It is the top of the 64dp the
     // host keeps free above the circle (24 + 20 below it, 2 gap, 18 here), so it is skipped rather than clipped
     // wherever that room or the width isn't there.
     private void drawHint(Canvas canvas, View host, View circle, float cx, float top, float alpha) {
@@ -325,8 +325,8 @@ public final class VideoHoldToSend {
         }
         final float bottom = top - dp(2);
         labelRect.set(cx - textWidth / 2f - dp(8), bottom - dp(18), cx + textWidth / 2f + dp(8), bottom);
-        labelBackground.setAlpha((int) (0x4d * alpha * 0.7f));
-        hintPaint.setAlpha((int) (255 * alpha * 0.7f));
+        labelBackground.setAlpha((int) (0x4d * alpha));
+        hintPaint.setAlpha((int) (255 * alpha));
         canvas.drawRoundRect(labelRect, dp(9), dp(9), labelBackground);
         canvas.drawText(text, cx - textWidth / 2f, labelRect.centerY() - (hintPaint.descent() + hintPaint.ascent()) / 2f, hintPaint);
     }

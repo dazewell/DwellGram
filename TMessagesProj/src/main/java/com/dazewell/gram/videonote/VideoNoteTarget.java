@@ -167,7 +167,7 @@ public final class VideoNoteTarget {
         }
     }
 
-    // What we don't know counts as no: neither memo shows the chat it goes to, so the user can't see which
+    // What we don't know counts as no: neither memo names the chat it goes to, so the user can't see which
     // chat it is, and a send that would bounce or cost Stars must never be armed.
     private static boolean canReceive(int account, MessagesController controller, TLRPC.User user, TLRPC.UserFull full, boolean video) {
         if (!isEligible(account, user) || full == null || controller.getRestrictionReason(user.restriction_reason) != null) {
