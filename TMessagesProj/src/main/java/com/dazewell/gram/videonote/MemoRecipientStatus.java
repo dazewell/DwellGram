@@ -71,10 +71,6 @@ public class MemoRecipientStatus implements NotificationCenter.NotificationCente
         AndroidUtilities.cancelRunOnUIThread(recheck);
     }
 
-    public boolean hasUnread() {
-        return unread > 0 || unreadMark;
-    }
-
     private void recheck() {
         if (!started) {
             return;
