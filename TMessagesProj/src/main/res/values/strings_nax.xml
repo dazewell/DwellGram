@@ -463,6 +463,7 @@
     <string name="TextMemoShortcutLabel">Text memo</string>
     <string name="TextMemoShortcutLabelCard">Text memo · floating</string>
     <string name="TextMemoShortcutLabelFull">Text memo · full</string>
+    <string name="MemoStatusJoin">%1$s · %2$s</string>
     <string name="TextMemoHint">Goes straight to the chat, without opening it</string>
     <string name="TextMemoDraftWaiting">Sending discards a draft waiting in this chat</string>
     <string name="TextMemoAddPhotos">Add photos or videos</string>

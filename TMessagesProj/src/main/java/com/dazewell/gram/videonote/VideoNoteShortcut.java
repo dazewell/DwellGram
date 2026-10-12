@@ -411,6 +411,56 @@ public final class VideoNoteShortcut {
         shield.setClickable(true);
         int index = contentView.indexOfChild(inputContainer);
         contentView.addView(shield, index < 0 ? contentView.getChildCount() : index, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        index = contentView.indexOfChild(inputContainer);
+        addStatusRow(chat, contentView, index < 0 ? contentView.getChildCount() : index);
+    }
+
+    // The real header is under the shield, so the recipient's online state and unread count go on it instead
+    private static void addStatusRow(ChatActivity chat, ViewGroup contentView, int index) {
+        long did = chat.getDialogId();
+        if (!MemoRecipientStatus.applies(chat.getCurrentAccount(), did)) {
+            return;
+        }
+        // A plain holder over the shield: it is laid out below the covered header, like any ordinary child, and takes no touches
+        android.widget.FrameLayout holder = new android.widget.FrameLayout(contentView.getContext());
+        android.widget.TextView row = new android.widget.TextView(contentView.getContext());
+        row.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 14);
+        row.setTextColor(Theme.getColor(Theme.key_chat_serviceText, chat.getResourceProvider()));
+        row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(14), Theme.getColor(Theme.key_chat_serviceBackground, chat.getResourceProvider())));
+        row.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(5), AndroidUtilities.dp(12), AndroidUtilities.dp(5));
+        row.setSingleLine(true);
+        row.setVisibility(View.GONE);
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
+        params.topMargin = AndroidUtilities.dp(16);
+        holder.addView(row, params);
+        contentView.addView(holder, index, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        MemoRecipientStatus[] status = new MemoRecipientStatus[1];
+        status[0] = new MemoRecipientStatus(chat.getCurrentAccount(), did, () -> {
+            // Locking ends the session but tears nothing down until the unlock, which can be hours away
+            if (!hidesHistory(chat)) {
+                status[0].stop();
+                row.setVisibility(View.GONE);
+                return;
+            }
+            String online = status[0].online ? LocaleController.getString(R.string.Online) : null;
+            String unread = status[0].unread > 0 ? LocaleController.formatPluralString("NewMessages", status[0].unread) : null;
+            String text = online != null && unread != null ? LocaleController.formatString(R.string.MemoStatusJoin, online, unread)
+                    : online != null ? online : unread;
+            row.setText(text);
+            row.setVisibility(text != null ? View.VISIBLE : View.GONE);
+        });
+        holder.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+                status[0].start();
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                status[0].stop();
+            }
+        });
     }
 
     /** End of ChatActivity's needStartRecordVideo delegate. */
