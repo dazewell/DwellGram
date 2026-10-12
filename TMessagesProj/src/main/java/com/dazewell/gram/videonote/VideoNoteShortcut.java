@@ -411,8 +411,10 @@ public final class VideoNoteShortcut {
         shield.setClickable(true);
         int index = contentView.indexOfChild(inputContainer);
         contentView.addView(shield, index < 0 ? contentView.getChildCount() : index, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        // Above the input container: the round camera is drawn just before it (ChatActivity's drawChild), and its backdrop
+        // would wash out anything placed below
         index = contentView.indexOfChild(inputContainer);
-        addStatusRow(chat, contentView, index < 0 ? contentView.getChildCount() : index);
+        addStatusRow(chat, contentView, index < 0 ? contentView.getChildCount() : index + 1);
     }
 
     // The real header is under the shield, so the recipient's online state and unread count go on it instead
@@ -424,13 +426,16 @@ public final class VideoNoteShortcut {
         // A plain holder over the shield: it is laid out below the covered header, like any ordinary child, and takes no touches
         android.widget.FrameLayout holder = new android.widget.FrameLayout(contentView.getContext());
         android.widget.TextView row = new android.widget.TextView(contentView.getContext());
-        row.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 14);
-        row.setTextColor(Theme.getColor(Theme.key_chat_serviceText, chat.getResourceProvider()));
-        row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(14), Theme.getColor(Theme.key_chat_serviceBackground, chat.getResourceProvider())));
-        row.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(5), AndroidUtilities.dp(12), AndroidUtilities.dp(5));
+        // The recorder's own chip (VideoHoldToSend's label, InstantCameraView's zoom label), so the screen has one pill style
+        row.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 13);
+        row.setTypeface(AndroidUtilities.bold());
+        row.setTextColor(0xffffffff);
+        row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), 0x4d000000));
+        row.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
         row.setSingleLine(true);
         row.setVisibility(View.GONE);
-        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, AndroidUtilities.dp(24), android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
         params.topMargin = AndroidUtilities.dp(16);
         holder.addView(row, params);
         contentView.addView(holder, index, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -440,6 +445,7 @@ public final class VideoNoteShortcut {
             // Locking ends the session but tears nothing down until the unlock, which can be hours away
             if (!hidesHistory(chat)) {
                 status[0].stop();
+                row.animate().cancel();
                 row.setVisibility(View.GONE);
                 return;
             }
@@ -447,8 +453,16 @@ public final class VideoNoteShortcut {
             String unread = status[0].unread > 0 ? LocaleController.formatPluralString("NewMessages", status[0].unread) : null;
             String text = online != null && unread != null ? LocaleController.formatString(R.string.MemoStatusJoin, online, unread)
                     : online != null ? online : unread;
-            row.setText(text);
-            row.setVisibility(text != null ? View.VISIBLE : View.GONE);
+            if (text != null) {
+                row.setText(text);
+                if (row.getVisibility() != View.VISIBLE) {
+                    row.setAlpha(0f);
+                    row.setVisibility(View.VISIBLE);
+                }
+                row.animate().alpha(1f).setDuration(150).withEndAction(null).start();
+            } else if (row.getVisibility() == View.VISIBLE) {
+                row.animate().alpha(0f).setDuration(150).withEndAction(() -> row.setVisibility(View.GONE)).start();
+            }
         });
         holder.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
             @Override
