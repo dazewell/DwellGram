@@ -345,7 +345,9 @@ public class TextMemoActivity extends Activity {
         unreadView = new org.telegram.ui.Components.CounterView(this, null);
         unreadView.setColors(Theme.key_chats_unreadCounterText, Theme.key_chats_unreadCounter);
         unreadView.setVisibility(View.GONE);
-        header.addView(unreadView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 24, Gravity.CENTER_VERTICAL, 0, 0, 4, 0));
+        // Fixed width: CounterView measures like a bare View, so wrap_content would take the whole row from the names
+        unreadView.setGravity(Gravity.RIGHT);
+        header.addView(unreadView, LayoutHelper.createLinear(44, 24, Gravity.CENTER_VERTICAL, 0, 0, 4, 0));
 
         closeButton = new ImageView(this);
         closeButton.setScaleType(ImageView.ScaleType.CENTER);
