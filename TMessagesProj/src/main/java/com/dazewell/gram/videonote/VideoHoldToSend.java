@@ -318,6 +318,7 @@ public final class VideoHoldToSend {
             hintWidth = hintPaint.measureText(hint);
             if (Math.max(textWidth, hintWidth) + dp(36) > host.getWidth()) {
                 hint = null;
+                hintWidth = 0;
             }
         }
         final float lineHeight = quiet ? dp(18) : dp(24);
