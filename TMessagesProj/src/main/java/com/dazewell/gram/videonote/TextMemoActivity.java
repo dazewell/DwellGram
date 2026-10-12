@@ -1223,8 +1223,8 @@ public class TextMemoActivity extends Activity {
         }
         String label = LocaleController.getString(R.string.TextMemoShortcutLabel);
         subtitle.setText(status.online ? LocaleController.formatString(R.string.MemoStatusJoin, label, LocaleController.getString(R.string.Online)) : label);
-        if (status.online) {
-            subtitle.setVisibility(View.VISIBLE);
+        if (UserConfig.getInstance(account).getCurrentUser() == null) {
+            subtitle.setVisibility(status.online ? View.VISIBLE : View.GONE); // the title already says "Text memo"
         }
         unreadView.setColors(Theme.key_chats_unreadCounterText, status.muted ? Theme.key_chats_unreadCounterMuted : Theme.key_chats_unreadCounter);
         if (status.unread > 99) {
