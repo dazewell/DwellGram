@@ -10738,14 +10738,20 @@ public class ChatActivity extends BaseFragment implements
     }
 
     // NagramX: leaves the reply view for the real history and lands on the picked message, the way "View in chat"
-    // does from a comments thread. Back then leaves the chat, since the reply view is gone
+    // does from a comments thread. Back then leaves the chat, since the reply view is gone. The scroll is
+    // deferred like the search-filtered jump in the reply tap handler: this runs from the message menu, which
+    // keeps vertical scrolling off until it closes, and the real history hasn't laid out yet
     private void viewPersonalReplyInChat(MessageObject message) {
         if (message == null || personalRepliesTopId == 0) {
             return;
         }
         final int id = message.getId();
         closePersonalReplies(false);
-        scrollToMessageId(id, 0, true, 0, true, 0);
+        AndroidUtilities.runOnUIThread(() -> {
+            if (fragmentView != null && !isFinished) {
+                scrollToMessageId(id, 0, true, 0, true, 0);
+            }
+        }, 80);
     }
 
     private void createBottomMessagesActionButtons() {
