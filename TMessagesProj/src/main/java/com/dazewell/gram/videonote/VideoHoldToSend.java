@@ -341,6 +341,12 @@ public final class VideoHoldToSend {
 
     private static final int LEARNED_SENDS = 5;
 
+    /** The gestures setting toggled: show the full hint again. */
+    public static void resetHints() {
+        NaConfig.INSTANCE.getVideoMessagesHoldToSendSends().setConfigInt(0);
+        NaConfig.INSTANCE.getVideoMessagesSwipeLearned().setConfigBool(false);
+    }
+
     // Clamped at the read: a stored value from anywhere else is just a count
     private static int learnedSends() {
         return Math.max(0, Math.min(LEARNED_SENDS, NaConfig.INSTANCE.getVideoMessagesHoldToSendSends().Int()));
