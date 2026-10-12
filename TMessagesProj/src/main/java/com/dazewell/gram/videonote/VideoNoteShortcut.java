@@ -426,13 +426,17 @@ public final class VideoNoteShortcut {
         // A plain holder over the shield: it is laid out below the covered header, like any ordinary child, and takes no touches
         android.widget.FrameLayout holder = new android.widget.FrameLayout(contentView.getContext());
         android.widget.TextView row = new android.widget.TextView(contentView.getContext());
-        // The recorder's own chip (VideoHoldToSend's label, InstantCameraView's zoom label), so the screen has one pill style
-        row.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 13);
+        // A plain line where the header's subtitle would be, not a pill: it is about the recipient, while the pills above the
+        // circle are about the controls. The composer's text colour, since the shield is the composer panel's surface.
+        row.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 14);
         row.setTypeface(AndroidUtilities.bold());
-        row.setTextColor(0xffffffff);
-        row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), 0x4d000000));
-        row.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(10), 0);
+        row.setTextColor(Theme.getColor(Theme.key_chat_messagePanelText, chat.getResourceProvider()));
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        android.graphics.drawable.GradientDrawable onlineDot = new android.graphics.drawable.GradientDrawable();
+        onlineDot.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        onlineDot.setColor(Theme.getColor(Theme.key_chats_onlineCircle, chat.getResourceProvider()));
+        onlineDot.setSize(AndroidUtilities.dp(8), AndroidUtilities.dp(8));
+        row.setCompoundDrawablePadding(AndroidUtilities.dp(6));
         row.setSingleLine(true);
         row.setVisibility(View.GONE);
         android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, AndroidUtilities.dp(24), android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
@@ -455,6 +459,7 @@ public final class VideoNoteShortcut {
                     : online != null ? online : unread;
             if (text != null) {
                 row.setText(text);
+                row.setCompoundDrawablesRelativeWithIntrinsicBounds(online != null ? onlineDot : null, null, null, null);
                 if (row.getVisibility() != View.VISIBLE) {
                     row.setAlpha(0f);
                     row.setVisibility(View.VISIBLE);
