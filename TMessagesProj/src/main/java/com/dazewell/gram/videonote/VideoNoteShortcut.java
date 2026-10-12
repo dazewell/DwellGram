@@ -359,9 +359,21 @@ public final class VideoNoteShortcut {
     // moveTaskToBack only stops the activity; the send or discard is already handed over by the time this is called.
     private static void lockAndLeave() {
         LaunchActivity activity = LaunchActivity.instance;
+        ChatActivity chat = sessionChat != null ? sessionChat.get() : null;
         lockNow();
         if (activity != null && !activity.isFinishing()) {
             activity.moveTaskToBack(true);
+        }
+        // Left on the stack, the memo's chat would be the first thing the unlock shows, and showing it reads it. Posted,
+        // because this can run from inside the chat's own send. Only on a send or discard: a clip kept for later
+        // waits in this chat's preview.
+        if (chat != null) {
+            AndroidUtilities.runOnUIThread(() -> {
+                if (phase == IDLE && !chat.isFinished && chat.isLastFragment() && chat.getParentLayout() != null
+                        && chat.getParentLayout().getFragmentStack().size() > 1) {
+                    chat.finishFragment(false);
+                }
+            });
         }
     }
 
