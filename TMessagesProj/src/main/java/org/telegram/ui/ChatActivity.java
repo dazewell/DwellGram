@@ -10737,6 +10737,17 @@ public class ChatActivity extends BaseFragment implements
         }
     }
 
+    // NagramX: leaves the reply view for the real history and lands on the picked message, the way "View in chat"
+    // does from a comments thread. Back then leaves the chat, since the reply view is gone
+    private void viewPersonalReplyInChat(MessageObject message) {
+        if (message == null || personalRepliesTopId == 0) {
+            return;
+        }
+        final int id = message.getId();
+        closePersonalReplies(false);
+        scrollToMessageId(id, 0, true, 0, true, 0);
+    }
+
     private void createBottomMessagesActionButtons() {
 
     }
@@ -49041,6 +49052,10 @@ public class ChatActivity extends BaseFragment implements
 
             }
             case nkbtn_personal_replies: {
+                if (personalRepliesTopId != 0) {
+                    viewPersonalReplyInChat(selectedObject);
+                    break;
+                }
                 // NagramX: the group is looked up here rather than taken from selectedObjectGroup, which the cell's
                 // own long-press leaves null even on an album
                 openPersonalReplies(selectedObject == null ? null : com.dazewell.gram.personalreplies.PersonalRepliesController.threadAnchor(
@@ -51305,6 +51320,13 @@ public class ChatActivity extends BaseFragment implements
                     items.add(LocaleController.getString(R.string.ViewThread));
                     options.add(nkbtn_personal_replies);
                     icons.add(R.drawable.msg_viewreplies);
+                }
+                // NagramX: inside the reply view, the way back to this message in the real history. Shares the
+                // option id with View Thread, which is hidden there, so the handler only branches on the view state
+                if (personalRepliesTopId != 0 && primaryMessage != null && primaryMessage.getId() > 0) {
+                    items.add(LocaleController.getString(R.string.ViewInChat));
+                    options.add(nkbtn_personal_replies);
+                    icons.add(R.drawable.msg_message);
                 }
                 if (!isEphemeral && !selectedObject.isSponsored() && chatMode != MODE_SCHEDULED && ChatObject.isChannel(currentChat) && !ChatObject.isMonoForum(currentChat) && selectedObject.getDialogId() != mergeDialogId && !selectedObject.isAyuDeleted()) {
                     allowCopyLink = true;
