@@ -2,6 +2,7 @@ package com.dazewell.gram.eventschedule;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -177,10 +178,10 @@ public class MessageTriggersActivity extends BaseFragment {
      * Not the stock "message_id" argument: its post-load match takes the first loaded message whose
      * id is <= the target, which assumes list order follows id order. A scheduled list is ordered by
      * date, so any message scheduled out of creation order breaks that and it can land on the wrong
-     * message (cited in docs/codemap/upstream-traps.md). Instead this waits for that fragment's own load and calls scrollToMessageId with the
-     * exact id, which also highlights it. A message that is no longer scheduled is simply not in the
-     * load, so the list opens as before. The observer goes once it has scrolled, on the server's
-     * answer, or after 30 s (a not-modified reply posts nothing), so it never outlives the chat.
+     * message (cited in docs/codemap/upstream-traps.md). Instead this waits for that fragment's own
+     * load and then scrolls to the exact id (see scrollWhenSettled). A message that is no longer
+     * scheduled is simply not in the load, so the list opens as before. The observer goes once the
+     * id has loaded, on the server's answer, or after 30 s (a not-modified reply posts nothing).
      */
     private void scrollWhenLoaded(ChatActivity chat, int messageId) {
         final NotificationCenter center = NotificationCenter.getInstance(currentAccount);
@@ -198,20 +199,18 @@ public class MessageTriggersActivity extends BaseFragment {
                 }
                 return;
             }
-            if (!scrolled[0]) {
-                for (Object loaded : (ArrayList<?>) args[2]) {
-                    if (((MessageObject) loaded).getId() == messageId) {
-                        scrolled[0] = true;
-                        // Posted, so it runs after the chat has added this load to its list.
-                        AndroidUtilities.runOnUIThread(() -> {
-                            ChatActivity target = chatRef.get();
-                            if (target != null && target.getFragmentView() != null) {
-                                target.scrollToMessageId(messageId, 0, true, 0, true, 0);
-                            }
-                        });
-                        break;
-                    }
+            boolean found = false;
+            for (Object loaded : (ArrayList<?>) args[2]) {
+                if (((MessageObject) loaded).getId() == messageId) {
+                    found = true;
+                    break;
                 }
+            }
+            if (found && !scrolled[0]) {
+                scrolled[0] = true;
+                // Posted, so it starts after the chat has added this load to its list.
+                final long deadline = SystemClock.elapsedRealtime() + 3000;
+                AndroidUtilities.runOnUIThread(() -> scrollWhenSettled(chatRef, messageId, deadline));
             }
             if (scrolled[0] || !(Boolean) args[3]) {
                 AndroidUtilities.cancelRunOnUIThread(stop);
@@ -220,6 +219,29 @@ public class MessageTriggersActivity extends BaseFragment {
         };
         center.addObserver(observer[0], NotificationCenter.messagesDidLoad);
         AndroidUtilities.runOnUIThread(stop, 30000);
+    }
+
+    /**
+     * Scrolls only once the chat's open transition has ended and its list is idle. Calling
+     * scrollToMessageId straight after the first load left the list at the bottom on a device. That
+     * load lands before the delayed open animation, and RecyclerAnimationScrollHelper.scrollToPosition
+     * drops a scroll outright while the list's item animator is running. Re-checks every 50 ms, and
+     * past the deadline scrolls anyway rather than never.
+     */
+    private static void scrollWhenSettled(WeakReference<ChatActivity> chatRef, int messageId, long deadline) {
+        ChatActivity chat = chatRef.get();
+        if (chat == null || chat.getFragmentView() == null) {
+            return;
+        }
+        RecyclerView list = chat.getChatListView();
+        boolean busy = !chat.openAnimationEnded
+                || NotificationCenter.getInstance(chat.getCurrentAccount()).isAnimationInProgress()
+                || list != null && list.getItemAnimator() != null && list.getItemAnimator().isRunning();
+        if (busy && SystemClock.elapsedRealtime() < deadline) {
+            AndroidUtilities.runOnUIThread(() -> scrollWhenSettled(chatRef, messageId, deadline), 50);
+            return;
+        }
+        chat.scrollToMessageId(messageId, 0, true, 0, true, 0);
     }
 
     /**
