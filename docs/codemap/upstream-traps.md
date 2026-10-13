@@ -2608,8 +2608,8 @@ would have to rewrite the published shortcut's intent, which
 `buildShortcuts()` doesn't do below API 30 (`MediaDataController.java:5070`)
 while the id set is unchanged (`:5101-5103`); two ids avoid that. A card-sized window clips
 anything leaving it, so the send animation shrinks into the input
-(`TextMemoActivity.java:643`), and the keyboard is left up until `finish()`
-(`:1102-1103`) because hiding it would move the window under a leaving card.
+(`TextMemoActivity.java:655`), and the keyboard is left up until `finish()`
+(`:1114-1115`) because hiding it would move the window under a leaving card.
 
 What no window flag fixes: the ColorOS launcher stops drawing its home screen
 for about 1-2 s when it starts a shortcut, so anything see-through shows black
@@ -2620,7 +2620,7 @@ is visual, from the device, not from logs.
 
 *(Established 2026-10-04, `#text-memo-shortcut`.)*
 
-The memo finishes itself in `onStop` (`TextMemoActivity.java:1176` is the guard), so any screen opened over it ends it. Photos and videos (`#text-memo-photos`) use the system `ACTION_GET_CONTENT` picker, and `picking` skips that finish while it is up and saves the text as the draft instead. A picked uri is only readable while the memo lives, so each is copied to the cache at pick time and the memo holds paths. The copy is our own loop (`TextMemoPhotos.java:143`) because `MediaController.copyFileToCache` has no progress or cancel hook; it stops at the next chunk when its pick is cancelled. Media is never part of the chat's draft; leaving without sending deletes the copies, and a sent copy stays in the sharing cache until it is cleared, which a video makes costly (so videos are capped at 1 GB, and what removes them is Telegram's cache size limit, only if one is set (the default is none, `AutoDeleteMediaTask.java:142`): its age-based pass skips subfolders, `AutoDeleteMediaTask.java:84`, but the size pass recurses into them, `:158`).
+The memo finishes itself in `onStop` (`TextMemoActivity.java:1188` is the guard), so any screen opened over it ends it. Photos and videos (`#text-memo-photos`) use the system `ACTION_GET_CONTENT` picker, and `picking` skips that finish while it is up and saves the text as the draft instead. A picked uri is only readable while the memo lives, so each is copied to the cache at pick time and the memo holds paths. The copy is our own loop (`TextMemoPhotos.java:143`) because `MediaController.copyFileToCache` has no progress or cancel hook; it stops at the next chunk when its pick is cancelled. Media is never part of the chat's draft; leaving without sending deletes the copies, and a sent copy stays in the sharing cache until it is cleared, which a video makes costly (so videos are capped at 1 GB, and what removes them is Telegram's cache size limit, only if one is set (the default is none, `AutoDeleteMediaTask.java:142`): its age-based pass skips subfolders, `AutoDeleteMediaTask.java:84`, but the size pass recurses into them, `:158`).
 
 *(Established 2026-10-05, `#text-memo-photos`.)*
 
@@ -2675,3 +2675,16 @@ one local (`:17865`) and gates all of them. Another overlay needs the same.
 `markDialogAsReadNow` in `onPause` (`:32689`) only flushes a read already queued.
 
 *(Established 2026-10-12, `#video-note-shortcut`.)*
+
+## A keyboard asked for at activity start is silently dropped
+
+`InputMethodManager.showSoftInput` (`AndroidUtilities.showKeyboard`) is ignored until
+the IME has bound to the focused field. That rules out `onCreate`, and also
+`onWindowFocusChanged`, because `ViewRootImpl` dispatches that callback before the
+IME's post-focus binding. A `postDelayed` only works by landing after that binding.
+For an activity that should open with the keyboard, set `stateVisible` in its
+`windowSoftInputMode` and focus the field in `onCreate`. The text memo does this
+(`AndroidManifest.xml:612`, `:622`; `TextMemoActivity.java:521`). `stateVisible`
+acts only on forward navigation, so coming back from a picker doesn't reopen it.
+
+*(Established 2026-10-12, `#text-memo-fix`.)*

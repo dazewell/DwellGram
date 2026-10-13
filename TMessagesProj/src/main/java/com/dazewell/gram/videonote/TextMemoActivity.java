@@ -516,8 +516,9 @@ public class TextMemoActivity extends Activity {
                 return true;
             }
         });
+        // The manifest's stateVisible opens the keyboard as the window takes focus. A showSoftInput from here or from
+        // onWindowFocusChanged is dropped, since the IME hasn't bound to the field yet; stateVisible needs this focus.
         field.requestFocus();
-        AndroidUtilities.showKeyboard(field);
     }
 
     private void animateBackdropIn() {
