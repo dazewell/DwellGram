@@ -22,6 +22,7 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
@@ -119,7 +120,7 @@ public class MessageTriggersActivity extends BaseFragment {
             if (position < 0 || position >= items.size() || !(items.get(position) instanceof RowItem row)) {
                 return;
             }
-            openScheduled(row.dialogId());
+            openScheduled(row.dialogId(), row.entry().serverIds.isEmpty() ? 0 : row.entry().serverIds.get(0));
         });
         listView.setOnItemLongClickListener((view, position) -> {
             if (position < 0 || position >= items.size() || !(items.get(position) instanceof RowItem row)) {
@@ -154,7 +155,7 @@ public class MessageTriggersActivity extends BaseFragment {
         reloadData();
     }
 
-    private void openScheduled(long dialogId) {
+    private void openScheduled(long dialogId, int messageId) {
         Bundle args = new Bundle();
         if (DialogObject.isEncryptedDialog(dialogId)) {
             args.putInt("enc_id", DialogObject.getEncryptedChatId(dialogId));
@@ -164,7 +165,53 @@ public class MessageTriggersActivity extends BaseFragment {
             args.putLong("user_id", dialogId);
         }
         args.putInt("chatMode", ChatActivity.MODE_SCHEDULED);
-        presentFragment(new ChatActivity(args));
+        ChatActivity chat = new ChatActivity(args);
+        if (messageId != 0) {
+            scrollWhenLoaded(chat, messageId);
+        }
+        presentFragment(chat);
+    }
+
+    /**
+     * Not the stock "message_id" argument: its post-load match (ChatActivity.java:23655) takes the
+     * first loaded message whose id is <= the target, which assumes list order follows id order. A
+     * scheduled list is ordered by date, and a reschedule breaks that, so it can land on the wrong
+     * message. Instead this waits for that fragment's own load and calls scrollToMessageId with the
+     * exact id, which also highlights it. A message that is no longer scheduled is simply not in the
+     * load, so the list opens as before. The observer goes once it has scrolled, on the server's
+     * answer, or after 30 s (a not-modified reply posts nothing), so it never outlives the chat.
+     */
+    private void scrollWhenLoaded(ChatActivity chat, int messageId) {
+        final NotificationCenter center = NotificationCenter.getInstance(currentAccount);
+        final int guid = chat.getClassGuid();
+        final boolean[] scrolled = {false};
+        final NotificationCenter.NotificationCenterDelegate[] observer = new NotificationCenter.NotificationCenterDelegate[1];
+        final Runnable stop = () -> center.removeObserver(observer[0], NotificationCenter.messagesDidLoad);
+        observer[0] = (id, account, args) -> {
+            if ((Integer) args[10] != guid) {
+                return;
+            }
+            if (!scrolled[0]) {
+                for (Object loaded : (ArrayList<?>) args[2]) {
+                    if (((MessageObject) loaded).getId() == messageId) {
+                        scrolled[0] = true;
+                        // Posted, so it runs after the chat has added this load to its list.
+                        AndroidUtilities.runOnUIThread(() -> {
+                            if (chat.getFragmentView() != null) {
+                                chat.scrollToMessageId(messageId, 0, true, 0, true, 0);
+                            }
+                        });
+                        break;
+                    }
+                }
+            }
+            if (scrolled[0] || !(Boolean) args[3]) {
+                AndroidUtilities.cancelRunOnUIThread(stop);
+                stop.run();
+            }
+        };
+        center.addObserver(observer[0], NotificationCenter.messagesDidLoad);
+        AndroidUtilities.runOnUIThread(stop, 30000);
     }
 
     /**

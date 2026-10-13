@@ -2688,3 +2688,17 @@ For an activity that should open with the keyboard, set `stateVisible` in its
 acts only on forward navigation, so coming back from a picker doesn't reopen it.
 
 *(Established 2026-10-12, `#text-memo-fix`.)*
+
+## Opening scheduled messages at a message: "message_id" can land on the wrong one
+
+`ChatActivity`'s `message_id` argument loads around that id and then, on the loaded
+batch, scrolls to the **first** message whose id is ≤ the target
+(`ChatActivity.java:23655`), walking the batch in list order (`:23325`). That
+assumes list order follows id order. A scheduled list is ordered by date
+(`MessagesStorage.java:9009`), and a reschedule breaks the link, so the jump can stop
+on a different message and skip the highlight. To open a scheduled chat at an exact
+message, wait for that fragment's own `messagesDidLoad` (match its `classGuid`) and
+call `scrollToMessageId(id, 0, true, 0, true, 0)`, which looks the id up exactly and
+highlights it. The Message Triggers page does this (`MessageTriggersActivity.java:184`).
+
+*(Established 2026-10-12, `#eventschedule`.)*
