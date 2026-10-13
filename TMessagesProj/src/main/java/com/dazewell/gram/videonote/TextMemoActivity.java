@@ -118,6 +118,7 @@ public class TextMemoActivity extends Activity {
     private ImageView sendButton;
     private boolean canSend;
     private boolean dismissing;
+    private boolean keyboardShown;
     private boolean heroHidden;
     // 0 until the recipient is resolved; a send before that waits for it in pendingText
     private long dialogId;
@@ -500,7 +501,17 @@ public class TextMemoActivity extends Activity {
             }
         });
         field.requestFocus();
-        AndroidUtilities.showKeyboard(field);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        // Not from onCreate: until the window has focus the IME ignores showSoftInput, which the old 500 ms delay only hid.
+        // Once, so coming back from the attach picker doesn't force it open again.
+        if (hasFocus && !keyboardShown && !dismissing && !isFinishing() && field != null) {
+            keyboardShown = true;
+            AndroidUtilities.showKeyboard(field);
+        }
     }
 
     private void animateBackdropIn() {
