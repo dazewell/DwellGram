@@ -139,7 +139,7 @@ public final class RescheduleSpreadExecutor {
     // (account, dialogId) run generation. busyDialogId is cleared the instant the scheduled-history
     // response arrives, before the UI finalization runs, so a second run can be admitted in that
     // window and move the server dates this run is about to arm against. EVERY reschedule run advances
-    // this generation at admission (see run()); only a trigger-enabled finalizer ever reads it, and it
+    // this generation at admission (see start()); only a trigger-enabled finalizer ever reads it, and it
     // reads it right before it commits the arm, failing closed if it was overtaken. A plain run only
     // advances it -- it never reads or branches on it -- so plain reschedule behaviour is unchanged.
     // The reader is EventScheduleBulkArmer, via the RunGeneration handle. Do not delete this as
