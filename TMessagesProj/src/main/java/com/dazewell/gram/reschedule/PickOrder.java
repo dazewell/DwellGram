@@ -14,8 +14,9 @@ import java.util.List;
  * bulk Reschedule and Send Now. One instance per ChatActivity, so it is per account and
  * per chat by construction. Main thread only.
  *
- * <p>Advisory, never in lockstep with ChatActivity's selection: only the tap/range
- * put and remove sites report here, the many {@code clear()} sites don't. Reads skip
+ * <p>Advisory, never in lockstep with ChatActivity's selection: the one put/remove point
+ * in addToSelectedMessages reports here (tap, drag, range, album and delete all funnel
+ * through it), the many {@code clear()} sites don't. Reads skip
  * ids that are no longer selected and every re-add moves the id to the end, so a stale
  * entry can't misorder anything. Anything selected but never reported ranks last.
  *
