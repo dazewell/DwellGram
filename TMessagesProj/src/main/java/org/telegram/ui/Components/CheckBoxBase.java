@@ -618,7 +618,9 @@ public class CheckBoxBase {
                     textPaint.setColor(getThemedColor(checkColorKey));
                     canvas.save();
                     canvas.scale(checkProgress, 1.0f, cx, cy);
-                    canvas.drawText(checkedText, cx - textPaint.measureText(checkedText) / 2f, dp(y), textPaint);
+                    // NagramX: #reschedule-order. Upstream only draws numbers in size-24 boxes at (0,0); the chat
+                    // bubble's box sits low in the cell at size 21, so offset by its top and re-centre. Same pixels for 24.
+                    canvas.drawText(checkedText, cx - textPaint.measureText(checkedText) / 2f, bounds.top + dp(y - (24 - size) / 2f), textPaint);
                     canvas.restore();
                 } else {
                     path.reset();

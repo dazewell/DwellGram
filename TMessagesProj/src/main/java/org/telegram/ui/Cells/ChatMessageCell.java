@@ -23622,6 +23622,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         backgroundDrawable.setSelected(allChecked, animated);
     }
 
+    // NagramX: #reschedule-order. A 1-based pick number in place of the tick; -1 goes back to the tick.
+    public void setCheckNumber(int num) {
+        if (checkBox != null) checkBox.setNum(num > 0 ? num - 1 : -1);
+    }
+
     public void setLastTouchCoords(float x, float y) {
         lastTouchX = x;
         lastTouchY = y;

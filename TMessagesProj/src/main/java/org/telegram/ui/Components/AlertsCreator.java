@@ -4315,18 +4315,21 @@ public class AlertsCreator {
     // NagramX: marks the schedule sheet as a bulk-reschedule sheet (carries how many messages are
     // being rescheduled, so the interval row can preview/validate the resulting span). triggerReady is
     // false when any selected message is still in flight (the trigger chip is then shown disabled);
-    // armedCount is how many already carry a trigger (an overwrite heads-up under the chip).
+    // armedCount is how many already carry a trigger (an overwrite heads-up under the chip). order is
+    // non-null only when the pick numbers differ from the current time order (#reschedule-order).
     public static class RescheduleSpread {
         public final int messageCount;
         public final int armedCount;
         public final boolean triggerReady;
         public final RescheduleDatePickerDelegate delegate;
+        public final com.dazewell.gram.reschedule.RescheduleOrderRow.Choice order;
 
-        public RescheduleSpread(int messageCount, int armedCount, boolean triggerReady, RescheduleDatePickerDelegate delegate) {
+        public RescheduleSpread(int messageCount, int armedCount, boolean triggerReady, RescheduleDatePickerDelegate delegate, com.dazewell.gram.reschedule.RescheduleOrderRow.Choice order) {
             this.messageCount = messageCount;
             this.armedCount = armedCount;
             this.triggerReady = triggerReady;
             this.delegate = delegate;
+            this.order = order;
         }
     }
 
@@ -4442,8 +4445,8 @@ public class AlertsCreator {
     // NagramX: bulk "Reschedule selected" entry point. Reuses the schedule sheet (so the base-time
     // wheels and past-time validation are identical) but injects an interval row + preview and
     // returns base + interval via the reschedule delegate. See RescheduleSpreadHelper.
-    public static BottomSheet.Builder createRescheduleDatePickerDialog(Context context, long dialogId, long currentDate, int messageCount, int armedCount, boolean triggerReady, final RescheduleDatePickerDelegate rescheduleDelegate, final Runnable cancelRunnable, Theme.ResourcesProvider resourcesProvider) {
-        return createScheduleDatePickerDialog(context, getString(R.string.RescheduleMessages), dialogId, currentDate, 0, true, null, cancelRunnable, new ScheduleDatePickerColors(resourcesProvider), resourcesProvider, new RescheduleSpread(messageCount, armedCount, triggerReady, rescheduleDelegate));
+    public static BottomSheet.Builder createRescheduleDatePickerDialog(Context context, long dialogId, long currentDate, int messageCount, int armedCount, boolean triggerReady, com.dazewell.gram.reschedule.RescheduleOrderRow.Choice order, final RescheduleDatePickerDelegate rescheduleDelegate, final Runnable cancelRunnable, Theme.ResourcesProvider resourcesProvider) {
+        return createScheduleDatePickerDialog(context, getString(R.string.RescheduleMessages), dialogId, currentDate, 0, true, null, cancelRunnable, new ScheduleDatePickerColors(resourcesProvider), resourcesProvider, new RescheduleSpread(messageCount, armedCount, triggerReady, rescheduleDelegate, order));
     }
 
     // NagramX: #repost-spread entry point. Reuses the schedule sheet (identical base-time wheels and
@@ -4736,6 +4739,8 @@ public class AlertsCreator {
 
         // NagramX: interval [value][unit] row + live preview for bulk reschedule (>= 2 messages).
         if (isReschedule && reschedule.messageCount >= 2) {
+            // NagramX: #reschedule-order. Only present when the pick numbers disagree with the time order.
+            if (reschedule.order != null) com.dazewell.gram.reschedule.RescheduleOrderRow.add(context, container, reschedule.order, resourcesProvider);
             intervalControls[0] = com.dazewell.gram.reschedule.RescheduleSpreadHelper.addIntervalControls(
                     context, container, reschedule.messageCount, datePickerColors.textColor,
                     dayPicker, hourPicker, minutePicker, buttonTextView, resourcesProvider);

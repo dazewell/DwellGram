@@ -173,7 +173,7 @@ public class MessageTriggersActivity extends BaseFragment {
     }
 
     /**
-     * Not the stock "message_id" argument: its post-load match (ChatActivity.java:23655) takes the
+     * Not the stock "message_id" argument: its post-load match (ChatActivity.java:23662) takes the
      * first loaded message whose id is <= the target, which assumes list order follows id order. A
      * scheduled list is ordered by date, and a reschedule breaks that, so it can land on the wrong
      * message. Instead this waits for that fragment's own load and calls scrollToMessageId with the

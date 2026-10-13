@@ -2689,11 +2689,24 @@ acts only on forward navigation, so coming back from a picker doesn't reopen it.
 
 *(Established 2026-10-12, `#text-memo-fix`.)*
 
+## CheckBoxBase draws its number from the canvas top, not from its bounds
+
+`CheckBoxBase` centres its circle on `bounds`, but upstream drew a number (`setNum`,
+`setChecked(int, …)`) at a baseline of `dp(y)` from the canvas top, tuned for a 24dp
+box. That only works because every upstream number caller goes through `CheckBox2`,
+which sets bounds at (0,0) (`CheckBox2.java:106`). The chat bubble's selection box sits
+at the bubble's bottom at size 21 (`ChatMessageCell.java:21126`), so a number there
+landed mid-bubble. `#reschedule-order` offsets it by `bounds.top` and re-centres for
+size (`CheckBoxBase.java:623`), pixel-identical for size 24. Any new number on a
+`CheckBoxBase` placed off (0,0) depends on that line.
+
+*(Established 2026-10-13, `#reschedule-order`.)*
+
 ## Opening scheduled messages at a message: "message_id" can land on the wrong one
 
 `ChatActivity`'s `message_id` argument loads around that id and then, on the loaded
 batch, scrolls to the **first** message whose id is ≤ the target
-(`ChatActivity.java:23655`), walking the batch in list order (`:23325`). That
+(`ChatActivity.java:23662`), walking the batch in list order (`:23332`). That
 assumes list order follows id order. A scheduled list is ordered by date
 (`MessagesStorage.java:9009`), and a reschedule breaks the link, so the jump can stop
 on a different message and skip the highlight. To open a scheduled chat at an exact

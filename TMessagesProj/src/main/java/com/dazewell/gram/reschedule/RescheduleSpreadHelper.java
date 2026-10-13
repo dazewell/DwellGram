@@ -24,7 +24,7 @@ import java.util.Calendar;
  * injects an interval [value][unit] picker row plus a live preview line under
  * the day/hour/minute pickers. The selected base time becomes the first
  * message's new schedule time; each following message (in ascending current
- * schedule order) is offset by {@code interval × index}.
+ * schedule order, or pick order via RescheduleOrderRow) is offset by {@code interval × index}.
  *
  * <p>Follows the injection convention of
  * {@link com.dazewell.gram.chattimezone.ChatTimeZoneScheduleHelper}: appends

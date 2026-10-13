@@ -1030,6 +1030,8 @@ public class ChatActivity extends BaseFragment implements
     private Long dialog_id_Long;
     private int lastLoadIndex = 1;
     public SparseArray<MessageObject>[] selectedMessagesIds = new SparseArray[]{new SparseArray<>(), new SparseArray<>()};
+    // NagramX: #reschedule-order. Tap order of the scheduled-view selection, for its numbered checkboxes.
+    private final com.dazewell.gram.reschedule.PickOrder naxPickOrder = new com.dazewell.gram.reschedule.PickOrder();
     public SparseArray<MessageObject>[] selectedMessagesCanCopyIds = new SparseArray[]{new SparseArray<>(), new SparseArray<>()};
     public SparseArray<MessageObject>[] selectedMessagesCanStarIds = new SparseArray[]{new SparseArray<>(), new SparseArray<>()};
     private boolean hasUnfavedSelected;
@@ -10845,6 +10847,8 @@ public class ChatActivity extends BaseFragment implements
             }
             addToSelectedMessages(message, true);
         }
+        // NagramX: #reschedule-order. A range means everything between, in time order, so number it 1..n that way.
+        if (chatMode == MODE_SCHEDULED) naxPickOrder.resetByTime(selectedMessagesIds[0]);
         updateActionModeTitle();
         updateVisibleRows();
     }
@@ -21159,6 +21163,7 @@ public class ChatActivity extends BaseFragment implements
             }
             if (selectedMessagesIds[index].indexOfKey(messageObject.getId()) >= 0) {
                 selectedMessagesIds[index].remove(messageObject.getId());
+                if (chatMode == MODE_SCHEDULED) naxPickOrder.onDeselected(messageObject.getId()); // NagramX: #reschedule-order
                 if (!isReport()) {
                     if ((messageObject.type == MessageObject.TYPE_TEXT || messageObject.isAnimatedEmoji() || messageObject.caption != null)/* && !(messageObject.messageOwner != null && messageObject.messageOwner.noforwards)*/) {
                         selectedMessagesCanCopyIds[index].remove(messageObject.getId());
@@ -21196,6 +21201,8 @@ public class ChatActivity extends BaseFragment implements
                     return;
                 }
                 selectedMessagesIds[index].put(messageObject.getId(), messageObject);
+                // NagramX: #reschedule-order. The count resets the order on a new selection's first pick.
+                if (chatMode == MODE_SCHEDULED) naxPickOrder.onSelected(messageObject.getId(), selectedMessagesIds[0].size() + selectedMessagesIds[1].size());
                 if (!isReport()) {
                     if ((messageObject.type == MessageObject.TYPE_TEXT || messageObject.isAnimatedEmoji() || messageObject.caption != null)/* && !(messageObject.messageOwner != null && messageObject.messageOwner.noforwards)*/) {
                         selectedMessagesCanCopyIds[index].put(messageObject.getId(), messageObject);
@@ -38071,12 +38078,14 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
 
+        // NagramX: #reschedule-order. Send in the numbered pick order; album members stay together.
+        naxPickOrder.sortIds(req.id, selectedMessagesIds[0], messagesDict[0]);
         ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> handleSendScheduledNowResponse(req, response, error));
         clearSelectionMode();
     }
 
     // NagramX: bulk "Reschedule selected" — move the selected scheduled messages to a new base time,
-    // spreading them out one-by-one (in ascending current-schedule order) by a user-chosen interval.
+    // spreading them out one-by-one by a user-chosen interval, in pick order or current-schedule order.
     private void performRescheduleSpreadSelectedMessages() {
         if (chatMode != MODE_SCHEDULED) return;
         if (getParentActivity() == null) return;
@@ -38108,11 +38117,18 @@ public class ChatActivity extends BaseFragment implements
         for (int i = 0; i < preview.size(); i++) previewIdentity.add(albumIdentity(preview.get(i)));
         final boolean triggerReady = com.dazewell.gram.eventschedule.EventScheduleBulkArmer.selectionReady(previewIdentity);
         final int armedCount = com.dazewell.gram.eventschedule.EventScheduleBulkArmer.armedCount(currentAccount, dialog_id, previewIdentity);
-        AlertsCreator.createRescheduleDatePickerDialog(getParentActivity(), dialog_id, currentDate, count, armedCount, triggerReady, (baseScheduleDate, intervalSeconds, triggerConfig) -> {
+        // NagramX: #reschedule-order. Ranks are frozen now, since the selection is gone by apply; the sheet
+        // only asks which order to use when the pick numbers disagree with the time order.
+        final com.dazewell.gram.reschedule.PickOrder.Ranks pickRanks = naxPickOrder.ranks(selectedMessagesIds[0]);
+        final com.dazewell.gram.reschedule.RescheduleOrderRow.Choice order = pickRanks.sort(preview).equals(preview) ? null : new com.dazewell.gram.reschedule.RescheduleOrderRow.Choice();
+        AlertsCreator.createRescheduleDatePickerDialog(getParentActivity(), dialog_id, currentDate, count, armedCount, triggerReady, order, (baseScheduleDate, intervalSeconds, triggerConfig) -> {
             final Runnable apply = () -> {
                 // Dates can move while the sheet is open (an earlier pass still landing, a message
                 // getting sent), so re-resolve and re-sort now instead of trusting the preview snapshot.
                 ArrayList<MessageObject> items = resolveRescheduleItems(selectedIds);
+                // NagramX: #reschedule-order. Pick order decides each message's slot, but the edits still go out
+                // earliest-due first, so none fires at its old time while waiting behind a later one's edit.
+                final ArrayList<MessageObject> slots = order != null && order.picked ? pickRanks.sort(items) : items;
                 ArrayList<com.dazewell.gram.reschedule.RescheduleSpreadExecutor.Target> targets = new ArrayList<>(items.size());
                 // NagramX: capture each item's album identity (server + local ids) once here and reuse it
                 // for both the executor Target (server ids) and the armer (both id spaces), so the group is
@@ -38123,7 +38139,7 @@ public class ChatActivity extends BaseFragment implements
                     com.dazewell.gram.eventschedule.EventScheduleBulkArmer.AlbumIdentity identity = albumIdentity(m);
                     selectionIdentity.add(identity);
                     targets.add(new com.dazewell.gram.reschedule.RescheduleSpreadExecutor.Target(
-                            m.getId(), baseScheduleDate + i * intervalSeconds, m.messageOwner.schedule_repeat_period,
+                            m.getId(), baseScheduleDate + slots.indexOf(m) * intervalSeconds, m.messageOwner.schedule_repeat_period,
                             identity.serverIds));
                 }
                 if (targets.isEmpty()) return;
@@ -38164,7 +38180,7 @@ public class ChatActivity extends BaseFragment implements
 
     // NagramX: live dedup for the bulk reschedule. One entry per message or album (the min-id
     // member: a schedule edit moves the whole group), skipping ids that already left the queue,
-    // sorted by current schedule time so the earliest message takes the base slot.
+    // sorted by current schedule time (the edit order; the slot order may follow the pick numbers instead).
     private ArrayList<MessageObject> resolveRescheduleItems(ArrayList<Integer> ids) {
         ArrayList<MessageObject> items = new ArrayList<>();
         HashSet<Long> seenGroups = new HashSet<>();
@@ -39973,6 +39989,8 @@ public class ChatActivity extends BaseFragment implements
         }
         messageCell.setDrawSelectionBackground(groupedMessages == null);
         messageCell.setChecked(true, groupedMessages == null, animated);
+        // NagramX: #reschedule-order. Every selected cell is drawn through here, on bind and on refresh.
+        if (chatMode == MODE_SCHEDULED) messageCell.setCheckNumber(naxPickOrder.numberOf(message, selectedMessagesIds[0]));
     }
 
     private void openClickableLink(CharacterStyle url, String str, boolean longPress, final ChatMessageCell cell, final MessageObject messageObject, boolean forceNoIV) {
