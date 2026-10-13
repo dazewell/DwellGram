@@ -980,6 +980,21 @@ menu was opened on.
 
 *(Established 2026-09-02.)*
 
+## Message Triggers time column, and who keeps it current
+
+The time on each Message Triggers row is the stored `entry.fallbackDate`
+(`MessageTriggersActivity.java:542`), not the message's live schedule date, and
+the same field prunes the trigger on reload once it is 5 minutes past
+(`EventScheduleStore.java:88`). So every path that moves a scheduled message
+must route the new time through `EventScheduleController.commitEditRefresh`
+(`EventScheduleController.java:551`). The single-message edit does it directly.
+A plain bulk reschedule does it through `bulkMoveListener`
+(`EventScheduleController.java:577`, passed at `ChatActivity.java:38145`), fed
+the server-confirmed dates (`RescheduleSpreadExecutor.java:413`). A
+trigger-enabled bulk run rewrites the date only on the targets it arms.
+
+*(Established 2026-10-12.)*
+
 ## Delay slider and Remember toggle: mode is carried explicitly, not inferred from slider presence
 
 Every schedule sheet's terminal builder (`AlertsCreator.java:4480`) computes
