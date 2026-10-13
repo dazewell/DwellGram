@@ -609,7 +609,7 @@
             android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/Theme.TMessages.TextMemo"
-            android:windowSoftInputMode="adjustResize|stateHidden" />
+            android:windowSoftInputMode="adjustResize|stateVisible" />
         <!-- NagramX: the text memo without its wallpaper. Translucency can't be switched at runtime, so it is a second activity with a floating theme, opened by its own launcher shortcut -->
         <activity
             android:name="com.dazewell.gram.videonote.TextMemoCardActivity"
@@ -619,7 +619,7 @@
             android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/Theme.TMessages.TextMemoCard"
-            android:windowSoftInputMode="adjustResize|stateHidden" />
+            android:windowSoftInputMode="adjustResize|stateVisible" />
         <!-- NagramX: the memos for apps that list exported activities or CREATE_SHORTCUT entries instead of launcher shortcuts; MemoPickerActivity says what the aliases do. Labels are literal: the release build strips app strings from the resource table, so an @string label falls back to the app name. memoLabelPrefix is the Unofficial build's X, as ShortcutHelper.variantLabel. Exported on purpose: any app can start a memo, as with the launcher's own shortcuts, and the video memo's switch is its off button -->
         <activity
             android:name="com.dazewell.gram.videonote.MemoPickerActivity"
