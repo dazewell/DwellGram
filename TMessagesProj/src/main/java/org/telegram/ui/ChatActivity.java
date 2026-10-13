@@ -17862,6 +17862,7 @@ public class ChatActivity extends BaseFragment implements
         int maxPositiveUnreadId = Integer.MIN_VALUE;
         int maxNegativeUnreadId = Integer.MAX_VALUE;
         int maxUnreadDate = Integer.MIN_VALUE;
+        boolean memoShield = com.dazewell.gram.videonote.VideoNoteShortcut.hidesHistory(this); // NagramX: nothing behind a locked video memo's shield has been seen
         int recyclerChatViewHeight = (contentView.getMeasuredHeight() - (inPreviewMode || isInsideContainer ? 0 : AndroidUtilities.dp(48)) - chatListView.getTop());
         pollsToCheck.clear();
         float clipTop = chatListViewPaddingTop;
@@ -18014,7 +18015,7 @@ public class ChatActivity extends BaseFragment implements
                     startFromVideoTimestamp = -1;
                 }
 
-                if (messageObject != null && fragmentOpened && openAnimationEnded && (chatListItemAnimator == null || !chatListItemAnimator.isRunning()) && messageCell.checkUnreadPollVotes()) {
+                if (messageObject != null && fragmentOpened && openAnimationEnded && !memoShield && (chatListItemAnimator == null || !chatListItemAnimator.isRunning()) && messageCell.checkUnreadPollVotes()) {
                     pollVotesMentionCount--;
                     getMessagesStorage().markMessagePollVotesAsRead(getDialogId(), getTopicId(), messageObject.getId());
                     if (pollVotesMentionCount <= 0) {
@@ -18028,10 +18029,10 @@ public class ChatActivity extends BaseFragment implements
                     }
                     updatePollVotesMentionButton(true);
                 }
-                if (messageObject != null && fragmentOpened && openAnimationEnded && (chatListItemAnimator == null || !chatListItemAnimator.isRunning()) && ReactionFilter.shouldFilter(currentAccount, dialog_id) && ReactionFilter.markHiddenUnreadReactionsAsRead(getMessagesController(), currentAccount, dialog_id, getTopicId(), messageObject, reactionsMentionCount, newReactionsMentionCount -> reactionsMentionCount = newReactionsMentionCount)) {
+                if (messageObject != null && fragmentOpened && openAnimationEnded && !memoShield && (chatListItemAnimator == null || !chatListItemAnimator.isRunning()) && ReactionFilter.shouldFilter(currentAccount, dialog_id) && ReactionFilter.markHiddenUnreadReactionsAsRead(getMessagesController(), currentAccount, dialog_id, getTopicId(), messageObject, reactionsMentionCount, newReactionsMentionCount -> reactionsMentionCount = newReactionsMentionCount)) {
                     updateReactionsMentionButton(true);
                 }
-                if (messageObject != null && fragmentOpened && openAnimationEnded && (chatListItemAnimator == null || !chatListItemAnimator.isRunning()) && messageCell.checkUnreadReactions(clipTop, chatListView.getMeasuredHeight() - blurredViewBottomOffset)) {
+                if (messageObject != null && fragmentOpened && openAnimationEnded && !memoShield && (chatListItemAnimator == null || !chatListItemAnimator.isRunning()) && messageCell.checkUnreadReactions(clipTop, chatListView.getMeasuredHeight() - blurredViewBottomOffset)) {
                     reactionsMentionCount--;
                     getMessagesStorage().markMessageReactionsAsRead(getDialogId(), getTopicId(), messageObject.getId());
                     if (reactionsMentionCount <= 0) {
@@ -18065,10 +18066,10 @@ public class ChatActivity extends BaseFragment implements
                     maxVisibleId = Math.max(maxVisibleId, messageObject.getId());
                 }
                 hasTopicSeparator = cell.topicSeparator != null;
-                if (messageObject != null && fragmentOpened && openAnimationEnded && (chatListItemAnimator == null || !chatListItemAnimator.isRunning()) && ReactionFilter.shouldFilter(currentAccount, dialog_id) && ReactionFilter.markHiddenUnreadReactionsAsRead(getMessagesController(), currentAccount, dialog_id, getTopicId(), messageObject, reactionsMentionCount, newReactionsMentionCount -> reactionsMentionCount = newReactionsMentionCount)) {
+                if (messageObject != null && fragmentOpened && openAnimationEnded && !memoShield && (chatListItemAnimator == null || !chatListItemAnimator.isRunning()) && ReactionFilter.shouldFilter(currentAccount, dialog_id) && ReactionFilter.markHiddenUnreadReactionsAsRead(getMessagesController(), currentAccount, dialog_id, getTopicId(), messageObject, reactionsMentionCount, newReactionsMentionCount -> reactionsMentionCount = newReactionsMentionCount)) {
                     updateReactionsMentionButton(true);
                 }
-                if (messageObject != null && fragmentOpened && openAnimationEnded && (chatListItemAnimator == null || !chatListItemAnimator.isRunning()) && cell.checkUnreadReactions(clipTop, chatListView.getMeasuredHeight() - blurredViewBottomOffset)) {
+                if (messageObject != null && fragmentOpened && openAnimationEnded && !memoShield && (chatListItemAnimator == null || !chatListItemAnimator.isRunning()) && cell.checkUnreadReactions(clipTop, chatListView.getMeasuredHeight() - blurredViewBottomOffset)) {
                     reactionsMentionCount--;
                     getMessagesStorage().markMessageReactionsAsRead(getDialogId(), getTopicId(), messageObject.getId());
                     if (reactionsMentionCount <= 0) {
@@ -18479,7 +18480,8 @@ public class ChatActivity extends BaseFragment implements
         }
         updateFloatingTopicView();
         invalidateChatListViewTopPadding();
-        if (!firstLoading && !paused && !inPreviewMode && (chatMode == 0 || chatMode == MODE_SUGGESTIONS) && !getMessagesController().ignoreSetOnline) {
+        // NagramX: a video memo under the lock records over a shield, so the history it would mark read was never seen
+        if (!firstLoading && !paused && !inPreviewMode && (chatMode == 0 || chatMode == MODE_SUGGESTIONS) && !getMessagesController().ignoreSetOnline && !memoShield) {
             int scheduledRead = 0;
             if ((maxPositiveUnreadId != Integer.MIN_VALUE || maxNegativeUnreadId != Integer.MAX_VALUE)) {
                 int counterDecrement = 0;

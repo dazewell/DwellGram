@@ -23,6 +23,7 @@
     <string name="VideoMessagesHoldToSend">Video Message Gestures</string>
     <string name="VideoMessagesGesturesHint">Swipe to zoom or flip</string>
     <string name="VideoMessagesHoldToSendLabel">Hold the video to send</string>
+    <string name="VideoMessagesHoldToSendShort">Hold to send</string>
     <string name="VideoMessagesHoldToSendNotice">While recording hands-free or in the paused preview, tap the video to pause or resume. Press and hold it until it fills, then let go to send. Slide off to cancel. While recording, swipe up or down to zoom and left or right to switch cameras.</string>
     <string name="VideoMessagesHoldToSendArmed">Let go to send · slide off to cancel</string>
     <string name="InfiniteRecordingCeiling">Infinite Recording cap</string>
@@ -463,6 +464,7 @@
     <string name="TextMemoShortcutLabel">Text memo</string>
     <string name="TextMemoShortcutLabelCard">Text memo · floating</string>
     <string name="TextMemoShortcutLabelFull">Text memo · full</string>
+    <string name="MemoStatusJoin">%1$s · %2$s</string>
     <string name="TextMemoHint">Goes straight to the chat, without opening it</string>
     <string name="TextMemoDraftWaiting">Sending discards a draft waiting in this chat</string>
     <string name="TextMemoAddPhotos">Add photos or videos</string>

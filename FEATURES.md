@@ -291,7 +291,7 @@ The pause button and the view-once "(1)" toggle are larger and lifted slightly h
 
 ### Video message gestures <!-- #video-hold-send -->
 
-While a round video records hands-free or waits paused in its preview, tap the video to pause or resume, or press and hold it to send: it ticks on touch, buzzes when ready, and sends when you let go. Slide off to back out. While recording, swipe up or down to step the zoom, left or right to flip cameras. N-Settings → Chat → Camera → *Video Message Gestures*, on by default.
+While a round video records hands-free or waits paused in its preview, tap it to pause or resume, or hold it until it buzzes and let go to send. Slide off to back out. While recording, swipe up or down to zoom and left or right to flip cameras. The hint above it shrinks after a few sends. N-Settings → Chat → Camera → *Video Message Gestures*, on by default.
 
 ### Don't lose an unsent video message <!-- #video-draft-guard --> <!-- #video-pause-grace -->
 
@@ -300,6 +300,10 @@ A round video message you've recorded but haven't sent survives backing out of t
 ### Video and text memo shortcuts <!-- #video-note-shortcut --> <!-- #text-memo-shortcut --> <!-- #text-memo-photos --> <!-- #text-memo-big-video --> <!-- #memo-shortcut-picker -->
 
 Turn on *Video memo shortcut* or *Text memo shortcut* under N-Settings → General → Launcher shortcuts (off by default) and long-pressing the icon offers *Video memo*, a hands-free round video on the chosen *Camera*, or *Text memo*, a message box with photos and videos up to 1 GB that keeps unsent text as the chat's draft. Both go to Saved Messages or your *Recipient*, even locked. Shortcut Maker-style apps list them too.
+
+### Memo recipient status <!-- #memo-recipient-status -->
+
+A text memo shows *online* next to its label, and an unread badge, when your *Recipient* is online or has messages you haven't read. A video memo recorded while the app is locked shows both at the top of the screen. Always on.
 
 ### Custom file names for saved media <!-- #custom-file-names -->
 
