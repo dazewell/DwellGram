@@ -173,10 +173,10 @@ public class MessageTriggersActivity extends BaseFragment {
     }
 
     /**
-     * Not the stock "message_id" argument: its post-load match (ChatActivity.java:23662) takes the
-     * first loaded message whose id is <= the target, which assumes list order follows id order. A
-     * scheduled list is ordered by date, and a reschedule breaks that, so it can land on the wrong
-     * message. Instead this waits for that fragment's own load and calls scrollToMessageId with the
+     * Not the stock "message_id" argument: its post-load match takes the first loaded message whose
+     * id is <= the target, which assumes list order follows id order. A scheduled list is ordered by
+     * date, so any message scheduled out of creation order breaks that and it can land on the wrong
+     * message (cited in docs/codemap/upstream-traps.md). Instead this waits for that fragment's own load and calls scrollToMessageId with the
      * exact id, which also highlights it. A message that is no longer scheduled is simply not in the
      * load, so the list opens as before. The observer goes once it has scrolled, on the server's
      * answer, or after 30 s (a not-modified reply posts nothing), so it never outlives the chat.

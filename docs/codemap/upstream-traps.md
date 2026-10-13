@@ -2707,9 +2707,10 @@ size (`CheckBoxBase.java:623`), pixel-identical for size 24. Any new number on a
 `ChatActivity`'s `message_id` argument loads around that id and then, on the loaded
 batch, scrolls to the **first** message whose id is ≤ the target
 (`ChatActivity.java:23662`), walking the batch in list order (`:23332`). That
-assumes list order follows id order. A scheduled list is ordered by date
-(`MessagesStorage.java:9009`), and a reschedule breaks the link, so the jump can stop
-on a different message and skip the highlight. To open a scheduled chat at an exact
+assumes list order follows id order. A scheduled list is ordered by date, both from
+the cache (`MessagesStorage.java:9009`) and in the re-sort every load goes through
+(`MessagesController.java:12401`). Any message scheduled out of creation order breaks
+the link, so the jump can stop on a different message and skip the highlight. To open a scheduled chat at an exact
 message, wait for that fragment's own `messagesDidLoad` (match its `classGuid`) and
 call `scrollToMessageId(id, 0, true, 0, true, 0)`, which looks the id up exactly and
 highlights it. The Message Triggers page does this (`MessageTriggersActivity.java:184`).
