@@ -191,7 +191,6 @@ public class MessageTriggersActivity extends BaseFragment {
         final boolean[] scrolled = {false};
         final NotificationCenter.NotificationCenterDelegate[] observer = new NotificationCenter.NotificationCenterDelegate[1];
         final Runnable stop = () -> center.removeObserver(observer[0], NotificationCenter.messagesDidLoad);
-        android.util.Log.i("NAX_SMOKE_triggers-jump", "BEGIN acct=" + currentAccount + " id=" + messageId);
         observer[0] = (id, account, args) -> {
             if ((Integer) args[10] != guid) {
                 if (chatRef.get() == null) {
@@ -207,7 +206,6 @@ public class MessageTriggersActivity extends BaseFragment {
                     break;
                 }
             }
-            android.util.Log.i("NAX_SMOKE_triggers-jump", "LOAD cache=" + args[3] + " n=" + ((ArrayList<?>) args[2]).size() + " found=" + found);
             if (found && !scrolled[0]) {
                 scrolled[0] = true;
                 // Posted, so it starts after the chat has added this load to its list.
@@ -233,7 +231,6 @@ public class MessageTriggersActivity extends BaseFragment {
     private static void scrollWhenSettled(WeakReference<ChatActivity> chatRef, int messageId, long deadline) {
         ChatActivity chat = chatRef.get();
         if (chat == null || chat.getFragmentView() == null) {
-            android.util.Log.i("NAX_SMOKE_triggers-jump", "END gone");
             return;
         }
         RecyclerView list = chat.getChatListView();
@@ -244,7 +241,6 @@ public class MessageTriggersActivity extends BaseFragment {
             AndroidUtilities.runOnUIThread(() -> scrollWhenSettled(chatRef, messageId, deadline), 50);
             return;
         }
-        android.util.Log.i("NAX_SMOKE_triggers-jump", "END scroll busy=" + busy + " opened=" + chat.openAnimationEnded);
         chat.scrollToMessageId(messageId, 0, true, 0, true, 0);
     }
 
