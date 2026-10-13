@@ -2675,3 +2675,16 @@ one local (`:17865`) and gates all of them. Another overlay needs the same.
 `markDialogAsReadNow` in `onPause` (`:32689`) only flushes a read already queued.
 
 *(Established 2026-10-12, `#video-note-shortcut`.)*
+
+## A keyboard asked for at activity start is silently dropped
+
+`InputMethodManager.showSoftInput` (`AndroidUtilities.showKeyboard`) is ignored until
+the IME has bound to the focused field. That rules out `onCreate`, and also
+`onWindowFocusChanged`, because `ViewRootImpl` dispatches that callback before the
+IME's post-focus binding. A `postDelayed` only works by outrunning that binding.
+For an activity that should open with the keyboard, set `stateVisible` in its
+`windowSoftInputMode` and focus the field in `onCreate`. The text memo does this
+(`AndroidManifest.xml:612`, `:622`; `TextMemoActivity.java:521`). `stateVisible`
+acts only on forward navigation, so coming back from a picker doesn't reopen it.
+
+*(Established 2026-10-12, `#text-memo-fix`.)*
