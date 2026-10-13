@@ -490,8 +490,9 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             addView(starFgItem);
         }
 
-        if (parentFragment != null && (parentFragment.getChatMode() == 0 || parentFragment.getChatMode() == ChatActivity.MODE_SUGGESTIONS || parentFragment.getChatMode() == ChatActivity.MODE_SAVED)) {
-            if ((!parentFragment.isThreadChat() || parentFragment.isTopic || parentFragment.isComments) && !UserObject.isReplyUser(parentFragment.getCurrentUser()) && (parentFragment.getCurrentUser() == null || parentFragment.getCurrentUser().id != UserObject.VERIFY)) {
+        // NagramX: scheduled mode shows the typing subtitle too, so it needs the status drawables; tap-to-profile stays off there
+        if (parentFragment != null && (parentFragment.getChatMode() == 0 || parentFragment.getChatMode() == ChatActivity.MODE_SUGGESTIONS || parentFragment.getChatMode() == ChatActivity.MODE_SAVED || parentFragment.getChatMode() == ChatActivity.MODE_SCHEDULED)) {
+            if (parentFragment.getChatMode() != ChatActivity.MODE_SCHEDULED && (!parentFragment.isThreadChat() || parentFragment.isTopic || parentFragment.isComments) && !UserObject.isReplyUser(parentFragment.getCurrentUser()) && (parentFragment.getCurrentUser() == null || parentFragment.getCurrentUser().id != UserObject.VERIFY)) {
                 setOnClickListener(v -> {
                     openProfile(false);
                 });
@@ -1452,7 +1453,8 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             parentFragment.getMessagesController().getSavedMessagesController().getAllCount() >= 3 &&
             (showingSavedMessagesHint || (MessagesController.getGlobalMainSettings().getInt("savedmsgschatshint", 0) < 3))
         );
-        if ((UserObject.isUserSelf(user) && !showSavedMessagesHint || UserObject.isReplyUser(user) || user != null && user.id == UserObject.VERIFY || parentFragment.getChatMode() != 0 && parentFragment.getChatMode() != ChatActivity.MODE_SUGGESTIONS) && parentFragment.getChatMode() != ChatActivity.MODE_SAVED) {
+        // NagramX: scheduled mode keeps the peer's status/typing subtitle, so activity isn't missed while editing a scheduled message
+        if ((UserObject.isUserSelf(user) && !showSavedMessagesHint || UserObject.isReplyUser(user) || user != null && user.id == UserObject.VERIFY || parentFragment.getChatMode() != 0 && parentFragment.getChatMode() != ChatActivity.MODE_SUGGESTIONS && parentFragment.getChatMode() != ChatActivity.MODE_SCHEDULED) && parentFragment.getChatMode() != ChatActivity.MODE_SAVED) {
             if (getSubtitleTextView().getVisibility() != GONE) {
                 getSubtitleTextView().setVisibility(GONE);
             }
