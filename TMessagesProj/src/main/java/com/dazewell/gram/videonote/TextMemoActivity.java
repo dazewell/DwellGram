@@ -83,8 +83,8 @@ import org.telegram.ui.ChatActivity;
 import org.telegram.ui.LaunchActivity;
 
 /**
- * The text memo: a compose card over the chat wallpaper (or, as TextMemoCardActivity, floating over the screen), in its own task. Neither the chat nor who it goes to is shown,
- * so it never touches the app lock: a locked app stays locked, and closing returns to the launcher. Text left unsent by
+ * The text memo: a compose card over the chat wallpaper (or, as TextMemoCardActivity, floating over the screen), in its own task. The chat it
+ * goes to isn't named, only whether that person is online and has unread messages, so it never touches the app lock: a locked app stays locked, and closing returns to the launcher. Text left unsent by
  * anything but Discard or Send stays as that chat's real draft, and the next memo opens with it. A send clears the chat's
  * draft, as any send does. The memo never writes over a draft it didn't open with, and shows one only when the app and
  * the chat would open without the passcode, or when the memo itself left it in the last five minutes. It also keeps
@@ -111,6 +111,8 @@ public class TextMemoActivity extends Activity {
     private LinearLayout card;
     private TextView title;
     private TextView subtitle;
+    private org.telegram.ui.Components.CounterView unreadView;
+    private MemoRecipientStatus status;
     private ImageView closeButton;
     private FrameLayout inputBubble;
     private GradientDrawable inputBackground;
@@ -196,6 +198,11 @@ public class TextMemoActivity extends Activity {
             } else if (!dismissing && !isFinishing()) {
                 restoreDraft();
                 showDraftDot();
+            }
+            // The callback can land after a quick dismiss destroyed the activity, and observers started then would leak it
+            if (!dismissing && !isFinishing() && !isDestroyed()) {
+                status = new MemoRecipientStatus(account, id, this::updateStatus);
+                status.start();
             }
         });
     }
@@ -334,6 +341,16 @@ public class TextMemoActivity extends Activity {
         subtitle.setText(LocaleController.getString(R.string.TextMemoShortcutLabel));
         subtitle.setVisibility(self != null ? View.VISIBLE : View.GONE);
         names.addView(subtitle, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
+
+        // The recipient's unread count, the chat list's own pill
+        unreadView = new org.telegram.ui.Components.CounterView(this, null);
+        unreadView.setColors(Theme.key_chats_unreadCounterText, Theme.key_chats_unreadCounter);
+        unreadView.setVisibility(View.GONE);
+        // Fixed width: CounterView measures like a bare View, so wrap_content would take the whole row from the names
+        unreadView.setGravity(Gravity.RIGHT);
+        // Its first measure would otherwise re-run setCount with the last count, turning "99+" or the marked-unread dot into "1"
+        unreadView.counterDrawable.setSize(dp(24), dp(44));
+        header.addView(unreadView, LayoutHelper.createLinear(44, 24, Gravity.CENTER_VERTICAL, 0, 0, 4, 0));
 
         closeButton = new ImageView(this);
         closeButton.setScaleType(ImageView.ScaleType.CENTER);
@@ -1200,12 +1217,38 @@ public class TextMemoActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (status != null) {
+            status.stop();
+        }
         // Left from the picker and never came back: a send clears the list first, so what is left was never sent
         cancelPending();
         TextMemoPhotos.discard(photos);
         photos.clear();
         NotificationCenter.getGlobalInstance().removeObserver(wallpaperObserver, NotificationCenter.didSetNewWallpapper);
         super.onDestroy();
+    }
+
+    private void updateStatus() {
+        if (status == null || subtitle == null || unreadView == null) {
+            return;
+        }
+        String label = LocaleController.getString(R.string.TextMemoShortcutLabel);
+        subtitle.setText(status.online ? LocaleController.formatString(R.string.MemoStatusJoin, label, LocaleController.getString(R.string.Online)) : label);
+        if (UserConfig.getInstance(account).getCurrentUser() == null) {
+            subtitle.setVisibility(status.online ? View.VISIBLE : View.GONE); // the title already says "Text memo"
+        }
+        unreadView.setColors(Theme.key_chats_unreadCounterText, status.muted ? Theme.key_chats_unreadCounterMuted : Theme.key_chats_unreadCounter);
+        if (status.unread > 99) {
+            unreadView.counterDrawable.setText("99+", true);
+        } else if (status.unread > 0) {
+            unreadView.setCount(status.unread, true);
+        } else if (status.unreadMark) {
+            unreadView.counterDrawable.setText("", true); // the bare dot the chat list draws for marked unread
+        } else {
+            unreadView.setCount(0, true);
+        }
+        unreadView.setContentDescription(status.unread > 0 ? LocaleController.formatPluralString("NewMessages", status.unread) : null);
+        unreadView.invalidate();
     }
 
     // The wallpaper loaded after the screen opened. Nothing else needs recolouring: the disc and pill are fixed colours.

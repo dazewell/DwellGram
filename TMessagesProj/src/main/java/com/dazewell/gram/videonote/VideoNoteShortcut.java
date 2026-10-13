@@ -359,9 +359,21 @@ public final class VideoNoteShortcut {
     // moveTaskToBack only stops the activity; the send or discard is already handed over by the time this is called.
     private static void lockAndLeave() {
         LaunchActivity activity = LaunchActivity.instance;
+        ChatActivity chat = sessionChat != null ? sessionChat.get() : null;
         lockNow();
         if (activity != null && !activity.isFinishing()) {
             activity.moveTaskToBack(true);
+        }
+        // Left on the stack, the memo's chat would be the first thing the unlock shows, and showing it reads it. Posted,
+        // because this can run from inside the chat's own send. Only on a send or discard: a clip kept for later
+        // waits in this chat's preview.
+        if (chat != null) {
+            AndroidUtilities.runOnUIThread(() -> {
+                if (phase == IDLE && !chat.isFinished && chat.isLastFragment() && chat.getParentLayout() != null
+                        && chat.getParentLayout().getFragmentStack().size() > 1) {
+                    chat.finishFragment(false);
+                }
+            });
         }
     }
 
@@ -411,6 +423,75 @@ public final class VideoNoteShortcut {
         shield.setClickable(true);
         int index = contentView.indexOfChild(inputContainer);
         contentView.addView(shield, index < 0 ? contentView.getChildCount() : index, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        // Above the input container: the round camera is drawn just before it (ChatActivity's drawChild), and its backdrop
+        // would wash out anything placed below
+        index = contentView.indexOfChild(inputContainer);
+        addStatusRow(chat, contentView, index < 0 ? contentView.getChildCount() : index + 1);
+    }
+
+    // The real header is under the shield, so the recipient's online state and unread count go on it instead
+    private static void addStatusRow(ChatActivity chat, ViewGroup contentView, int index) {
+        long did = chat.getDialogId();
+        if (!MemoRecipientStatus.applies(chat.getCurrentAccount(), did)) {
+            return;
+        }
+        // A plain holder over the shield: it is laid out below the covered header, like any ordinary child, and takes no touches
+        android.widget.FrameLayout holder = new android.widget.FrameLayout(contentView.getContext());
+        android.widget.TextView row = new android.widget.TextView(contentView.getContext());
+        // A plain line where the header's subtitle would be, not a pill: it is about the recipient, while the pills above the
+        // circle are about the controls. The composer's text colour, since the shield is the composer panel's surface.
+        row.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 14);
+        row.setTypeface(AndroidUtilities.bold());
+        row.setTextColor(Theme.getColor(Theme.key_chat_messagePanelText, chat.getResourceProvider()));
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        android.graphics.drawable.GradientDrawable onlineDot = new android.graphics.drawable.GradientDrawable();
+        onlineDot.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        onlineDot.setColor(Theme.getColor(Theme.key_chats_onlineCircle, chat.getResourceProvider()));
+        onlineDot.setSize(AndroidUtilities.dp(8), AndroidUtilities.dp(8));
+        row.setCompoundDrawablePadding(AndroidUtilities.dp(6));
+        row.setSingleLine(true);
+        row.setVisibility(View.GONE);
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, AndroidUtilities.dp(24), android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
+        params.topMargin = AndroidUtilities.dp(16);
+        holder.addView(row, params);
+        contentView.addView(holder, index, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        MemoRecipientStatus[] status = new MemoRecipientStatus[1];
+        status[0] = new MemoRecipientStatus(chat.getCurrentAccount(), did, () -> {
+            // Locking ends the session but tears nothing down until the unlock, which can be hours away
+            if (!hidesHistory(chat)) {
+                status[0].stop();
+                row.animate().cancel();
+                row.setVisibility(View.GONE);
+                return;
+            }
+            String online = status[0].online ? LocaleController.getString(R.string.Online) : null;
+            String unread = status[0].unread > 0 ? LocaleController.formatPluralString("NewMessages", status[0].unread) : null;
+            String text = online != null && unread != null ? LocaleController.formatString(R.string.MemoStatusJoin, online, unread)
+                    : online != null ? online : unread;
+            if (text != null) {
+                row.setText(text);
+                row.setCompoundDrawablesRelativeWithIntrinsicBounds(online != null ? onlineDot : null, null, null, null);
+                if (row.getVisibility() != View.VISIBLE) {
+                    row.setAlpha(0f);
+                    row.setVisibility(View.VISIBLE);
+                }
+                row.animate().alpha(1f).setDuration(150).withEndAction(null).start();
+            } else if (row.getVisibility() == View.VISIBLE) {
+                row.animate().alpha(0f).setDuration(150).withEndAction(() -> row.setVisibility(View.GONE)).start();
+            }
+        });
+        holder.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+                status[0].start();
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                status[0].stop();
+            }
+        });
     }
 
     /** End of ChatActivity's needStartRecordVideo delegate. */
@@ -457,6 +538,11 @@ public final class VideoNoteShortcut {
     }
 
     public static boolean blocksSwipeBack(ChatActivity chat) {
+        return hidesHistory(chat);
+    }
+
+    /** ChatActivity's visible-messages read check. The shield is up, so nothing on screen has been read. */
+    public static boolean hidesHistory(ChatActivity chat) {
         return isSessionChat(chat) || phase == STARTING && isPendingChat(chat);
     }
 

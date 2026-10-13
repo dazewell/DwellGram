@@ -185,6 +185,9 @@ public final class VideoHoldToSend {
                         swipeTracking = false;
                         cancel(); // a swipe overrides the hold, even an armed one, so it can't also send on release
                         if (canSwipe.run()) {
+                            if (!NaConfig.INSTANCE.getVideoMessagesSwipeLearned().Bool()) {
+                                NaConfig.INSTANCE.getVideoMessagesSwipeLearned().setConfigBool(true);
+                            }
                             swipe.run(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? SWIPE_LEFT : SWIPE_RIGHT) : (dy < 0 ? SWIPE_UP : SWIPE_DOWN));
                         }
                         break;
@@ -203,6 +206,9 @@ public final class VideoHoldToSend {
                     // cleared before sending: a paid-message confirmation pauses into the preview instead of
                     // closing the camera, and the disc must not stay painted over it
                     reset();
+                    if (learnedSends() < LEARNED_SENDS) {
+                        NaConfig.INSTANCE.getVideoMessagesHoldToSendSends().setConfigInt(learnedSends() + 1);
+                    }
                     send.run();
                 } else if (tracking && !held && contains(circle, ev) && canToggle.run()) {
                     // a tap; also where nothing arms, since a long press that can't send isn't one
@@ -268,7 +274,8 @@ public final class VideoHoldToSend {
     }
 
     // The how-to label, drawn by the host above the circle, clear of the recording-time arc. The host keeps at
-    // least 64dp free above the circle, which this fits in.
+    // least 64dp free above the circle, which this fits in. It teaches, then gets out of the way: a full pill, with
+    // the swipes on a second line until the first swipe, and after LEARNED_SENDS hold-to-sends a small "Hold to send".
     public void drawLabel(Canvas canvas, View host, View circle) {
         this.host = host;
         final boolean visible = NaConfig.INSTANCE.getVideoMessagesHoldToSend().Bool() && canSend.run();
@@ -290,45 +297,60 @@ public final class VideoHoldToSend {
             labelPaint.setTextSize(dp(13));
             labelPaint.setTypeface(AndroidUtilities.bold());
             labelPaint.setColor(Color.WHITE);
+            hintPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+            hintPaint.setTextSize(dp(11));
+            hintPaint.setColor(Color.WHITE);
             labelBackground = new Paint(Paint.ANTI_ALIAS_FLAG);
             labelBackground.setColor(0x4d000000);
         }
-        final String text = LocaleController.getString(armed ? R.string.VideoMessagesHoldToSendArmed : R.string.VideoMessagesHoldToSendLabel);
-        final float textWidth = labelPaint.measureText(text);
+        final boolean quiet = !armed && learnedSends() >= LEARNED_SENDS;
+        final TextPaint paint = quiet ? hintPaint : labelPaint;
+        paint.setTypeface(AndroidUtilities.bold());
+        final String text = LocaleController.getString(armed ? R.string.VideoMessagesHoldToSendArmed
+                : quiet ? R.string.VideoMessagesHoldToSendShort : R.string.VideoMessagesHoldToSendLabel);
+        final float textWidth = paint.measureText(text);
+        String hint = null;
+        float hintWidth = 0;
+        // Skipped rather than clipped wherever the room or the width isn't there
+        if (!quiet && !NaConfig.INSTANCE.getVideoMessagesSwipeLearned().Bool() && canSwipe.run() && circle.getY() >= dp(64)) {
+            hint = LocaleController.getString(R.string.VideoMessagesGesturesHint);
+            hintPaint.setTypeface(android.graphics.Typeface.DEFAULT);
+            hintWidth = hintPaint.measureText(hint);
+            if (Math.max(textWidth, hintWidth) + dp(36) > host.getWidth()) {
+                hint = null;
+                hintWidth = 0;
+            }
+        }
+        final float lineHeight = quiet ? dp(18) : dp(24);
+        final float height = hint != null ? dp(40) : lineHeight;
+        final float width = Math.max(textWidth, hintWidth) + (quiet ? dp(16) : dp(20));
         final float cx = circle.getX() + circle.getWidth() / 2f;
         final float bottom = circle.getY() - dp(20);
-        labelRect.set(cx - textWidth / 2f - dp(10), bottom - dp(24), cx + textWidth / 2f + dp(10), bottom);
+        labelRect.set(cx - width / 2f, bottom - height, cx + width / 2f, bottom);
         labelBackground.setAlpha((int) (0x4d * alpha));
-        labelPaint.setAlpha((int) (255 * alpha));
-        canvas.drawRoundRect(labelRect, dp(12), dp(12), labelBackground);
-        canvas.drawText(text, cx - textWidth / 2f, labelRect.centerY() - (labelPaint.descent() + labelPaint.ascent()) / 2f, labelPaint);
-        drawHint(canvas, host, circle, cx, labelRect.top, alpha);
+        paint.setAlpha((int) (255 * alpha));
+        final float radius = quiet ? dp(9) : dp(12);
+        canvas.drawRoundRect(labelRect, radius, radius, labelBackground);
+        final float firstCenter = hint != null ? labelRect.top + dp(14) : labelRect.centerY();
+        canvas.drawText(text, cx - textWidth / 2f, firstCenter - (paint.descent() + paint.ascent()) / 2f, paint);
+        if (hint != null) {
+            hintPaint.setAlpha((int) (255 * alpha * 0.8f));
+            final float secondCenter = labelRect.bottom - dp(12);
+            canvas.drawText(hint, cx - hintWidth / 2f, secondCenter - (hintPaint.descent() + hintPaint.ascent()) / 2f, hintPaint);
+        }
     }
 
-    // A static, dimmer pill above the how-to label that only says the swipes exist. It is the top of the 64dp the
-    // host keeps free above the circle (24 + 20 below it, 2 gap, 18 here), so it is skipped rather than clipped
-    // wherever that room or the width isn't there.
-    private void drawHint(Canvas canvas, View host, View circle, float cx, float top, float alpha) {
-        if (!canSwipe.run() || circle.getY() < dp(64)) {
-            return;
-        }
-        if (hintPaint == null) {
-            hintPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-            hintPaint.setTextSize(dp(11));
-            hintPaint.setTypeface(AndroidUtilities.bold());
-            hintPaint.setColor(Color.WHITE);
-        }
-        final String text = LocaleController.getString(R.string.VideoMessagesGesturesHint);
-        final float textWidth = hintPaint.measureText(text);
-        if (textWidth + dp(36) > host.getWidth()) {
-            return;
-        }
-        final float bottom = top - dp(2);
-        labelRect.set(cx - textWidth / 2f - dp(8), bottom - dp(18), cx + textWidth / 2f + dp(8), bottom);
-        labelBackground.setAlpha((int) (0x4d * alpha * 0.7f));
-        hintPaint.setAlpha((int) (255 * alpha * 0.7f));
-        canvas.drawRoundRect(labelRect, dp(9), dp(9), labelBackground);
-        canvas.drawText(text, cx - textWidth / 2f, labelRect.centerY() - (hintPaint.descent() + hintPaint.ascent()) / 2f, hintPaint);
+    private static final int LEARNED_SENDS = 5;
+
+    /** The gestures setting toggled: show the full hint again. */
+    public static void resetHints() {
+        NaConfig.INSTANCE.getVideoMessagesHoldToSendSends().setConfigInt(0);
+        NaConfig.INSTANCE.getVideoMessagesSwipeLearned().setConfigBool(false);
+    }
+
+    // Clamped at the read: a stored value from anywhere else is just a count
+    private static int learnedSends() {
+        return Math.max(0, Math.min(LEARNED_SENDS, NaConfig.INSTANCE.getVideoMessagesHoldToSendSends().Int()));
     }
 
     private void arm() {

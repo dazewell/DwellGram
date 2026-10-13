@@ -2660,3 +2660,18 @@ The animated `chatScrollHelper` jumps (`scrollToLastMessage`, the postponed scro
 through `moveScrollToLastMessage`, so a pin already active when one starts is not cleared.
 
 *(Established 2026-10-11, `#round-send-hang-fix`.)*
+
+## A chat opened behind a cover still marks its history read
+
+`updateMessagesVisiblePart` reads from what the list holds, not from what the user
+can see, and it does so in two places. The per-cell loop consumes unread poll votes
+and reactions, the fork's hidden-reaction filter included (`ChatActivity.java:18018`, `:18032`, `:18035` for message
+cells, `:18069`, `:18072` for action cells). The read check below it calls
+`markDialogAsRead` (`:18484`, calls at `:18521` and `:18531`). Neither looks at
+overlays, only at a paused chat, a preview or `ignoreSetOnline`. A resumed chat drawn
+over by something else, like the video memo's locked-app shield, is read locally and
+on the server. `#video-note-shortcut` hoists `VideoNoteShortcut.hidesHistory` into
+one local (`:17865`) and gates all of them. Another overlay needs the same.
+`markDialogAsReadNow` in `onPause` (`:32689`) only flushes a read already queued.
+
+*(Established 2026-10-12, `#video-note-shortcut`.)*

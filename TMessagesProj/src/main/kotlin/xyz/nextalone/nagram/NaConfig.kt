@@ -1099,6 +1099,19 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    // How far the hold-to-send hint has been learned: sends counted up to its cap, and whether a swipe was used
+    val videoMessagesHoldToSendSends =
+        addConfig(
+            "VideoMessagesHoldToSendSends",
+            ConfigItem.configTypeInt,
+            0
+        )
+    val videoMessagesSwipeLearned =
+        addConfig(
+            "VideoMessagesSwipeLearned",
+            ConfigItem.configTypeBool,
+            false
+        )
     val infiniteRecordingCeiling =
         addConfig(
             "InfiniteRecordingCeiling",

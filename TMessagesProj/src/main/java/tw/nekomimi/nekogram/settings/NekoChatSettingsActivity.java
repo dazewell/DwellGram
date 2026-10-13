@@ -637,6 +637,10 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
 
         // Cells: Set OnSettingChanged Callbacks
         cellGroup.callBackSettingsChanged = (key, newValue) -> {
+            // NagramX: switching the gestures off and on again brings back their hints, as on first use
+            if (key.equals(NaConfig.INSTANCE.getVideoMessagesHoldToSend().getKey())) {
+                com.dazewell.gram.videonote.VideoHoldToSend.resetHints();
+            }
             if (key.equals(NekoConfig.disableProximityEvents.getKey())) {
                 MediaController.getInstance().recreateProximityWakeLock();
             } else if (key.equals(NekoConfig.showSeconds.getKey())) {
