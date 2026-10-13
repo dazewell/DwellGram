@@ -490,8 +490,9 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             addView(starFgItem);
         }
 
-        if (parentFragment != null && (parentFragment.getChatMode() == 0 || parentFragment.getChatMode() == ChatActivity.MODE_SUGGESTIONS || parentFragment.getChatMode() == ChatActivity.MODE_SAVED)) {
-            if ((!parentFragment.isThreadChat() || parentFragment.isTopic || parentFragment.isComments) && !UserObject.isReplyUser(parentFragment.getCurrentUser()) && (parentFragment.getCurrentUser() == null || parentFragment.getCurrentUser().id != UserObject.VERIFY)) {
+        // NagramX: scheduled mode shows the typing subtitle too, so it needs the status drawables; tap-to-profile stays off there
+        if (parentFragment != null && (parentFragment.getChatMode() == 0 || parentFragment.getChatMode() == ChatActivity.MODE_SUGGESTIONS || parentFragment.getChatMode() == ChatActivity.MODE_SAVED || parentFragment.getChatMode() == ChatActivity.MODE_SCHEDULED)) {
+            if (parentFragment.getChatMode() != ChatActivity.MODE_SCHEDULED && (!parentFragment.isThreadChat() || parentFragment.isTopic || parentFragment.isComments) && !UserObject.isReplyUser(parentFragment.getCurrentUser()) && (parentFragment.getCurrentUser() == null || parentFragment.getCurrentUser().id != UserObject.VERIFY)) {
                 setOnClickListener(v -> {
                     openProfile(false);
                 });
