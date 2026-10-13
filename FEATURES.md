@@ -213,7 +213,7 @@ Tap the bookmark icon in the schedule picker to remember your schedule offset â€
 
 ### Status in the scheduled header <!-- #scheduled-header-status -->
 
-The Scheduled messages header keeps the chat's subtitle: online, last seen or typing for a person, members and online count for a group. You can see the other side is active while you edit a scheduled message. Always on.
+The Scheduled messages header keeps the chat's subtitle: online, last seen or typing for a person, members and online count for a group, subscribers for a channel. Always on.
 
 ### Tidier scheduled selection bar <!-- #scheduled-selection-toolbar -->
 
