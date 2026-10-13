@@ -2,6 +2,7 @@ package com.dazewell.gram.eventschedule;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -22,6 +23,7 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
@@ -43,6 +45,7 @@ import org.telegram.ui.Components.ItemOptions;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -119,7 +122,7 @@ public class MessageTriggersActivity extends BaseFragment {
             if (position < 0 || position >= items.size() || !(items.get(position) instanceof RowItem row)) {
                 return;
             }
-            openScheduled(row.dialogId());
+            openScheduled(row.dialogId(), row.entry().serverIds.isEmpty() ? 0 : row.entry().serverIds.get(0));
         });
         listView.setOnItemLongClickListener((view, position) -> {
             if (position < 0 || position >= items.size() || !(items.get(position) instanceof RowItem row)) {
@@ -154,7 +157,7 @@ public class MessageTriggersActivity extends BaseFragment {
         reloadData();
     }
 
-    private void openScheduled(long dialogId) {
+    private void openScheduled(long dialogId, int messageId) {
         Bundle args = new Bundle();
         if (DialogObject.isEncryptedDialog(dialogId)) {
             args.putInt("enc_id", DialogObject.getEncryptedChatId(dialogId));
@@ -164,7 +167,81 @@ public class MessageTriggersActivity extends BaseFragment {
             args.putLong("user_id", dialogId);
         }
         args.putInt("chatMode", ChatActivity.MODE_SCHEDULED);
-        presentFragment(new ChatActivity(args));
+        ChatActivity chat = new ChatActivity(args);
+        if (messageId != 0) {
+            scrollWhenLoaded(chat, messageId);
+        }
+        presentFragment(chat);
+    }
+
+    /**
+     * Not the stock "message_id" argument: its post-load match takes the first loaded message whose
+     * id is <= the target, which assumes list order follows id order. A scheduled list is ordered by
+     * date, so any message scheduled out of creation order breaks that and it can land on the wrong
+     * message (cited in docs/codemap/upstream-traps.md). Instead this waits for that fragment's own
+     * load and then scrolls to the exact id (see scrollWhenSettled). A message that is no longer
+     * scheduled is simply not in the load, so the list opens as before. The observer goes once the
+     * id has loaded, on the server's answer, or after 30 s (a not-modified reply posts nothing).
+     */
+    private void scrollWhenLoaded(ChatActivity chat, int messageId) {
+        final NotificationCenter center = NotificationCenter.getInstance(currentAccount);
+        final int guid = chat.getClassGuid();
+        // Weak, so backing out of the chat before its load lands doesn't keep it alive for the wait.
+        final WeakReference<ChatActivity> chatRef = new WeakReference<>(chat);
+        final boolean[] scrolled = {false};
+        final NotificationCenter.NotificationCenterDelegate[] observer = new NotificationCenter.NotificationCenterDelegate[1];
+        final Runnable stop = () -> center.removeObserver(observer[0], NotificationCenter.messagesDidLoad);
+        observer[0] = (id, account, args) -> {
+            if ((Integer) args[10] != guid) {
+                if (chatRef.get() == null) {
+                    AndroidUtilities.cancelRunOnUIThread(stop);
+                    stop.run();
+                }
+                return;
+            }
+            boolean found = false;
+            for (Object loaded : (ArrayList<?>) args[2]) {
+                if (((MessageObject) loaded).getId() == messageId) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found && !scrolled[0]) {
+                scrolled[0] = true;
+                // Posted, so it starts after the chat has added this load to its list.
+                final long deadline = SystemClock.elapsedRealtime() + 3000;
+                AndroidUtilities.runOnUIThread(() -> scrollWhenSettled(chatRef, messageId, deadline));
+            }
+            if (scrolled[0] || !(Boolean) args[3]) {
+                AndroidUtilities.cancelRunOnUIThread(stop);
+                stop.run();
+            }
+        };
+        center.addObserver(observer[0], NotificationCenter.messagesDidLoad);
+        AndroidUtilities.runOnUIThread(stop, 30000);
+    }
+
+    /**
+     * Scrolls only once the chat's open transition has ended and its list is idle. Calling
+     * scrollToMessageId straight after the first load left the list at the bottom on a device. That
+     * load lands before the delayed open animation, and RecyclerAnimationScrollHelper.scrollToPosition
+     * drops a scroll outright while the list's item animator is running. Re-checks every 50 ms, and
+     * past the deadline scrolls anyway rather than never.
+     */
+    private static void scrollWhenSettled(WeakReference<ChatActivity> chatRef, int messageId, long deadline) {
+        ChatActivity chat = chatRef.get();
+        if (chat == null || chat.getFragmentView() == null) {
+            return;
+        }
+        RecyclerView list = chat.getChatListView();
+        boolean busy = !chat.openAnimationEnded
+                || NotificationCenter.getInstance(chat.getCurrentAccount()).isAnimationInProgress()
+                || list != null && list.getItemAnimator() != null && list.getItemAnimator().isRunning();
+        if (busy && SystemClock.elapsedRealtime() < deadline) {
+            AndroidUtilities.runOnUIThread(() -> scrollWhenSettled(chatRef, messageId, deadline), 50);
+            return;
+        }
+        chat.scrollToMessageId(messageId, 0, true, 0, true, 0);
     }
 
     /**

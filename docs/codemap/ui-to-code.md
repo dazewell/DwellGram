@@ -983,7 +983,7 @@ menu was opened on.
 ## Message Triggers time column, and who keeps it current
 
 The time on each Message Triggers row is the stored `entry.fallbackDate`
-(`MessageTriggersActivity.java:542`), not the message's live schedule date, and
+(`MessageTriggersActivity.java:619`), not the message's live schedule date, and
 the same field prunes the trigger on reload once it is 5 minutes past
 (`EventScheduleStore.java:88`). So a path that moves a scheduled message
 without re-arming its existing trigger must route the new time through

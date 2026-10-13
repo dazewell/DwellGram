@@ -344,7 +344,7 @@ upstream already owns and may extend.
 `EventScheduleController.queueKey(...)` composes queue identity as
 `account + dialogId + triggerKey` (`EventScheduleController.java:120-125`), so
 any change in `triggerKey()` repartitions the runtime send queues. The Message
-Triggers screen groups rows by the same key (`MessageTriggersActivity.java:465-479`),
+Triggers screen groups rows by the same key (`MessageTriggersActivity.java:542-556`),
 so it is also the overview grouping identity.
 
 `EventScheduleEntry.triggerKey()` therefore has to stay order-independent and
@@ -2701,3 +2701,21 @@ size (`CheckBoxBase.java:623`), pixel-identical for size 24. Any new number on a
 `CheckBoxBase` placed off (0,0) depends on that line.
 
 *(Established 2026-10-13, `#reschedule-order`.)*
+
+## Opening scheduled messages at a message: "message_id" can land on the wrong one
+
+`ChatActivity`'s `message_id` argument loads around that id and then, on the loaded
+batch, scrolls to the **first** message whose id is ≤ the target
+(`ChatActivity.java:23662`), walking the batch in list order (`:23332`). That
+assumes list order follows id order. A scheduled list is ordered by date, both from
+the cache (`MessagesStorage.java:9009`) and in the re-sort every load goes through
+(`MessagesController.java:12401`). Any message scheduled out of creation order breaks
+the link, so the jump can stop on a different message and skip the highlight. To open
+a scheduled chat at an exact message, wait for that fragment's own `messagesDidLoad`
+(match its `classGuid`), then for its open animation (`openAnimationEnded`) and an
+idle list, and only then call `scrollToMessageId(id, 0, true, 0, true, 0)`, which
+looks the id up exactly and highlights it. Called straight after the first load, the
+list stayed at the bottom on a device. The Message Triggers page does this
+(`MessageTriggersActivity.java:186`, `:231`).
+
+*(Established 2026-10-12, `#eventschedule`.)*
