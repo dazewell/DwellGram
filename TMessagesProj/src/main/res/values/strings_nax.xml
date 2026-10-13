@@ -616,6 +616,12 @@
     <string name="RescheduleApplied_other">%1$d messages rescheduled and confirmed</string>
     <string name="RescheduleVerifyFailed">%1$d of %2$d messages kept their old time. Check the schedule and retry.</string>
     <string name="RescheduleBusy">Still applying the previous reschedule…</string>
+    <string name="RescheduleOrderRow">Order: %1$s</string>
+    <string name="RescheduleOrderTitle">Which order?</string>
+    <string name="RescheduleOrderPicked">In the order I picked</string>
+    <string name="RescheduleOrderPickedInfo">Message 1 gets the first time, message 2 gets the next, and so on.</string>
+    <string name="RescheduleOrderKeep">Keep the order they\'re in now</string>
+    <string name="RescheduleOrderKeepInfo">The earliest message stays first. The numbers on the messages are ignored.</string>
     <string name="PinAll">Pin all</string>
     <string name="ReplyWithNumbers">Reply with numbers</string>
     <string name="ReplyWithNumbersHint">Reply to each of the %1$d selected messages with a number, counting up from the value below. Tap a reply to jump to its message.</string>

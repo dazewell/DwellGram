@@ -2688,3 +2688,16 @@ For an activity that should open with the keyboard, set `stateVisible` in its
 acts only on forward navigation, so coming back from a picker doesn't reopen it.
 
 *(Established 2026-10-12, `#text-memo-fix`.)*
+
+## CheckBoxBase draws its number from the canvas top, not from its bounds
+
+`CheckBoxBase` centres its circle on `bounds`, but upstream drew a number (`setNum`,
+`setChecked(int, …)`) at a baseline of `dp(y)` from the canvas top, tuned for a 24dp
+box. That only works because every upstream number caller goes through `CheckBox2`,
+which sets bounds at (0,0) (`CheckBox2.java:106`). The chat bubble's selection box sits
+at the bubble's bottom at size 21 (`ChatMessageCell.java:21126`), so a number there
+landed mid-bubble. `#reschedule-order` offsets it by `bounds.top` and re-centres for
+size (`CheckBoxBase.java:623`), pixel-identical for size 24. Any new number on a
+`CheckBoxBase` placed off (0,0) depends on that line.
+
+*(Established 2026-10-13, `#reschedule-order`.)*
