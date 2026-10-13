@@ -318,7 +318,7 @@ public final class EventScheduleBulkArmer implements RescheduleSpreadExecutor.Tr
         // reads it, so plain reschedule behaviour is unchanged. This comparison MUST stay right before the
         // arm loop -- that position is the fix (a run admitted after this point runs on the same UI thread
         // in the same callback, so it cannot interleave before we arm); moving it earlier reopens the
-        // window it closes. The counter is written in RescheduleSpreadExecutor.run(); do not treat that
+        // window it closes. The counter is written in RescheduleSpreadExecutor.start(); do not treat that
         // write as dead just because it looks unread there.
         final boolean superseded = generation.superseded();
         // Fail closed on supersession (a later run moved these dates under us), on a failed authoritative

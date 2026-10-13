@@ -545,7 +545,8 @@ public final class EventScheduleController {
      * <p>INVARIANT: this method is the sole funnel for an untouched-trigger schedule move. The
      * scheduleRevision signal is only as complete as this funnel -- any future path that moves an
      * owner's fallbackDate MUST bump scheduleRevision here (or route through here), or a concurrent
-     * bulk arm will miss the edit and arm from a stale snapshot.
+     * bulk arm will miss the edit and arm from a stale snapshot. Its callers are the single-message
+     * edit sheet and a plain bulk reschedule, through {@link #bulkMoveListener}.
      */
     public static void commitEditRefresh(int account, long dialogId, int[] serverIds, int[] localIds, int fallbackDate) {
         EventScheduleStore.OwnerSeed seed = EventScheduleStore.resolveOwnerSeedForEdit(account, dialogId, serverIds, localIds);
@@ -561,6 +562,43 @@ public final class EventScheduleController {
             }
             resortQueueForEntry(account, entry);
         }
+    }
+
+    /**
+     * Routes a plain bulk reschedule's confirmed moves through {@link #commitEditRefresh}, the funnel its
+     * invariant names, so an existing trigger's fallback time follows each moved message. Without it the
+     * Message Triggers overview keeps showing the old time and a reload prunes the trigger once that old
+     * time passes. Like the single-message edit, it reconciles the dialog's durable orphans first, so an
+     * orphan that owns a moved message is healed onto its server ids and refreshed with the rest rather
+     * than healed later with the old time. The generation is captured when the run starts and checked
+     * after that hop: a logout mid-run may clear and reuse the slot, and the late callback must not
+     * rewrite what the new account owns for these ids.
+     *
+     * <p>The hop can also let a newer edit land first: the single-message sheet refreshes on commit, so
+     * its date is newer than the server read this run's dates came from. Each owner's revision and
+     * scheduleRevision are snapshotted before the hop and an owner is refreshed only if it is unchanged
+     * after it; one that was re-armed, moved or created meanwhile keeps the newer value. A heal by the
+     * reconcile itself keeps key and revision (EventScheduleStore.healDurable), so a healed orphan still
+     * matches and is refreshed.
+     */
+    public static com.dazewell.gram.reschedule.RescheduleSpreadExecutor.ScheduleMoveListener bulkMoveListener(int account, long dialogId) {
+        final int generation = EventScheduleStore.currentGeneration(account);
+        return (albumIds, scheduleDates) -> {
+            final HashMap<String, long[]> before = new HashMap<>();
+            for (EventScheduleEntry e : EventScheduleStore.forDialog(account, dialogId)) {
+                before.put(e.key(), new long[]{e.revision, e.scheduleRevision});
+            }
+            reconcileDialogThen(account, dialogId, () -> {
+                if (EventScheduleStore.currentGeneration(account) != generation) return;
+                for (int i = 0; i < albumIds.length; i++) {
+                    EventScheduleStore.OwnerSeed seed = EventScheduleStore.resolveOwnerSeedForEdit(account, dialogId, albumIds[i], null);
+                    if (seed.kind != EventScheduleStore.EditOwner.SINGLE || seed.entry == null) continue;
+                    long[] was = before.get(seed.entry.key());
+                    if (was == null || was[0] != seed.entry.revision || was[1] != seed.entry.scheduleRevision) continue;
+                    commitEditRefresh(account, dialogId, albumIds[i], null, scheduleDates[i]);
+                }
+            });
+        };
     }
 
     // --- Durable correlation reconcile (#261) -------------------------------------------------------
