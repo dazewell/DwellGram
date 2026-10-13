@@ -1129,8 +1129,8 @@ Not in the code. Only `ChatActivity.onResume` and `onPause` call
 `:32700-32702`), which is upstream since 7.2.0, so a scheduled instance never sets it.
 The parent chat under it gets `onPause` from `ActionBarLayout.presentFragmentInternalRemoveOld`
 (`ActionBarLayout.java:1860-1865`) and clears the id. It does this at the end of the open
-animation, so the id is held only during the transition. The open-chat skip
-(`NotificationsController.java:1222`) is the only suppression keyed on it. `setLastVisibleDialogId`'s
+animation, so the id is held only during the transition. Every suppression keyed on the id
+(`NotificationsController.java:1222`, `:1608`, `:1683`, in-chat sound `:3393`, bubble `:3709`) is therefore off. `setLastVisibleDialogId`'s
 `scheduled` flag feeds round-video PiP alone (`MediaController.java:4011`). Look at in-app
 sound/vibrate settings or a Quiet/Passive notification profile instead.
 
