@@ -44,6 +44,7 @@ import org.telegram.ui.Components.ItemOptions;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -184,11 +185,17 @@ public class MessageTriggersActivity extends BaseFragment {
     private void scrollWhenLoaded(ChatActivity chat, int messageId) {
         final NotificationCenter center = NotificationCenter.getInstance(currentAccount);
         final int guid = chat.getClassGuid();
+        // Weak, so backing out of the chat before its load lands doesn't keep it alive for the wait.
+        final WeakReference<ChatActivity> chatRef = new WeakReference<>(chat);
         final boolean[] scrolled = {false};
         final NotificationCenter.NotificationCenterDelegate[] observer = new NotificationCenter.NotificationCenterDelegate[1];
         final Runnable stop = () -> center.removeObserver(observer[0], NotificationCenter.messagesDidLoad);
         observer[0] = (id, account, args) -> {
             if ((Integer) args[10] != guid) {
+                if (chatRef.get() == null) {
+                    AndroidUtilities.cancelRunOnUIThread(stop);
+                    stop.run();
+                }
                 return;
             }
             if (!scrolled[0]) {
@@ -197,8 +204,9 @@ public class MessageTriggersActivity extends BaseFragment {
                         scrolled[0] = true;
                         // Posted, so it runs after the chat has added this load to its list.
                         AndroidUtilities.runOnUIThread(() -> {
-                            if (chat.getFragmentView() != null) {
-                                chat.scrollToMessageId(messageId, 0, true, 0, true, 0);
+                            ChatActivity target = chatRef.get();
+                            if (target != null && target.getFragmentView() != null) {
+                                target.scrollToMessageId(messageId, 0, true, 0, true, 0);
                             }
                         });
                         break;

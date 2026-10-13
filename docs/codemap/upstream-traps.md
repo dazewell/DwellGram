@@ -344,7 +344,7 @@ upstream already owns and may extend.
 `EventScheduleController.queueKey(...)` composes queue identity as
 `account + dialogId + triggerKey` (`EventScheduleController.java:120-125`), so
 any change in `triggerKey()` repartitions the runtime send queues. The Message
-Triggers screen groups rows by the same key (`MessageTriggersActivity.java:465-479`),
+Triggers screen groups rows by the same key (`MessageTriggersActivity.java:520-534`),
 so it is also the overview grouping identity.
 
 `EventScheduleEntry.triggerKey()` therefore has to stay order-independent and
@@ -2713,6 +2713,6 @@ the cache (`MessagesStorage.java:9009`) and in the re-sort every load goes throu
 the link, so the jump can stop on a different message and skip the highlight. To open a scheduled chat at an exact
 message, wait for that fragment's own `messagesDidLoad` (match its `classGuid`) and
 call `scrollToMessageId(id, 0, true, 0, true, 0)`, which looks the id up exactly and
-highlights it. The Message Triggers page does this (`MessageTriggersActivity.java:184`).
+highlights it. The Message Triggers page does this (`MessageTriggersActivity.java:185`).
 
 *(Established 2026-10-12, `#eventschedule`.)*
