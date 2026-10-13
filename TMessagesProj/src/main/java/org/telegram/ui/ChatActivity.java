@@ -38141,7 +38141,8 @@ public class ChatActivity extends BaseFragment implements
                 }
                 final boolean started = hooks != null
                         ? com.dazewell.gram.reschedule.RescheduleSpreadExecutor.run(currentAccount, dialog_id, targets, ChatActivity.this, hooks)
-                        : com.dazewell.gram.reschedule.RescheduleSpreadExecutor.run(currentAccount, dialog_id, targets, ChatActivity.this);
+                        : com.dazewell.gram.reschedule.RescheduleSpreadExecutor.run(currentAccount, dialog_id, targets, ChatActivity.this,
+                                com.dazewell.gram.eventschedule.EventScheduleController.bulkMoveListener(currentAccount, dialog_id)); // NagramX: keep an existing trigger's fallback time on the moved message
                 if (!started) {
                     BulletinFactory.of(ChatActivity.this).createSimpleBulletin(R.raw.error, LocaleController.getString(R.string.RescheduleBusy)).show();
                     return;

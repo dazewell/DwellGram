@@ -120,6 +120,17 @@ public final class RescheduleSpreadExecutor {
         void release();
     }
 
+    /**
+     * Neutral seam a plain run (no trigger arming) uses to tell the trigger store where its targets
+     * actually landed, so a trigger armed earlier keeps its fallback time in step with the message.
+     * Primitive-only, like {@link TriggerArmingHooks}. Called once per run on the UI thread with every
+     * confirmed target (parallel arrays), whether or not the fragment is still alive. One batch rather
+     * than a call per target, so the implementation can do its dialog-wide reconcile once.
+     */
+    public interface ScheduleMoveListener {
+        void onSchedulesMoved(int[][] albumIds, int[] scheduleDates);
+    }
+
     // Best-effort re-entry guard: one bulk run per dialog at a time. Deliberately NOT a safety
     // property for trigger activation -- see armRunSerial for that. This is the ONLY thing that can
     // refuse a plain reschedule, and the trigger feature leaves it exactly as it was.
@@ -141,19 +152,25 @@ public final class RescheduleSpreadExecutor {
     }
 
     /**
-     * Returns false when a previous run for this dialog is still in flight.
+     * The plain reschedule, reporting the confirmed new times to {@code moveListener} (see
+     * {@link ScheduleMoveListener}; null reports nothing). Returns false when a previous run for this
+     * dialog is still in flight.
      */
-    public static boolean run(int currentAccount, long dialogId, ArrayList<Target> targets, BaseFragment fragment) {
-        return run(currentAccount, dialogId, targets, fragment, null);
+    public static boolean run(int currentAccount, long dialogId, ArrayList<Target> targets, BaseFragment fragment, ScheduleMoveListener moveListener) {
+        return start(currentAccount, dialogId, targets, fragment, null, moveListener);
     }
 
     /**
      * Returns false when a previous run for this dialog is still in flight. When {@code hooks} is
      * non-null a shared trigger is armed over the whole selection at finalization (see
-     * {@link TriggerArmingHooks}); when null this is the plain reschedule and behaves exactly as
-     * the four-argument overload.
+     * {@link TriggerArmingHooks}); when null this is the plain reschedule with no move listener.
      */
     public static boolean run(int currentAccount, long dialogId, ArrayList<Target> targets, BaseFragment fragment, TriggerArmingHooks hooks) {
+        return start(currentAccount, dialogId, targets, fragment, hooks, null);
+    }
+
+    private static boolean start(int currentAccount, long dialogId, ArrayList<Target> targets, BaseFragment fragment,
+                                 TriggerArmingHooks hooks, ScheduleMoveListener moveListener) {
         if (busyDialogId == dialogId) {
             return false;
         }
@@ -174,7 +191,7 @@ public final class RescheduleSpreadExecutor {
         // rejection accounting below), and an id-keyed check would let one target's successful edit
         // mask a different, rejected target that happens to share its id.
         final boolean[] rejected = new boolean[targets.size()];
-        sendNext(currentAccount, dialogId, targets, 0, 1, new ArrayList<>(), hooks == null ? null : new ArrayList<>(), hooks, serial, fragment, rejected);
+        sendNext(currentAccount, dialogId, targets, 0, 1, new ArrayList<>(), hooks == null ? null : new ArrayList<>(), hooks, moveListener, serial, fragment, rejected);
         return true;
     }
 
@@ -222,7 +239,7 @@ public final class RescheduleSpreadExecutor {
 
     private static void sendNext(int currentAccount, long dialogId, ArrayList<Target> targets, int index, int retriesLeft,
                                  ArrayList<Integer> failedIds, ArrayList<TargetOutcome> outcomes,
-                                 TriggerArmingHooks hooks, long serial, BaseFragment fragment, boolean[] rejected) {
+                                 TriggerArmingHooks hooks, ScheduleMoveListener moveListener, long serial, BaseFragment fragment, boolean[] rejected) {
         // NagramX: fail each invalid target closed rather than send a partial/invalid edit, in a loop
         // rather than a per-target recursive call -- a run with many consecutive invalid targets (e.g.
         // several still-sending album members in a row) must not grow the call stack. Albums are
@@ -240,7 +257,7 @@ public final class RescheduleSpreadExecutor {
             cursor++;
         }
         if (cursor >= targets.size()) {
-            verify(currentAccount, dialogId, targets, failedIds, outcomes, hooks, serial, fragment, rejected);
+            verify(currentAccount, dialogId, targets, failedIds, outcomes, hooks, moveListener, serial, fragment, rejected);
             return;
         }
         final int targetIndex = cursor;
@@ -269,7 +286,7 @@ public final class RescheduleSpreadExecutor {
             } else if (error.text != null && error.text.startsWith("FLOOD_WAIT_")) {
                 int wait = Utilities.parseInt(error.text);
                 if (retriesLeft > 0 && wait <= 60) {
-                    AndroidUtilities.runOnUIThread(() -> sendNext(currentAccount, dialogId, targets, targetIndex, retriesLeft - 1, failedIds, outcomes, hooks, serial, fragment, rejected), (wait + 1) * 1000L);
+                    AndroidUtilities.runOnUIThread(() -> sendNext(currentAccount, dialogId, targets, targetIndex, retriesLeft - 1, failedIds, outcomes, hooks, moveListener, serial, fragment, rejected), (wait + 1) * 1000L);
                     return;
                 }
                 failedIds.add(target.id);
@@ -282,12 +299,12 @@ public final class RescheduleSpreadExecutor {
             if (outcomes != null) {
                 outcomes.add(new TargetOutcome(target.albumIds, target.scheduleDate, target.repeatPeriod, applied));
             }
-            sendNext(currentAccount, dialogId, targets, targetIndex + 1, 1, failedIds, outcomes, hooks, serial, fragment, rejected);
+            sendNext(currentAccount, dialogId, targets, targetIndex + 1, 1, failedIds, outcomes, hooks, moveListener, serial, fragment, rejected);
         }, ConnectionsManager.RequestFlagFailOnServerErrors);
     }
 
     private static void verify(int currentAccount, long dialogId, ArrayList<Target> targets, ArrayList<Integer> failedIds,
-                               ArrayList<TargetOutcome> outcomes, TriggerArmingHooks hooks, long serial, BaseFragment fragment, boolean[] rejected) {
+                               ArrayList<TargetOutcome> outcomes, TriggerArmingHooks hooks, ScheduleMoveListener moveListener, long serial, BaseFragment fragment, boolean[] rejected) {
         final TLRPC.TL_messages_getScheduledHistory req = new TLRPC.TL_messages_getScheduledHistory();
         req.peer = MessagesController.getInstance(currentAccount).getInputPeer(dialogId);
         req.hash = 0;
@@ -356,7 +373,25 @@ public final class RescheduleSpreadExecutor {
             // NagramX: plain reschedule advanced the generation at admission purely so a concurrent
             // trigger run can detect it moved the dates; nothing on this path reads it, so release it now.
             clearArmSerial(currentAccount, dialogId, serial);
+            final int[] movedDates = moveListener != null
+                    ? confirmedDates(targets, failedIds, serverDates, authoritative, rejected) : null;
             AndroidUtilities.runOnUIThread(() -> {
+                // Before the fragment check: the trigger store has to follow the move even when the
+                // chat was closed mid-run, or a later reload prunes the trigger on its old time.
+                if (movedDates != null) {
+                    int n = 0;
+                    for (int d : movedDates) if (d > 0) n++;
+                    if (n > 0) {
+                        final int[][] movedIds = new int[n][];
+                        final int[] dates = new int[n];
+                        for (int i = 0, k = 0; i < movedDates.length; i++) {
+                            if (movedDates[i] <= 0) continue;
+                            movedIds[k] = targets.get(i).albumIds;
+                            dates[k++] = movedDates[i];
+                        }
+                        moveListener.onSchedulesMoved(movedIds, dates);
+                    }
+                }
                 if (fragment == null || fragment.getParentActivity() == null) {
                     return;
                 }
@@ -367,5 +402,26 @@ public final class RescheduleSpreadExecutor {
                 }
             });
         });
+    }
+
+    /**
+     * Index-aligned new time per target, 0 where it isn't confirmed. With an authoritative read the
+     * server's date wins over the requested one, and a target whose id left the queue gets nothing;
+     * without one, a target that wasn't rejected and didn't fail is taken at its requested time, the
+     * same trust the single-message edit gives a commit.
+     */
+    private static int[] confirmedDates(ArrayList<Target> targets, ArrayList<Integer> failedIds,
+                                        SparseIntArray serverDates, boolean authoritative, boolean[] rejected) {
+        final int[] dates = new int[targets.size()];
+        for (int i = 0; i < targets.size(); i++) {
+            if (rejected[i]) continue;
+            Target t = targets.get(i);
+            if (authoritative) {
+                dates[i] = Math.max(0, serverDates.get(t.id, 0));
+            } else if (!failedIds.contains(t.id)) {
+                dates[i] = t.scheduleDate;
+            }
+        }
+        return dates;
     }
 }
