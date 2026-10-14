@@ -53,7 +53,8 @@ public final class NotificationSchedule {
                         || profile < NotificationProfiles.LOUD || profile > NotificationProfiles.PASSIVE) {
                     continue;
                 }
-                // a rule saved as Quiet (1) reads as Loud: schedules only drive the profiles kept locally
+                // schedules only drive the profiles kept locally (Loud, Passive); a rule saved under an older numbering reads
+                // as whatever its number means now, or is dropped above when it is out of range
                 rules.add(new Rule(days, start, end, NotificationProfiles.clamp(profile)));
             } catch (NumberFormatException ignore) {
             }

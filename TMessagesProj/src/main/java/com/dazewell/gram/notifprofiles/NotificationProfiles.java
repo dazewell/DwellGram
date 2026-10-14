@@ -39,7 +39,7 @@ public final class NotificationProfiles {
     public static final int LOUD = 0;
     // The numeric order is the order the bell cycles and the picker lists them: Loud, Passive, Muted. Muted is
     // Telegram's mute, read live and never stored. Values stored under an earlier numbering are not migrated; they
-    // read as whatever the new number means, or as Loud (see clamp).
+    // read as whatever the new number means, or as Loud (see clamp). A schedule rule out of range is dropped instead.
     public static final int PASSIVE = 1;
     public static final int MUTED = 2;
 
