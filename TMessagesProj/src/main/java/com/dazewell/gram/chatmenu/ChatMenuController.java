@@ -100,7 +100,7 @@ public final class ChatMenuController {
         return headerItem.lazilyAddSubItem(ids.get(key), icon, text);
     }
 
-    /** The ⋮ Alerts row. Registered even while the bell is the header icon: it stands in whenever the bell is hidden, as in a muted chat. */
+    /** The ⋮ Alerts row. Registered even while the bell is the header icon: it stands in whenever the bell is hidden, as while search is open. */
     public ActionBarMenuItem.Item addAlerts(ActionBarMenuItem headerItem) {
         if (hidden(ChatMenuLayout.ALERTS)) return null;
         available.add(ChatMenuLayout.ALERTS);
@@ -160,13 +160,13 @@ public final class ChatMenuController {
     }
 
     /** Header icons follow the same states that hide upstream's Call icon: search open and preview. */
-    public void updateHeader(boolean search, boolean preview, boolean topic, boolean inChat, boolean muted) {
+    public void updateHeader(boolean search, boolean preview, boolean topic, boolean inChat) {
         for (Map.Entry<String, ActionBarMenuItem> entry : icons.entrySet()) {
             String key = entry.getKey();
             ActionBarMenuItem icon = entry.getValue();
             boolean shown = available.contains(key) && !search && !preview;
             if (ChatMenuLayout.ALERTS.equals(key)) {
-                NotificationProfileMenu.updateBell(icon, account, dialogId, topic, shown && inChat, muted);
+                NotificationProfileMenu.updateBell(icon, account, dialogId, topic, shown && inChat);
                 continue;
             }
             if (ChatMenuLayout.VIDEO.equals(key)) {

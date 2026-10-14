@@ -26,8 +26,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.TimeZone;
 
-// NagramX: per-chat notification profiles. Loud is "no override" (today's path, byte-identical), Quiet keeps the
-// icon, vibration, lock screen and watch but drops the sound, Passive sits in the shade only. The assignment is
+// NagramX: per-chat notification profiles. Loud is "no override" (today's path, byte-identical), Muted is Telegram's own
+// mute (synced to the server, never stored here), Passive sits in the shade only. The assignment is
 // one int per chat in the account's notifications prefs, next to an optional schedule and override string (see
 // NotificationSchedule), so logout wipes it all, like the cover and Show on Watch state. Keyed by raw dialogId because a notification batch's DialogKey carries whichever topic pushed first.
 // Presentation lives on a handful of fork-owned channels per account, not per chat: moving a chat between profiles
@@ -37,7 +37,8 @@ import java.util.TimeZone;
 public final class NotificationProfiles {
 
     public static final int LOUD = 0;
-    public static final int QUIET = 1;
+    // Telegram's mute, read live. The value used to be Quiet, so a stored 1 is stale and reads as Loud (see clamp).
+    public static final int MUTED = 1;
     public static final int PASSIVE = 2;
 
     private static final String KEY = "nax_np_";
@@ -56,8 +57,26 @@ public final class NotificationProfiles {
         return MessagesController.getNotificationsSettings(account);
     }
 
-    private static int clamp(int value) {
-        return value == QUIET || value == PASSIVE ? value : LOUD;
+    // For stored values only: Passive is the one profile kept locally, anything else is Loud.
+    static int clamp(int value) {
+        return value == PASSIVE ? PASSIVE : LOUD;
+    }
+
+    // Telegram's own mute for the whole chat, forever or until a time, including the chat-type default being off.
+    public static boolean isMuted(int account, long dialogId) {
+        return dialogId != 0 && MessagesController.getInstance(account).isDialogMuted(dialogId, 0);
+    }
+
+    // When a timed Telegram mute ends, in ms, else 0. notify2 3 is upstream's "muted until notifyuntil" state.
+    private static long muteUntil(int account, long dialogId) {
+        try {
+            String key = NotificationsController.getSharedPrefKey(dialogId, 0);
+            SharedPreferences p = prefs(account);
+            if (p.getInt("notify2_" + key, -1) != 3) return 0;
+            return p.getInt("notifyuntil_" + key, 0) * 1000L;
+        } catch (ClassCastException e) {
+            return 0;
+        }
     }
 
     // An absent, stale or unparseable value reads as Loud, never throws.
@@ -73,9 +92,16 @@ public final class NotificationProfiles {
     // Loud removes the key, so a Loud chat stores nothing. On a chat with a schedule the choice is an override instead
     // (profile + the time it was set) and the stored base value is left alone; it lapses at the next schedule boundary.
     // Any explicit pick also ends a running timer, which would otherwise keep outranking it.
+    // Muted goes to Telegram and leaves the local profile alone, so it comes back when the chat is unmuted (here or in
+    // Telegram's own mute menu). Loud and Passive unmute first.
     public static void set(int account, long dialogId, int profile) {
         if (dialogId == 0) return;
         clearTimer(account, dialogId);
+        if (profile == MUTED) {
+            NotificationsController.getInstance(account).muteDialog(dialogId, 0, true);
+            return;
+        }
+        unmute(account, dialogId);
         if (rules(account, dialogId).isEmpty()) {
             setBase(account, dialogId, profile);
             return;
@@ -87,11 +113,19 @@ public final class NotificationProfiles {
     // and the stored base are left alone and take over again once the time passes; an earlier manual pick goes too, or
     // it would come back when the timer ends. Expiry is lazy: nothing fires when it passes, effective() just stops
     // returning it. False when the time was already past, so nothing was stored.
+    // Muted for a time is Telegram's mute-until, as its own "Mute for..." sets it. A Loud or Passive timer unmutes first
+    // and does not mute again when it ends.
     public static boolean setTimer(int account, long dialogId, int profile, long untilMs) {
         if (dialogId == 0) return false;
         long now = System.currentTimeMillis();
         untilMs = Math.min(untilMs, now + MAX_TIMER_MS);
         if (untilMs <= now) return false;
+        if (profile == MUTED) {
+            clearTimer(account, dialogId);
+            NotificationsController.getInstance(account).muteUntil(dialogId, 0, (int) ((untilMs - now) / 1000));
+            return true;
+        }
+        unmute(account, dialogId);
         prefs(account).edit().remove(OVERRIDE_KEY + dialogId).putString(TIMER_KEY + dialogId, clamp(profile) + ":" + now + ":" + untilMs).apply();
         return true;
     }
@@ -101,8 +135,25 @@ public final class NotificationProfiles {
         prefs(account).edit().remove(TIMER_KEY + dialogId).apply();
     }
 
-    // When the running timer ends, else 0.
+    // The picker's Cancel timer: a timed Telegram mute is ended by unmuting, our own timer by dropping it.
+    public static void cancelTimer(int account, long dialogId) {
+        if (dialogId == 0) return;
+        if (isMuted(account, dialogId) && muteUntil(account, dialogId) > 0) {
+            unmute(account, dialogId);
+        } else {
+            clearTimer(account, dialogId);
+        }
+    }
+
+    private static void unmute(int account, long dialogId) {
+        if (isMuted(account, dialogId)) {
+            NotificationsController.getInstance(account).muteDialog(dialogId, 0, false);
+        }
+    }
+
+    // When the running timer ends, else 0: Telegram's mute-until while muted, otherwise our own timer.
     public static long timerUntil(int account, long dialogId) {
+        if (isMuted(account, dialogId)) return muteUntil(account, dialogId);
         long[] timer = liveTimer(account, dialogId, System.currentTimeMillis());
         return timer == null ? 0 : timer[1];
     }
@@ -188,9 +239,11 @@ public final class NotificationProfiles {
         }
     }
 
-    // What the chat actually does right now: a running timer, else a live override, else the open schedule window, else
-    // the stored base. The timer is checked first so it also works on a chat with no schedule.
+    // What the chat actually does right now: Telegram's mute, else a running timer, else a live override, else the open
+    // schedule window, else the stored base. The timer is checked before the schedule so it also works on a chat with no
+    // schedule.
     public static int effective(int account, long dialogId) {
+        if (isMuted(account, dialogId)) return MUTED;
         long[] timer = liveTimer(account, dialogId, System.currentTimeMillis());
         if (timer != null) return (int) timer[0];
         List<NotificationSchedule.Rule> rules = rules(account, dialogId);
@@ -205,6 +258,7 @@ public final class NotificationProfiles {
 
     // True while a schedule window, not the user's own choice, decides the profile.
     public static boolean isScheduleDeciding(int account, long dialogId) {
+        if (isMuted(account, dialogId)) return false;
         if (liveTimer(account, dialogId, System.currentTimeMillis()) != null) return false;
         List<NotificationSchedule.Rule> rules = rules(account, dialogId);
         if (rules.isEmpty()) return false;
@@ -214,9 +268,9 @@ public final class NotificationProfiles {
     }
 
     public static int labelRes(int profile) {
-        switch (clamp(profile)) {
-            case QUIET:
-                return R.string.NaxNotifProfileQuiet;
+        switch (profile) {
+            case MUTED:
+                return R.string.NaxNotifProfileMuted;
             case PASSIVE:
                 return R.string.NaxNotifProfilePassive;
             default:
@@ -225,9 +279,9 @@ public final class NotificationProfiles {
     }
 
     public static int infoRes(int profile) {
-        switch (clamp(profile)) {
-            case QUIET:
-                return R.string.NaxNotifProfileQuietInfo;
+        switch (profile) {
+            case MUTED:
+                return R.string.NaxNotifProfileMutedInfo;
             case PASSIVE:
                 return R.string.NaxNotifProfilePassiveInfo;
             default:
@@ -243,9 +297,9 @@ public final class NotificationProfiles {
         if (Build.VERSION.SDK_INT < 26) return result;
         for (int i = 0; i < byDialog.size(); i++) {
             long did = byDialog.keyAt(i);
-            int profile = effective(account, did);
-            if (profile != LOUD) {
-                result.put(did, profile);
+            // a muted chat that still posts (a mention, say) keeps Telegram's usual handling, so only Passive is collected
+            if (effective(account, did) == PASSIVE) {
+                result.put(did, PASSIVE);
             }
         }
         return result;
@@ -298,20 +352,12 @@ public final class NotificationProfiles {
         return dialogId != 0 && effective(account, dialogId) == PASSIVE;
     }
 
-    // Reroutes one per-chat notification onto its profile's channel. alert is true only for the newest message of
-    // a rebuild that upstream considered audible, so a rebuild caused by a read or a delete never vibrates.
+    // Reroutes one per-chat notification onto its profile's channel; only Passive has one now. alert and isInApp went
+    // unused with Quiet but stay, so the two hooks in NotificationsController and the cover don't move.
     public static void apply(int account, NotificationCompat.Builder builder, Integer profile, boolean alert, boolean isInApp) {
         if (profile == null || Build.VERSION.SDK_INT < 26) return;
         try {
-            if (profile == QUIET) {
-                boolean vibrate = alert && (!isInApp || prefs(account).getBoolean("EnableInAppVibrate", true));
-                builder.setChannelId(vibrate ? quietAlertChannel(account) : quietChannel(account));
-                builder.setOnlyAlertOnce(!vibrate);
-                if (vibrate) {
-                    // the group summary is posted silent for a Quiet last chat, so the child has to alert itself
-                    builder.setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_ALL);
-                }
-            } else if (profile == PASSIVE) {
+            if (profile == PASSIVE) {
                 builder.setChannelId(passiveChannel(account));
                 builder.setGroup("nax_np_passive_" + account);
                 builder.setVisibility(NotificationCompat.VISIBILITY_SECRET);
@@ -336,18 +382,6 @@ public final class NotificationProfiles {
             }
         }
         return label;
-    }
-
-    private static String quietChannel(int account) {
-        String id = channelId(account, "quiet");
-        ensureChannel(id, channelName(account, LocaleController.getString(R.string.NaxNotifProfileQuiet)), NotificationManager.IMPORTANCE_LOW, false, false);
-        return id;
-    }
-
-    private static String quietAlertChannel(int account) {
-        String id = channelId(account, "quiet_alert");
-        ensureChannel(id, channelName(account, LocaleController.getString(R.string.NaxNotifProfileQuietAlertChannel)), NotificationManager.IMPORTANCE_DEFAULT, true, false);
-        return id;
     }
 
     private static String passiveChannel(int account) {

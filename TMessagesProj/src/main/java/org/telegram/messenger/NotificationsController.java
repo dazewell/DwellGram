@@ -4521,9 +4521,9 @@ public class NotificationsController extends BaseController implements Notificat
                 notifyDisabled = true;
             }
 
-            // NagramX: a Quiet or Passive last chat posts the shared summary through upstream's own silent channel (which also
-            // skips the channel write-back); the chat's own child alerts or stays quiet on its profile channel, driven by naxAlert
-            final boolean naxAlert = !notifyDisabled && !story; // a story's dialog_id is the author's real id, which must not make that user's Quiet chat vibrate
+            // NagramX: a Passive last chat posts the shared summary through upstream's own silent channel (which also
+            // skips the channel write-back); the chat's own child stays quiet on its profile channel
+            final boolean naxAlert = !notifyDisabled && !story; // a story's dialog_id is the author's real id, which must not count as that user's chat
             if (!story && naxProfiles.get(dialog_id) != null) {
                 notifyDisabled = true;
             }
@@ -5912,7 +5912,7 @@ public class NotificationsController extends BaseController implements Notificat
 
             if (Build.VERSION.SDK_INT >= 26) {
                 setNotificationChannel(mainNotification, builder, useSummaryNotification);
-                // NagramX: a Quiet or Passive chat moves from the shared channel onto its profile channel; Loud is untouched
+                // NagramX: a Passive chat moves from the shared channel onto its profile channel; Loud and Muted are untouched
                 if (!dialogKey.story) {
                     com.dazewell.gram.notifprofiles.NotificationProfiles.apply(currentAccount, builder, naxProfiles.get(dialogId), naxAlert && dialogId == lastDialogId, isInApp);
                 }

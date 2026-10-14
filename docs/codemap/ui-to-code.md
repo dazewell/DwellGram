@@ -636,7 +636,7 @@ A covered chat's notification is posted by `NotificationCoverController.postChil
 chat's notification profile, the real icon and colour, message date, last message id and whether "Mark as read" is allowed
 (`NotificationsController.java:5009-5015`, `:5144-5147`). The summary is `naxBuildCoverSummary(...)`
 (`NotificationsController.java:5024`) on the same channel. Only the title, text, count and tap/dismiss tokens are cover-owned.
-Quiet and Passive apply through `NotificationProfiles.apply` inside `postChild`.
+Passive applies through `NotificationProfiles.apply` inside `postChild`; Muted is Telegram's own mute and needs no reroute.
 
 *(Rewritten 2026-10-07, `#disguise-parity`.)*
 

@@ -248,12 +248,11 @@ the platform allowing a name change through `createNotificationChannel` (not yet
 
 In a grouped state only the summary alerts: upstream sets `GROUP_ALERT_SUMMARY` on every child
 (`NotificationsController.java:5835`) and puts them on the shared OTHER channel. A cover child now does the same
-(`NotificationCoverController.java:907`), and the cover summary carries the real channel and alert. The one exception is a
-Quiet-profile chat that is the newest message: its summary goes through the silent channel, so
-`NotificationProfiles.apply` switches that child to `GROUP_ALERT_ALL` (`NotificationProfiles.java:174`); applying
-`GROUP_ALERT_SUMMARY` unconditionally would make that child inert as soon as grouping turns on.
+(`NotificationCoverController.java:907`), and the cover summary carries the real channel and alert. A profile that
+posts its summary on the silent channel but still wants its child to alert has to switch that child to `GROUP_ALERT_ALL`,
+or grouping makes it inert. Quiet did this until it became Muted (Telegram's own mute); no profile needs it now.
 
-*(Established 2026-09-07, `#disguise-alerting`; rewritten 2026-10-07.)*
+*(Established 2026-09-07, `#disguise-alerting`; rewritten 2026-10-07; Quiet removed 2026-10-14, `#notif-profile-muted`.)*
 
 ## Cover alerting is upstream's `notifyDisabled`; the old cover-only growth gate is gone
 

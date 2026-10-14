@@ -829,12 +829,11 @@
     <string name="NaxNotifScheduleStart">Start</string>
     <string name="NaxNotifScheduleEnd">End</string>
     <string name="NaxNotifProfileLoud">Loud</string>
-    <string name="NaxNotifProfileQuiet">Quiet</string>
+    <string name="NaxNotifProfileMuted">Muted</string>
     <string name="NaxNotifProfilePassive">Passive</string>
     <string name="NaxNotifProfileLoudInfo">Normal Telegram alerts: icon, sound, vibration.</string>
-    <string name="NaxNotifProfileQuietInfo">Icon, vibration and watch, but no sound.</string>
+    <string name="NaxNotifProfileMutedInfo">Telegram\'s own mute, the same on your other devices.</string>
     <string name="NaxNotifProfilePassiveInfo">Sits in the notification shade only. No icon, sound, vibration, lock screen or watch.</string>
-    <string name="NaxNotifProfileQuietAlertChannel">Quiet (new messages)</string>
     <string name="NaxNotifProfileWatchOff">Off in Passive profile</string>
     <string name="NaxNotifTimerUntil">Until…</string>
     <string name="NaxNotifTimerFor">%1$s for…</string>
