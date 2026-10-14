@@ -327,7 +327,7 @@ public final class HeaderBgDrawer implements NotificationCenter.NotificationCent
         canvas.clipRect(left, 0, right, bottom);
         // The Classic header is blue over a white strip; under the photo the strip takes the header's
         // surface instead, or the one picture shows as two tints split at the header's edge.
-        int surface = surfaceColor(true);
+        int surface = panelSurfaceColor();
         if (surface != surfaceColor(false)) {
             canvas.drawColor(ColorUtils.setAlphaComponent(surface, (int) (255 * alpha)));
         }
@@ -489,7 +489,7 @@ public final class HeaderBgDrawer implements NotificationCenter.NotificationCent
         }
         int text = settings.text(true, isDark());
         // Auto over the Classic surface drawPanel paints reads like the header: the theme's pinned colours are for white.
-        return text == HeaderBgSettings.TEXT_AUTO && surfaceColor(true) != surfaceColor(false) ? HeaderBgForeground.CLASSIC : text;
+        return text == HeaderBgSettings.TEXT_AUTO && panelSurfaceColor() != surfaceColor(false) ? HeaderBgForeground.CLASSIC : text;
     }
 
     // The app's current light or dark theme, which picks the light or the dark half of the text settings.
@@ -635,6 +635,13 @@ public final class HeaderBgDrawer implements NotificationCenter.NotificationCent
             color = InterfaceStyleSolidHeader.chatHeaderSurface(color);
         }
         return ColorUtils.setAlphaComponent(color, 255);
+    }
+
+    // The header's solid colour for the strip under the photo. Selection mode covers the header but not the
+    // strip, so the strip keeps it and fades out with the photo rather than snapping to the theme colour.
+    private int panelSurfaceColor() {
+        int color = InterfaceStyleController.chatHeaderSurfaceColor(resourcesProvider);
+        return ColorUtils.setAlphaComponent(InterfaceStyleSolidHeader.chatHeader() ? InterfaceStyleSolidHeader.chatHeaderSurface(color) : color, 255);
     }
 
     /** One cached fade shader in the header's coordinates; the header and the panel each keep one. */
