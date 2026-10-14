@@ -36,6 +36,8 @@ public final class HeaderBgForeground {
     static final int THEME = 0;
     static final int LIGHT = 1;
     static final int DARK = 2;
+    // The pinned bar only: auto text over the Classic header surface the drawer paints under it.
+    static final int CLASSIC = 3;
 
     // The CHAT_HEADER key set plus the pinned bar's. Online/typing stays at full strength so it still differs from "last seen".
     private static final SparseIntArray ON_DARK = new SparseIntArray();
@@ -96,7 +98,14 @@ public final class HeaderBgForeground {
     /** A pinned bar colour: the theme's, unless the chat sets its pinned bar text. */
     public static int pinColor(ChatActivity fragment, int key, int themedColor) {
         HeaderBgDrawer drawer = drawer(fragment);
-        return map(drawer != null ? drawer.appliedPin : THEME, key, themedColor);
+        int mode = drawer != null ? drawer.appliedPin : THEME;
+        if (mode == CLASSIC) {
+            int headerKey = key == Theme.key_chat_topPanelTitle ? Theme.key_actionBarDefaultTitle
+                    : key == Theme.key_chat_topPanelMessage ? Theme.key_actionBarDefaultSubtitle
+                    : key == Theme.key_chat_topPanelClose ? Theme.key_actionBarDefaultIcon : -1;
+            return headerKey < 0 ? themedColor : InterfaceStyleSolidHeader.chatHeaderColor(headerKey, themedColor);
+        }
+        return map(mode, key, themedColor);
     }
 
     /** For the auto-delete timer, which reads the title key through its own provider at draw time. */

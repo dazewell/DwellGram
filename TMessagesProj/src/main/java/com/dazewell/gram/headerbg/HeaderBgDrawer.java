@@ -325,8 +325,14 @@ public final class HeaderBgDrawer implements NotificationCenter.NotificationCent
         }
         canvas.save();
         canvas.clipRect(left, 0, right, bottom);
+        // The Classic header is blue over a white strip; under the photo the strip takes the header's
+        // surface instead, or the one picture shows as two tints split at the header's edge.
+        int surface = panelSurfaceColor();
+        if (surface != surfaceColor(false)) {
+            canvas.drawColor(ColorUtils.setAlphaComponent(surface, (int) (255 * alpha)));
+        }
         canvas.translate(actionBar.getX() - panel.getX(), actionBar.getY() - panel.getY());
-        paint(canvas, width, height, alpha, panelFade, surfaceColor(false));
+        paint(canvas, width, height, alpha, panelFade, surface);
         canvas.restore();
     }
 
@@ -478,7 +484,12 @@ public final class HeaderBgDrawer implements NotificationCenter.NotificationCent
 
     /** The pinned bar's, from the live fade: selection mode fades the photo under the panel too, not only the header's. */
     int wantedPin() {
-        return alpha() >= 1f && settings.extendPanel ? settings.text(true, isDark()) : HeaderBgForeground.THEME;
+        if (alpha() < 1f || !settings.extendPanel) {
+            return HeaderBgForeground.THEME;
+        }
+        int text = settings.text(true, isDark());
+        // Auto over the Classic surface drawPanel paints reads like the header: the theme's pinned colours are for white.
+        return text == HeaderBgSettings.TEXT_AUTO && panelSurfaceColor() != surfaceColor(false) ? HeaderBgForeground.CLASSIC : text;
     }
 
     // The app's current light or dark theme, which picks the light or the dark half of the text settings.
@@ -617,13 +628,20 @@ public final class HeaderBgDrawer implements NotificationCenter.NotificationCent
     }
 
     // The colour the surface under the photo is painted with, opaque, so the fade lands on it without
-    // a seam. The solid header colour is the header's alone; the panel keeps the theme colour.
+    // a seam. Only the header asks for the solid header colour; the panel picks it up while the photo covers it.
     private int surfaceColor(boolean header) {
         int color = InterfaceStyleController.chatHeaderSurfaceColor(resourcesProvider);
         if (header && InterfaceStyleSolidHeader.chatHeader() && !actionBar.isActionModeShowed()) {
             color = InterfaceStyleSolidHeader.chatHeaderSurface(color);
         }
         return ColorUtils.setAlphaComponent(color, 255);
+    }
+
+    // The header's solid colour for the strip under the photo. Selection mode covers the header but not the
+    // strip, so the strip keeps it and fades out with the photo rather than snapping to the theme colour.
+    private int panelSurfaceColor() {
+        int color = InterfaceStyleController.chatHeaderSurfaceColor(resourcesProvider);
+        return ColorUtils.setAlphaComponent(InterfaceStyleSolidHeader.chatHeader() ? InterfaceStyleSolidHeader.chatHeaderSurface(color) : color, 255);
     }
 
     /** One cached fade shader in the header's coordinates; the header and the panel each keep one. */
