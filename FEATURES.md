@@ -211,9 +211,9 @@ Selected scheduled messages show their pick number, which *Send Now* follows; *R
 
 Tap the bookmark icon in the schedule picker to remember your schedule offset — new messages then default to that offset instead of 10 minutes ahead. Reschedule and Edit schedule pickers get the same delay slider, but keep opening on the message's existing time unless you drag it. Turn the bookmark off to revert to normal behavior.
 
-### Status in the scheduled header <!-- #scheduled-header-status -->
+### Status and unread count in the scheduled header <!-- #scheduled-header-status --> <!-- #scheduled-header-unread -->
 
-The Scheduled messages header keeps the chat's subtitle: online, last seen or typing for a person, members and online count for a group, subscribers for a channel. Always on.
+The Scheduled messages header keeps the chat's subtitle: online, last seen or typing for a person, members and online count for a group, subscribers for a channel. A pill after the title counts the chat's unread messages, grey when muted. Always on.
 
 ### Tidier scheduled selection bar <!-- #scheduled-selection-toolbar -->
 

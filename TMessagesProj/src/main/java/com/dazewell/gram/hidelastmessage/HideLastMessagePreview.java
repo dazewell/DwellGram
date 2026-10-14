@@ -93,7 +93,7 @@ public final class HideLastMessagePreview {
      * unread topics (DialogCell's badge, via TopicsController.getForumUnreadCount), so
      * total the topics' messages instead.
      */
-    private static int unreadMessages(int account, long dialogId, int cellUnreadCount) {
+    public static int unreadMessages(int account, long dialogId, int cellUnreadCount) {
         if (dialogId >= 0 || DialogObject.isEncryptedDialog(dialogId)) return cellUnreadCount;
         MessagesController controller = MessagesController.getInstance(account);
         TLRPC.Chat chat = controller.getChat(-dialogId);
