@@ -104,9 +104,11 @@ public final class ScheduledUnreadPill {
         String text = unread > 99 ? "99+" : unread > 0 ? String.valueOf(unread) : "";
         if (!text.contentEquals(pill.getText())) {
             pill.setText(text);
-            pill.setContentDescription(unread > 0 ? LocaleController.formatPluralString("NewMessages", unread) : LocaleController.getString(R.string.UnreadMessages));
             pill.requestLayout();
         }
+        // Outside the text check: the dot's "" matches the pill's initial text, and "99+" covers many counts.
+        // setContentDescription already ignores an equal value.
+        pill.setContentDescription(unread > 0 ? LocaleController.formatPluralString("NewMessages", unread) : LocaleController.getString(R.string.UnreadMessages));
         Theme.ResourcesProvider resources = fragment.getResourceProvider();
         int bg = Theme.getColor(controller.isDialogMuted(dialogId, topicId) ? Theme.key_chats_unreadCounterMuted : Theme.key_chats_unreadCounter, resources);
         Drawable current = pill.getBackground();
