@@ -48,12 +48,14 @@ public final class NotificationScheduleDialog {
             outside.setBackground(Theme.getSelectorDrawable(false));
             outside.setTextAndValue(LocaleController.getString(R.string.NaxNotifScheduleOutside), LocaleController.getString(NotificationProfiles.labelRes(NotificationProfiles.get(account, dialogId))), false);
             outside.setOnClickListener(v -> {
-                String[] names = new String[3];
-                for (int i = 0; i < 3; i++) names[i] = LocaleController.getString(NotificationProfiles.labelRes(i));
+                // the stored base, so only the profiles kept locally; Muted is Telegram's mute and has no base value
+                int[] choices = {NotificationProfiles.LOUD, NotificationProfiles.PASSIVE};
+                String[] names = new String[choices.length];
+                for (int i = 0; i < choices.length; i++) names[i] = LocaleController.getString(NotificationProfiles.labelRes(choices[i]));
                 new AlertDialog.Builder(activity, rp)
                         .setTitle(LocaleController.getString(R.string.NaxNotifScheduleOutside))
                         .setItems(names, (d, which) -> {
-                            NotificationProfiles.setBase(account, dialogId, which);
+                            NotificationProfiles.setBase(account, dialogId, choices[which]);
                             NotificationProfiles.onChanged(account, dialogId);
                             refresh[0].run();
                         }).show();
