@@ -134,6 +134,9 @@ The pinned/call/translate strips under the header are one `ChatActivityTopPanelL
 a sibling of the ActionBar in `contentView` (`ChatActivity.java:8663-8665`); its
 equivalent spot is after `backgroundDrawable.draw` (`ChatActivityTopPanelLayout.java:141`),
 in panel coordinates, so map to the header with the two views' `getX/getY` difference.
+Under the photo the strip paints the header's surface, not its own, or the Classic blue
+header and white strip split the photo into two tints; its auto text then follows the
+Classic header too (`HeaderBgDrawer.java:330-333,486-493`, `HeaderBgForeground.java:102-107`).
 Its status bar icons are decided in `ChatActivity.isLightStatusBar()` (`ChatActivity.java:48406`),
 which falls back to `shouldHaveLightStatusBarIcons`, set from the wallpaper and header composite
 (`:19174`); `LaunchActivity.checkSystemBarColors` (`LaunchActivity.java:1152`) re-asks the top fragment,
