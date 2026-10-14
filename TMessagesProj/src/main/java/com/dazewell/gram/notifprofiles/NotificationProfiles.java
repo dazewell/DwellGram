@@ -37,9 +37,11 @@ import java.util.TimeZone;
 public final class NotificationProfiles {
 
     public static final int LOUD = 0;
-    // Telegram's mute, read live. The value used to be Quiet, so a stored 1 is stale and reads as Loud (see clamp).
-    public static final int MUTED = 1;
-    public static final int PASSIVE = 2;
+    // The numeric order is the order the bell cycles and the picker lists them: Loud, Passive, Muted. Muted is
+    // Telegram's mute, read live and never stored. Values stored under an earlier numbering are not migrated; they
+    // read as whatever the new number means, or as Loud (see clamp). A schedule rule out of range is dropped instead.
+    public static final int PASSIVE = 1;
+    public static final int MUTED = 2;
 
     private static final String KEY = "nax_np_";
     // Strings, so they can't collide with the int key above (a dialog id never starts with a letter).

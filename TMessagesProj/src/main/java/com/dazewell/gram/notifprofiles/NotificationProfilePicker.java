@@ -30,7 +30,7 @@ public final class NotificationProfilePicker {
         LinearLayout layout = new LinearLayout(activity);
         layout.setOrientation(LinearLayout.VERTICAL);
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, resourcesProvider);
-        int[] profiles = {NotificationProfiles.LOUD, NotificationProfiles.MUTED, NotificationProfiles.PASSIVE};
+        int[] profiles = {NotificationProfiles.LOUD, NotificationProfiles.PASSIVE, NotificationProfiles.MUTED};
         for (int profile : profiles) {
             RadioColorCell cell = radioCell(activity, resourcesProvider, profile, selected == profile);
             cell.setOnClickListener(v -> {
