@@ -362,7 +362,7 @@ The chat title and its status line sit centered in the action bar, in a pill tha
 
 ### Shorter last-seen time <!-- #seen-at -->
 
-A person's status reads **seen at 14:05**, **seen yesterday at 14:05** or **seen Oct 3 at 14:05** instead of "last seen …", leaving the chat title more room in the header. Always on.
+In English, a person's status reads **seen at 14:05** or **seen Oct 03 at 14:05** instead of "last seen …", leaving the chat title more room in the header. Always on.
 
 ### Pinned message and player in one row <!-- #combined-pinned-player -->
 
