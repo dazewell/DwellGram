@@ -1132,6 +1132,6 @@ The parent chat under it gets `onPause` from `ActionBarLayout.presentFragmentInt
 animation, so the id is held only during the transition. Every suppression keyed on the id
 (`NotificationsController.java:1222`, `:1608`, `:1683`, in-chat sound `:3393`, bubble `:3709`) is therefore off. `setLastVisibleDialogId`'s
 `scheduled` flag feeds round-video PiP alone (`MediaController.java:4011`). Look at in-app
-sound/vibrate settings or a Quiet/Passive notification profile instead.
+sound/vibrate settings or a Muted/Passive notification profile instead.
 
 *(Established 2026-10-13, `#scheduled-header-status`.)*

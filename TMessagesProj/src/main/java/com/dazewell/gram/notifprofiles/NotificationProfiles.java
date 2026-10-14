@@ -30,7 +30,7 @@ import java.util.TimeZone;
 // mute (synced to the server, never stored here), Passive sits in the shade only. The assignment is
 // one int per chat in the account's notifications prefs, next to an optional schedule and override string (see
 // NotificationSchedule), so logout wipes it all, like the cover and Show on Watch state. Keyed by raw dialogId because a notification batch's DialogKey carries whichever topic pushed first.
-// Presentation lives on a handful of fork-owned channels per account, not per chat: moving a chat between profiles
+// Passive posts on one fork-owned channel per account, not per chat: moving a chat between profiles
 // only changes which existing channel its notification posts on, so no channel is ever recreated. The channel ids
 // are fixed and versioned (never start with "<account>channel", which logout and upstream cleanup delete); a change
 // to a preset's channel settings has to bump CHANNEL_VERSION because Android ignores edits to an existing channel.
@@ -289,7 +289,7 @@ public final class NotificationProfiles {
         }
     }
 
-    // One snapshot per notification rebuild, taken in the preflight: only dialogs with a non-Loud profile are present, so the
+    // One snapshot per notification rebuild, taken in the preflight: only Passive dialogs are present, so the
     // summary decision and the per-chat children agree even if the user changes a profile mid-rebuild. Covered chats are
     // included; their cover posts through the same apply().
     public static LongSparseArray<Integer> collect(int account, LongSparseArray<ArrayList<MessageObject>> byDialog) {
