@@ -360,6 +360,10 @@ On DwellGramX (Unofficial), the app's fixed system-level icon — the one Androi
 
 The chat title and its status line sit centered in the action bar, in a pill that hugs the text rather than spanning the bar. Forum topics get the same rounded ends as any other chat. N-Settings → General → Interface Style → *Use Centered Title*, off by default, with options for everywhere, chats only, or settings screens only.
 
+### Shorter last-seen time <!-- #seen-at -->
+
+A person's status reads **seen at 14:05**, **seen yesterday at 14:05** or **seen Oct 3 at 14:05** instead of "last seen …", leaving the chat title more room in the header. Always on.
+
 ### Pinned message and player in one row <!-- #combined-pinned-player -->
 
 When music, a voice message or a round video plays in a chat with a pinned message, the two bars share one row: a shortened pinned message on the left, the player on the right, its progress line across both. Chat Settings → Combine pinned message with player, off by default.

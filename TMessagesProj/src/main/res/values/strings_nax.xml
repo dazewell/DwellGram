@@ -911,4 +911,5 @@
     <string name="ChatMenuHiddenInfo">Never shown. Tap a button to move it between Hidden and the ⋮ menu, or drag it anywhere. Chats update when you leave this screen.</string>
     <string name="ChatMenuResetDone">Chat menu reset</string>
     <string name="NaxChatMenuAlerts">Alerts</string>
+    <string name="NaxSeenFormatted">seen %1$s</string>
 </resources>
