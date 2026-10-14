@@ -2637,6 +2637,11 @@ public class LocaleController {
     }
 
     public static String formatDateOnline(long date, boolean[] madeShorter) {
+        // NagramX: "seen <time>" instead of "last seen <time>" so the chat header subtitle fits more. Swapped only while the
+        // string in use is upstream's English text, whatever pack supplied it: the fork key has no translations, and the
+        // server language pack would win over a local override of LastSeenFormatted.
+        int naxSeen = "last seen %1$s".equals(getString(R.string.LastSeenFormatted)) ? R.string.NaxSeenFormatted : R.string.LastSeenFormatted;
+        int naxSeenDate = "last seen %1$s".equals(getString(R.string.LastSeenDateFormatted)) ? R.string.NaxSeenFormatted : R.string.LastSeenDateFormatted;
         try {
             date *= 1000;
             Calendar rightNow = Calendar.getInstance();
@@ -2653,7 +2658,7 @@ public class LocaleController {
             }
 
             if (dateDay == day && year == dateYear) {
-                return LocaleController.formatString(R.string.LastSeenFormatted, LocaleController.formatString("TodayAtFormatted", R.string.TodayAtFormatted, getInstance().getFormatterDay().format(new Date(date))));
+                return LocaleController.formatString(naxSeen, LocaleController.formatString("TodayAtFormatted", R.string.TodayAtFormatted, getInstance().getFormatterDay().format(new Date(date))));
                 /*int diff = (int) (ConnectionsManager.getInstance().getCurrentTime() - date) / 60;
                 if (diff < 1) {
                     return LocaleController.getString(R.string.LastSeenNow);
@@ -2666,27 +2671,27 @@ public class LocaleController {
                 if (madeShorter != null) {
                     madeShorter[0] = true;
                     if (hour <= 6 && dateHour > 18 && is24HourFormat) {
-                        return LocaleController.formatString(R.string.LastSeenFormatted, getInstance().getFormatterDay().format(new Date(date)));
+                        return LocaleController.formatString(naxSeen, getInstance().getFormatterDay().format(new Date(date)));
                     }
                     return LocaleController.formatString(R.string.YesterdayAtFormatted, getInstance().getFormatterDay().format(new Date(date)));
                 } else {
-                    return LocaleController.formatString(R.string.LastSeenFormatted, LocaleController.formatString("YesterdayAtFormatted", R.string.YesterdayAtFormatted, getInstance().getFormatterDay().format(new Date(date))));
+                    return LocaleController.formatString(naxSeen, LocaleController.formatString("YesterdayAtFormatted", R.string.YesterdayAtFormatted, getInstance().getFormatterDay().format(new Date(date))));
                 }
             } else if (Math.abs(System.currentTimeMillis() - date) < 31536000000L) {
                 if (usePersianCalendar && persianDate != null) {
                     String format = LocaleController.formatString("formatDateAtTime", R.string.formatDateAtTime, persianDate.getPersianMonthDay(), getInstance().getFormatterDay().format(new Date(date)));
-                    return LocaleController.formatString("LastSeenDateFormatted", R.string.LastSeenDateFormatted, format);
+                    return LocaleController.formatString(naxSeenDate, format);
                 } else {
                     String format = LocaleController.formatString("formatDateAtTime", R.string.formatDateAtTime, getInstance().getFormatterDayMonth().format(new Date(date)), getInstance().getFormatterDay().format(new Date(date)));
-                    return LocaleController.formatString("LastSeenDateFormatted", R.string.LastSeenDateFormatted, format);
+                    return LocaleController.formatString(naxSeenDate, format);
                 }
             } else {
                 if (usePersianCalendar && persianDate != null) {
                     String format = LocaleController.formatString("formatDateAtTime", R.string.formatDateAtTime, persianDate.getPersianNormalDate(), getInstance().getFormatterDay().format(new Date(date)));
-                    return LocaleController.formatString("LastSeenDateFormatted", R.string.LastSeenDateFormatted, format);
+                    return LocaleController.formatString(naxSeenDate, format);
                 } else {
                     String format = LocaleController.formatString("formatDateAtTime", R.string.formatDateAtTime, getInstance().getFormatterYear().format(new Date(date)), getInstance().getFormatterDay().format(new Date(date)));
-                    return LocaleController.formatString("LastSeenDateFormatted", R.string.LastSeenDateFormatted, format);
+                    return LocaleController.formatString(naxSeenDate, format);
                 }
             }
         } catch (Exception e) {
