@@ -418,6 +418,7 @@ public class ProfileNotificationsActivity extends BaseFragment implements Notifi
             } else if (position == profileRow) {
                 if (getParentActivity() != null) {
                     showDialog(com.dazewell.gram.notifprofiles.NotificationProfilePicker.create(getParentActivity(), currentAccount, dialogId, resourcesProvider, () -> {
+                        notificationsEnabled = !getMessagesController().isDialogMuted(dialogId, 0); // NagramX: Muted is Telegram's mute now, so the back arrow must not write the open-time state back
                         if (adapter != null) {
                             adapter.notifyItemChanged(profileRow);
                             if (watchRow != -1) {

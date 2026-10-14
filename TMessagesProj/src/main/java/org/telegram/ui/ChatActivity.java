@@ -21849,7 +21849,7 @@ public class ChatActivity extends BaseFragment implements
         if (chatNotificationsPopupWrapper != null) {
             chatNotificationsPopupWrapper.update(dialog_id, getTopicId(), null);
         }
-        nkUpdateChatMenu(isMuted); // NagramX: the bell hides while Telegram's mute is on
+        nkUpdateChatMenu(); // NagramX: Telegram's mute is the bell's Muted state, so a flip has to move its icon
     }
 
     public void checkAndUpdateAvatar() {
@@ -26382,7 +26382,7 @@ public class ChatActivity extends BaseFragment implements
                         }
                     }
                 }
-                nkUpdateChatMenu(getMessagesController().isDialogMuted(dialog_id, getTopicId())); // NagramX: a Video call header icon waits for this user info
+                nkUpdateChatMenu(); // NagramX: a Video call header icon waits for this user info
                 checkActionBarMenu(fragmentOpened);
                 if (!inMenuMode && !loadingPinnedMessagesList && !pinnedMessageIds.isEmpty() && userInfo.pinned_msg_id > pinnedMessageIds.get(0)) {
                     getMediaDataController().loadPinnedMessages(dialog_id, 0, userInfo.pinned_msg_id);
@@ -30535,7 +30535,7 @@ public class ChatActivity extends BaseFragment implements
             showGiftButton = false;
             showSuggestButton = false;
         }
-        nkUpdateChatMenu(getMessagesController().isDialogMuted(dialog_id, getTopicId())); // NagramX: before the branches so it also runs for in-chat search, which hides the header icons; follows join state like mute
+        nkUpdateChatMenu(); // NagramX: before the branches so it also runs for in-chat search, which hides the header icons; follows join state
         if (inPreviewMode) {
             bottomViewsVisibilityController.setViewVisible(MESSAGE_SEARCH_CONTAINER, false, false);
             bottomChannelButtonsLayout.setVisibility(View.INVISIBLE);
@@ -32339,16 +32339,16 @@ public class ChatActivity extends BaseFragment implements
     }
 
     // NagramX: the one place the chat button controller learns the state its header icons follow
-    private void nkUpdateChatMenu(boolean muted) {
+    private void nkUpdateChatMenu() {
         if (nkChatMenu != null) {
-            nkChatMenu.updateHeader(searchItemVisible, inPreviewMode, getTopicId() != 0, currentChat == null || !ChatObject.isNotInChat(currentChat), muted);
+            nkChatMenu.updateHeader(searchItemVisible, inPreviewMode, getTopicId() != 0, currentChat == null || !ChatObject.isNotInChat(currentChat));
         }
     }
 
     @Override
     public void setInPreviewMode(boolean value) {
         super.setInPreviewMode(value);
-        nkUpdateChatMenu(getMessagesController().isDialogMuted(dialog_id, getTopicId())); // NagramX: a peek expanded into the chat shows its header icons
+        nkUpdateChatMenu(); // NagramX: a peek expanded into the chat shows its header icons
         if (currentUser != null && audioCallIconItem != null) {
             TLRPC.UserFull userFull = getMessagesController().getUserFull(currentUser.id);
             if (userFull != null && userFull.phone_calls_available) {

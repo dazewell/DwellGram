@@ -53,7 +53,8 @@ public final class NotificationSchedule {
                         || profile < NotificationProfiles.LOUD || profile > NotificationProfiles.PASSIVE) {
                     continue;
                 }
-                rules.add(new Rule(days, start, end, profile));
+                // a rule saved as Quiet (1) reads as Loud: schedules only drive the profiles kept locally
+                rules.add(new Rule(days, start, end, NotificationProfiles.clamp(profile)));
             } catch (NumberFormatException ignore) {
             }
             if (rules.size() >= MAX_RULES) break;

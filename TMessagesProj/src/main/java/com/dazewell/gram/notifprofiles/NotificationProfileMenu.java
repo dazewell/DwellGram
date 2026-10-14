@@ -43,9 +43,8 @@ public final class NotificationProfileMenu {
         }));
     }
 
-    // The header bell: one tap cycles Loud -> Quiet -> Passive and says what the new profile does, a long press opens
-    // the picker. It starts hidden; updateBell() owns its visibility because a forum chat switches topics in place and
-    // Telegram's own mute can flip while the chat is open.
+    // The header bell: one tap cycles Loud -> Muted -> Passive and says what the new profile does, a long press opens
+    // the picker. It starts hidden; updateBell() owns its visibility because a forum chat switches topics in place.
     public static ActionBarMenuItem addBell(BaseFragment fragment, ActionBarMenu menu, int id, int account, long dialogId) {
         ActionBarMenuItem bell = menu.addItem(id, iconRes(NotificationProfiles.effective(account, dialogId)), fragment.getResourceProvider());
         bell.setVisibility(android.view.View.GONE);
@@ -60,10 +59,11 @@ public final class NotificationProfileMenu {
     }
 
     // Shown only where the Alerts menu item is (not on topics, which are keyed by the raw dialog id, and not while the user is
-    // out of the chat) and not while Telegram's own mute is on, since a muted chat posts nothing for a profile to shape.
-    public static void updateBell(ActionBarMenuItem bell, int account, long dialogId, boolean topic, boolean inChat, boolean muted) {
+    // out of the chat). It stays while Telegram's mute is on, since Muted is one of its states; a mute flip from Telegram's
+    // own menu calls this again, which is what moves the icon.
+    public static void updateBell(ActionBarMenuItem bell, int account, long dialogId, boolean topic, boolean inChat) {
         if (bell == null) return;
-        boolean visible = !topic && inChat && !muted;
+        boolean visible = !topic && inChat;
         bell.setVisibility(visible ? android.view.View.VISIBLE : android.view.View.GONE);
         if (visible) {
             syncBell(bell, account, dialogId);
@@ -101,7 +101,7 @@ public final class NotificationProfileMenu {
         NotificationProfiles.onChanged(account, dialogId);
         syncBell(bell, account, dialogId);
         if (BulletinFactory.canShowBulletin(fragment)) {
-            int raw = profile == NotificationProfiles.PASSIVE ? R.raw.ic_mute : profile == NotificationProfiles.QUIET ? R.raw.sound_off : R.raw.ic_unmute;
+            int raw = profile == NotificationProfiles.MUTED ? R.raw.ic_mute : profile == NotificationProfiles.PASSIVE ? R.raw.sound_off : R.raw.ic_unmute;
             BulletinFactory.of(fragment).createSimpleBulletin(raw, text(profile), LocaleController.getString(NotificationProfiles.infoRes(profile))).show();
         }
     }
@@ -122,10 +122,11 @@ public final class NotificationProfileMenu {
 
     private static int iconRes(int profile) {
         switch (profile) {
-            case NotificationProfiles.QUIET:
-                return R.drawable.msg_silent;
-            case NotificationProfiles.PASSIVE:
+            // Muted takes Telegram's mute icon; Passive moves to the crossed-out speaker
+            case NotificationProfiles.MUTED:
                 return R.drawable.msg_mute;
+            case NotificationProfiles.PASSIVE:
+                return R.drawable.msg_silent;
             default:
                 return R.drawable.msg_unmute;
         }

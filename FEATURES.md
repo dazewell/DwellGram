@@ -86,9 +86,9 @@ Clear Message Database now removes only the media this install has database rows
 
 Each chat's Notifications screen (open a chat → its name → Notifications) has a **Show on Watch** switch under Message Preview, on by default. Turn it off and that chat's message notifications stop reaching a paired Wear OS watch, while the phone notification is unaffected. It isn't available on secret chats — set it on a forum's main chat to cover every topic.
 
-### Notification profile per chat <!-- #notification-profiles -->
+### Notification profile per chat <!-- #notification-profiles --> <!-- #notif-profile-muted -->
 
-Each chat has a **Notification profile**: **Loud** (Telegram's usual alerts, the default), **Quiet** (icon, vibration and watch, no sound) or **Passive** (shade only: no status-bar icon, lock screen, sound, vibration, popup or watch). Set it on the chat's Notifications screen or with the header bell: tap to cycle, long-press to pick. Chat menu settings can move it into the ⋮ menu or hide it. Not on forum topics.
+Each chat has a **Notification profile**: **Loud** (Telegram's usual alerts, the default), **Muted** (Telegram's own mute, on every device) or **Passive** (shade only: no status-bar icon, lock screen, sound, vibration, popup or watch). Set it on the chat's Notifications screen or with the header bell, shown on muted chats too: tap to cycle, long-press to pick. Not on forum topics.
 
 ### Chat header and menu order <!-- #chat-menu-order -->
 
@@ -96,7 +96,7 @@ N-Settings → Chats → Chat menu, or a long-press on ⋮ in a chat, places eac
 
 ### Notification schedule per chat <!-- #notif-profile-schedules -->
 
-Give a chat's notification profile a schedule: in the profile picker (long-press the header bell, ⋮ Alerts, or the Notifications screen) tap **Schedule…** and add rules with days, start, end and a profile. The rule that started last wins. A manual pick lasts until the next rule starts or ends; **Outside schedule** sets the profile between rules. A clock on the bell shows a schedule is in charge.
+Give a chat's notification profile a schedule: in the profile picker (long-press the header bell, ⋮ Alerts, or the Notifications screen) tap **Schedule…** and add rules with days, start, end and a profile (Loud or Passive). The rule that started last wins. A manual pick lasts until the next rule starts or ends; **Outside schedule** sets the profile between rules. A clock on the bell shows a schedule is in charge.
 
 ### Timed notification profile <!-- #notif-profile-timer -->
 

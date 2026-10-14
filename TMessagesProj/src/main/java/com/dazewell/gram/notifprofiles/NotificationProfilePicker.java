@@ -30,7 +30,7 @@ public final class NotificationProfilePicker {
         LinearLayout layout = new LinearLayout(activity);
         layout.setOrientation(LinearLayout.VERTICAL);
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, resourcesProvider);
-        int[] profiles = {NotificationProfiles.LOUD, NotificationProfiles.QUIET, NotificationProfiles.PASSIVE};
+        int[] profiles = {NotificationProfiles.LOUD, NotificationProfiles.MUTED, NotificationProfiles.PASSIVE};
         for (int profile : profiles) {
             RadioColorCell cell = radioCell(activity, resourcesProvider, profile, selected == profile);
             cell.setOnClickListener(v -> {
@@ -86,7 +86,7 @@ public final class NotificationProfilePicker {
             cancel.setTextAndValue(LocaleController.formatString(R.string.NaxNotifTimerActive, LocaleController.getString(NotificationProfiles.labelRes(selected)), NotificationTimerDialog.untilText(timerUntil)), LocaleController.getString(R.string.NaxNotifTimerCancel), false);
             cancel.setOnClickListener(v -> {
                 builder.getDismissRunnable().run();
-                NotificationProfiles.clearTimer(account, dialogId);
+                NotificationProfiles.cancelTimer(account, dialogId);
                 NotificationProfiles.onChanged(account, dialogId);
                 if (onChanged != null) {
                     onChanged.run();

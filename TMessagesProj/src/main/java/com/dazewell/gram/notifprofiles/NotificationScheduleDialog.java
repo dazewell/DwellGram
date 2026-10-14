@@ -48,12 +48,14 @@ public final class NotificationScheduleDialog {
             outside.setBackground(Theme.getSelectorDrawable(false));
             outside.setTextAndValue(LocaleController.getString(R.string.NaxNotifScheduleOutside), LocaleController.getString(NotificationProfiles.labelRes(NotificationProfiles.get(account, dialogId))), false);
             outside.setOnClickListener(v -> {
-                String[] names = new String[3];
-                for (int i = 0; i < 3; i++) names[i] = LocaleController.getString(NotificationProfiles.labelRes(i));
+                // the stored base, so only the profiles kept locally; Muted is Telegram's mute and has no base value
+                int[] choices = {NotificationProfiles.LOUD, NotificationProfiles.PASSIVE};
+                String[] names = new String[choices.length];
+                for (int i = 0; i < choices.length; i++) names[i] = LocaleController.getString(NotificationProfiles.labelRes(choices[i]));
                 new AlertDialog.Builder(activity, rp)
                         .setTitle(LocaleController.getString(R.string.NaxNotifScheduleOutside))
                         .setItems(names, (d, which) -> {
-                            NotificationProfiles.setBase(account, dialogId, which);
+                            NotificationProfiles.setBase(account, dialogId, choices[which]);
                             NotificationProfiles.onChanged(account, dialogId);
                             refresh[0].run();
                         }).show();
@@ -105,13 +107,14 @@ public final class NotificationScheduleDialog {
         builder.show();
     }
 
-    // A new rule starts as a nightly quiet window the user then adjusts.
+    // A new rule starts as a nightly Passive window the user then adjusts. Muted isn't offered: it is Telegram's server-side
+    // mute, and nothing runs at a window boundary to switch it.
     private static void edit(Activity activity, Theme.ResourcesProvider rp, NotificationSchedule.Rule rule,
                              Utilities.Callback<NotificationSchedule.Rule> onSave, Runnable onDelete) {
         final int[] days = {rule != null ? rule.days : NotificationSchedule.ALL_DAYS};
         final int[] start = {rule != null ? rule.start : 22 * 60};
         final int[] end = {rule != null ? rule.end : 7 * 60};
-        final int[] profile = {rule != null ? rule.profile : NotificationProfiles.QUIET};
+        final int[] profile = {rule != null ? rule.profile : NotificationProfiles.PASSIVE};
 
         LinearLayout layout = new LinearLayout(activity);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -166,14 +169,14 @@ public final class NotificationScheduleDialog {
         layout.addView(startCell);
         layout.addView(endCell);
 
-        int[] order = {NotificationProfiles.LOUD, NotificationProfiles.QUIET, NotificationProfiles.PASSIVE};
-        RadioColorCell[] radios = new RadioColorCell[3];
-        for (int i = 0; i < 3; i++) {
+        int[] order = {NotificationProfiles.LOUD, NotificationProfiles.PASSIVE};
+        RadioColorCell[] radios = new RadioColorCell[order.length];
+        for (int i = 0; i < order.length; i++) {
             final int p = order[i];
             radios[i] = NotificationProfilePicker.radioCell(activity, rp, p, profile[0] == p);
             radios[i].setOnClickListener(v -> {
                 profile[0] = p;
-                for (int j = 0; j < 3; j++) radios[j].setChecked(order[j] == p, true);
+                for (int j = 0; j < order.length; j++) radios[j].setChecked(order[j] == p, true);
             });
             layout.addView(radios[i]);
         }
