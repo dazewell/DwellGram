@@ -98,7 +98,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
     private ImageView communityItem;
     private ImageView starBgItem, starFgItem;
     private TimerDrawable timerDrawable;
-    // Per-peer time-zone clock pill (next to the title).
+    // Per-peer time-zone clock pill (next to the title); the unread count in scheduled mode.
     private android.widget.TextView tzClockPill;
     // NagramX: last background color applied to tzClockPill, so updateTimeZonePill() can skip
     // recreating the round-rect Drawable when nothing actually changed (see updateTimeZonePill).
@@ -441,6 +441,8 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
                 parentFragment.showDialog(sheet);
             }
         });
+        // NagramX: scheduled mode has no time-zone pill, so its slot after the title carries the chat's unread count
+        com.dazewell.gram.scheduledheader.ScheduledUnreadPill.install(tzClockPill, parentFragment, this::updateTimeZonePill);
         addView(tzClockPill);
 
         if (parentFragment != null) {
@@ -639,12 +641,15 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
 
     public void updateTimeZonePill() {
         if (tzClockPill == null || parentFragment == null) return;
-        // Only show the pill in the regular chat view -- not in scheduled, quick-replies,
+        // Only show the clock in the regular chat view -- not in scheduled, quick-replies,
         // business-link or other auxiliary modes where the title isn't the peer name.
+        // Scheduled mode reuses the pill for the chat's unread count instead.
         boolean show;
         long dialogId = parentFragment.getDialogId();
-        if (parentFragment.getChatMode() != 0 || dialogId == UserConfig.getInstance(currentAccount).getClientUserId()) {
-            // No pill in auxiliary modes (scheduled, quick-replies, business-link) or in Saved
+        if (parentFragment.getChatMode() == ChatActivity.MODE_SCHEDULED) {
+            show = com.dazewell.gram.scheduledheader.ScheduledUnreadPill.apply(tzClockPill, parentFragment);
+        } else if (parentFragment.getChatMode() != 0 || dialogId == UserConfig.getInstance(currentAccount).getClientUserId()) {
+            // No pill in auxiliary modes (quick-replies, business-link) or in Saved
             // Messages / notes-to-self, where a peer time zone is meaningless.
             show = false;
         } else {
@@ -684,10 +689,10 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
     }
 
     private void tickTimeZonePill() {
-        // NagramX: safe to call unconditionally every minute, including updateTimeZonePill()'s
-        // requestLayout(), only because tzClockPill's measured width is fixed by setMinWidth()
-        // above at construction and never changes as the clock advances -- so this tick cannot
-        // repeatedly trigger PR #146's width-based re-centering.
+        // NagramX: safe to call unconditionally every minute only because updateTimeZonePill()
+        // never requests layout without a real text or visibility change (the clock's width is
+        // also pinned by setMinWidth()) -- so this tick cannot repeatedly trigger PR #146's
+        // width-based re-centering.
         updateTimeZonePill();
         scheduleTimeZonePillTick();
     }
