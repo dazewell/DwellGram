@@ -88,7 +88,7 @@ Each chat's Notifications screen (open a chat → its name → Notifications) ha
 
 ### Notification profile per chat <!-- #notification-profiles --> <!-- #notif-profile-muted -->
 
-Each chat has a **Notification profile**: **Loud** (Telegram's usual alerts, the default), **Muted** (Telegram's own mute, on every device) or **Passive** (shade only: no status-bar icon, lock screen, sound, vibration, popup or watch). Set it on the chat's Notifications screen or with the header bell, shown on muted chats too: tap to cycle, long-press to pick. Not on forum topics.
+Each chat has a **Notification profile**: **Loud** (Telegram's usual alerts, the default), **Passive** (shade only: no status-bar icon, lock screen, sound, vibration, popup or watch) or **Muted** (Telegram's own mute, on every device). Set it on the chat's Notifications screen or with the header bell, shown on muted chats too: tap to cycle, long-press to pick. Not on forum topics.
 
 ### Chat header and menu order <!-- #chat-menu-order -->
 

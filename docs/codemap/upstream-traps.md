@@ -235,7 +235,7 @@ this branch.)*
 
 Android treats re-creating an existing `NotificationChannel` id as a no-op for importance, sound and vibration;
 only the name and description can change. That is why the notification profiles use fixed, versioned channel ids
-(`nax_np_v1_<account>_<tier>`, bump the version to change a preset: `NotificationProfiles.java:42`, `:190`) and why a
+(`nax_np_v1_<account>_<tier>`, bump the version to change a preset: `NotificationProfiles.java:53`, `:376`) and why a
 profile switch only picks a different existing channel at post time. The disguise cover owns no channel at all since
 `#disguise-parity`: it posts on whatever channel `validateChannelId` picked for a normal notification
 (`NotificationsController.java:5009-5015`, `NotificationCoverController.Behavior` at `NotificationCoverController.java:661`).
