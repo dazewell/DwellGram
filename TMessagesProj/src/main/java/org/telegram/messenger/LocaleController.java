@@ -2637,12 +2637,11 @@ public class LocaleController {
     }
 
     public static String formatDateOnline(long date, boolean[] madeShorter) {
-        // NagramX: "seen <time>" instead of "last seen <time>" so the chat header subtitle fits more. English only: the fork
-        // key has no translations, and the server language pack would win over a local override of LastSeenFormatted.
-        LocaleInfo naxLocale = getInstance().currentLocaleInfo;
-        boolean naxEn = naxLocale != null && ("en".equals(naxLocale.shortName) || "en".equals(naxLocale.baseLangCode));
-        int naxSeen = naxEn ? R.string.NaxSeenFormatted : R.string.LastSeenFormatted;
-        int naxSeenDate = naxEn ? R.string.NaxSeenFormatted : R.string.LastSeenDateFormatted;
+        // NagramX: "seen <time>" instead of "last seen <time>" so the chat header subtitle fits more. Swapped only while the
+        // string in use is upstream's English text, whatever pack supplied it: the fork key has no translations, and the
+        // server language pack would win over a local override of LastSeenFormatted.
+        int naxSeen = "last seen %1$s".equals(getString(R.string.LastSeenFormatted)) ? R.string.NaxSeenFormatted : R.string.LastSeenFormatted;
+        int naxSeenDate = "last seen %1$s".equals(getString(R.string.LastSeenDateFormatted)) ? R.string.NaxSeenFormatted : R.string.LastSeenDateFormatted;
         try {
             date *= 1000;
             Calendar rightNow = Calendar.getInstance();
