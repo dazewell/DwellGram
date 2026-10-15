@@ -122,10 +122,10 @@ public final class SchedulePickerShortcuts {
         dayPicker.setTextOffset(0);
         hourPicker.setTextOffset(dp(6));
         minutePicker.setTextOffset(-dp(6));
-        setWeight(dayPicker, 0.31f);
+        setWeight(dayPicker, 0.30f);
         setWeight(hourPicker, 0.18f);
         setWeight(minutePicker, 0.18f);
-        wheelsRow.addView(monthPicker, 0, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 0.17f));
+        wheelsRow.addView(monthPicker, 0, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 0.18f));
         wheelsRow.addView(buildMinutePills(context), LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 0.16f, Gravity.CENTER_VERTICAL));
 
         if (showTimePills) {
