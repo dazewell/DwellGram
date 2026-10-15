@@ -1911,6 +1911,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val templateMessagesData =
+        addConfig(
+            "TemplateMessagesData",
+            ConfigItem.configTypeString,
+            "[]"
+        )
 
     val preferredTranslateTargetLangList = ArrayList<String>()
     fun updatePreferredTranslateTargetLangList() {

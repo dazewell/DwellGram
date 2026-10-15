@@ -10276,6 +10276,17 @@ public class ChatActivityEnterView extends FrameLayout implements
         return attachPinned();
     }
 
+    // NagramX (#template-messages): one-tap template send from an empty composer. Refuses whatever Send
+    // itself would refuse, and a pending voice/video/rich draft the send runnable would send instead;
+    // skips the armed send action because the Send button showing its badge is absent on an empty field.
+    public void sendTemplateNow(CharSequence text) {
+        if (isSendClickIgnored() || !isSendButtonEnabled() || animatorIsBlockedByStreaming.getValue() || recordingAudioVideo
+                || messageEditText == null || messageEditText.length() > 0
+                || audioToSend != null || videoToSendMessageObject != null || richDraftActive) return;
+        setFieldText(text);
+        sendMessageInternal(!NaConfig.INSTANCE.getSilentMessageByDefault().Bool(), 0, 0, 0, true);
+    }
+
     public void checkSendButton(boolean animated) {
         // NagramX (#remember-send-action): only synchronous checkpoint that fires on ordinary composer-state
         // changes (dialog switch, slow mode expiring, self-chat, etc.) without a dedicated observer.

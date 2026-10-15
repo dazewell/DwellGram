@@ -311,6 +311,9 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     private final AbstractConfigCell composerLayoutRow = cellGroup.appendCell(new ConfigCellTextCheckIcon(null, "ComposerLayout", null, R.drawable.msg_customize, false, () ->
             presentFragment(new com.dazewell.gram.composer.ComposerLayoutActivity())));
 
+    private final AbstractConfigCell templateMessagesRow = cellGroup.appendCell(new ConfigCellTextCheckIcon(null, "TemplateMessages", null, R.drawable.flash_on, false, () ->
+            presentFragment(new com.dazewell.gram.templates.TemplateMessagesActivity())));
+
     private final AbstractConfigCell rememberedSendActionRow = cellGroup.appendCell(new ConfigCellTextCheckIcon(null, "RememberedSendAction", null, R.drawable.msg_send, false, () ->
             presentFragment(new com.dazewell.gram.ui.RememberedSendActionSettingsActivity())));
 

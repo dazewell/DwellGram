@@ -768,6 +768,18 @@
     <string name="ComposerSpacingInfoNoRoom">Icon spacing can\'t move at this Toolbar size. Make Toolbar size bigger to use this slider.</string>
     <string name="InputTextSizeInfo">Sets the size of the text you type. Custom emoji scale with it.</string>
     <string name="ComposerPreviewSampleText">See you at eight?</string>
+    <!-- Template messages #template-messages -->
+    <string name="TemplateMessages">Template messages</string>
+    <string name="TemplateMessagesButton">Templates</string>
+    <string name="TemplateMessagesInfo">Tap a template in the composer to send it right away, or hold it to put it in the message field instead. When the field already has text, a tap inserts too. Add the Templates button in Composer Toolbar.</string>
+    <string name="TemplateAdd">Add template</string>
+    <string name="TemplateNew">New template</string>
+    <string name="TemplateEdit">Edit template</string>
+    <string name="TemplateHint">Message</string>
+    <string name="TemplateDeleted">Template deleted</string>
+    <string name="TemplatePickerEmpty">No templates yet</string>
+    <string name="TemplateManage">Manage templates…</string>
+    <string name="TemplateLimit">You can keep up to %1$d templates</string>
     <!-- Passcode setup safety #passcode-setup-safety -->
     <string name="PasscodePanicCodeConfirm">Re-enter your Panic Code</string>
     <string name="PasscodeSetForAccount">Set passcode for %1$s</string>
