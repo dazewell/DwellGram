@@ -28,13 +28,16 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.Emoji;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
+import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.TextCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Components.BulletinFactory;
@@ -53,6 +56,7 @@ public class TemplateMessagesActivity extends BaseFragment {
     private static final int TYPE_ADD = 0;
     private static final int TYPE_TEMPLATE = 1;
     private static final int TYPE_INFO = 2;
+    private static final int TYPE_HEADER = 3;
 
     private ArrayList<TemplateStore.Template> templates = new ArrayList<>();
     private RecyclerListView listView;
@@ -99,12 +103,21 @@ public class TemplateMessagesActivity extends BaseFragment {
                     showEditor(-1);
                 }
             } else if (type == TYPE_TEMPLATE) {
-                showEditor(position - 1);
+                showEditor(position - firstTemplateRow());
             }
         });
         actionBar.setAdaptiveBackground(listView);
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         return fragmentView;
+    }
+
+    /** Rows: the header (only once there is a template), Add, one per template, then the footer. */
+    private int addRow() {
+        return templates.isEmpty() ? 0 : 1;
+    }
+
+    private int firstTemplateRow() {
+        return addRow() + 1;
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -266,13 +279,14 @@ public class TemplateMessagesActivity extends BaseFragment {
 
         @Override
         public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder source, @NonNull RecyclerView.ViewHolder target) {
-            int from = source.getAdapterPosition() - 1;
-            int to = target.getAdapterPosition() - 1;
+            int offset = firstTemplateRow();
+            int from = source.getAdapterPosition() - offset;
+            int to = target.getAdapterPosition() - offset;
             if (from < 0 || to < 0 || from >= templates.size() || to >= templates.size()) {
                 return false;
             }
             templates.add(to, templates.remove(from));
-            adapter.notifyItemMoved(from + 1, to + 1);
+            adapter.notifyItemMoved(from + offset, to + offset);
             moved = true;
             return true;
         }
@@ -311,20 +325,24 @@ public class TemplateMessagesActivity extends BaseFragment {
 
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
-            return holder.getItemViewType() != TYPE_INFO;
+            int type = holder.getItemViewType();
+            return type == TYPE_ADD || type == TYPE_TEMPLATE;
         }
 
         @Override
         public int getItemCount() {
-            return templates.size() + 2;
+            return firstTemplateRow() + templates.size() + 1;
         }
 
         @Override
         public int getItemViewType(int position) {
-            if (position == 0) {
+            if (position < addRow()) {
+                return TYPE_HEADER;
+            }
+            if (position == addRow()) {
                 return TYPE_ADD;
             }
-            return position <= templates.size() ? TYPE_TEMPLATE : TYPE_INFO;
+            return position - firstTemplateRow() < templates.size() ? TYPE_TEMPLATE : TYPE_INFO;
         }
 
         @NonNull
@@ -332,6 +350,10 @@ public class TemplateMessagesActivity extends BaseFragment {
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             View view;
             switch (viewType) {
+                case TYPE_HEADER:
+                    view = new HeaderCell(context);
+                    view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    break;
                 case TYPE_ADD:
                     view = new TextCell(context);
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
@@ -357,18 +379,22 @@ public class TemplateMessagesActivity extends BaseFragment {
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             switch (holder.getItemViewType()) {
+                case TYPE_HEADER:
+                    ((HeaderCell) holder.itemView).setText(LocaleController.getString(R.string.TemplatesHeader));
+                    break;
                 case TYPE_ADD:
+                    // No icon, so its text starts on the same 21dp column as the header and the rows.
                     TextCell textCell = (TextCell) holder.itemView;
                     textCell.setColors(Theme.key_windowBackgroundWhiteBlueIcon, Theme.key_windowBackgroundWhiteBlueButton);
-                    textCell.setTextAndIcon(LocaleController.getString(R.string.TemplateAdd), R.drawable.msg_add, !templates.isEmpty());
+                    textCell.setText(LocaleController.getString(R.string.TemplateAdd), !templates.isEmpty());
                     break;
                 case TYPE_INFO:
                     ((TextInfoPrivacyCell) holder.itemView).setText(LocaleController.getString(R.string.TemplateMessagesInfo));
                     break;
                 default:
-                    int index = position - 1;
+                    int index = position - firstTemplateRow();
                     if (index >= 0 && index < templates.size()) {
-                        ((TemplateRowCell) holder.itemView).set(TemplateStore.label(templates.get(index).text), index < templates.size() - 1);
+                        ((TemplateRowCell) holder.itemView).set(TemplateStore.firstLine(templates.get(index).text), index < templates.size() - 1);
                     }
                     break;
             }
@@ -377,7 +403,7 @@ public class TemplateMessagesActivity extends BaseFragment {
 
     private static class TemplateRowCell extends FrameLayout {
 
-        final TextView titleView;
+        final SimpleTextView titleView;
         final ImageView reorderView;
         private boolean needDivider;
 
@@ -386,13 +412,12 @@ public class TemplateMessagesActivity extends BaseFragment {
             setWillNotDraw(false);
             boolean rtl = LocaleController.isRTL;
 
-            titleView = new TextView(context);
+            titleView = new SimpleTextView(context);
             titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-            titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
-            titleView.setSingleLine(true);
-            titleView.setEllipsize(TextUtils.TruncateAt.END);
+            titleView.setTextSize(16);
+            titleView.setMaxLines(1);
             titleView.setGravity((rtl ? Gravity.RIGHT : Gravity.LEFT) | Gravity.CENTER_VERTICAL);
-            addView(titleView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, (rtl ? Gravity.RIGHT : Gravity.LEFT) | Gravity.CENTER_VERTICAL, rtl ? 56 : 21, 0, rtl ? 21 : 56, 0));
+            addView(titleView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, (rtl ? Gravity.RIGHT : Gravity.LEFT) | Gravity.CENTER_VERTICAL, rtl ? 60 : 21, 0, rtl ? 21 : 60, 0));
 
             reorderView = new ImageView(context);
             reorderView.setScaleType(ImageView.ScaleType.CENTER);
@@ -410,19 +435,23 @@ public class TemplateMessagesActivity extends BaseFragment {
 
         void set(String title, boolean divider) {
             needDivider = divider;
-            titleView.setText(title);
+            // Telegram's own emoji, as in the chat, rather than the system font's.
+            titleView.setText(Emoji.replaceEmoji(title, titleView.getPaint().getFontMetricsInt(), false));
             invalidate();
         }
 
+        // The list hands rows a WRAP_CONTENT width, so take the full width explicitly: the background,
+        // the trailing handle and the divider all need to span the row.
         @Override
         protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(dp(50), MeasureSpec.EXACTLY));
+            super.onMeasure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(dp(50), MeasureSpec.EXACTLY));
         }
 
         @Override
         protected void onDraw(Canvas canvas) {
             if (needDivider) {
-                canvas.drawLine(dp(LocaleController.isRTL ? 0 : 21), getHeight() - 1, getWidth() - dp(LocaleController.isRTL ? 21 : 0), getHeight() - 1, Theme.dividerPaint);
+                canvas.drawLine(dp(LocaleController.isRTL ? 0 : 21), getHeight() - dp(1), getWidth() - dp(LocaleController.isRTL ? 21 : 0), getHeight() - dp(1), Theme.dividerPaint);
             }
         }
     }
@@ -438,7 +467,8 @@ public class TemplateMessagesActivity extends BaseFragment {
             }
         };
         descriptions.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
-        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{TextCell.class, TemplateRowCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, TextCell.class, TemplateRowCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+        descriptions.add(new ThemeDescription(listView, 0, new Class[]{HeaderCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlueHeader));
         descriptions.add(new ThemeDescription(null, 0, null, null, null, delegate, Theme.key_windowBackgroundWhite));
         descriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_actionBarDefault));
         descriptions.add(new ThemeDescription(actionBar, ThemeDescription.FLAG_AB_ITEMSCOLOR, null, null, null, null, Theme.key_actionBarDefaultIcon));

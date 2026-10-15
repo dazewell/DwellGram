@@ -771,7 +771,8 @@
     <!-- Template messages #template-messages -->
     <string name="TemplateMessages">Template messages</string>
     <string name="TemplateMessagesButton">Templates</string>
-    <string name="TemplateMessagesInfo">Tap a template in the composer to send it right away, or hold it to put it in the message field instead. When the field already has text, a tap inserts too. Add the Templates button in Composer Toolbar.</string>
+    <string name="TemplateMessagesInfo">Tap a template in the composer to send it. Hold one to put it in the message field instead. If the field already has text, tapping inserts it. The Templates button is in Composer Toolbar.</string>
+    <string name="TemplatesHeader">Your templates</string>
     <string name="TemplateAdd">Add template</string>
     <string name="TemplateNew">New template</string>
     <string name="TemplateEdit">Edit template</string>

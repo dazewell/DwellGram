@@ -106,17 +106,21 @@ public final class TemplateStore {
         return new Template(newId(), text);
     }
 
-    /** The first non-blank line, shortened for a one-line row. */
-    public static String label(String text) {
-        String line = "";
+    /** The first non-blank line, trimmed; a view that ellipsizes by itself shows this as is. */
+    public static String firstLine(String text) {
         if (text != null) {
             for (String candidate : text.split("\n")) {
                 if (!TextUtils.isEmpty(candidate.trim())) {
-                    line = candidate.trim();
-                    break;
+                    return candidate.trim();
                 }
             }
         }
+        return "";
+    }
+
+    /** The first non-blank line, shortened for the picker's popup rows. */
+    public static String label(String text) {
+        String line = firstLine(text);
         if (line.length() > LABEL_MAX) {
             int end = Character.isHighSurrogate(line.charAt(LABEL_MAX - 1)) ? LABEL_MAX - 1 : LABEL_MAX;
             line = line.substring(0, end).trim() + "…";
