@@ -21817,7 +21817,7 @@ public class ChatActivity extends BaseFragment implements
         if (ChatObject.isHiddenInCommunity(currentAccount, currentChat) || ChatObject.isHiddenInCommunity(currentAccount, currentUser)) {
             rightIcon = getContext().getResources().getDrawable(R.drawable.mini_ephemeral_hidden_14).mutate();
             rightIcon.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_windowBackgroundWhiteHintText), PorterDuff.Mode.SRC_IN));
-        } else if (!UserObject.isReplyUser(currentUser) && (!isThreadChat() || isTopic) && isMuted) {
+        } else if (!UserObject.isReplyUser(currentUser) && (!isThreadChat() || isTopic) && isMuted && (nkChatMenu == null || !nkChatMenu.bellShown())) { // NagramX: the header bell already shows Muted
             // NagramX: a private copy that colours itself as it draws, since the shared drawable is tinted by the global palette.
             rightIcon = com.dazewell.gram.headerbg.HeaderBgForeground.titleIcon(this, getThemedDrawable(Theme.key_drawable_muteIconDrawable), Theme.key_chat_muteIcon);
         }
@@ -32340,8 +32340,8 @@ public class ChatActivity extends BaseFragment implements
 
     // NagramX: the one place the chat button controller learns the state its header icons follow
     private void nkUpdateChatMenu() {
-        if (nkChatMenu != null) {
-            nkChatMenu.updateHeader(searchItemVisible, inPreviewMode, getTopicId() != 0, currentChat == null || !ChatObject.isNotInChat(currentChat));
+        if (nkChatMenu != null && nkChatMenu.updateHeader(searchItemVisible, inPreviewMode, getTopicId() != 0, currentChat == null || !ChatObject.isNotInChat(currentChat))) {
+            updateTitleIcons(); // the title's mute icon stands in whenever the bell is off screen; its own nkUpdateChatMenu() call finds no change, so this stops there
         }
     }
 
