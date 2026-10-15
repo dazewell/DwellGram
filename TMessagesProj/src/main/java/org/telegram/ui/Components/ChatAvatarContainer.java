@@ -1100,6 +1100,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             int sl = centerSubtitle ? getCenteredTitleCenterX() - animatedSubtitleTextView.getMeasuredWidth() / 2 : l;
             animatedSubtitleTextView.layout(sl, subtitleTop, sl + animatedSubtitleTextView.getMeasuredWidth(), subtitleTop + animatedSubtitleTextView.getTextHeight());
         }
+        laidOutTitleContentEnd = titleContentEnd(); // NagramX: compared by relayoutIfTitleEndMoved()
         if (tzClockPill != null && tzClockPill.getVisibility() == VISIBLE) {
             int pillH = tzClockPill.getMeasuredHeight();
             int pillW = tzClockPill.getMeasuredWidth();
@@ -1246,12 +1247,10 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             } else {
                 rightDrawable2ContentDescription = null;
             }
-            boolean hadIcon = titleTextView.getRightDrawable2() != null;
             titleTextView.setRightDrawable2(mutedIcon);
-            // NagramX: a laid-out SimpleTextView rebuilds its text in place, so the time-zone pill after the title only moves on our own layout pass
-            if (hadIcon != (mutedIcon != null)) requestLayout();
         }
         updateTitleIconSpacing();
+        relayoutIfTitleEndMoved(); // NagramX: see the method
         checkActionBar(true);
     }
 
@@ -1349,6 +1348,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             rightDrawableContentDescription = null;
         }
         updateTitleIconSpacing();
+        relayoutIfTitleEndMoved(); // NagramX: see the method
         checkActionBar(animated);
     }
 
@@ -2193,6 +2193,19 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             end += dp(4) + rd2.getIntrinsicWidth() - titleRightDrawable2Offset;
         }
         return end;
+    }
+
+    // NagramX: once laid out, SimpleTextView.recreateLayoutMaybe() rebuilds a new name or icon in
+    // place without requesting layout, so our onLayout (which places the time-zone pill after the
+    // title) never reruns and the pill stays where the old title ended. Compare against the end it
+    // was last placed from rather than testing which icon changed: a rename, an icon swap of a
+    // different width and a late emoji status all move it.
+    private int laidOutTitleContentEnd = -1;
+
+    private void relayoutIfTitleEndMoved() {
+        if (titleContentEnd() != laidOutTitleContentEnd) {
+            requestLayout();
+        }
     }
 
     public boolean isCenteredContentMeasured() {
