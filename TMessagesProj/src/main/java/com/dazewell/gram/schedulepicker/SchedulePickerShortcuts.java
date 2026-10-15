@@ -425,6 +425,10 @@ public final class SchedulePickerShortcuts {
     }
 
     private void stylePill(TextView pill, boolean selected) {
+        // refresh() runs on every settled wheel event; rebuilding the drawable would cut the ripple.
+        if (pill.getBackground() != null && pill.isSelected() == selected) {
+            return;
+        }
         // setSelected so TalkBack announces the state, not just the fill colour.
         pill.setSelected(selected);
         pill.setBackground(Theme.createSimpleSelectorRoundRectDrawable(dp(999),
