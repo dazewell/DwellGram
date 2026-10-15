@@ -1246,7 +1246,10 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             } else {
                 rightDrawable2ContentDescription = null;
             }
+            boolean hadIcon = titleTextView.getRightDrawable2() != null;
             titleTextView.setRightDrawable2(mutedIcon);
+            // NagramX: a laid-out SimpleTextView rebuilds its text in place, so the time-zone pill after the title only moves on our own layout pass
+            if (hadIcon != (mutedIcon != null)) requestLayout();
         }
         updateTitleIconSpacing();
         checkActionBar(true);

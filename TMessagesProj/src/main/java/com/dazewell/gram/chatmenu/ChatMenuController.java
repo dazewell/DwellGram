@@ -116,6 +116,12 @@ public final class ChatMenuController {
         return icons.get(ChatMenuLayout.ALERTS);
     }
 
+    /** The bell shows the Muted state itself, so the title's small mute icon stands down while it's on screen. */
+    public boolean bellShown() {
+        ActionBarMenuItem bell = icons.get(ChatMenuLayout.ALERTS);
+        return bell != null && bell.getVisibility() == View.VISIBLE;
+    }
+
     /** True when the caller should register the ⋮ row: the button is available here and not shown as a header icon. */
     private boolean claim(String key) {
         if (hidden(key)) return false;
@@ -159,8 +165,12 @@ public final class ChatMenuController {
         }
     }
 
-    /** Header icons follow the same states that hide upstream's Call icon: search open and preview. */
-    public void updateHeader(boolean search, boolean preview, boolean topic, boolean inChat) {
+    /**
+     * Header icons follow the same states that hide upstream's Call icon: search open and preview.
+     * Returns whether the bell appeared or went, since the title's mute icon depends on it.
+     */
+    public boolean updateHeader(boolean search, boolean preview, boolean topic, boolean inChat) {
+        boolean bellWasShown = bellShown();
         for (Map.Entry<String, ActionBarMenuItem> entry : icons.entrySet()) {
             String key = entry.getKey();
             ActionBarMenuItem icon = entry.getValue();
@@ -178,6 +188,7 @@ public final class ChatMenuController {
             int visibility = shown ? View.VISIBLE : View.GONE;
             if (icon.getVisibility() != visibility) icon.setVisibility(visibility);
         }
+        return bellShown() != bellWasShown;
     }
 
     /**
