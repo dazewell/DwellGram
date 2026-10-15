@@ -62,10 +62,12 @@ public final class TemplatePicker {
             enterView.sendTemplateNow(text);
             return;
         }
+        // A selection dragged backwards has its start after its end, so order the two before replacing.
         int length = field.length();
-        int start = Math.max(0, Math.min(enterView.getCursorPosition(), length));
-        int selected = Math.max(0, Math.min(enterView.getSelectionLength(), length - start));
-        enterView.replaceWithText(start, selected, text, true);
+        int a = Math.max(0, Math.min(field.getSelectionStart(), length));
+        int b = Math.max(0, Math.min(field.getSelectionEnd(), length));
+        int start = Math.min(a, b);
+        enterView.replaceWithText(start, Math.max(a, b) - start, text, true);
         field.requestFocus();
     }
 }
