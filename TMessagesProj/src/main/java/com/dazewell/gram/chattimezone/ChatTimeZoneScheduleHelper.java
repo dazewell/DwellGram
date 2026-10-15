@@ -61,7 +61,7 @@ public final class ChatTimeZoneScheduleHelper {
      * Builds the tab and/or readout for the schedule sheet.
      *
      * @param container  the vertical sheet container
-     * @param wheelsRow  the horizontal row holding the three pickers (the tab is
+     * @param wheelsRow  the horizontal row holding the wheels (the tab is
      *                   inserted directly above it)
      * @param type       the button-label type stock {@code checkScheduleDate} uses
      * @param button     the confirm button, or {@code null} when its label must not
