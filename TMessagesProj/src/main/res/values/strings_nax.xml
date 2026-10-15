@@ -583,6 +583,11 @@
     <string name="ScheduleRememberHintReschedule">Saves the delay you set here for the next picker — this sheet still opens on the time already set</string>
     <string name="ScheduleRememberedDelay">Remembered delay</string>
     <string name="ScheduleOnceUnavailable">View-once messages can\'t be scheduled</string>
+    <string name="ScheduleMidnight">Midnight</string>
+    <string name="ScheduleNoon">Noon</string>
+    <string name="ScheduleTomorrowNoon">Tomorrow noon</string>
+    <string name="ScheduleTomorrowAt">Tomorrow %1$s</string>
+    <string name="ScheduleMinutePillDescr">Set minutes to %1$s</string>
     <string name="QuickScheduleButton">Quick Schedule Button</string>
     <string name="QuickScheduleButtonNotice">Keep calendar button visible when typing to quickly schedule more messages</string>
     <string name="CombinePinnedWithPlayer">Combine pinned message with player</string>

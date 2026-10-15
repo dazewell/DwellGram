@@ -115,6 +115,7 @@ public final class ChatTimeZoneScheduleHelper {
         @Nullable private TextView segPeerTime;
 
         private boolean peerMode; // false = My time (wheels device-local), true = Peer's time (wheels peer wall-clock)
+        @Nullable private Runnable onModeChanged;
 
         private Controls(Context context, LinearLayout container, LinearLayout wheelsRow,
                          TimeZone tz, String peerName, boolean isReschedule, int type,
@@ -155,6 +156,17 @@ public final class ChatTimeZoneScheduleHelper {
 
         public boolean isPeerMode() {
             return peerMode;
+        }
+
+        /** The zone the wheels are in: the peer's on the "Peer's time" tab, {@code null} (device) otherwise. */
+        @Nullable
+        public TimeZone getActiveZone() {
+            return peerMode ? tz : null;
+        }
+
+        /** Runs after the user switches tabs, once the wheels hold the same instant in the new zone. */
+        public void setOnModeChanged(@Nullable Runnable onModeChanged) {
+            this.onModeChanged = onModeChanged;
         }
 
         /** The instant the wheels are on, read in whichever zone the active tab puts them in. */
@@ -273,6 +285,9 @@ public final class ChatTimeZoneScheduleHelper {
                 // Leaving peer mode hands the wheels back to stock scheduling math.
                 AlertsCreator.checkScheduleDate(button, null, 0, 0, type, dayPicker, hourPicker, minutePicker);
                 renderReadout();
+            }
+            if (onModeChanged != null) {
+                onModeChanged.run();
             }
         }
 
@@ -437,28 +452,11 @@ public final class ChatTimeZoneScheduleHelper {
         // ---------- day formatter ----------
 
         /**
-         * Builds the wheel's day formatter for a given zone (device zone when
-         * {@code zone} is null), matching the stock lambda's visual style: "Today"
-         * for offset 0, "<week>, <MMM d>" within the same year, else "<MMM d yyyy>".
-         * The label reflects the given zone's wall-clock date because
-         * {@code FastDateFormat.format(Calendar)} reads the calendar's own fields.
+         * The wheel's day formatter for a given zone (device zone when {@code zone} is null). The
+         * month lives in its own wheel ({@code SchedulePickerShortcuts}), so both tabs share its labels.
          */
         private NumberPicker.Formatter buildDayFormatter(@Nullable TimeZone zone) {
-            final TimeZone z = zone != null ? zone : TimeZone.getDefault();
-            return value -> {
-                if (value == 0) {
-                    return LocaleController.getString(R.string.MessageScheduleToday);
-                }
-                final Calendar c = Calendar.getInstance(z);
-                final int nowYear = c.get(Calendar.YEAR);
-                c.add(Calendar.DAY_OF_YEAR, value);
-                if (c.get(Calendar.YEAR) == nowYear) {
-                    return LocaleController.getInstance().getFormatterWeek().format(c)
-                            + ", "
-                            + LocaleController.getInstance().getFormatterScheduleDay().format(c);
-                }
-                return LocaleController.getInstance().getFormatterScheduleYear().format(c);
-            };
+            return com.dazewell.gram.schedulepicker.SchedulePickerShortcuts.dayFormatter(zone);
         }
     }
 }
