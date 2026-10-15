@@ -31,6 +31,8 @@ public final class ComposerButtons {
     public static final int KIND_TEXT = 2;
     /** Cut/copy/paste: forwarded straight to EditTextCaption's own menu handling, not performMenuAction. */
     public static final int KIND_CLIPBOARD = 3;
+    /** Opens its own UI from the toolbar; always enabled, needs neither text nor a selection. */
+    public static final int KIND_ACTION = 4;
 
     /** The leading zone holds at most this many buttons, ordered start to end. */
     public static final int START_CAPACITY = 2;
@@ -45,6 +47,7 @@ public final class ComposerButtons {
     public static final String CUT = "cut";
     public static final String COPY = "copy";
     public static final String PASTE = "paste";
+    public static final String TEMPLATES = "templates";
 
     public static final class Button {
         public final String key;
@@ -93,6 +96,7 @@ public final class ComposerButtons {
         register(new Button(CUT, R.string.Cut, R.drawable.nax_formatting_cut, KIND_CLIPBOARD, ZONE_HIDDEN, android.R.id.cut));
         register(new Button(COPY, R.string.Copy, R.drawable.msg_copy_solar, KIND_CLIPBOARD, ZONE_HIDDEN, android.R.id.copy));
         register(new Button(PASTE, R.string.Paste, R.drawable.baseline_content_paste_24, KIND_CLIPBOARD, ZONE_HIDDEN, android.R.id.paste));
+        register(new Button(TEMPLATES, R.string.TemplateMessagesButton, R.drawable.flash_on_solar, KIND_ACTION, ZONE_HIDDEN, 0));
 
         register(new Button("mono", R.string.Mono, R.drawable.formatting_code, KIND_FORMAT, ZONE_HIDDEN, R.id.menu_mono));
         register(new Button("bold", R.string.Bold, R.drawable.formatting_bold, KIND_FORMAT, ZONE_HIDDEN, R.id.menu_bold));
@@ -195,6 +199,7 @@ public final class ComposerButtons {
         // read 23.85%/28.53% back into the model's band or re-derive 0.9212 from them.
         iconScale(SCHEDULE, 0.9767f);   // authored exception scaled off 25.00% ink, 90.43 x 88.28 base layer - see note above
         iconScale(PASTE, 0.8892f);      // 29.09% ink, 75.00 x 91.70
+        iconScale(TEMPLATES, 0.8644f);  // 30.78% ink, 75.00 x 91.70 - held by the area ceiling
         iconScale("date", 0.9292f);     // 25.72% ink, 89.65 x 87.60
         iconScale(COPY, 0.9660f);       // 24.51% ink, 86.23 x 94.53
         iconScale("translate", 0.9212f);// 22.13% ink, 90.43 x 90.43

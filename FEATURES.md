@@ -152,6 +152,10 @@ The calendar icon is a one-tap schedule shortcut, instead of long-pressing Send.
 
 Long-press Send and pick silent, send-when-online, or schedule; it repeats on your next send, with a badge on Send showing which. Tap the checked option again to drop it. The same menu has a Remember switch up top, on by default: tap to turn the feature on or off without closing the menu, long-press to open Chat Settings → Remembered send action for the per-type and leave-chat-reset toggles.
 
+### Template messages <!-- #template-messages -->
+
+Saved messages you can send in a couple of taps. Add the Templates button in Chat Settings → Composer Toolbar, then tap it in a chat and pick one: with an empty field it sends right away, otherwise it goes in at the cursor. Hold a template to insert it instead. Write and order them in Chat Settings → Template messages.
+
 ### Double-tap edit keeps the caret on the tapped word <!-- #double-tap-edit-cursor -->
 
 When a double-tap edit action opens a sent text message for editing, the cursor lands on the tapped word instead of the end of the field. It only applies to text messages, and falls back to the end if the mapped offset is stale or invalid. Captions and the long-press edit menu keep their current behavior.

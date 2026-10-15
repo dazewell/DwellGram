@@ -22,8 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The text actions in the composer toolbar: every style the selection menu offers, Select All, and
- * Cut/Copy/Paste.
+ * The text actions in the composer toolbar: every style the selection menu offers, Select All,
+ * Cut/Copy/Paste, and the Templates button.
  *
  * Each one is its own view registered with the toolbar under its own key, so the saved layout can put
  * them wherever the user wants and interleave them with the rest of the row.
@@ -56,7 +56,8 @@ public final class ComposerFormattingActions {
         this.resourcesProvider = resourcesProvider;
         this.isChat = isChat;
         for (ComposerButtons.Button button : ComposerButtons.all()) {
-            if (button.kind != ComposerButtons.KIND_FORMAT && button.kind != ComposerButtons.KIND_TEXT && button.kind != ComposerButtons.KIND_CLIPBOARD) {
+            if (button.kind != ComposerButtons.KIND_FORMAT && button.kind != ComposerButtons.KIND_TEXT && button.kind != ComposerButtons.KIND_CLIPBOARD
+                    && button.kind != ComposerButtons.KIND_ACTION) {
                 continue;
             }
             if (!ComposerLayout.isVisible(button.key)) {
@@ -107,7 +108,9 @@ public final class ComposerFormattingActions {
                 if (!visible) {
                     continue;
                 }
-                if (action.button.kind == ComposerButtons.KIND_TEXT) {
+                if (action.button.kind == ComposerButtons.KIND_ACTION) {
+                    setActionEnabled(action.view, true);
+                } else if (action.button.kind == ComposerButtons.KIND_TEXT) {
                     setActionEnabled(action.view, hasText);
                 } else if (ComposerButtons.PASTE.equals(action.button.key)) {
                     // Pasting replaces/inserts at the cursor regardless of selection, so it doesn't need one.
@@ -145,12 +148,18 @@ public final class ComposerFormattingActions {
         view.setContentDescription(LocaleController.getString(button.titleRes));
         applyIconColor(view, true);
         ScaleStateListAnimator.apply(view);
-        view.setOnClickListener(v -> apply(button));
+        view.setOnClickListener(v -> apply(button, v));
         return view;
     }
 
-    private void apply(ComposerButtons.Button button) {
+    private void apply(ComposerButtons.Button button, View anchor) {
         if (updating || destroyed) {
+            return;
+        }
+        if (button.kind == ComposerButtons.KIND_ACTION) {
+            if (ComposerButtons.TEMPLATES.equals(button.key)) {
+                com.dazewell.gram.templates.TemplatePicker.show(enterView, anchor);
+            }
             return;
         }
         updating = true;
