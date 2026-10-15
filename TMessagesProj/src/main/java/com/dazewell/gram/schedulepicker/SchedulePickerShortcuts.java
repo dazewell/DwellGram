@@ -106,7 +106,7 @@ public final class SchedulePickerShortcuts {
 
             @Override
             protected CharSequence getContentDescription(int value) {
-                return monthFor(value).format(DateTimeFormatter.ofPattern("MMMM yyyy", locale()));
+                return monthFor(value).format(DateTimeFormatter.ofPattern("LLLL yyyy", locale()));
             }
         };
         monthPicker.setTextColor(colors.textColor);
