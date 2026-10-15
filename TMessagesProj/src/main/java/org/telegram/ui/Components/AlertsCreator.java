@@ -4736,12 +4736,6 @@ public class AlertsCreator {
                 context, container, linearLayout, UserConfig.selectedAccount, dialogId, isReschedule, scheduleType,
                 datePickerColors.textColor, datePickerColors.buttonBackgroundColor,
                 dayPicker, hourPicker, minutePicker, isReschedule ? null : buttonTextView);
-        // NagramX: month wheel, :00/:30/:59 pills and upcoming-time pills. After the tz install so it can
-        // follow the tab's zone; every write goes through onValueChangeListener, exactly like a flick.
-        // The time pills stay off where the interval rows below already take the height.
-        com.dazewell.gram.schedulepicker.SchedulePickerShortcuts.install(context, container, linearLayout, tz[0],
-                !(isReschedule && reschedule.messageCount >= 2) && !(forwardSpread != null && forwardSpread.slotCount >= 2), minScheduleSeconds, datePickerColors, resourcesProvider,
-                dayPicker, hourPicker, minutePicker, onValueChangeListener);
 
         // NagramX: interval [value][unit] row + live preview for bulk reschedule (>= 2 messages).
         if (isReschedule && reschedule.messageCount >= 2) {
@@ -4759,6 +4753,13 @@ public class AlertsCreator {
                     context, container, forwardSpread.slotCount, forwardSpread.messageCount, datePickerColors.textColor,
                     dayPicker, hourPicker, minutePicker, buttonTextView, resourcesProvider);
         }
+
+        // NagramX: month wheel, :00/:30/:59 pills and upcoming-time pills. After the tz install so it can
+        // follow the tab's zone; every write goes through onValueChangeListener, exactly like a flick.
+        // The time pills stay off where an interval row already takes the height.
+        com.dazewell.gram.schedulepicker.SchedulePickerShortcuts.install(context, container, linearLayout, tz[0],
+                intervalControls[0] == null, minScheduleSeconds, datePickerColors, resourcesProvider,
+                dayPicker, hourPicker, minutePicker, onValueChangeListener);
 
         // NagramX: on the scheduled-infinite sheet, explain the +2min spacing and the best-effort ordering caveat.
         if (minLeadSeconds > 0) {
