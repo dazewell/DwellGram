@@ -104,6 +104,13 @@ public final class StashCountdown {
         bulletin = shown;
         host = top;
         shown.show();
+        // show() quietly does nothing while the screen has no layout container yet (being created or removed);
+        // leave the watcher to try again rather than count a bar nobody can see
+        if (!shown.isShowing()) {
+            bulletin = null;
+            reshowAt = 0;
+            return false;
+        }
         return true;
     }
 
