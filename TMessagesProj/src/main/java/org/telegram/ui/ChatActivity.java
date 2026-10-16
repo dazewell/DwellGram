@@ -21300,8 +21300,9 @@ public class ChatActivity extends BaseFragment implements
                 if (RepeatAsCopyItem != null) {
                     RepeatAsCopyItem.setVisibility(canSendMessage && (!noforwards || getMessageHelper().canSendMessagesAsCopy(getSelectedMessages1())));
                 }
-                if (actionModeOtherItem != null && actionModeOtherItem.getSubItem(nkbtn_stash) != null) { // NagramX: #stash
-                    actionModeOtherItem.getSubItem(nkbtn_stash).setVisibility(canForward && canSendMessage && NaConfig.INSTANCE.getShowStash().Bool() && chatMode == MODE_DEFAULT && canScheduleMessage());
+                ActionBarMenuSubItem stashItem = actionModeOtherItem == null ? null : actionModeOtherItem.getSubItem(nkbtn_stash); // NagramX: #stash
+                if (stashItem != null) {
+                    stashItem.setVisibility(canForward && canSendMessage && naxStashAllowed());
                 }
                 if (reportItem != null) {
                     reportItem.setVisibility(canReport);
@@ -49552,6 +49553,12 @@ public class ChatActivity extends BaseFragment implements
         }, themeDelegate);
     }
 
+    // NagramX: #stash. The half of the gate the message menu and the selection bar share; each adds its own
+    // forward and send checks.
+    private boolean naxStashAllowed() {
+        return NaConfig.INSTANCE.getShowStash().Bool() && chatMode == MODE_DEFAULT && canScheduleMessage();
+    }
+
     private boolean naxStashPreflight(ArrayList<MessageObject> messages) {
         MessageHelper.CopyPreflightResult preflight = getMessageHelper().preflightSpreadAsCopy(messages);
         if (preflight.ok) {
@@ -51872,7 +51879,7 @@ public class ChatActivity extends BaseFragment implements
                         icons.add(R.drawable.msg_repeat);
                     }
                     // NagramX: #stash. Offered wherever the manual route is: Forward allowed and Schedule allowed.
-                    if (canForward && allowRepeat && NaConfig.INSTANCE.getShowStash().Bool() && chatMode == MODE_DEFAULT && canScheduleMessage()) {
+                    if (canForward && allowRepeat && naxStashAllowed()) {
                         items.add(getString(R.string.Stash));
                         options.add(nkbtn_stash);
                         icons.add(R.drawable.msg_archive);
