@@ -49383,9 +49383,6 @@ public class ChatActivity extends BaseFragment implements
         if (batch == null) {
             return null;
         }
-        if (batch.account != currentAccount || batch.dialogId != dialog_id || !isRepostCopyDeleteEligible()) {
-            return null;
-        }
         // NagramX: keep visibleDialog fail-closed — showing here would dismiss the dialog the user has open.
         if (paused || !isFullyVisible || isFinishing() || visibleDialog != null) {
             return null;
@@ -49402,6 +49399,18 @@ public class ChatActivity extends BaseFragment implements
         }
         Activity activity = getParentActivity();
         if (activity == null || activity.isFinishing()) {
+            return null;
+        }
+        return resolveRepostCopyDeleteSourceData(batch);
+    }
+
+    // NagramX: the data half of the guard above - every armed source still loaded here and still deletable - with
+    // no on-screen checks, so #stash can re-run it when Delete is tapped from another screen.
+    private SparseArray<MessageObject>[] resolveRepostCopyDeleteSourceData(RepostCopyDeleteBatch batch) {
+        if (batch == null || isFinishing()) {
+            return null;
+        }
+        if (batch.account != currentAccount || batch.dialogId != dialog_id || !isRepostCopyDeleteEligible()) {
             return null;
         }
         SparseArray<MessageObject>[] sourceMessages = new SparseArray[]{new SparseArray<>(), new SparseArray<>()};
@@ -49429,7 +49438,7 @@ public class ChatActivity extends BaseFragment implements
             return false;
         }
         if (batch.stash) {
-            naxShowStashOffer(sourceMessages);
+            naxShowStashOffer(batch, sourceMessages);
             return true;
         }
         showRepostCopyDeleteBulletin(batch, sourceMessages);
@@ -49569,16 +49578,18 @@ public class ChatActivity extends BaseFragment implements
     }
 
     // NagramX: #stash. Delete may be tapped on another screen (the bar follows into Scheduled), so the stock
-    // confirmation is hosted there, against the sources the guard just accepted and this chat's peer captured now -
-    // the same alert createRepostCopySourceDeleteAlert opens, in normal-message mode whatever the host screen is.
-    private void naxShowStashOffer(SparseArray<MessageObject>[] sourceMessages) {
-        final TLRPC.User user = currentUser;
-        final TLRPC.Chat chat = currentChat;
-        final TLRPC.ChatFull info = chatInfo;
-        final long merge = mergeDialogId;
-        final int topicId = (int) getTopicId();
-        com.dazewell.gram.stash.StashOffer.show(currentAccount, sourceMessages[0].size() + sourceMessages[1].size(), host ->
-                AlertsCreator.createDeleteMessagesAlert(host, user, chat, null, info, merge, null, sourceMessages, null, topicId, MODE_DEFAULT, null, null, null, host.getResourceProvider()));
+    // confirmation is hosted there - the same alert createRepostCopySourceDeleteAlert opens, in normal-message mode
+    // whatever the host screen is. Like the repost bar, the sources are re-checked at tap time, from this chat,
+    // which stays on the stack beneath its Scheduled screen; if it is gone or any source vanished, nothing opens.
+    private void naxShowStashOffer(RepostCopyDeleteBatch batch, SparseArray<MessageObject>[] sourceMessages) {
+        com.dazewell.gram.stash.StashOffer.show(currentAccount, sourceMessages[0].size() + sourceMessages[1].size(), host -> {
+            SparseArray<MessageObject>[] sources = resolveRepostCopyDeleteSourceData(batch);
+            if (sources == null) {
+                BulletinFactory.of(host).createErrorBulletin(getString(R.string.RepeatAsCopyDeleteUnavailable)).show();
+                return;
+            }
+            AlertsCreator.createDeleteMessagesAlert(host, currentUser, currentChat, null, chatInfo, mergeDialogId, null, sources, null, (int) getTopicId(), MODE_DEFAULT, null, null, null, host.getResourceProvider());
+        });
     }
 
     private void repeatMessage(boolean isLongClick, boolean isRepeatasCopy) {
