@@ -1608,7 +1608,9 @@ public class ComposerLayoutActivity extends BaseFragment {
                     md3Island = ComposerMd3Surface.previewIsland(glassFactory, this);
                 }
                 final int pad = ComposerMd3Surface.previewPadding();
-                md3Island.setBounds(stage.getLeft(), stage.getTop() - pad, stage.getRight(), stage.getBottom() + pad);
+                // The docked composer runs edge to edge in the chat, so its stand-in spans the preview's width.
+                final boolean docked = InterfaceStyleController.dockedComposer();
+                md3Island.setBounds(docked ? 0 : stage.getLeft(), stage.getTop() - pad, docked ? getMeasuredWidth() : stage.getRight(), stage.getBottom() + pad);
                 md3Island.draw(canvas);
             }
             shadowDrawable.setBounds(0, 0, getMeasuredWidth(), getMeasuredHeight());

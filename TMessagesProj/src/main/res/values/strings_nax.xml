@@ -364,6 +364,8 @@
     <string name="InterfaceStyleApplyComposerInfo">The message field and its tools row in chats, drawn as one floating Material Design 3 island, and the panel under the keyboard.</string>
     <string name="InterfaceStyleApplyBottomNavigation">Bottom navigation</string>
     <string name="InterfaceStyleApplyBottomNavigationInfo">The Chats, Settings, and Profile bar at the bottom of the screen.</string>
+    <string name="InterfaceStyleDockedComposer">Docked composer</string>
+    <string name="InterfaceStyleDockedComposerInfo">Run the message field and its tools row edge to edge along the bottom, flat on the keyboard, instead of floating as an island.</string>
     <string name="InterfaceStyleRoundedNavigation">Rounded navigation</string>
     <string name="InterfaceStyleRoundedNavigationInfo">Fully rounded bottom navigation that highlights the whole selected tab, label included.</string>
     <string name="InterfaceStyleBlurStrength">Blur strength</string>

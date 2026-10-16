@@ -36,6 +36,11 @@ public class InterfaceStyleController {
         return COMPOSER_STYLE_AVAILABLE && isMaterialDesign3() && NaConfig.INSTANCE.getInterfaceStyleApplyComposer().Bool();
     }
 
+    // The MD3 composer as a flat full-width panel on the bottom edge and the keyboard, instead of a floating island.
+    public static boolean dockedComposer() {
+        return applyComposer() && NaConfig.INSTANCE.getInterfaceStyleDockedComposer().Bool();
+    }
+
     public static boolean applyBottomNavigation() {
         return isMaterialDesign3() && NaConfig.INSTANCE.getInterfaceStyleApplyBottomNavigation().Bool();
     }

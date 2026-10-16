@@ -1569,6 +1569,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    val interfaceStyleDockedComposer =
+        addConfig(
+            "InterfaceStyleDockedComposer",
+            ConfigItem.configTypeBool,
+            false
+        )
     val interfaceStyleApplyBottomNavigation =
         addConfig(
             "InterfaceStyleApplyBottomNavigation",

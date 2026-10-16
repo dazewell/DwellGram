@@ -335,6 +335,15 @@ gets its own factory over that source because the shared frosted factory can
 hand out drawables with the Liquid Glass shader
 (`BlurredBackgroundDrawableViewFactory.java:81-85`).
 
+*Docked composer* (`InterfaceStyleController.dockedComposer()`, `InterfaceStyleController.java:40`)
+is read once in the surface's constructor (`ComposerMd3Surface.java:149`), so it needs the chat
+rebuild its `styleKeys` entry triggers. With it on there is no morph: `sheetShape` is never created,
+`liftAboveStock()` returns a constant 2dp above the nav bar or keyboard (`:331`, `:354-356`), and
+`reachAboveStock()` goes negative because the panel sits below the stock pill (`:362-364`). `draw()`
+hands off to `drawDocked()` (`:444`, `:510`), which keeps the weighted run rect for the channel and
+selection tone and widens the panel to the container's full width, down to the keyboard top
+(`keyboardShare()`, `:311`). Field, strip and nested selection buttons use 12dp (`:113`).
+
 Floating, MD3 adds 2dp to the stock 9dp lift, so the island clears the
 keyboard and emoji panel by the same 9dp as the screen sides; docked,
 `liftAboveStock()` eases the tools row down to 4dp above the nav bar (`ComposerMd3Surface.java:104-106`,

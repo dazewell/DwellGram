@@ -108,6 +108,12 @@ public final class ComposerMd3Surface {
     private static final int EXTRA_LIFT = ISLAND_PADDING;
     // Measured on device: with the full trim the expanded island sat about 18dp under the header, twice its side gap.
     private static final int EXPANDED_HEADROOM_RETURN = 9;
+    // Docked composer: a flat full-width panel has no outer radius to stay concentric with, so the field, the reply
+    // strip and the nested selection buttons share MD3's medium shape instead. Full round would waste the corners.
+    private static final int DOCKED_SHAPE_RADIUS = 12;
+    // Docked composer: the tools row's bottom sits this far above the nav bar or the keyboard; its 48dp cells already
+    // leave air under the glyphs.
+    private static final int DOCKED_FLAT_LIFT = 2;
 
     private final Theme.ResourcesProvider resourcesProvider;
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -134,9 +140,13 @@ public final class ComposerMd3Surface {
     private AnimatedFloat sheetShape;
     private BlurredBackgroundDrawable frost;
     private int frostAccount;
+    // Read once: the chat is rebuilt when the setting changes, like the rest of Interface Style.
+    private final boolean docked;
+    private final RectF run = new RectF();
 
     public ComposerMd3Surface(Theme.ResourcesProvider resourcesProvider) {
         this.resourcesProvider = resourcesProvider;
+        this.docked = InterfaceStyleController.dockedComposer();
     }
 
     public static ComposerMd3Surface createIfEnabled(Theme.ResourcesProvider resourcesProvider) {
@@ -147,7 +157,8 @@ public final class ComposerMd3Surface {
     // so it is also how this surface decides which run the island wraps. The host supplies the window insets.
     public void bind(ChatInputViewsContainer host, ChatActivityEnterView enterView, View channelButtons, View actionButtons) {
         this.host = host;
-        sheetShape = new AnimatedFloat(host, SHEET_SHAPE_DURATION, CubicBezierInterpolator.EASE_OUT);
+        // The docked panel never floats, so it has no shape to morph.
+        sheetShape = docked ? null : new AnimatedFloat(host, SHEET_SHAPE_DURATION, CubicBezierInterpolator.EASE_OUT);
         final FrameLayout island = host.getInputIslandBubbleContainer();
         island.setClipToPadding(false);
         island.setPadding(dp(CHILD_SIDE_PADDING), 0, dp(CHILD_SIDE_PADDING), 0);
@@ -171,13 +182,25 @@ public final class ComposerMd3Surface {
         factory.setLinkedViewsRef(linkedViews);
         factory.setLinkedDrawablesRef(linkedDrawables);
         frost = factory.create(view, frostProvider());
-        frost.setRadius(dp(ISLAND_RADIUS));
+        frost.setRadius(docked ? 0 : dp(ISLAND_RADIUS));
         frostAccount = account;
     }
 
     // A soft shadow in the theme's own panel-shadow colour lifts the island. On a dark theme the shadow vanishes
     // into the wallpaper, so a faint light edge, brighter on top, traces it instead.
+    // Docked, only the top edge is on screen: it takes the panel divider when those are on, the shadow and the dark
+    // theme's light edge otherwise, never both.
     private BlurredBackgroundProvider frostProvider() {
+        if (docked) {
+            return new BlurredBackgroundProviderBuilder(resourcesProvider)
+                    .setBackgroundColor((r, isDark) -> Theme.multAlpha(surfaceColor(), frostAlpha()))
+                    .setStrokeColorTop((r, isDark) -> isDark && !InterfaceStyleController.panelDividers() ? DARK_EDGE_TOP : 0)
+                    .setStrokeColorBottom(0, 0)
+                    .setStrokeWidth(dpf2(1), dpf2(1))
+                    .setShadowColor((r, isDark) -> InterfaceStyleController.panelDividers() ? 0 : shadowColor())
+                    .setShadowLayer(dp(SHADOW_RADIUS), 0, 0)
+                    .build();
+        }
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
                 .setBackgroundColor((r, isDark) -> Theme.multAlpha(surfaceColor(), frostAlpha()))
                 .setStrokeColorTop(0, DARK_EDGE_TOP)
@@ -186,6 +209,18 @@ public final class ComposerMd3Surface {
                 .setShadowColor((r, isDark) -> shadowColor())
                 .setShadowLayer(dp(SHADOW_RADIUS), 0, dp(SHADOW_DY))
                 .build();
+    }
+
+    private boolean isDark() {
+        return resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark();
+    }
+
+    private int fieldRadius() {
+        return dp(docked ? DOCKED_SHAPE_RADIUS : FIELD_RADIUS);
+    }
+
+    private int stripRadius() {
+        return dp(docked ? DOCKED_SHAPE_RADIUS : STRIP_RADIUS);
     }
 
     private boolean frosted() {
@@ -205,8 +240,7 @@ public final class ComposerMd3Surface {
     /** The field's on-surface tint laid over the island, one step above the strip's: darker in a light theme, lighter in a dark one. */
     private int fieldOverlay() {
         final int onSurface = Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider);
-        final boolean dark = resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark();
-        return ColorUtils.setAlphaComponent(onSurface, Math.round(255 * (dark ? FIELD_ON_SURFACE_BLEND_DARK : FIELD_ON_SURFACE_BLEND)));
+        return ColorUtils.setAlphaComponent(onSurface, Math.round(255 * (isDark() ? FIELD_ON_SURFACE_BLEND_DARK : FIELD_ON_SURFACE_BLEND)));
     }
 
     private int shadowColor() {
@@ -269,17 +303,23 @@ public final class ComposerMd3Surface {
      * {@link #SHEET_MORPH} clear, where it floats as an island again.
      */
     private float dockFactor(float maxBottomInset) {
+        final float keyboard = keyboardShare(maxBottomInset);
+        return keyboard < 0 ? 0 : Math.max(0, Math.min(1, 1f - keyboard / dp(SHEET_MORPH)));
+    }
+
+    /** The keyboard's or emoji panel's share of the container's bottom inset, or -1 before the host has insets. */
+    private float keyboardShare(float maxBottomInset) {
         if (host == null) {
-            return 0;
+            return -1;
         }
         final WindowInsets insets = host.getRootWindowInsets();
         if (insets == null) {
-            return 0;
+            return -1;
         }
         // The same resting inset WindowInsetsStateHolder builds the container's bottom inset from, so the difference
         // below is exactly the keyboard's or emoji panel's share of it.
         final int rest = WindowInsetsCompat.toWindowInsetsCompat(insets, host).getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()).bottom;
-        return Math.max(0, Math.min(1, 1f - (maxBottomInset - rest) / dp(SHEET_MORPH)));
+        return Math.max(0, maxBottomInset - rest);
     }
 
     /**
@@ -288,6 +328,9 @@ public final class ComposerMd3Surface {
      * {@link #DOCKED_LIFT} above the nav bar instead.
      */
     public float liftAboveStock(float maxBottomInset) {
+        if (docked) {
+            return dockedLiftAboveStock();
+        }
         final float dock = dockFactor(maxBottomInset);
         final float docked = dp(DOCKED_LIFT) - dp(ChatInputViewsContainer.INPUT_BUBBLE_BOTTOM);
         return extraLift() + (docked - extraLift()) * dock;
@@ -307,9 +350,17 @@ public final class ComposerMd3Surface {
         return dp(ISLAND_PADDING);
     }
 
-    /** How much higher the island's top sits than a Liquid Glass pill's: the extra lift plus its reach above the pill. */
+    // Docked, the panel rests on the nav bar and the keyboard alike, so its lift is the same constant in both.
+    private int dockedLiftAboveStock() {
+        return dp(DOCKED_FLAT_LIFT) - dp(ChatInputViewsContainer.INPUT_BUBBLE_BOTTOM);
+    }
+
+    /**
+     * How much higher the island's top sits than a Liquid Glass pill's: the extra lift plus its reach above the pill.
+     * The docked panel sits lower than the stock pill, so there it is negative.
+     */
     public int reachAboveStock() {
-        return extraLift() + topOverhang();
+        return (docked ? dockedLiftAboveStock() : extraLift()) + topOverhang();
     }
 
     /**
@@ -346,7 +397,6 @@ public final class ComposerMd3Surface {
         final float barFactor = actionFactor >= 1f ? 1f : Math.max(actionFactor, Math.min(1f, alpha / (1f - actionFactor)));
         barVisible = barFactor >= 1f;
         final int surface = surfaceColor();
-        final int container = containerOverlay();
         final float pad = dp(ISLAND_PADDING);
         // The pill is drawn from the container's edges; the island sits ISLAND_EXTRA inside it.
         final float pillLeft = pill.left + dp(ISLAND_EXTRA);
@@ -391,6 +441,11 @@ public final class ComposerMd3Surface {
             bottom += (pill.bottom - pillTranslation + pad) * actionFactor;
         }
         island.set(left / weight, top / weight, right / weight, bottom / weight);
+        if (docked) {
+            drawDocked(canvas, width, height, pill, alpha, inputFactor, channelFactor, actionFactor, barFactor, drawPill,
+                    pillLeft, pillRight, topViewProgress, topViewHeight, underKeyboard);
+            return;
+        }
         // Docked, the island keeps its width and runs down off the screen, so it has no bottom edge to show. The shape
         // starts floating as soon as the keyboard begins lifting it, so the morph plays alongside the keyboard rather
         // than after it, and docks again halfway down, so closing the keyboard doesn't wait for the island to land.
@@ -426,7 +481,7 @@ public final class ComposerMd3Surface {
                 fillPaint.setShadowLayer(dp(SHADOW_RADIUS), 0, dp(SHADOW_DY), Theme.multAlpha(shadowColor(), barFactor));
                 canvas.drawPath(islandPath, fillPaint);
                 fillPaint.clearShadowLayer();
-                if (resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark()) {
+                if (isDark()) {
                     final float edge = dpf2(1);
                     edgePaint.setStrokeWidth(edge);
                     edgePaint.setColor(Theme.multAlpha(DARK_EDGE_TOP, barFactor));
@@ -444,6 +499,77 @@ public final class ComposerMd3Surface {
             canvas.drawPath(islandPath, fillPaint);
         }
 
+        drawContents(canvas, width, height, pill, alpha, inputFactor, drawPill, pillLeft, pillRight, topViewProgress, topViewHeight, surface, underKeyboard);
+    }
+
+    /**
+     * The docked composer: one flat panel across the whole width, from the island's top down to the keyboard or the
+     * screen's bottom edge, square at every corner. The channel and selection runs no longer own the panel's
+     * outline, so their tone is a field-shaped rect inside it rather than the whole panel.
+     */
+    private void drawDocked(Canvas canvas, int width, int height, Rect pill, float alpha, float inputFactor,
+                            float channelFactor, float actionFactor, float barFactor, boolean drawPill, float pillLeft,
+                            float pillRight, float topViewProgress, float topViewHeight, Rect underKeyboard) {
+        run.set(island);
+        final float keyboard = Math.max(0, keyboardShare(height - host.getInputBubbleBottom() - host.getInputBubbleBottomLift()));
+        island.set(0, run.top, width, Math.max(run.bottom, height - keyboard));
+        for (int i = 0; i < islandRadii.length; i++) {
+            islandRadii[i] = 0;
+        }
+        islandPath.rewind();
+        islandPath.addRect(island, Path.Direction.CW);
+
+        final int surface = surfaceColor();
+        final boolean dividers = InterfaceStyleController.panelDividers();
+        final int frostAlpha = Math.round(255 * barFactor);
+        if (frost != null && frost.getAlpha() != frostAlpha) {
+            // Only on a change: every setAlpha re-records the blur's display list.
+            frost.setAlpha(frostAlpha);
+        }
+        if (barFactor > 0) {
+            if (frosted()) {
+                // A dp past each side, so the drawable's own side strokes stay off screen.
+                island.roundOut(islandBounds);
+                islandBounds.inset(-dp(1), 0);
+                frost.setBounds(islandBounds);
+                frost.draw(canvas);
+            } else {
+                fillPaint.setColor(Theme.multAlpha(surface, barFactor));
+                if (!dividers) {
+                    fillPaint.setShadowLayer(dp(SHADOW_RADIUS), 0, 0, Theme.multAlpha(shadowColor(), barFactor));
+                }
+                canvas.drawRect(island, fillPaint);
+                fillPaint.clearShadowLayer();
+                if (!dividers && isDark()) {
+                    fillPaint.setColor(Theme.multAlpha(DARK_EDGE_TOP, barFactor));
+                    canvas.drawRect(island.left, island.top, island.right, island.top + dpf2(1), fillPaint);
+                }
+            }
+            if (dividers) {
+                dividerPaint.setColor(Theme.multAlpha(outlineVariantColor(surface), barFactor));
+                canvas.drawRect(island.left, island.top, island.right, island.top + Math.max(1, dp(0.66f)), dividerPaint);
+            }
+        }
+
+        final float runFactor = Math.max(InterfaceStyleController.applyButtons() ? 0 : actionFactor, drawPill ? alpha * channelFactor : 0);
+        if (runFactor > 0) {
+            // The same 3dp margin the field keeps inside the text row.
+            rect.set(run.left + dp(FIELD_SIDE_INSET), run.top + dp(ISLAND_PADDING + FIELD_INSET),
+                    run.right - dp(FIELD_SIDE_INSET), run.bottom - dp(ISLAND_PADDING + FIELD_INSET));
+            if (rect.width() > 0 && rect.height() > 0) {
+                final float r = Math.min(fieldRadius(), rect.height() / 2f);
+                fillPaint.setColor(Theme.multAlpha(fieldOverlay(), runFactor));
+                canvas.drawRoundRect(rect, r, r, fillPaint);
+            }
+        }
+        drawContents(canvas, width, height, pill, alpha, inputFactor, drawPill, pillLeft, pillRight, topViewProgress, topViewHeight, surface, underKeyboard);
+    }
+
+    /** The field, the reply strip, the send slot and the under-keyboard panel, shared by the island and the docked panel. */
+    private void drawContents(Canvas canvas, int width, int height, Rect pill, float alpha, float inputFactor, boolean drawPill,
+                              float pillLeft, float pillRight, float topViewProgress, float topViewHeight, int surface,
+                              Rect underKeyboard) {
+        final int container = containerOverlay();
         // The field and the reply strip share one column: both stop where the send and close controls begin.
         float columnLeft = pillLeft + dp(FIELD_SIDE_INSET);
         float columnRight = pillRight - dp(FIELD_SIDE_INSET);
@@ -470,7 +596,7 @@ public final class ComposerMd3Surface {
             // Reply, edit, forward and link preview all share this top view, so one strip covers them.
             final float stripAlpha = alpha * inputFactor * topViewProgress;
             rect.set(columnLeft, pill.top + dp(STRIP_INSET), columnRight, pill.top + topViewHeight - dp(STRIP_INSET));
-            final float stripRadius = Math.min(dp(STRIP_RADIUS), rect.height() / 2f);
+            final float stripRadius = Math.min(stripRadius(), rect.height() / 2f);
             fillPaint.setColor(Theme.multAlpha(container, stripAlpha));
             canvas.drawRoundRect(rect, stripRadius, stripRadius, fillPaint);
             // The accent is its own rounded bar inside the strip, so the strip's corners stay as round as the field's
@@ -483,7 +609,7 @@ public final class ComposerMd3Surface {
 
         if (drawPill && inputFactor > 0) {
             rect.set(columnLeft, pill.top + topViewHeight + dp(FIELD_INSET), columnRight, pill.bottom - dp(FIELD_INSET));
-            final float fieldRadius = Math.min(dp(FIELD_RADIUS), rect.height() / 2f);
+            final float fieldRadius = Math.min(fieldRadius(), rect.height() / 2f);
             fillPaint.setColor(Theme.multAlpha(fieldOverlay(), alpha * inputFactor));
             canvas.drawRoundRect(rect, fieldRadius, fieldRadius, fillPaint);
         }
@@ -503,8 +629,9 @@ public final class ComposerMd3Surface {
     public static Drawable previewIsland(@Nullable BlurredBackgroundDrawableViewFactory factory, @Nullable View view) {
         final ComposerMd3Surface surface = new ComposerMd3Surface(null);
         final BlurredBackgroundDrawable frost = factory != null ? factory.create(view, surface.frostProvider()) : null;
+        final int radius = surface.docked ? 0 : dp(ISLAND_RADIUS);
         if (frost != null) {
-            frost.setRadius(dp(ISLAND_RADIUS));
+            frost.setRadius(radius);
         }
         return new PreviewDrawable() {
             @Override
@@ -516,8 +643,8 @@ public final class ComposerMd3Surface {
                 } else {
                     surface.island.set(bounds);
                     surface.fillPaint.setColor(surface.surfaceColor());
-                    surface.fillPaint.setShadowLayer(dp(SHADOW_RADIUS), 0, dp(SHADOW_DY), surface.shadowColor());
-                    canvas.drawRoundRect(surface.island, dp(ISLAND_RADIUS), dp(ISLAND_RADIUS), surface.fillPaint);
+                    surface.fillPaint.setShadowLayer(dp(SHADOW_RADIUS), 0, surface.docked ? 0 : dp(SHADOW_DY), surface.shadowColor());
+                    canvas.drawRoundRect(surface.island, radius, radius, surface.fillPaint);
                     surface.fillPaint.clearShadowLayer();
                 }
             }
@@ -539,7 +666,7 @@ public final class ComposerMd3Surface {
                 // Gravity.END puts the preview's send circle on the right even in RTL: the app does not
                 // declare supportsRtl.
                 surface.rect.set(bounds.left + dp(FIELD_SIDE_INSET), bounds.top + dp(FIELD_INSET), bounds.right - sendReserve - dp(FIELD_SEND_GAP), bounds.bottom - dp(FIELD_INSET));
-                final float radius = Math.min(dp(FIELD_RADIUS), surface.rect.height() / 2f);
+                final float radius = Math.min(surface.fieldRadius(), surface.rect.height() / 2f);
                 surface.fillPaint.setColor(surface.fieldOverlay());
                 canvas.drawRoundRect(surface.rect, radius, radius, surface.fillPaint);
             }
@@ -619,8 +746,9 @@ public final class ComposerMd3Surface {
                 }
             };
             final org.telegram.ui.Components.chat.layouts.ChatActivityActionsButtonsLayout layout = (org.telegram.ui.Components.chat.layouts.ChatActivityActionsButtonsLayout) actionButtons;
-            ((org.telegram.ui.Components.chat.buttons.ChatActivityBlurredRoundButton) layout.getReplyButton()).setNestedBackground(dp(ACTION_BUTTON_RADIUS), tone);
-            ((org.telegram.ui.Components.chat.buttons.ChatActivityBlurredRoundButton) layout.getForwardButton()).setNestedBackground(dp(ACTION_BUTTON_RADIUS), tone);
+            final int radius = dp(docked ? DOCKED_SHAPE_RADIUS : ACTION_BUTTON_RADIUS);
+            ((org.telegram.ui.Components.chat.buttons.ChatActivityBlurredRoundButton) layout.getReplyButton()).setNestedBackground(radius, tone);
+            ((org.telegram.ui.Components.chat.buttons.ChatActivityBlurredRoundButton) layout.getForwardButton()).setNestedBackground(radius, tone);
         }
         return actionButtons;
     }

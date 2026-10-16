@@ -84,6 +84,7 @@ public class InterfaceStyleActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell applyChatListTopBarRow = bind(new ConfigCellTextCheck(NaConfig.INSTANCE.getInterfaceStyleApplyChatListTopBar(), getString(R.string.InterfaceStyleApplyChatListTopBarInfo)));
     private final AbstractConfigCell applyButtonsRow = bind(new ConfigCellTextCheck(NaConfig.INSTANCE.getInterfaceStyleApplyButtons(), getString(R.string.InterfaceStyleApplyButtonsInfo)));
     private final AbstractConfigCell applyComposerRow = bind(new ConfigCellTextCheck(NaConfig.INSTANCE.getInterfaceStyleApplyComposer(), getString(R.string.InterfaceStyleApplyComposerInfo)));
+    private final AbstractConfigCell dockedComposerRow = bind(new ConfigCellTextCheck(NaConfig.INSTANCE.getInterfaceStyleDockedComposer(), getString(R.string.InterfaceStyleDockedComposerInfo)));
     private final AbstractConfigCell applyBottomNavigationRow = bind(new ConfigCellTextCheck(NaConfig.INSTANCE.getInterfaceStyleApplyBottomNavigation(), getString(R.string.InterfaceStyleApplyBottomNavigationInfo)));
     private final AbstractConfigCell roundedNavigationRow = bind(new ConfigCellTextCheck(NaConfig.INSTANCE.getInterfaceStyleRoundedNavigation(), getString(R.string.InterfaceStyleRoundedNavigationInfo)));
     private final AbstractConfigCell panelDividersRow = bind(new ConfigCellTextCheck(NaConfig.INSTANCE.getInterfaceStylePanelDividers(), getString(R.string.InterfaceStylePanelDividersInfo)));
@@ -169,13 +170,14 @@ public class InterfaceStyleActivity extends BaseNekoXSettingsActivity {
     // The rows that were on this page before the move: every click on them is refused while power saving blocks the style
     private final Set<AbstractConfigCell> powerSaverGatedRows = new HashSet<>(Arrays.asList(
             liquidGlassRow, materialDesign3Row, applyChatHeaderRow, applyChatListTopBarRow, applyButtonsRow, applyComposerRow,
-            applyBottomNavigationRow, roundedNavigationRow, panelDividersRow, matchClassicDayHeaderRow));
+            dockedComposerRow, applyBottomNavigationRow, roundedNavigationRow, panelDividersRow, matchClassicDayHeaderRow));
     // The keys whose change repaints the whole interface; the rest below are the keys that came over from General
     private final Set<String> styleKeys = new HashSet<>(Arrays.asList(
             NaConfig.INSTANCE.getInterfaceStyleApplyChatHeader().getKey(),
             NaConfig.INSTANCE.getInterfaceStyleApplyChatListTopBar().getKey(),
             NaConfig.INSTANCE.getInterfaceStyleApplyButtons().getKey(),
             NaConfig.INSTANCE.getInterfaceStyleApplyComposer().getKey(),
+            NaConfig.INSTANCE.getInterfaceStyleDockedComposer().getKey(),
             NaConfig.INSTANCE.getInterfaceStyleApplyBottomNavigation().getKey(),
             NaConfig.INSTANCE.getInterfaceStyleRoundedNavigation().getKey(),
             NaConfig.INSTANCE.getInterfaceStylePanelDividers().getKey(),
@@ -345,6 +347,9 @@ public class InterfaceStyleActivity extends BaseNekoXSettingsActivity {
             rows.add(applyButtonsRow);
             if (InterfaceStyleController.COMPOSER_STYLE_AVAILABLE) {
                 rows.add(applyComposerRow);
+                if (NaConfig.INSTANCE.getInterfaceStyleApplyComposer().Bool()) {
+                    rows.add(dockedComposerRow);
+                }
             }
             rows.add(applyBottomNavigationRow);
             if (NaConfig.INSTANCE.getInterfaceStyleApplyBottomNavigation().Bool()) {
