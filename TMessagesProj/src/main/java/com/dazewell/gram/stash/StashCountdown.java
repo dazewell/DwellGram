@@ -104,6 +104,6 @@ public final class StashCountdown {
     }
 
     private static CharSequence text(int count, int seconds) {
-        return LocaleController.formatPluralString("StashDeleteCountdown", count, seconds, count);
+        return LocaleController.formatPluralString("StashDeleteCountdown", count, seconds);
     }
 }
