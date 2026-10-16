@@ -218,6 +218,14 @@ approach is how one finding becomes three review rounds.
 `## section`, with a `### Feature name` heading marked `<!-- #slug -->`. Plain
 prose in dazewell's voice, matching its neighbours — read three before writing.
 
+**Write the prose last.** Behaviour keeps shifting while a feature is being
+tested and fixed, and every shift makes the entry stale and buys a review round
+about the entry. Until the feature is approved and about to be finalized, carry
+only a bare heading with the `<!-- #slug -->` marker (that is all `ci` checks)
+and no prose. Write and count the real entry as the last step before handoff,
+against the final behaviour, then read it back against the code. Never write or
+revise the prose mid-iteration, and don't merge with the stub still bare.
+
 **70 words, hard ceiling — count them.** Prose under the heading; images and
 shortcut tables excluded. Most entries are ~35. Two beats: what it does and
 where you find it, then its setting and default. Cut edge cases, failure

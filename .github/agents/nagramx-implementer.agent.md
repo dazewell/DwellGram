@@ -199,6 +199,9 @@ list it in your process ledger.
 
 User-visible ⇒ the `FEATURES.md` entry ships in the same PR, under the right
 `## section`, with a `### Feature name` heading marked `<!-- #slug -->`.
+**Write the prose last**: while behaviour is still being iterated, keep only a
+bare heading plus marker (all `ci` needs); write and count the real entry once
+the feature is approved and about to be finalized, against the final behaviour.
 
 **70 words, hard ceiling — count them.** Prose under the heading; images and
 shortcut tables excluded. Most entries are ~35. Two beats: what it does and
