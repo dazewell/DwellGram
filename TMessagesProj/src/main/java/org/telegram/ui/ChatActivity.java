@@ -49580,9 +49580,17 @@ public class ChatActivity extends BaseFragment implements
     }
 
     // NagramX: #stash. Shows a countdown put off by Go to Scheduled or a pause, with a fresh 15 s, once the chat
-    // is really on screen again - not behind the app or chat passcode, which would otherwise sit under it.
+    // is really on screen again - not behind the app or chat passcode, which would otherwise sit under it. Until
+    // then, and while anything transient (an open dialog, a transition) would fail the resolve below, the batch
+    // stays parked, so a failure past this point means the originals really are gone. Unlocking the app lock
+    // only rebuilds views, so after one the countdown waits for the chat's next resume or uncover.
     private void naxResumeStashCountdown() {
         if (naxStashResumeBatch == null || chatLockPasscodeView != null || AndroidUtilities.needShowPasscode(false) || SharedConfig.isWaitingForPasscodeEnter) {
+            return;
+        }
+        INavigationLayout layout = getParentLayout();
+        if (paused || !isFullyVisible || visibleDialog != null || layout == null || layout.getLastFragment() != this
+                || layout.isTransitionAnimationInProgress() || layout.isSwipeInProgress() || layout.checkTransitionAnimation()) {
             return;
         }
         RepostCopyDeleteBatch resumed = naxStashResumeBatch;
