@@ -241,7 +241,7 @@ Telegram's forward API cannot forward a message that hasn't been sent yet. The s
 
 ### Stash <!-- #stash -->
 
-*Stash*, in the message menu or the selection bar's ⋯, moves messages into this chat's Scheduled list: pick a time and they're re-sent there without a sender, several spaced three minutes apart. A bar then counts down 15 seconds, staying up while you check Scheduled, and deletes the originals; *Undo* keeps them and removes the copies. Off by default; turn it on under N-Settings → Chat → Message Menu.
+*Stash*, in the message menu or the selection bar's ⋯, moves messages into this chat's Scheduled list: pick a time and they're re-sent there without a sender, several spaced three minutes apart. Then, like *Repost as Copy*, a bar offers to *Delete* the originals for 15 seconds, following you into Scheduled while you check; letting it go keeps them. Off by default; turn it on under N-Settings → Chat → Message Menu.
 
 ### Pin or number several messages at once <!-- #bulk-actions -->
 

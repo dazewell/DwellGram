@@ -933,8 +933,7 @@
     <string name="Stash">Stash</string>
     <string name="StashUnsupported_one">Can\'t stash this message</string>
     <string name="StashUnsupported_other">Can\'t stash %1$d of these messages</string>
-    <string name="StashDeleteTitle">Stashed to Scheduled</string>
-    <string name="StashDeleteCountdown_one">The original message will be deleted</string>
-    <string name="StashDeleteCountdown_other">%1$d original messages will be deleted</string>
+    <string name="StashDeleteHint_one">Stashed to Scheduled. The original message is still here.</string>
+    <string name="StashDeleteHint_other">Stashed to Scheduled. %1$d original messages are still here.</string>
     <string name="StashTooFar">Can\'t stash these that far ahead: spaced three minutes apart, the last would land more than a year out</string>
 </resources>

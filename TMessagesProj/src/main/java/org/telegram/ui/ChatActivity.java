@@ -24317,7 +24317,7 @@ public class ChatActivity extends BaseFragment implements
                 boolean scheduled = (Boolean) args[2];
                 int mode = (Integer) args[3];
                 if (mode != chatMode && chatMode != MODE_SAVED && chatMode != MODE_SUGGESTIONS) {
-                    // NagramX: #stash keeps the chat on screen, as the staged forward it stands in for does, so its delete countdown can show
+                    // NagramX: #stash keeps the chat on screen, as the staged forward it stands in for does, so its delete offer can show
                     if (chatMode != MODE_SCHEDULED && mode == MODE_SCHEDULED && !isPaused && LaunchActivity.getSafeLastFragment() == this && messagePreviewParams == null && !naxIsStashSend(arr)) {
                         if (!arr.isEmpty() && arr.get(0).getId() < 0) {
                             openScheduledMessages(arr.get(0).getId(), arr.get(0).messageOwner != null && arr.get(0).messageOwner.video_processing_pending);
@@ -49187,8 +49187,7 @@ public class ChatActivity extends BaseFragment implements
         final long dialogId;
         final HashMap<String, RepostCopySourceIdentity> armedSources = new HashMap<>();
         final HashSet<String> succeededSources = new HashSet<>();
-        boolean stash; // NagramX: #stash - ends in StashCountdown instead of the delete bulletin
-        final ArrayList<Integer> stashCopyIds = new ArrayList<>(); // NagramX: #stash - the scheduled copies, for Undo
+        boolean stash; // NagramX: #stash - ends in StashOffer instead of the delete bulletin
 
         RepostCopyDeleteBatch(String nonce, int account, long dialogId) {
             this.nonce = nonce;
@@ -49360,9 +49359,6 @@ public class ChatActivity extends BaseFragment implements
         if (!batch.succeededSources.add(marker.second)) {
             return;
         }
-        if (args[1] instanceof Integer) {
-            batch.stashCopyIds.add((Integer) args[1]); // NagramX: #stash, the copy's server id
-        }
         if (batch.succeededSources.size() == batch.armedSources.size()) {
             if (!showRepostCopyDeleteOfferIfSafe(batch)) {
                 repostCopyDeleteBatch = null;
@@ -49433,7 +49429,7 @@ public class ChatActivity extends BaseFragment implements
             return false;
         }
         if (batch.stash) {
-            naxShowStashCountdown(batch, sourceMessages);
+            naxShowStashOffer(sourceMessages);
             return true;
         }
         showRepostCopyDeleteBulletin(batch, sourceMessages);
@@ -49572,16 +49568,17 @@ public class ChatActivity extends BaseFragment implements
         return marker != null && batch.nonce.equals(marker.first);
     }
 
-    // NagramX: #stash. Snapshots the ids the guard just accepted, so StashCountdown's delete and undo don't
-    // depend on this fragment still being around when the wait ends.
-    private void naxShowStashCountdown(RepostCopyDeleteBatch batch, SparseArray<MessageObject>[] sourceMessages) {
-        ArrayList<Integer>[] sourceIds = new ArrayList[]{new ArrayList<>(), new ArrayList<>()};
-        for (int slot = 0; slot < 2; slot++) {
-            for (int i = 0; i < sourceMessages[slot].size(); i++) {
-                sourceIds[slot].add(sourceMessages[slot].keyAt(i));
-            }
-        }
-        com.dazewell.gram.stash.StashCountdown.show(currentAccount, dialog_id, mergeDialogId, (int) getTopicId(), sourceIds, batch.stashCopyIds);
+    // NagramX: #stash. Delete may be tapped on another screen (the bar follows into Scheduled), so the stock
+    // confirmation is hosted there, against the sources the guard just accepted and this chat's peer captured now -
+    // the same alert createRepostCopySourceDeleteAlert opens, in normal-message mode whatever the host screen is.
+    private void naxShowStashOffer(SparseArray<MessageObject>[] sourceMessages) {
+        final TLRPC.User user = currentUser;
+        final TLRPC.Chat chat = currentChat;
+        final TLRPC.ChatFull info = chatInfo;
+        final long merge = mergeDialogId;
+        final int topicId = (int) getTopicId();
+        com.dazewell.gram.stash.StashOffer.show(currentAccount, sourceMessages[0].size() + sourceMessages[1].size(), host ->
+                AlertsCreator.createDeleteMessagesAlert(host, user, chat, null, info, merge, null, sourceMessages, null, topicId, MODE_DEFAULT, null, null, null, host.getResourceProvider()));
     }
 
     private void repeatMessage(boolean isLongClick, boolean isRepeatasCopy) {
