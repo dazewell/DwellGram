@@ -2870,7 +2870,6 @@ public class ChatActivityEnterView extends FrameLayout implements
                 } else {
                     animatorInputFieldHeight.forceFactor(height);
                 }
-                naxSmokeClipProbe("measure h=" + height, 0, 0);
                 checkUi_TopViewVisibility();
             }
 
@@ -19039,32 +19038,9 @@ public class ChatActivityEnterView extends FrameLayout implements
         gradientPaint.setShader(clipGradient);
     }
 
-    private String naxSmokeLast;
-    private void naxSmokeClipProbe(String where, float topAlpha, float bottomAlpha) {
-        if (!messageEditExpanded || messageEditText == null || messageEditTextContainer == null || textFieldContainer == null) {
-            return;
-        }
-        final String s = where
-                + " H=" + getHeight() + " mH=" + getMeasuredHeight()
-                + " factor=" + Math.round(animatorInputFieldHeight.getFactor()) + " to=" + Math.round(animatorInputFieldHeight.getToFactor())
-                + " anim=" + animatorInputFieldHeight.isAnimating()
-                + " tfcY=" + Math.round(textFieldContainer.getY()) + " tfcH=" + textFieldContainer.getHeight() + " tfcMH=" + textFieldContainer.getMeasuredHeight()
-                + " contY=" + Math.round(messageEditTextContainer.getY()) + " contH=" + messageEditTextContainer.getHeight() + " contMH=" + messageEditTextContainer.getMeasuredHeight()
-                + " etY=" + Math.round(messageEditText.getY()) + " etH=" + messageEditText.getHeight() + " etMH=" + messageEditText.getMeasuredHeight()
-                + " etLp=" + messageEditText.getLayoutParams().height
-                + " scrollY=" + messageEditText.getScrollY() + " lines=" + messageEditText.getLineCount()
-                + " up=" + (topAlpha > 0) + " down=" + (bottomAlpha > 0)
-                + " budget=" + expandedInputBudget;
-        if (!s.equals(naxSmokeLast)) {
-            naxSmokeLast = s;
-            Log.w("NaxSmoke", "NAX_SMOKE_composer-expanded-clip " + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING + " " + s);
-        }
-    }
-
     public boolean drawMessageEditText(Canvas canvas, Utilities.Callback0Return<Boolean> drawChild) {
         float topAlpha = topGradientAlpha.set(messageEditText.canScrollVertically(-1));
         float bottomAlpha = bottomGradientAlpha.set(messageEditText.canScrollVertically(1));
-        naxSmokeClipProbe("draw", topAlpha, bottomAlpha);
         if (topAlpha <= 0 && bottomAlpha <= 0) {
             return drawChild.run();
         }
