@@ -2733,3 +2733,22 @@ for that clip or fade has to be the input row's top, which the MD3 field is draw
 real top as a hard cut. It is now anchored to the row (`ChatActivityEnterView.java:19050-19060`).
 
 *(Established 2026-10-15, `#composer-text-clip-fix`.)*
+
+## Only one bulletin is visible app-wide, and an undo bar's delayed action fires when another replaces it
+
+`Bulletin.show()` hides whatever bulletin is currently visible, on any screen (`Bulletin.java:286`). An
+`UndoButton`'s delayed action runs when its bar is detached without an undo (`:2328`). So a bar that commits on
+timeout, such as delete-unless-undone, commits early the moment any other toast appears. Run the commit on your
+own timer and keep the button for undo only. To tell a swipe-away from being pushed off, check
+`Bulletin.getVisibleBulletin()` one tick after your hide listener fires. `hide()` clears it at once (`:436`), and
+a displacing bar has taken it by then.
+
+Two more ways a bar can't be put anywhere:
+- A `BulletinWindow` can't take touches: it is created `FLAG_NOT_TOUCHABLE` (`:2541`), so its buttons do nothing.
+- A bar on `LaunchActivity.frameLayout` only gets the navigation-bar offset (`LaunchActivity.java:754`), so in a
+  chat it sits over the composer.
+
+Placement comes from the host screen's own delegate (`Bulletin.java:332`). A bar meant to follow the user across
+screens has to be re-made on the top screen (`StashOffer.java`).
+
+*(Established 2026-10-16, `#stash`.)*

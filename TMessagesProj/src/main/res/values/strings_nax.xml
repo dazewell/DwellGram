@@ -929,4 +929,11 @@
     <string name="ChatMenuResetDone">Chat menu reset</string>
     <string name="NaxChatMenuAlerts">Alerts</string>
     <string name="NaxSeenFormatted">seen %1$s</string>
+    <!-- Stash selected messages into this chat's Scheduled list #stash -->
+    <string name="Stash">Stash</string>
+    <string name="StashUnsupported_one">Can\'t stash this message</string>
+    <string name="StashUnsupported_other">Can\'t stash %1$d of these messages</string>
+    <string name="StashDeleteHint_one">Stashed to Scheduled. The original message is still here.</string>
+    <string name="StashDeleteHint_other">Stashed to Scheduled. %1$d original messages are still here.</string>
+    <string name="StashTooFar">Can\'t stash these that far ahead: spaced three minutes apart, the last would land more than a year out</string>
 </resources>
