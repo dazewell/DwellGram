@@ -503,8 +503,8 @@ public final class ComposerMd3Surface {
     }
 
     /**
-     * The docked composer: one flat panel across the whole width, from the island's top down to the keyboard or the
-     * screen's bottom edge, square at every corner. The channel and selection runs no longer own the panel's
+     * The docked composer: one flat panel across the whole width, from the island's top to just under the keyboard's
+     * top (the keyboard hides the overlap) or the screen's bottom edge, square at every corner. The channel and selection runs no longer own the panel's
      * outline, so their tone is a field-shaped rect inside it rather than the whole panel.
      */
     private void drawDocked(Canvas canvas, int width, int height, Rect pill, float alpha, float inputFactor,
