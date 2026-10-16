@@ -499,6 +499,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int nkbtn_personal_replies = 2104;
     private final static int nkheaderbtn_notif_profile = 2105; // NagramX: chat menu "Alerts: <profile>" item
     private final static int nkheaderbtn_notif_bell = 2106; // NagramX: header bell that cycles the profile
+    private final static int nkbtn_stash = 2107; // NagramX: #stash message menu / selection item
 
     public int shareAlertDebugMode = DEBUG_SHARE_ALERT_MODE_NORMAL;
     public boolean shareAlertDebugTopicsSlowMotion;
@@ -962,6 +963,9 @@ public class ChatActivity extends BaseFragment implements
     // here across exactly that transition and resolved once from onBecomeFullyVisible; a genuine pause or
     // fragment destruction drops it instead (fragment death loses the offer, never a send).
     private RepostCopyDeleteBatch repostCopyDeletePendingOffer;
+    // NagramX: #stash. A countdown put off by Go to Scheduled or a pause; asked again once the chat is back.
+    // onPause doesn't clear it, since leaving for the Scheduled screen is exactly how it gets set.
+    private RepostCopyDeleteBatch naxStashResumeBatch;
     // NagramX: tracks the on-demand repost-as-copy delete offer bulletin so onPause can cancel it; cleared
     // by identity via repostCopyDeleteBulletinTag, mirroring the pinBulletin/pinBullerinTag pattern (#repost-reply).
     private Bulletin repostCopyDeleteBulletin;
@@ -11651,6 +11655,8 @@ public class ChatActivity extends BaseFragment implements
         if (!noforward) {
             actionModeOtherItem.addSubItem(nkbtn_savemessage, R.drawable.menu_saved, LocaleController.getString(R.string.AddToSavedMessages));
             if (canSendMessages) actionModeOtherItem.addSubItem(nkbtn_repeat, R.drawable.msg_repeat, LocaleController.getString(R.string.Repeat));
+            // NagramX: #stash, shown per selection by the visibility pass
+            if (canSendMessages && !scheduledActionBar && currentEncryptedChat == null) actionModeOtherItem.addSubItem(nkbtn_stash, R.drawable.msg_archive, LocaleController.getString(R.string.Stash));
         }
         if (canSendMessages) {
             actionModeOtherItem.addSubItem(nkbtn_repeatascopy, R.drawable.msg_repeat, LocaleController.getString(R.string.RepeatAsCopy));
@@ -21295,6 +21301,9 @@ public class ChatActivity extends BaseFragment implements
                 if (RepeatAsCopyItem != null) {
                     RepeatAsCopyItem.setVisibility(canSendMessage && (!noforwards || getMessageHelper().canSendMessagesAsCopy(getSelectedMessages1())));
                 }
+                if (actionModeOtherItem != null && actionModeOtherItem.getSubItem(nkbtn_stash) != null) { // NagramX: #stash
+                    actionModeOtherItem.getSubItem(nkbtn_stash).setVisibility(canForward && canSendMessage && NaConfig.INSTANCE.getShowStash().Bool() && chatMode == MODE_DEFAULT && canScheduleMessage());
+                }
                 if (reportItem != null) {
                     reportItem.setVisibility(canReport);
                 }
@@ -24309,7 +24318,8 @@ public class ChatActivity extends BaseFragment implements
                 boolean scheduled = (Boolean) args[2];
                 int mode = (Integer) args[3];
                 if (mode != chatMode && chatMode != MODE_SAVED && chatMode != MODE_SUGGESTIONS) {
-                    if (chatMode != MODE_SCHEDULED && mode == MODE_SCHEDULED && !isPaused && LaunchActivity.getSafeLastFragment() == this && messagePreviewParams == null) {
+                    // NagramX: #stash keeps the chat on screen, as the staged forward it stands in for does, so its delete countdown can show
+                    if (chatMode != MODE_SCHEDULED && mode == MODE_SCHEDULED && !isPaused && LaunchActivity.getSafeLastFragment() == this && messagePreviewParams == null && !naxIsStashSend(arr)) {
                         if (!arr.isEmpty() && arr.get(0).getId() < 0) {
                             openScheduledMessages(arr.get(0).getId(), arr.get(0).messageOwner != null && arr.get(0).messageOwner.video_processing_pending);
                         }
@@ -29572,6 +29582,11 @@ public class ChatActivity extends BaseFragment implements
             RepostCopyDeleteBatch pendingOffer = repostCopyDeletePendingOffer;
             repostCopyDeletePendingOffer = null;
             showRepostCopyDeleteOfferIfSafe(pendingOffer);
+        }
+        if (naxStashResumeBatch != null) { // NagramX: #stash
+            RepostCopyDeleteBatch resumed = naxStashResumeBatch;
+            naxStashResumeBatch = null;
+            showRepostCopyDeleteOfferIfSafe(resumed);
         }
         if (showCloseChatDialogLater) {
             showDialog(closeChatDialog);
@@ -48651,6 +48666,10 @@ public class ChatActivity extends BaseFragment implements
         } else if (id == nkbtn_repeatascopy) {
             repeatMessage(false, true);
             clearSelectionMode();
+        } else if (id == nkbtn_stash) {
+            ArrayList<MessageObject> stashed = getSelectedMessages1();
+            clearSelectionMode();
+            naxStashMessages(stashed);
         } else if (id == nkheaderbtn_hide_title) {
             if (avatarContainer != null) {
                 avatarContainer.setTitle("");
@@ -48888,6 +48907,16 @@ public class ChatActivity extends BaseFragment implements
             }
             case nkbtn_repeatascopy: {
                 repeatMessage(false, true);
+                break;
+            }
+            case nkbtn_stash: {
+                ArrayList<MessageObject> messages = new ArrayList<>();
+                if (selectedObjectGroup != null) {
+                    messages.addAll(selectedObjectGroup.messages);
+                } else if (selectedObject != null) {
+                    messages.add(selectedObject);
+                }
+                naxStashMessages(messages);
                 break;
             }
             case nkbtn_forward_nocaption:
@@ -49164,6 +49193,7 @@ public class ChatActivity extends BaseFragment implements
         final long dialogId;
         final HashMap<String, RepostCopySourceIdentity> armedSources = new HashMap<>();
         final HashSet<String> succeededSources = new HashSet<>();
+        boolean stash; // NagramX: #stash - ends in StashCountdown instead of the delete bulletin
 
         RepostCopyDeleteBatch(String nonce, int account, long dialogId) {
             this.nonce = nonce;
@@ -49404,6 +49434,10 @@ public class ChatActivity extends BaseFragment implements
         if (sourceMessages == null) {
             return false;
         }
+        if (batch.stash) {
+            naxShowStashCountdown(batch, sourceMessages);
+            return true;
+        }
         showRepostCopyDeleteBulletin(batch, sourceMessages);
         return true;
     }
@@ -49472,6 +49506,83 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         createRepostCopySourceDeleteAlert(sourceMessages);
+    }
+
+    // NagramX: #stash. A shortcut for select -> NoQuote forward -> this chat -> Schedule -> delete the originals.
+    // It re-sends through dispatchForwardSpread, the same copy re-send a staged scheduled NoQuote forward takes,
+    // and never the plain drop-author forward: for a scheduled send only a copy's ack can be matched back to its
+    // source (handleRepostCopyDeleteServerSuccess reads the placeholder from messagesDict[0], which a scheduled
+    // placeholder never enters), so without it the delete step could never fire. Whatever a copy can't carry is
+    // refused before the picker opens. The picker's repeat period is ignored, as on the staged forward.
+    private void naxStashMessages(ArrayList<MessageObject> messages) {
+        if (messages == null || messages.isEmpty() || getParentActivity() == null) {
+            return;
+        }
+        if (!naxStashPreflight(messages)) {
+            return;
+        }
+        AlertsCreator.createScheduleDatePickerDialog(getParentActivity(), dialog_id, (notify, scheduleDate, scheduleRepeatPeriod) -> {
+            // the cache can be evicted while the picker is up
+            if (!naxStashPreflight(messages)) {
+                return;
+            }
+            ArrayList<ArrayList<MessageObject>> slots = getMessageHelper().buildCopySpreadSlots(messages);
+            // Send When Online is a protocol sentinel, not a date, so it can't be spread
+            int interval = scheduleDate == 0x7ffffffe ? 0 : REPOST_SPREAD_INTERVAL_SECONDS;
+            if (interval != 0 && !naxSpreadScheduleWithinHorizon(scheduleDate, slots.size(), interval)) {
+                BulletinFactory.of(this).createErrorBulletin(LocaleController.formatPluralString("StashUnsupported", messages.size()), themeDelegate).show();
+                return;
+            }
+            // acks are posted from request callbacks via the UI queue, so none can land before the flag is set
+            if (dispatchForwardSpread(slots, messages, dialog_id, false, notify, scheduleDate, interval, 0, true) && repostCopyDeleteBatch != null) {
+                repostCopyDeleteBatch.stash = true;
+            }
+        }, themeDelegate);
+    }
+
+    private boolean naxStashPreflight(ArrayList<MessageObject> messages) {
+        MessageHelper.CopyPreflightResult preflight = getMessageHelper().preflightSpreadAsCopy(messages);
+        if (preflight.ok) {
+            return true;
+        }
+        if (preflight.unsupportedCount > 0) {
+            BulletinFactory.of(this).createErrorBulletin(LocaleController.formatPluralString("StashUnsupported", preflight.unsupportedCount), themeDelegate).show();
+        } else {
+            BulletinFactory.of(this).createErrorBulletin(getString(R.string.PleaseDownload), themeDelegate).show();
+        }
+        return false;
+    }
+
+    // NagramX: #stash. Matches by the armed batch's nonce rather than the stash flag, because the local
+    // placeholder can be announced while dispatchForwardSpread is still running, before the flag is set.
+    private boolean naxIsStashSend(ArrayList<MessageObject> arr) {
+        RepostCopyDeleteBatch batch = repostCopyDeleteBatch;
+        if (batch == null || arr == null || arr.isEmpty() || arr.get(0).messageOwner == null) {
+            return false;
+        }
+        Pair<String, String> marker = getRepostCopyMarker(arr.get(0).messageOwner.params);
+        return marker != null && batch.nonce.equals(marker.first);
+    }
+
+    // NagramX: #stash. Each answer re-resolves the sources at that moment through the same guard the bulletin
+    // uses, so nothing that vanished or became undeletable meanwhile is touched.
+    private void naxShowStashCountdown(RepostCopyDeleteBatch batch, SparseArray<MessageObject>[] sourceMessages) {
+        com.dazewell.gram.stash.StashCountdown.show(this, sourceMessages[0].size() + sourceMessages[1].size(), themeDelegate, result -> {
+            if (result == com.dazewell.gram.stash.StashCountdown.RESULT_DELETE) {
+                SparseArray<MessageObject>[] sources = resolveRepostCopyDeleteSources(batch);
+                if (sources == null) {
+                    BulletinFactory.of(this).createErrorBulletin(getString(R.string.RepeatAsCopyDeleteUnavailable), themeDelegate).show();
+                    return;
+                }
+                com.dazewell.gram.stash.StashCountdown.deleteOriginals(currentAccount, dialog_id, mergeDialogId, (int) getTopicId(), chatMode, sources);
+                updatePinnedMessageView(true);
+            } else if (result == com.dazewell.gram.stash.StashCountdown.RESULT_SCHEDULED) {
+                naxStashResumeBatch = batch;
+                openScheduledMessages();
+            } else if (result == com.dazewell.gram.stash.StashCountdown.RESULT_INTERRUPTED) {
+                naxStashResumeBatch = batch;
+            }
+        });
     }
 
     private void repeatMessage(boolean isLongClick, boolean isRepeatasCopy) {
@@ -51752,6 +51863,12 @@ public class ChatActivity extends BaseFragment implements
                         items.add(LocaleController.getString(R.string.RepeatAsCopy));
                         options.add(nkbtn_repeatascopy);
                         icons.add(R.drawable.msg_repeat);
+                    }
+                    // NagramX: #stash. Offered wherever the manual route is: Forward allowed and Schedule allowed.
+                    if (canForward && NaConfig.INSTANCE.getShowStash().Bool() && chatMode == MODE_DEFAULT && canScheduleMessage()) {
+                        items.add(getString(R.string.Stash));
+                        options.add(nkbtn_stash);
+                        icons.add(R.drawable.msg_archive);
                     }
                     if (NekoConfig.showDeleteDownloadedFile.Bool() && getMessageHelper().messageObjectIsFile(type, selectedObject)) {
                         items.add(LocaleController.getString(R.string.DeleteDownloadedFile));

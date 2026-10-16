@@ -265,6 +265,13 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    // NagramX: #stash
+    val showStash =
+        addConfig(
+            "Stash",
+            ConfigItem.configTypeBool,
+            false
+        )
     val showOnlineStatus =
         addConfig(
             "ShowOnlineStatus",

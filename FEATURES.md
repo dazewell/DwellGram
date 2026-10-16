@@ -239,6 +239,10 @@ Telegram's forward API cannot forward a message that hasn't been sent yet. The s
 
 <img height="150" alt="Reposted as a copy confirmation bar with a Delete action for the original messages" src="docs/images/features/repost-copy.png" />
 
+### Stash <!-- #stash -->
+
+*Stash*, in the message menu or the selection bar's ⋯, moves messages into this chat's Scheduled list: pick a time and they're re-sent there without a sender, several spaced three minutes apart. Once they land, the originals are deleted after a 15-second countdown you can cancel, or pause with *Go to Scheduled* to check first. Off by default; turn it on under N-Settings → Chat → Message Menu.
+
 ### Pin or number several messages at once <!-- #bulk-actions -->
 
 Select messages to *Pin all* (applies your pin choice to the whole selection) or *Reply with numbers* to create an indexed table of contents via numbered replies.
