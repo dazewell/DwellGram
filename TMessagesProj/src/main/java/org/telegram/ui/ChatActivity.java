@@ -51902,7 +51902,7 @@ public class ChatActivity extends BaseFragment implements
                         icons.add(R.drawable.msg_repeat);
                     }
                     // NagramX: #stash. Offered wherever the manual route is: Forward allowed and Schedule allowed.
-                    if (canForward && NaConfig.INSTANCE.getShowStash().Bool() && chatMode == MODE_DEFAULT && canScheduleMessage()) {
+                    if (canForward && allowRepeat && NaConfig.INSTANCE.getShowStash().Bool() && chatMode == MODE_DEFAULT && canScheduleMessage()) {
                         items.add(getString(R.string.Stash));
                         options.add(nkbtn_stash);
                         icons.add(R.drawable.msg_archive);
