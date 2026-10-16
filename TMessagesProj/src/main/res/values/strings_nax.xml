@@ -931,12 +931,12 @@
     <string name="NaxSeenFormatted">seen %1$s</string>
     <!-- Stash selected messages into this chat's Scheduled list #stash -->
     <string name="Stash">Stash</string>
-    <string name="StashUnsupported_one">Can't stash this message</string>
-    <string name="StashUnsupported_other">Can't stash %1$d of these messages</string>
+    <string name="StashUnsupported_one">Can\'t stash this message</string>
+    <string name="StashUnsupported_other">Can\'t stash %1$d of these messages</string>
     <string name="StashDeleteTitle">Stashed to Scheduled</string>
     <string name="StashDeleteCountdown_one">The original message will be deleted in %1$d s.</string>
     <string name="StashDeleteCountdown_other">%2$d original messages will be deleted in %1$d s.</string>
     <string name="StashDeleteNow">Delete now</string>
     <string name="StashGoToScheduled">Go to Scheduled</string>
-    <string name="StashTooFar">Can't stash these that far ahead: spaced three minutes apart, the last would land more than a year out</string>
+    <string name="StashTooFar">Can\'t stash these that far ahead: spaced three minutes apart, the last would land more than a year out</string>
 </resources>
