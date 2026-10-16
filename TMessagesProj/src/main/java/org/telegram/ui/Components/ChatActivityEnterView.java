@@ -19044,16 +19044,20 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (topAlpha <= 0 && bottomAlpha <= 0) {
             return drawChild.run();
         }
-        canvas.saveLayerAlpha(0, 0, messageEditText.getX() + messageEditText.getMeasuredWidth() + dp(5), messageEditText.getY() + messageEditText.getMeasuredHeight() + dp(2), 0xFF, Canvas.ALL_SAVE_FLAG);
+        // NagramX (#composer-text-clip-fix): a scrolled draft draws its hidden lines above the edit text, so the layer
+        // and top fade sit on the input row's top, drawChild's separatorY. getY() + animatedTop could drift off it
+        // (ChatActivity holds animatedTop's reset while a send is pending) and put the fade across a mid-field line.
+        final float fieldTop = getHeight() - animatorInputFieldHeight.getFactor() - textFieldContainer.getY() - messageEditTextContainer.getY();
+        canvas.saveLayerAlpha(0, fieldTop, messageEditText.getX() + messageEditText.getMeasuredWidth() + dp(5), messageEditText.getY() + messageEditText.getMeasuredHeight() + dp(2), 0xFF, Canvas.ALL_SAVE_FLAG);
         final boolean result = drawChild.run();
         canvas.save();
 
         if (topAlpha > 0) {
             AndroidUtilities.rectTmp.set(
                     messageEditText.getX() - dp(5),
-                    messageEditText.getY() + animatedTop - 1,
+                    fieldTop - 1,
                     messageEditText.getX() + messageEditText.getMeasuredWidth() + dp(5),
-                    messageEditText.getY() + animatedTop + dp(13)
+                    fieldTop + dp(13)
             );
             clipMatrix.reset();
             clipMatrix.postScale(1f, AndroidUtilities.rectTmp.height() / 16f);
