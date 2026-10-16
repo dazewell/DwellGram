@@ -19213,6 +19213,12 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (id == ANIMATOR_ID_INPUT_FIELD_HEIGHT) {
             checkUi_IslandTotalHeight();
             checkUi_TopViewVisibility();
+            // NagramX (#composer-text-clip-fix): drawMessageEditText reads this factor for its layer top, but it runs in
+            // the edit container's display list, which our own invalidate() below does not re-record. Without this the
+            // expanded field kept the collapsed row's top as its cut until something else redrew the container.
+            if (messageEditTextContainer != null) {
+                messageEditTextContainer.invalidate();
+            }
         } else if (id == ANIMATOR_ID_TOP_VIEW_VISIBILITY) {
             checkUi_IslandTotalHeight();
             checkUi_TopViewVisibility();
