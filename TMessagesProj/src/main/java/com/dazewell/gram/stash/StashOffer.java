@@ -23,7 +23,7 @@ import org.telegram.ui.LaunchActivity;
 // Delete never runs against the wrong account. The bar carries Telegram's countdown circle, as the undo bars do.
 public final class StashOffer {
 
-    public static final int SECONDS = 15;
+    private static final int SECONDS = 15;
     private static final long RESHOW_DELAY_MS = 2000;
     private static final long WATCH_MS = 300;
 
@@ -55,10 +55,10 @@ public final class StashOffer {
         return deadline - SystemClock.elapsedRealtime();
     }
 
-    private boolean showBar() {
+    private void showBar() {
         BaseFragment top = LaunchActivity.getSafeLastFragment();
         if (settled || left() < 1000 || top == null || top.getCurrentAccount() != account || top.getParentActivity() == null || top.getParentActivity().isFinishing()) {
-            return false;
+            return;
         }
         // built as BulletinFactory.createUndoBulletin builds its single-line bar, so the timer sits where the icon is
         BulletinFactory factory = BulletinFactory.of(top);
@@ -99,9 +99,7 @@ public final class StashOffer {
         if (!shown.isShowing()) {
             bulletin = null;
             reshowAt = 0;
-            return false;
         }
-        return true;
     }
 
     private void watch() {
