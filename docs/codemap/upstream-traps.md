@@ -205,7 +205,7 @@ not traced.
 
 The reply panel's translation and the field's clip read `getHeight()` for that
 reason, and `onLayout` re-places the panel once a new height lands
-(`ChatActivityEnterView.java:5167`, `:17849`, `:19053`). Measure-time code still
+(`ChatActivityEnterView.java:5182`, `:18041`, `:19249`). Measure-time code still
 wants the measured height; any other draw-time reader has to be traced before it
 is switched. Signature: with a reply
 open and the field growing, the reply content rides above its strip and the
@@ -2718,3 +2718,18 @@ list stayed at the bottom on a device. The Message Triggers page does this
 (`MessageTriggersActivity.java:186`, `:231`).
 
 *(Established 2026-10-12, `#eventschedule`.)*
+
+## A scrolled composer draft draws above the field, and only the fade hides it
+
+`EditTextBoldCursor.onDraw` zeroes `mScrollY` around `super.onDraw` (`EditTextBoldCursor.java:879`) and
+has the first `getExtendedPaddingTop`/`Bottom` calls return 0 and `-scrollY` (`:726-741`, armed at `:888`),
+so `TextView` never clips the top: the lines a long draft has scrolled past are drawn above the edit text.
+Nothing in the composer clips them except `ChatActivityEnterView.drawChild`'s cut at the input row's top
+(`ChatActivityEnterView.java:5185`) and `drawMessageEditText`'s layer and 14dp top fade (`:19041`). Any edge
+for that clip or fade has to be the input row's top, which the MD3 field is drawn from too
+(`ComposerMd3Surface.java:485`). The fade used to sit at `messageEditText.getY() + animatedTop`, and
+`animatedTop` stays wherever it was while `waitingForSendingMessageLoad` holds back its reset animator
+(`ChatActivity.java:8829`), so the fade could land across a line in the middle of the field and leave the
+real top as a hard cut. It is now anchored to the row (`ChatActivityEnterView.java:19050-19060`).
+
+*(Established 2026-10-15, `#composer-text-clip-fix`.)*
