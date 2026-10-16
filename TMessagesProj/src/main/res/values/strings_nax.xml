@@ -938,4 +938,5 @@
     <string name="StashDeleteCountdown_other">%2$d original messages will be deleted in %1$d s.</string>
     <string name="StashDeleteNow">Delete now</string>
     <string name="StashGoToScheduled">Go to Scheduled</string>
+    <string name="StashTooFar">Can't stash these that far ahead: spaced three minutes apart, the last would land more than a year out</string>
 </resources>

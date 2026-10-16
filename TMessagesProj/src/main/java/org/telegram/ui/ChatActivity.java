@@ -49533,7 +49533,7 @@ public class ChatActivity extends BaseFragment implements
             // Send When Online is a protocol sentinel, not a date, so it can't be spread
             int interval = scheduleDate == 0x7ffffffe ? 0 : REPOST_SPREAD_INTERVAL_SECONDS;
             if (interval != 0 && !naxSpreadScheduleWithinHorizon(scheduleDate, slots.size(), interval)) {
-                BulletinFactory.of(this).createErrorBulletin(LocaleController.formatPluralString("StashUnsupported", messages.size()), themeDelegate).show();
+                BulletinFactory.of(this).createErrorBulletin(getString(R.string.StashTooFar), themeDelegate).show();
                 return;
             }
             // acks are posted from request callbacks via the UI queue, so none can land before the flag is set
