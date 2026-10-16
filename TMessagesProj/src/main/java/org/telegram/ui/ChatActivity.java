@@ -963,9 +963,6 @@ public class ChatActivity extends BaseFragment implements
     // here across exactly that transition and resolved once from onBecomeFullyVisible; a genuine pause or
     // fragment destruction drops it instead (fragment death loses the offer, never a send).
     private RepostCopyDeleteBatch repostCopyDeletePendingOffer;
-    // NagramX: #stash. A countdown put off by Go to Scheduled or a pause; asked again once the chat is back.
-    // onPause doesn't clear it, since leaving for the Scheduled screen is exactly how it gets set.
-    private RepostCopyDeleteBatch naxStashResumeBatch;
     // NagramX: #stash. True only while naxStashMessages is inside dispatchForwardSpread.
     private boolean naxStashDispatching;
     // NagramX: tracks the on-demand repost-as-copy delete offer bulletin so onPause can cancel it; cleared
@@ -3805,7 +3802,6 @@ public class ChatActivity extends BaseFragment implements
             com.dazewell.gram.chatlock.ChatLockController.markUnlocked(currentAccount, dialog_id);
             removeChatLockPasscodeView();
             clearCoveredNotificationsIfVisible();
-            naxResumeStashCountdown(); // NagramX: #stash
         });
         chatLockPasscodeView.onShow(true, false);
         finalizeRoundVideoForLock(); // NagramX (#video-pause-grace): a lock raised over a live round video ends it; the pause grace must not outlive the cover
@@ -3850,7 +3846,6 @@ public class ChatActivity extends BaseFragment implements
         }
         repostCopyDeleteBatch = null;
         repostCopyDeletePendingOffer = null;
-        naxStashResumeBatch = null;
         // NagramX: drop the chat-lock passcode cover if it never got unlocked
         removeChatLockPasscodeView();
         if (messageMetricsView != null) {
@@ -29587,7 +29582,6 @@ public class ChatActivity extends BaseFragment implements
             repostCopyDeletePendingOffer = null;
             showRepostCopyDeleteOfferIfSafe(pendingOffer);
         }
-        naxResumeStashCountdown(); // NagramX: #stash
         if (showCloseChatDialogLater) {
             showDialog(closeChatDialog);
         }
@@ -32559,11 +32553,6 @@ public class ChatActivity extends BaseFragment implements
         AndroidUtilities.cancelRunOnUIThread(finalizeRoundVideoOnPauseRunnable); // NagramX (#video-pause-grace)
         paused = false;
         pausedOnLastMessage = false;
-        // NagramX: #stash. Back from the background only onResume runs - isFullyVisible never dropped - so
-        // the countdown the pause put off has to be asked for here too; posted so the resume finishes first.
-        if (isFullyVisible) {
-            AndroidUtilities.runOnUIThread(this::naxResumeStashCountdown);
-        }
         checkScrollForLoad(false);
         if (wasPaused) {
             wasPaused = false;
@@ -49199,6 +49188,7 @@ public class ChatActivity extends BaseFragment implements
         final HashMap<String, RepostCopySourceIdentity> armedSources = new HashMap<>();
         final HashSet<String> succeededSources = new HashSet<>();
         boolean stash; // NagramX: #stash - ends in StashCountdown instead of the delete bulletin
+        final ArrayList<Integer> stashCopyIds = new ArrayList<>(); // NagramX: #stash - the scheduled copies, for Undo
 
         RepostCopyDeleteBatch(String nonce, int account, long dialogId) {
             this.nonce = nonce;
@@ -49369,6 +49359,9 @@ public class ChatActivity extends BaseFragment implements
         }
         if (!batch.succeededSources.add(marker.second)) {
             return;
+        }
+        if (args[1] instanceof Integer) {
+            batch.stashCopyIds.add((Integer) args[1]); // NagramX: #stash, the copy's server id
         }
         if (batch.succeededSources.size() == batch.armedSources.size()) {
             if (!showRepostCopyDeleteOfferIfSafe(batch)) {
@@ -49579,47 +49572,16 @@ public class ChatActivity extends BaseFragment implements
         return marker != null && batch.nonce.equals(marker.first);
     }
 
-    // NagramX: #stash. Shows a countdown put off by Go to Scheduled or a pause, with a fresh 15 s, once the chat
-    // is really on screen again - not behind the app or chat passcode, which would otherwise sit under it. Until
-    // then, and while anything transient (an open dialog, a transition) would fail the resolve below, the batch
-    // stays parked, so a failure past this point means the originals really are gone. Unlocking the app lock
-    // only rebuilds views, so after one the countdown waits for the chat's next resume or uncover.
-    private void naxResumeStashCountdown() {
-        if (naxStashResumeBatch == null || chatLockPasscodeView != null || AndroidUtilities.needShowPasscode(false) || SharedConfig.isWaitingForPasscodeEnter) {
-            return;
-        }
-        INavigationLayout layout = getParentLayout();
-        if (paused || !isFullyVisible || visibleDialog != null || layout == null || layout.getLastFragment() != this
-                || layout.isTransitionAnimationInProgress() || layout.isSwipeInProgress() || layout.checkTransitionAnimation()) {
-            return;
-        }
-        RepostCopyDeleteBatch resumed = naxStashResumeBatch;
-        naxStashResumeBatch = null;
-        if (!showRepostCopyDeleteOfferIfSafe(resumed)) {
-            BulletinFactory.of(this).createErrorBulletin(getString(R.string.RepeatAsCopyDeleteUnavailable), themeDelegate).show();
-        }
-    }
-
-    // NagramX: #stash. Delete re-resolves the sources at that moment through the same guard the bulletin uses,
-    // so nothing that vanished or became undeletable meanwhile is touched; a tap racing a pause fails that
-    // guard and reports the originals as unavailable rather than deleting unseen.
+    // NagramX: #stash. Snapshots the ids the guard just accepted, so StashCountdown's delete and undo don't
+    // depend on this fragment still being around when the wait ends.
     private void naxShowStashCountdown(RepostCopyDeleteBatch batch, SparseArray<MessageObject>[] sourceMessages) {
-        com.dazewell.gram.stash.StashCountdown.show(this, sourceMessages[0].size() + sourceMessages[1].size(), themeDelegate, result -> {
-            if (result == com.dazewell.gram.stash.StashCountdown.RESULT_DELETE) {
-                SparseArray<MessageObject>[] sources = resolveRepostCopyDeleteSources(batch);
-                if (sources == null) {
-                    BulletinFactory.of(this).createErrorBulletin(getString(R.string.RepeatAsCopyDeleteUnavailable), themeDelegate).show();
-                    return;
-                }
-                com.dazewell.gram.stash.StashCountdown.deleteOriginals(currentAccount, dialog_id, mergeDialogId, (int) getTopicId(), chatMode, sources);
-                updatePinnedMessageView(true);
-            } else if (result == com.dazewell.gram.stash.StashCountdown.RESULT_SCHEDULED) {
-                naxStashResumeBatch = batch;
-                openScheduledMessages();
-            } else if (result == com.dazewell.gram.stash.StashCountdown.RESULT_INTERRUPTED) {
-                naxStashResumeBatch = batch;
+        ArrayList<Integer>[] sourceIds = new ArrayList[]{new ArrayList<>(), new ArrayList<>()};
+        for (int slot = 0; slot < 2; slot++) {
+            for (int i = 0; i < sourceMessages[slot].size(); i++) {
+                sourceIds[slot].add(sourceMessages[slot].keyAt(i));
             }
-        });
+        }
+        com.dazewell.gram.stash.StashCountdown.show(getParentActivity(), currentAccount, dialog_id, mergeDialogId, (int) getTopicId(), sourceIds, batch.stashCopyIds, themeDelegate);
     }
 
     private void repeatMessage(boolean isLongClick, boolean isRepeatasCopy) {
