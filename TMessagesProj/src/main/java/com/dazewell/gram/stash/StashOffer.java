@@ -27,6 +27,9 @@ public final class StashOffer {
     private static final long RESHOW_DELAY_MS = 2000;
     private static final long WATCH_MS = 300;
 
+    // the one offer up; a new stash retires it, or the two bars would keep pushing each other off. UI thread only
+    private static StashOffer active;
+
     private final int account;
     private final int count;
     private final long deadline;
@@ -46,9 +49,21 @@ public final class StashOffer {
 
     // onDelete gets the screen the bar was tapped on, to host the confirmation.
     public static void show(int account, int count, Utilities.Callback<BaseFragment> onDelete) {
-        StashOffer offer = new StashOffer(account, count, onDelete);
-        offer.showBar();
-        offer.watch();
+        if (active != null) {
+            active.retire();
+        }
+        active = new StashOffer(account, count, onDelete);
+        active.showBar();
+        active.watch();
+    }
+
+    private void retire() {
+        settled = true;
+        if (bulletin != null) {
+            Bulletin retired = bulletin;
+            bulletin = null;
+            retired.hide(false, 0);
+        }
     }
 
     private long left() {
@@ -105,6 +120,10 @@ public final class StashOffer {
     private void watch() {
         AndroidUtilities.runOnUIThread(() -> {
             if (settled || left() < 1000) {
+                // every way an offer ends passes here, so a finished one doesn't keep its chat screen alive
+                if (active == this) {
+                    active = null;
+                }
                 return;
             }
             if (bulletin == null) {
