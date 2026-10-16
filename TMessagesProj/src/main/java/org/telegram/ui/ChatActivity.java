@@ -966,6 +966,8 @@ public class ChatActivity extends BaseFragment implements
     // NagramX: #stash. A countdown put off by Go to Scheduled or a pause; asked again once the chat is back.
     // onPause doesn't clear it, since leaving for the Scheduled screen is exactly how it gets set.
     private RepostCopyDeleteBatch naxStashResumeBatch;
+    // NagramX: #stash. True only while naxStashMessages is inside dispatchForwardSpread.
+    private boolean naxStashDispatching;
     // NagramX: tracks the on-demand repost-as-copy delete offer bulletin so onPause can cancel it; cleared
     // by identity via repostCopyDeleteBulletinTag, mirroring the pinBulletin/pinBullerinTag pattern (#repost-reply).
     private Bulletin repostCopyDeleteBulletin;
@@ -49536,8 +49538,17 @@ public class ChatActivity extends BaseFragment implements
                 BulletinFactory.of(this).createErrorBulletin(getString(R.string.StashTooFar), themeDelegate).show();
                 return;
             }
-            // acks are posted from request callbacks via the UI queue, so none can land before the flag is set
-            if (dispatchForwardSpread(slots, messages, dialog_id, false, notify, scheduleDate, interval, 0, true) && repostCopyDeleteBatch != null) {
+            // cleared first so only a batch this dispatch armed gets flagged; acks are posted from request
+            // callbacks via the UI queue, so none can land before the flag is set
+            repostCopyDeleteBatch = null;
+            naxStashDispatching = true;
+            boolean dispatched;
+            try {
+                dispatched = dispatchForwardSpread(slots, messages, dialog_id, false, notify, scheduleDate, interval, 0, true);
+            } finally {
+                naxStashDispatching = false;
+            }
+            if (dispatched && repostCopyDeleteBatch != null) {
                 repostCopyDeleteBatch.stash = true;
             }
         }, themeDelegate);
@@ -49556,11 +49567,12 @@ public class ChatActivity extends BaseFragment implements
         return false;
     }
 
-    // NagramX: #stash. Matches by the armed batch's nonce rather than the stash flag, because the local
-    // placeholder can be announced while dispatchForwardSpread is still running, before the flag is set.
+    // NagramX: #stash. The placeholder can be announced while dispatchForwardSpread is still running, before
+    // the stash flag is set, so a batch counts as a stash one during that dispatch too; the nonce then ties the
+    // message to it.
     private boolean naxIsStashSend(ArrayList<MessageObject> arr) {
         RepostCopyDeleteBatch batch = repostCopyDeleteBatch;
-        if (batch == null || arr == null || arr.isEmpty() || arr.get(0).messageOwner == null) {
+        if (batch == null || !(batch.stash || naxStashDispatching) || arr == null || arr.isEmpty() || arr.get(0).messageOwner == null) {
             return false;
         }
         Pair<String, String> marker = getRepostCopyMarker(arr.get(0).messageOwner.params);
