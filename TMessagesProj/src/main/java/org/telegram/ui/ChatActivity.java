@@ -32684,7 +32684,11 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onPause() {
         super.onPause();
-        repostCopyDeleteBatch = null;
+        // NagramX: #stash keeps its batch: its offer follows the user, so leaving for Scheduled before the
+        // copies are confirmed must not drop it
+        if (repostCopyDeleteBatch == null || !repostCopyDeleteBatch.stash) {
+            repostCopyDeleteBatch = null;
+        }
         // NagramX: #repost-spread. A genuine pause is not the picker-close transition - drop any pending
         // delete offer so it never shows on a chat the user has left or backgrounded.
         repostCopyDeletePendingOffer = null;
@@ -49434,13 +49438,19 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private boolean showRepostCopyDeleteOfferIfSafe(RepostCopyDeleteBatch batch) {
+        // NagramX: #stash. StashOffer finds its own screen, so only the data half of the guard applies; the
+        // on-screen half would drop the offer whenever the user is already in Scheduled when the copies land
+        if (batch != null && batch.stash) {
+            SparseArray<MessageObject>[] stashSources = resolveRepostCopyDeleteSourceData(batch);
+            if (stashSources == null) {
+                return false;
+            }
+            naxShowStashOffer(batch, stashSources);
+            return true;
+        }
         SparseArray<MessageObject>[] sourceMessages = resolveRepostCopyDeleteSources(batch);
         if (sourceMessages == null) {
             return false;
-        }
-        if (batch.stash) {
-            naxShowStashOffer(batch, sourceMessages);
-            return true;
         }
         showRepostCopyDeleteBulletin(batch, sourceMessages);
         return true;
