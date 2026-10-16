@@ -2733,7 +2733,7 @@ for that clip or fade has to be the input row's top, which the MD3 field is draw
 real top as a hard cut. It is now anchored to the row (`ChatActivityEnterView.java:19050-19060`).
 
 That row top reads `animatorInputFieldHeight`, but `drawMessageEditText` runs inside the edit container's display
-list, and the animator's own `invalidate()` re-records only the enter view. So a height change must also invalidate
+list, and `onFactorChanged`'s own `invalidate()` (`:19246`) re-records only the enter view. So a height change must also invalidate
 the container (`ChatActivityEnterView.java:19220`), or the cut keeps the factor from its last recording. Expanding
 the input showed this: with the collapsed row's top baked in, short drafts vanished and longer ones lost their top
 lines until a new line or a scroll redrew the container (traced on device, `#composer-text-clip-fix`, PR 529).
