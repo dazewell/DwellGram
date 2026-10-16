@@ -54,8 +54,6 @@ public final class StashCountdown {
         builder.setNeutralButton(LocaleController.getString(R.string.StashGoToScheduled), (d, w) -> result[0] = RESULT_SCHEDULED);
         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), (d, w) -> result[0] = RESULT_CANCEL);
         AlertDialog dialog = builder.create();
-        // a stray back press or outside tap must not read as either answer
-        dialog.setCanCancel(false);
         Runnable tick = new Runnable() {
             @Override
             public void run() {
@@ -79,7 +77,9 @@ public final class StashCountdown {
         }) == null) {
             return;
         }
-        dialog.setCanceledOnTouchOutside(false);
+        // a stray back press or outside tap must not read as an answer: nothing would bring the countdown back.
+        // After showDialog, whose setCanceledOnTouchOutside(true) turns cancelable back on.
+        dialog.setCancelable(false);
         AndroidUtilities.runOnUIThread(tick, 1000);
     }
 
