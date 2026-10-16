@@ -49581,7 +49581,7 @@ public class ChatActivity extends BaseFragment implements
                 sourceIds[slot].add(sourceMessages[slot].keyAt(i));
             }
         }
-        com.dazewell.gram.stash.StashCountdown.show(getParentActivity(), currentAccount, dialog_id, mergeDialogId, (int) getTopicId(), sourceIds, batch.stashCopyIds, themeDelegate);
+        com.dazewell.gram.stash.StashCountdown.show(currentAccount, dialog_id, mergeDialogId, (int) getTopicId(), sourceIds, batch.stashCopyIds);
     }
 
     private void repeatMessage(boolean isLongClick, boolean isRepeatasCopy) {
