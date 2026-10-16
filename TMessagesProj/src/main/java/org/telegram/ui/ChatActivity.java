@@ -3803,6 +3803,7 @@ public class ChatActivity extends BaseFragment implements
             com.dazewell.gram.chatlock.ChatLockController.markUnlocked(currentAccount, dialog_id);
             removeChatLockPasscodeView();
             clearCoveredNotificationsIfVisible();
+            naxResumeStashCountdown(); // NagramX: #stash
         });
         chatLockPasscodeView.onShow(true, false);
         finalizeRoundVideoForLock(); // NagramX (#video-pause-grace): a lock raised over a live round video ends it; the pause grace must not outlive the cover
@@ -3847,6 +3848,7 @@ public class ChatActivity extends BaseFragment implements
         }
         repostCopyDeleteBatch = null;
         repostCopyDeletePendingOffer = null;
+        naxStashResumeBatch = null;
         // NagramX: drop the chat-lock passcode cover if it never got unlocked
         removeChatLockPasscodeView();
         if (messageMetricsView != null) {
@@ -29583,11 +29585,7 @@ public class ChatActivity extends BaseFragment implements
             repostCopyDeletePendingOffer = null;
             showRepostCopyDeleteOfferIfSafe(pendingOffer);
         }
-        if (naxStashResumeBatch != null) { // NagramX: #stash
-            RepostCopyDeleteBatch resumed = naxStashResumeBatch;
-            naxStashResumeBatch = null;
-            showRepostCopyDeleteOfferIfSafe(resumed);
-        }
+        naxResumeStashCountdown(); // NagramX: #stash
         if (showCloseChatDialogLater) {
             showDialog(closeChatDialog);
         }
@@ -32559,6 +32557,11 @@ public class ChatActivity extends BaseFragment implements
         AndroidUtilities.cancelRunOnUIThread(finalizeRoundVideoOnPauseRunnable); // NagramX (#video-pause-grace)
         paused = false;
         pausedOnLastMessage = false;
+        // NagramX: #stash. Back from the background only onResume runs - isFullyVisible never dropped - so
+        // the countdown the pause put off has to be asked for here too; posted so the resume finishes first.
+        if (isFullyVisible) {
+            AndroidUtilities.runOnUIThread(this::naxResumeStashCountdown);
+        }
         checkScrollForLoad(false);
         if (wasPaused) {
             wasPaused = false;
@@ -49564,8 +49567,22 @@ public class ChatActivity extends BaseFragment implements
         return marker != null && batch.nonce.equals(marker.first);
     }
 
-    // NagramX: #stash. Each answer re-resolves the sources at that moment through the same guard the bulletin
-    // uses, so nothing that vanished or became undeletable meanwhile is touched.
+    // NagramX: #stash. Shows a countdown put off by Go to Scheduled or a pause, with a fresh 15 s, once the chat
+    // is really on screen again - not behind the app or chat passcode, which would otherwise sit under it.
+    private void naxResumeStashCountdown() {
+        if (naxStashResumeBatch == null || chatLockPasscodeView != null || AndroidUtilities.needShowPasscode(false) || SharedConfig.isWaitingForPasscodeEnter) {
+            return;
+        }
+        RepostCopyDeleteBatch resumed = naxStashResumeBatch;
+        naxStashResumeBatch = null;
+        if (!showRepostCopyDeleteOfferIfSafe(resumed)) {
+            BulletinFactory.of(this).createErrorBulletin(getString(R.string.RepeatAsCopyDeleteUnavailable), themeDelegate).show();
+        }
+    }
+
+    // NagramX: #stash. Delete re-resolves the sources at that moment through the same guard the bulletin uses,
+    // so nothing that vanished or became undeletable meanwhile is touched; a tap racing a pause fails that
+    // guard and reports the originals as unavailable rather than deleting unseen.
     private void naxShowStashCountdown(RepostCopyDeleteBatch batch, SparseArray<MessageObject>[] sourceMessages) {
         com.dazewell.gram.stash.StashCountdown.show(this, sourceMessages[0].size() + sourceMessages[1].size(), themeDelegate, result -> {
             if (result == com.dazewell.gram.stash.StashCountdown.RESULT_DELETE) {
