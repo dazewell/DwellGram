@@ -2727,7 +2727,7 @@ so `TextView` never clips the top: the lines a long draft has scrolled past are 
 Nothing in the composer clips them except `ChatActivityEnterView.drawChild`'s cut at the input row's top
 (`ChatActivityEnterView.java:5185`) and `drawMessageEditText`'s layer and 14dp top fade (`:19041`). Any edge
 for that clip or fade has to be the input row's top, which the MD3 field is drawn from too
-(`ComposerMd3Surface.java:485`). The fade used to sit at `messageEditText.getY() + animatedTop`, and
+(`ComposerMd3Surface.java:627`). The fade used to sit at `messageEditText.getY() + animatedTop`, and
 `animatedTop` stays wherever it was while `waitingForSendingMessageLoad` holds back its reset animator
 (`ChatActivity.java:8829`), so the fade could land across a line in the middle of the field and leave the
 real top as a hard cut. It is now anchored to the row (`ChatActivityEnterView.java:19050-19060`).
