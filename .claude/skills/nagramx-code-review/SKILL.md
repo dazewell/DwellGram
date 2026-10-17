@@ -176,9 +176,9 @@ hard-line policy, docs.
 - **Timing:** the entry's prose is written at the end, so do not raise its
   wording, length, accuracy or absence while the feature is still iterating
   (round 1, round 2, any fix round). A bare `###` heading with the marker is
-  correct then; only the marker is checked. Review the entry only on the final
-  whole-feature pass, when the author says the feature is approved and
-  finalized, or when a stub with no prose is about to merge.
+  correct then; only the marker is checked. Review the entry only in the
+  prose-only pass the implementer dispatches after the verification build
+  (word count, accuracy against the final code, format).
 - `FEATURES.md` entry exists under the right section, rides with the code, uses
   plain prose, matches neighbour format, and carries `<!-- #slug -->`.
 - Entry prose under its `###` heading is at most 70 words, excluding images and
