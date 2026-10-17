@@ -51,6 +51,9 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     private static final int BASE_HEIGHT = 56;
     private static final int BASE_BUTTON_SIZE = 48;
+    // Cells are packed to this share of BASE_BUTTON_SIZE: the tightest step the removed Icon spacing
+    // slider offered, now fixed. Never above 100, or the cell would outgrow the row and be clipped.
+    private static final float PACKING = 0.75f;
     private static final int SCALE_MIN = 75;
     private static final int SCALE_MAX = 125;
     /**
@@ -64,7 +67,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
      */
     private static final int MIN_CELL_FLOOR = 36;
     // MD3 sizes run linearly through the 75/100/125% anchors: row and cell 40/48/56dp, state layer 32/40/48dp,
-    // glyph 20/24/28dp. The state layer stays MD3_SPACING_SQUEEZE narrower than the cell.
+    // glyph 20/24/28dp. Cells are packed MD3_SPACING_SQUEEZE narrower than the row, never shorter.
     private static final float MD3_ROW_BASE = 16, MD3_ROW_PER_SCALE = 32;
     private static final float MD3_STATE_BASE = 8, MD3_STATE_PER_SCALE = 32;
     private static final float MD3_GLYPH_BASE = 8, MD3_GLYPH_PER_SCALE = 16;
@@ -425,8 +428,8 @@ public final class ComposerToolbarLayout extends FrameLayout {
     }
 
     /**
-     * Button cell size in dp at the row's scale, held above a floor so the cell always holds the
-     * widest glyph applyIconBox draws in it.
+     * Button cell size in dp at the row's scale, packed as tight as it goes and held above a floor
+     * so the cell always holds the widest glyph applyIconBox draws in it.
      */
     public static int buttonSize() {
         float scale = scale();
@@ -435,9 +438,9 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     private static int cellDp(float scale) {
         if (InterfaceStyleController.applyComposer()) {
-            return Math.round(MD3_ROW_BASE + MD3_ROW_PER_SCALE * scale);
+            return Math.round(MD3_ROW_BASE + MD3_ROW_PER_SCALE * scale - MD3_SPACING_SQUEEZE);
         }
-        return Math.round(BASE_BUTTON_SIZE * scale);
+        return Math.round(BASE_BUTTON_SIZE * scale * PACKING);
     }
 
     /**
