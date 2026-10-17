@@ -227,6 +227,7 @@ public final class FrontFlashBrightnessSlider extends View {
         super.onInitializeAccessibilityNodeInfo(info);
         info.setClassName("android.widget.SeekBar");
         info.setRangeInfo(AccessibilityNodeInfo.RangeInfo.obtain(AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_PERCENT, MIN * 100, MAX * 100, value * 100));
+        if (!interactive()) return;
         if (value < MAX) info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
         if (value > MIN) info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
     }
