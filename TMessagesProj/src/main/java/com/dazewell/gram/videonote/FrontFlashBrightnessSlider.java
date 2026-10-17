@@ -238,6 +238,13 @@ public final class FrontFlashBrightnessSlider extends View {
         canvas.restore();
     }
 
+    // touch exploration over the flash button must find the button, not this view lying over it
+    @Override
+    public boolean dispatchHoverEvent(MotionEvent event) {
+        if (event.getY() >= rowTop()) return false;
+        return super.dispatchHoverEvent(event);
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         final int action = event.getActionMasked();
