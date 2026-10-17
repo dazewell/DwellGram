@@ -108,8 +108,6 @@ public class ComposerLayoutActivity extends BaseFragment {
             75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125
     };
 
-    /** The clamp ComposerToolbarLayout.keyboardGap() applies, in dp; 0 is the stock gap. */
-    private static final int KEYBOARD_GAP_MAX = 24;
     private static final int[] KEYBOARD_GAP_STEPS = {
             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
             13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
@@ -1003,7 +1001,7 @@ public class ComposerLayoutActivity extends BaseFragment {
     }
 
     private static int currentKeyboardGap() {
-        return Math.max(0, Math.min(KEYBOARD_GAP_MAX, NaConfig.INSTANCE.getComposerKeyboardGap().Int()));
+        return Math.max(0, Math.min(ComposerToolbarLayout.KEYBOARD_GAP_MAX, NaConfig.INSTANCE.getComposerKeyboardGap().Int()));
     }
 
     /** Snaps every slider thumb to its value's canonical track position, called once at gesture end
