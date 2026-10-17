@@ -122,7 +122,7 @@ Send and the mic sit inside the text pill, drawn slightly in from its rounded en
 
 ### Docked composer <!-- #docked-composer -->
 
-The Material Design 3 composer can run as a flat panel edge to edge along the bottom, resting straight on the keyboard instead of floating as an island. The field, reply strip and selection buttons share one corner radius. Interface Style → Apply to → *Docked composer*, under Composer. Off by default.
+The Material Design 3 composer can run as a flat panel edge to edge along the bottom, resting straight on the keyboard instead of floating as an island. The field, reply strip and selection buttons share one corner radius. Pick *Composer style* → Floating or Docked at the top of Chat settings → Composer Toolbar, where the preview shows it. Defaults to Floating.
 
 ### Composer toolbar layout editor <!-- #composer-layout --> <!-- #composer-layout-tap-toggle --> <!-- #composer-leading-2slot -->
 
