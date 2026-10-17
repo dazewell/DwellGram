@@ -114,6 +114,12 @@ public final class ComposerMd3Surface {
     // Docked composer: the tools row's bottom sits this far above the nav bar or the keyboard; its 48dp cells already
     // leave air under the glyphs.
     private static final int DOCKED_FLAT_LIFT = 2;
+    // Docked composer: the panel's top gap grows and its side gaps shrink so the two read as one margin. The field
+    // sits 10dp from the screen edge and 6dp under the panel top; the round send circle, which reads farther in than
+    // a flat edge, sits 12dp from its edge, and the tools row follows the circle.
+    private static final int DOCKED_ISLAND_PADDING = 5;
+    private static final int DOCKED_FIELD_SIDE_INSET = 1;
+    private static final int DOCKED_CHILD_SIDE_PADDING = 2;
 
     private final Theme.ResourcesProvider resourcesProvider;
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -161,7 +167,8 @@ public final class ComposerMd3Surface {
         sheetShape = docked ? null : new AnimatedFloat(host, SHEET_SHAPE_DURATION, CubicBezierInterpolator.EASE_OUT);
         final FrameLayout island = host.getInputIslandBubbleContainer();
         island.setClipToPadding(false);
-        island.setPadding(dp(CHILD_SIDE_PADDING), 0, dp(CHILD_SIDE_PADDING), 0);
+        final int childPadding = dp(docked ? DOCKED_CHILD_SIDE_PADDING : CHILD_SIDE_PADDING);
+        island.setPadding(childPadding, 0, childPadding, 0);
         this.enterView = enterView;
         this.channelButtons = channelButtons;
         this.actionButtons = nestActionButtons(actionButtons);
@@ -213,6 +220,14 @@ public final class ComposerMd3Surface {
 
     private boolean isDark() {
         return resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark();
+    }
+
+    private int islandPadding() {
+        return dp(docked ? DOCKED_ISLAND_PADDING : ISLAND_PADDING);
+    }
+
+    private int fieldSideInset() {
+        return dp(docked ? DOCKED_FIELD_SIDE_INSET : FIELD_SIDE_INSET);
     }
 
     private int fieldRadius() {
@@ -347,7 +362,7 @@ public final class ComposerMd3Surface {
 
     /** How far the island reaches above the pill. */
     public int topOverhang() {
-        return dp(ISLAND_PADDING);
+        return islandPadding();
     }
 
     // Docked, the panel rests on the nav bar and the keyboard alike, so its lift is the same constant in both.
@@ -397,7 +412,7 @@ public final class ComposerMd3Surface {
         final float barFactor = actionFactor >= 1f ? 1f : Math.max(actionFactor, Math.min(1f, alpha / (1f - actionFactor)));
         barVisible = barFactor >= 1f;
         final int surface = surfaceColor();
-        final float pad = dp(ISLAND_PADDING);
+        final float pad = islandPadding();
         // The pill is drawn from the container's edges; the island sits ISLAND_EXTRA inside it.
         final float pillLeft = pill.left + dp(ISLAND_EXTRA);
         final float pillRight = pill.right - dp(ISLAND_EXTRA);
@@ -435,9 +450,10 @@ public final class ComposerMd3Surface {
         }
         if (actionFactor > 0 && actionButtons != null) {
             weight += actionFactor;
-            left += (actionButtons.getLeft() + dp(ACTION_RUN_SIDE_INSET)) * actionFactor;
+            final int actionInset = dp(docked ? PILL_INSET + ISLAND_EXTRA - DOCKED_CHILD_SIDE_PADDING : ACTION_RUN_SIDE_INSET);
+            left += (actionButtons.getLeft() + actionInset) * actionFactor;
             top += (pill.top - pillTranslation - pad) * actionFactor;
-            right += (actionButtons.getRight() - dp(ACTION_RUN_SIDE_INSET)) * actionFactor;
+            right += (actionButtons.getRight() - actionInset) * actionFactor;
             bottom += (pill.bottom - pillTranslation + pad) * actionFactor;
         }
         island.set(left / weight, top / weight, right / weight, bottom / weight);
@@ -554,8 +570,8 @@ public final class ComposerMd3Surface {
         final float runFactor = Math.max(InterfaceStyleController.applyButtons() ? 0 : actionFactor, drawPill ? alpha * channelFactor : 0);
         if (runFactor > 0) {
             // The same 3dp margin the field keeps inside the text row.
-            rect.set(run.left + dp(FIELD_SIDE_INSET), run.top + dp(ISLAND_PADDING + FIELD_INSET),
-                    run.right - dp(FIELD_SIDE_INSET), run.bottom - dp(ISLAND_PADDING + FIELD_INSET));
+            rect.set(run.left + fieldSideInset(), run.top + islandPadding() + dp(FIELD_INSET),
+                    run.right - fieldSideInset(), run.bottom - islandPadding() - dp(FIELD_INSET));
             if (rect.width() > 0 && rect.height() > 0) {
                 final float r = Math.min(fieldRadius(), rect.height() / 2f);
                 fillPaint.setColor(Theme.multAlpha(fieldOverlay(), runFactor));
@@ -571,8 +587,8 @@ public final class ComposerMd3Surface {
                               Rect underKeyboard) {
         final int container = containerOverlay();
         // The field and the reply strip share one column: both stop where the send and close controls begin.
-        float columnLeft = pillLeft + dp(FIELD_SIDE_INSET);
-        float columnRight = pillRight - dp(FIELD_SIDE_INSET);
+        float columnLeft = pillLeft + fieldSideInset();
+        float columnRight = pillRight - fieldSideInset();
         sendSlot.setEmpty();
         if (enterView != null) {
             final int primaryEndInset = enterView.getComposerPrimaryEndInset();
@@ -653,7 +669,7 @@ public final class ComposerMd3Surface {
 
     /** How far the preview island reaches past the mock input and toolbar, matching the chat. */
     public static int previewPadding() {
-        return dp(ISLAND_PADDING);
+        return dp(InterfaceStyleController.dockedComposer() ? DOCKED_ISLAND_PADDING : ISLAND_PADDING);
     }
 
     /** The layout editor's field, stopping the field-to-send gap short of the send slot, {@code sendReserve} from its end. */
@@ -665,7 +681,7 @@ public final class ComposerMd3Surface {
                 final Rect bounds = getBounds();
                 // Gravity.END puts the preview's send circle on the right even in RTL: the app does not
                 // declare supportsRtl.
-                surface.rect.set(bounds.left + dp(FIELD_SIDE_INSET), bounds.top + dp(FIELD_INSET), bounds.right - sendReserve - dp(FIELD_SEND_GAP), bounds.bottom - dp(FIELD_INSET));
+                surface.rect.set(bounds.left + surface.fieldSideInset(), bounds.top + dp(FIELD_INSET), bounds.right - sendReserve - dp(FIELD_SEND_GAP), bounds.bottom - dp(FIELD_INSET));
                 final float radius = Math.min(surface.fieldRadius(), surface.rect.height() / 2f);
                 surface.fillPaint.setColor(surface.fieldOverlay());
                 canvas.drawRoundRect(surface.rect, radius, radius, surface.fillPaint);
