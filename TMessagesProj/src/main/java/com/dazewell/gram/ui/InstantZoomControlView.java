@@ -288,6 +288,24 @@ public class InstantZoomControlView extends View {
         return compactTarget;
     }
 
+    // The lowest point, in this view's own coordinates, that the track, knob or buttons take up left of x, so a
+    // control in the bottom-left corner (the front flash brightness slider) can stop short of them. Negative
+    // when nothing reaches that far left. The lens strip always sits above the track, so the track bounds it.
+    public float occupiedBottomLeftOf(float x) {
+        updateGeometry();
+        final float grab = AndroidUtilities.dp(22);
+        float bottom = -1;
+        if (zoomEnabled && trackLeft - grab < x) {
+            bottom = trackY + grab;
+        }
+        final float buttonReach = AndroidUtilities.dp(28);
+        final float leftmostButton = zoomEnabled ? Math.min(switchCx, minusCx) : switchCx;
+        if (leftmostButton - buttonReach < x) {
+            bottom = Math.max(bottom, buttonCy + buttonReach);
+        }
+        return bottom;
+    }
+
     public boolean isZoomEnabled() {
         return zoomEnabled;
     }

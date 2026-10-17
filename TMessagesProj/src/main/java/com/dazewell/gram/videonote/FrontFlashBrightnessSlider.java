@@ -41,7 +41,11 @@ public final class FrontFlashBrightnessSlider extends View {
     private final Drawable icon;
     private final RectF rect = new RectF();
     private float value;
+    private static final int PAD = 6, WIDTH = 26, MIN_TRACK = 44;
+
     private View alphaSource;
+    private com.dazewell.gram.ui.InstantZoomControlView zoomView;
+    private float trackTop = dp(PAD);
     private float hostAlpha = 1f;
     private boolean shown;
     private boolean dragging;
@@ -73,7 +77,11 @@ public final class FrontFlashBrightnessSlider extends View {
     public void setShown(boolean shown) {
         if (this.shown == shown) return;
         this.shown = shown;
-        if (!shown) dragging = false;
+        if (!shown && dragging) {
+            // a flip or a stop mid-drag has already applied the value, so keep it
+            dragging = false;
+            save();
+        }
         setImportantForAccessibility(shown ? IMPORTANT_FOR_ACCESSIBILITY_YES : IMPORTANT_FOR_ACCESSIBILITY_NO);
         invalidate();
     }
@@ -94,8 +102,36 @@ public final class FrontFlashBrightnessSlider extends View {
         }
     }
 
+    // The zoom control spans the full width and moves with the keyboard, and on narrow screens or in its compact
+    // row its track reaches over this corner. The slider gives up its top to stay below it, and hides when what
+    // is left is too short to drag.
+    public void stayBelow(com.dazewell.gram.ui.InstantZoomControlView zoom) {
+        zoomView = zoom;
+        syncTop();
+    }
+
+    private void syncTop() {
+        float top = dp(PAD);
+        if (zoomView != null && zoomView.getMeasuredWidth() > 0) {
+            final float occupied = zoomView.occupiedBottomLeftOf(getRight() - zoomView.getX());
+            if (occupied >= 0) {
+                top = Math.max(top, zoomView.getY() + occupied + dp(4) - getTop());
+            }
+        }
+        if (top != trackTop) {
+            trackTop = top;
+            if (!fits()) dragging = false;
+            invalidate();
+        }
+    }
+
+    private boolean fits() {
+        return getHeight() - dp(PAD) - trackTop >= dp(MIN_TRACK);
+    }
+
     private final ViewTreeObserver.OnPreDrawListener preDrawListener = () -> {
         syncAlpha();
+        syncTop();
         return true;
     };
 
@@ -112,16 +148,16 @@ public final class FrontFlashBrightnessSlider extends View {
     }
 
     private boolean interactive() {
-        return shown && hostAlpha > .5f;
+        return shown && hostAlpha > .5f && fits();
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        final float t = shownProgress.set(shown);
+        final float t = shownProgress.set(shown && fits());
         if (t <= 0) return;
-        final float w = dp(26), pad = dp(6);
+        final float w = dp(WIDTH);
         final float cx = getWidth() / 2f;
-        rect.set(cx - w / 2f, pad, cx + w / 2f, getHeight() - pad);
+        rect.set(cx - w / 2f, trackTop, cx + w / 2f, getHeight() - dp(PAD));
         // grows up out of the flash button below it
         canvas.save();
         canvas.scale(1f, .6f + .4f * t, cx, rect.bottom);
@@ -147,7 +183,7 @@ public final class FrontFlashBrightnessSlider extends View {
     public boolean onTouchEvent(MotionEvent event) {
         final int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_DOWN) {
-            if (!interactive()) return false;
+            if (!interactive() || event.getY() < trackTop) return false;
             dragging = true;
             if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
             setFromY(event.getY());
@@ -165,8 +201,8 @@ public final class FrontFlashBrightnessSlider extends View {
     }
 
     private void setFromY(float y) {
-        final float w = dp(26), pad = dp(6);
-        final float top = pad, bottom = getHeight() - pad - w;
+        final float w = dp(WIDTH);
+        final float top = trackTop, bottom = getHeight() - dp(PAD) - w;
         final float fraction = bottom <= top ? 1f : Utilities.clamp((bottom - y) / (bottom - top), 1f, 0f);
         setValue(MIN + (MAX - MIN) * fraction);
     }

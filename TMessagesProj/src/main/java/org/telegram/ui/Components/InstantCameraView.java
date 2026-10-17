@@ -492,8 +492,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         });
         flashViews.setIntensity(flashBrightnessSlider.getValue());
         flashBrightnessSlider.followAlphaOf(buttonsLayout);
-        addView(flashBrightnessSlider, LayoutHelper.createFrame(44, 132, Gravity.LEFT | Gravity.BOTTOM, 7, 0, 0, 58));
-        updateFlash();
+        flashBrightnessSlider.stayBelow(zoomControlView);
+        addView(flashBrightnessSlider, LayoutHelper.createFrame(44, 76, Gravity.LEFT | Gravity.BOTTOM, 7, 0, 0, 58));
 
         muteImageView = new ImageView(context);
         muteImageView.setScaleType(ImageView.ScaleType.CENTER);
