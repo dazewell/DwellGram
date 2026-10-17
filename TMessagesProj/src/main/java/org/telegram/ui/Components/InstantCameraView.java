@@ -152,6 +152,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     private RectF rect;
     private final FlashViews.ImageViewInvertable flashButton;
     private final ImageView infiniteButton; // NagramX
+    private final com.dazewell.gram.videonote.FrontFlashBrightnessSlider flashBrightnessSlider; // NagramX (#front-flash-brightness)
     private final FlashViews flashViews;
     private RLottieDrawable flashOnDrawable, flashOffDrawable;
     private ImageView muteImageView;
@@ -483,6 +484,17 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         });
         updateInfiniteButton();
 
+        // NagramX (#front-flash-brightness): FlashViews only sets the screen brightness when the flash comes in,
+        // so a change made while it is lit has to bring it in again to reach the screen
+        flashBrightnessSlider = new com.dazewell.gram.videonote.FrontFlashBrightnessSlider(context, v -> {
+            flashViews.setIntensity(v);
+            if (frontFlashing) flashViews.flashIn(null);
+        });
+        flashViews.setIntensity(flashBrightnessSlider.getValue());
+        flashBrightnessSlider.followAlphaOf(buttonsLayout);
+        addView(flashBrightnessSlider, LayoutHelper.createFrame(44, 132, Gravity.LEFT | Gravity.BOTTOM, 7, 0, 0, 58));
+        updateFlash();
+
         muteImageView = new ImageView(context);
         muteImageView.setScaleType(ImageView.ScaleType.CENTER);
         muteImageView.setImageResource(R.drawable.video_mute);
@@ -528,6 +540,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     private boolean frontFlashing;
     private void updateFlash() {
         final boolean shouldFrontFlash = flashing && recording && isFrontface;
+        if (flashBrightnessSlider != null) flashBrightnessSlider.setShown(flashing && isFrontface); // NagramX (#front-flash-brightness): the rear torch has no brightness to set
         if (frontFlashing != shouldFrontFlash) {
             if (frontFlashing = shouldFrontFlash) {
                 flashViews.flashIn(null);
