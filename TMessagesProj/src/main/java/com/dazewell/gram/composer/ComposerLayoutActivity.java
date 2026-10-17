@@ -36,6 +36,7 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.ActionBar.INavigationLayout;
 import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
@@ -62,7 +63,7 @@ import java.util.List;
 /**
  * Lets the user place each composer toolbar button into a zone and order it, by dragging rows
  * between four sections. Config only: it never touches a live enter view, it reads and writes the
- * layout through {@link ComposerLayout} and asks the toolbar to rebuild by posting reloadInterface.
+ * layout through {@link ComposerLayout} and, on leaving, rebuilds the toolbar (see flushRebuild).
  */
 public class ComposerLayoutActivity extends BaseFragment {
 
@@ -509,7 +510,23 @@ public class ComposerLayoutActivity extends BaseFragment {
             return;
         }
         rebuildPending = false;
-        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
+        INavigationLayout layout = getParentLayout();
+        // reloadInterface alone is not enough: LaunchActivity answers it with last=false, which skips
+        // whatever is on top when it runs, and every exit calls onPause while this screen is still
+        // stacked. After a swipe the layout is still tracking, so that rebuild is deferred past the
+        // pop and then skips the chat that opened us. On back or arrow it ran with us still on top
+        // and cleared the visible chat, which only the black-screen watchdog in ActionBarLayout put
+        // back. On the next loop we are past the pop, so if we are gone our own stack is rebuilt top
+        // included, and reloadInterface still covers the main stack when we were opened from a
+        // bubble or sheet. Still on top means the app went to background: nothing is showing beneath
+        // us, and reloadInterface on its own is right. reloadInterface goes first so that if both
+        // defer behind a transition, the shared deferred flags end up with the top-including call.
+        AndroidUtilities.runOnUIThread(() -> {
+            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
+            if (layout != null && layout.getLastFragment() != this) {
+                layout.rebuildAllFragmentViews(true, true);
+            }
+        });
     }
 
     private void resetLayout() {
