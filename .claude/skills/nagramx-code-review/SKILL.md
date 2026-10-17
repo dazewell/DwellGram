@@ -271,7 +271,7 @@ praise makes the rest trusted.
 - **Important (should fix):** wrong hook point / heavy base-file footprint,
   reinventing an existing component, threading/lifecycle risks, missing
   null-guards, missing `#tag` or `FEATURES.md` marker, upstream-fragile hook.
-  (Entry prose is not a finding before the polish pass; see Documentation checks.)
+  (Entry prose is not a finding before the prose-only pass; see Documentation checks.)
 - **Minor (nice to have):** style, naming, a cleaner idiom, comment polish.
 
 If a finding is about the plan (round 1) or upstream code rather than this

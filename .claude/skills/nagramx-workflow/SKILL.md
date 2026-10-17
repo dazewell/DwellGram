@@ -224,9 +224,9 @@ checks). Then write and count the entry against the final code, send it through
 a prose-only `nagramx-architect` pass, and never merge with the stub bare.
 
 **70 words, hard ceiling — count them.** Prose under the heading; images and
-shortcut tables excluded. Most entries are ~35. Two beats: what it does and
+shortcut tables excluded. Two beats: what it does and
 where you find it, then its setting and default. Cut edge cases, failure
-behaviour, interaction step-by-steps, storage and lifetime detail, rationale,
+behaviour, interaction step-by-steps, storage detail, rationale,
 and how it used to work. A sentence opening with *unless*, *except* or *note
 that* comes out; one caveat survives only if a user would misuse the feature
 without it.
@@ -234,14 +234,12 @@ without it.
 If your feature extends one that already has an entry, add your `<!-- #slug -->`
 to that heading and fold the behaviour in — then re-count the merged entry and
 cut old detail. **When you shorten an entry, re-check every surviving sentence
-against the code**, not just the ones you rewrote: dropping a qualifier is the
-cheapest way to lose words and the easiest way to make a sentence false.
+against the code**, not just the ones you rewrote.
 
 **Separately, a durable fact the work established** — a UI→code mapping, an
 upstream trap, or a hypothesis you disproved — goes into `docs/codemap/` in the
-same PR, per `docs/codemap/README.md`. This is independent of user-visibility:
-it is judged on what the work *learned*, not what it shipped. Only what would
-save a future investigation real time, and only with a `file:line` citation you
+same PR, per `docs/codemap/README.md`, judged on what the work *learned*, not
+what it shipped. Only what would save a future investigation real time, and only with a `file:line` citation you
 actually checked against this branch.
 
 ### 7. Commit
