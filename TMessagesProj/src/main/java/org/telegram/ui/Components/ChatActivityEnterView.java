@@ -13392,8 +13392,7 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     /**
      * NagramX: one press ripple for every button the composer panel hosts, sized by the panel to the
-     * tightest cell its icon-spacing slider can pack to, so that slider's bottom step puts two
-     * neighbouring circles edge to edge instead of leaving a gap the user cannot close. Upstream gave
+     * smallest cell it allows at its scale. Upstream gave
      * these buttons two different fixed radii (20dp and 16dp) and neither followed the panel's scale.
      * Off the panel nothing changes - the enter view is built without it in a few places, and there
      * the button keeps the shape upstream drew.

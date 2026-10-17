@@ -456,14 +456,6 @@ crop = [0, 548, 1070, 1540]
 # bottom stops on a row divider rather than through a half-row.
 
 [[figure]]
-output = "composer-toolbar-sliders.png"
-source = "composer-layout-editor-sliders.png"
-crop = [0, 548, 1070, 1440]
-# Toolbar size and Icon spacing, both at off-centre values so they read as
-# adjustable rather than factory default. Right edge stops at 1070 to drop a
-# teal sliver of the chat behind the screen.
-
-[[figure]]
 output = "fullscreen-input-on.png"
 source = "fullscreen-input-expanded.png"
 crop = [0, 175, 1080, 1327]

@@ -1684,11 +1684,11 @@ object NaConfig {
             ConfigItem.configTypeInt,
             100 // percent; slider range 75..125 in 5% steps (see ComposerLayoutActivity)
         )
-    val composerToolbarSpacing =
+    val composerKeyboardGap =
         addConfig(
-            "ComposerToolbarSpacing",
+            "ComposerKeyboardGap",
             ConfigItem.configTypeInt,
-            100 // percent; slider range 75..100 in 1% steps, tighter-only (see ComposerToolbarLayout)
+            0 // dp; slider range 0..24, added only while the keyboard or emoji panel is open (see ComposerToolbarLayout)
         )
     @JvmStatic
     fun interfaceStyleBlurAlpha(): Float {
