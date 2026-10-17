@@ -21,12 +21,14 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.ActionBar.INavigationLayout;
 import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
@@ -139,7 +141,21 @@ public class ChatMenuLayoutActivity extends BaseFragment {
     private void flushRebuild() {
         if (!rebuildPending) return;
         rebuildPending = false;
-        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
+        INavigationLayout layout = getParentLayout();
+        // reloadInterface alone misses the chat that opened us (long-press on its menu button):
+        // LaunchActivity rebuilds with last=false, skipping whatever is on top, and every exit calls
+        // onPause while we are still stacked. A swipe defers that rebuild past the pop, so it skips
+        // the chat; back or arrow runs it with us on top and clears the visible chat until the
+        // black-screen watchdog in ActionBarLayout puts it back. On the next loop we are past the
+        // pop: if we are gone our own stack is rebuilt top included, and reloadInterface still
+        // covers the main stack when we were opened from a bubble or sheet. reloadInterface goes
+        // first so that if both defer behind a transition, the deferred flags keep the top.
+        AndroidUtilities.runOnUIThread(() -> {
+            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
+            if (layout != null && layout.getLastFragment() != this) {
+                layout.rebuildAllFragmentViews(true, true);
+            }
+        });
     }
 
     private void buildItems(List<List<String>> layout) {
