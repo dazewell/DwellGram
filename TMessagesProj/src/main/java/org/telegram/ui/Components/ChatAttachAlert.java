@@ -3271,6 +3271,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                 // NagramX (#attach-caption-guard): typing here makes the sheet the surface last composed in, so a
                 // caption carried over from the full-screen preview is no longer the newer of the two.
                 lastAppliedPreviewCaption = null;
+                com.dazewell.gram.albumcaption.AlbumCaption.onFieldChanged(ChatAttachAlert.this, editable); // NagramX (#album-caption)
                 int beforeLimit;
                 codepointCount = Character.codePointCount(editable, 0, editable.length());
                 animatorCaptionNotEmpty.setValue(codepointCount > 0, true);
@@ -3418,6 +3419,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                 // NagramX (#attach-caption-guard): same as the field below -- typing here supersedes any caption
                 // carried over from the full-screen preview.
                 lastAppliedPreviewCaption = null;
+                com.dazewell.gram.albumcaption.AlbumCaption.onFieldChanged(ChatAttachAlert.this, editable); // NagramX (#album-caption)
                 int beforeLimit;
                 codepointCount = Character.codePointCount(editable, 0, editable.length());
                 animatorCaptionNotEmpty.setValue(codepointCount > 0, true);
@@ -5989,6 +5991,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
     }
 
     public void updateCountButton(int animated) {
+        com.dazewell.gram.albumcaption.AlbumCaption.reconcile(this); // NagramX (#album-caption): the first photo may have changed
         if (viewChangeAnimator != null) {
             return;
         }

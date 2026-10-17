@@ -2759,3 +2759,26 @@ Placement comes from the host screen's own delegate (`Bulletin.java:332`). A bar
 screens has to be re-made on the top screen (`StashOffer.java`).
 
 *(Established 2026-10-16, `#stash`.)*
+
+## The attach sheet's captions: who resets them, who hears about them, and when the chat pauses
+
+Four facts that decide whether a typed attach caption survives.
+
+- **Only the grid's checkbox resets a photo.** `addToSelectedPhotos(entry, index)` calls `object.reset()` only when
+  `index >= 0` (`ChatAttachAlertPhotoLayout.java:1842-1845`), and the one caller that passes an index is the grid
+  cell (`:4493`). The viewer's check button passes `-1` (`:300`), so unchecking there keeps the caption and the crop, paint and filter edits (the stars price, spoiler and
+  quality flags are still cleared, `:1830-1833`). `PhotoEntry.reset()` clears the caption along with crop, paint and filters.
+- **The sheet's send swaps in a clone.** `applyCaption(text)` puts a `PhotoEntry.clone()` of the first photo into
+  `selectedPhotos` (`ChatAttachAlertPhotoLayout.java:3671`, `MediaController.java:741`) before steps that can be
+  cancelled, while the grid viewer edits the originals. Opening the viewer also stores the field's live `Editable`
+  on the first photo as its caption (`:1040`), not a copy.
+- **The full-screen preview never told the sheet about a caption.** `GroupingPhotoViewerProvider` extends the empty
+  `EmptyPhotoViewerProvider` (`ChatAttachAlertPhotoLayoutPreview.java:1420`, base `onApplyCaption` at
+  `PhotoViewer.java:2973`), so a caption applied there reached the photo (`PhotoViewer.java:10376`) but never the sheet's field until it
+  was overridden (`:1433`).
+- **The chat pauses before the viewer.** `LaunchActivity.onPause` runs `actionBarLayout.onPause()` first
+  (`LaunchActivity.java:6937`) and `PhotoViewer.onPause()` after (`:6958`), so the chat fragment's caption snapshot
+  (`ChatActivity.java:32731-32740`) is taken before the viewer applies the text still in its editor. The snapshot
+  has to ask the viewer to apply first (`PhotoViewer.applyCaptionForRescue`, `:10352`).
+
+*(Established 2026-10-16, `#album-caption`.)*
