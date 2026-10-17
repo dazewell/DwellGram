@@ -769,12 +769,9 @@
     <string name="ComposerScale">Toolbar size</string>
     <string name="ComposerScaleInfo">Scales the toolbar and its buttons. Takes effect when you leave this screen.</string>
     <string name="ComposerScaleAccDescr">Toolbar size</string>
-    <string name="ComposerSpacing">Icon spacing</string>
-    <string name="ComposerSpacingAccDescr">Icon spacing</string>
-    <string name="ComposerSpacingInfo">Packs icons closer without shrinking them.</string>
-    <string name="ComposerSpacingInfoOverridden">Your saved %1$d%% will come back once Toolbar size is bigger, but moving Icon spacing now replaces it.</string>
-    <string name="ComposerSpacingInfoOverriddenLocked">Your saved %1$d%% will come back once Toolbar size is bigger.</string>
-    <string name="ComposerSpacingInfoNoRoom">Icon spacing can\'t move at this Toolbar size. Make Toolbar size bigger to use this slider.</string>
+    <string name="ComposerKeyboardGap">Gap above keyboard</string>
+    <string name="ComposerKeyboardGapValue">%1$d dp</string>
+    <string name="ComposerKeyboardGapInfo">Adds space between the composer and the keyboard or emoji panel while it is open. Takes effect when you leave this screen.</string>
     <string name="InputTextSizeInfo">Sets the size of the text you type. Custom emoji scale with it.</string>
     <string name="ComposerPreviewSampleText">See you at eight?</string>
     <!-- Template messages #template-messages -->

@@ -73,26 +73,26 @@ public class ComposerLayoutActivity extends BaseFragment {
     private static final int TYPE_INFO = 4;
     private static final int TYPE_SCALE = 5;
     /**
-     * The packing slider gets its own type rather than sharing TYPE_SCALE: one type means the
+     * The keyboard-gap slider gets its own type rather than sharing TYPE_SCALE: one type means the
      * recycler can hand this row a view still carrying the other slider's minValueAllowed and seek
      * bar min progress, which does not look like a stale bind - it silently locks or unlocks the
      * wrong control.
      */
-    private static final int TYPE_SPACING = 6;
+    private static final int TYPE_KEYBOARD_GAP = 6;
     /**
      * Title above a slider. Must NOT be TYPE_HEADER: zoneAt() walks back to the nearest TYPE_HEADER
      * to decide which zone a row belongs to, so reusing that type here would make every lookup above
      * the Leading header answer with a slider's sentinel zone.
      */
     private static final int TYPE_SLIDER_HEADER = 7;
-    /** Its own type for the same reason TYPE_SPACING has one: no slider row may inherit another's
+    /** Its own type for the same reason TYPE_KEYBOARD_GAP has one: no slider row may inherit another's
      * options or floor through recycling. */
     private static final int TYPE_TEXT_SIZE = 8;
     /** The MD3 composer's Floating / Docked select, shown only while the MD3 composer applies. */
     private static final int TYPE_STYLE = 9;
     /** Sentinel "zones" for the slider groups, so one header/footer lookup serves all of them. */
     private static final int GROUP_SCALE = -1;
-    private static final int GROUP_SPACING = -2;
+    private static final int GROUP_KEYBOARD_GAP = -2;
     private static final int GROUP_TEXT_SIZE = -3;
     private static final int GROUP_STYLE = -4;
 
@@ -108,38 +108,12 @@ public class ComposerLayoutActivity extends BaseFragment {
             75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125
     };
 
-    /**
-     * The absolute range the stored value is clamped into, and the floor the bind drops the knob to
-     * before applying a new one. Not the anchors the slider actually draws - those are built from the
-     * scale-dependent floor by {@link #spacingSteps()}, so the track's left endpoint is always a
-     * value the thumb can reach.
-     *
-     * <p>Every reachable value is a whole percent, one apart. This is deliberate
-     * and must not be "simplified" back to {85, 90, 95, 100} with SPACING_BETWEEN_STEPS raised to
-     * subdivide them: SlideIntChooseView.getProgress does Math.round(...) / options.betweenSteps as
-     * an integer division (betweenSteps is int), while getValue divides by (float) betweenSteps, so
-     * for betweenSteps > 1 the two stop being inverses and a between-anchor value cannot round-trip.
-     * A rebind then drives the thumb to getProgress(value), which truncates down to the lower
-     * anchor, while the label keeps the exact value - the thumb and number desync. Unit anchors keep
-     * getProgress exact for every value the slider can hold.
-     */
-    private static final int[] SPACING_STEPS = {
-            75, 76, 77, 78, 79, 80, 81, 82, 83, 84,
-            85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100
+    /** The clamp ComposerToolbarLayout.keyboardGap() applies, in dp; 0 is the stock gap. */
+    private static final int KEYBOARD_GAP_MAX = 24;
+    private static final int[] KEYBOARD_GAP_STEPS = {
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+            13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
     };
-
-    /**
-     * One sub-step, because every anchor above is already a whole percent, so the packing slider
-     * delivers whole percents with getProgress and getValue as exact inverses.
-     *
-     * <p>Must stay 1. With more than one sub-step, getProgress's integer division truncates any
-     * value that falls between two anchors down to the lower anchor's progress (see SPACING_STEPS),
-     * so the thumb lands left of the label on any rebind, and the floor spacingSteps() puts at the
-     * array's left endpoint would no longer land exactly on it. The value range is real, not
-     * cosmetic: the cell is round(48 x size x packing), so the rounding boundary falls every couple
-     * of percent, giving eleven distinct cell sizes at 100% size and fourteen at 125%.
-     */
-    private static final int SPACING_BETWEEN_STEPS = 1;
 
     /** Header text plus the breathing room above and below the capsule, in dp. */
     private static final int PREVIEW_HEADER_HEIGHT = 40;
@@ -194,25 +168,6 @@ public class ComposerLayoutActivity extends BaseFragment {
     private List<List<String>> lastSaved;
     private boolean rebuildPending;
     private boolean startZoneArmed;
-
-    /**
-     * A finger is down somewhere on the screen. Set on the root's ACTION_DOWN, cleared on UP/CANCEL
-     * (see createView). While it is true the toolbar-size drag defers the packing row's rebind
-     * rather than firing it on every step crossed - the packing thumb and its footer stay put until
-     * the gesture ends, then settle once.
-     */
-    private boolean gestureInProgress;
-    /**
-     * A toolbar-size change arrived mid-gesture and the packing rows still owe a rebind. Cleared and
-     * acted on when the gesture ends. No Runnable, no post, nothing to cancel in onFragmentDestroy.
-     */
-    private boolean settlePending;
-    /**
-     * The packing slider was moved mid-gesture, so its footer's saved-vs-floor disclosure is stale
-     * and owes a refresh at gesture end. Separate from settlePending because this path refreshes
-     * only the footer, never the slider row the user is still holding.
-     */
-    private boolean spacingFooterRefreshPending;
 
     /**
      * Bumped once per finished theme transition (see getThemeDescriptions()) so getItemViewType()
@@ -274,24 +229,19 @@ public class ComposerLayoutActivity extends BaseFragment {
             @Override
             public boolean dispatchTouchEvent(MotionEvent ev) {
                 int action = ev.getActionMasked();
-                if (action == MotionEvent.ACTION_DOWN) {
-                    gestureInProgress = true;
-                }
                 boolean handled = super.dispatchTouchEvent(ev);
                 // Settle after super has run, not before. On ACTION_UP the slider's own terminal
-                // setSeekBarDrag fires inside that super call, so settling first would rebind the
-                // packing row off a stale value; on ACTION_CANCEL no drag callback fires at all, and
+                // setSeekBarDrag fires inside that super call, so settling first would rebind a
+                // slider row off a stale value; on ACTION_CANCEL no drag callback fires at all, and
                 // the settle just picks up the values earlier ACTION_MOVEs already wrote.
                 // This root sees the terminal UP/CANCEL because the DOWN was consumed: a consumed
                 // DOWN makes this root the touch target for the rest of the gesture. Every region of
                 // the root is covered by a child that consumes - the pinned preview strip above,
                 // whose onInterceptTouchEvent/onTouchEvent both return true, and the scrollable list
-                // below - so the flag set on DOWN always gets a matching terminal event to clear it.
-                // SlideIntChooseView's requestDisallowInterceptTouchEvent only stops the RecyclerView
-                // intercepting, which keeps moves flowing to the slider; it is not what delivers the
-                // terminal event here.
+                // below. SlideIntChooseView's requestDisallowInterceptTouchEvent only stops the
+                // RecyclerView intercepting, which keeps moves flowing to the slider; it is not what
+                // delivers the terminal event here.
                 if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-                    gestureInProgress = false;
                     // Snap every slider thumb onto its value's track position. On release SeekBarView
                     // never canonicalizes the position to a step: its ACTION_UP handler may reposition
                     // thumbX to the raw finger pixel (SeekBarView.java:259-262) before reporting the
@@ -306,16 +256,8 @@ public class ComposerLayoutActivity extends BaseFragment {
                     // position no longer matches, so the binds are cheap and a snap racing a rebuild
                     // is a no-op, not a stale bind. Correct only because every options table here uses
                     // betweenSteps == 1 (see docs/codemap/upstream-traps.md); a betweenSteps > 1
-                    // slider would be mis-snapped on every touch-up. This also subsumes settlePending's
-                    // spacing-row rebind, so that row binds once per gesture end, not twice - only its
-                    // footer still needs the deferred refresh.
-                    boolean footerNeedsRefresh = settlePending || spacingFooterRefreshPending;
-                    settlePending = false;
-                    spacingFooterRefreshPending = false;
+                    // slider would be mis-snapped on every touch-up.
                     snapSliderRows();
-                    if (footerNeedsRefresh) {
-                        refreshSpacingFooter();
-                    }
                 }
                 return handled;
             }
@@ -400,9 +342,9 @@ public class ComposerLayoutActivity extends BaseFragment {
         items.add(new Item(TYPE_SLIDER_HEADER, GROUP_SCALE, null));
         items.add(new Item(TYPE_SCALE, GROUP_SCALE, null));
         items.add(new Item(TYPE_INFO, GROUP_SCALE, null));
-        items.add(new Item(TYPE_SLIDER_HEADER, GROUP_SPACING, null));
-        items.add(new Item(TYPE_SPACING, GROUP_SPACING, null));
-        items.add(new Item(TYPE_INFO, GROUP_SPACING, null));
+        items.add(new Item(TYPE_SLIDER_HEADER, GROUP_KEYBOARD_GAP, null));
+        items.add(new Item(TYPE_KEYBOARD_GAP, GROUP_KEYBOARD_GAP, null));
+        items.add(new Item(TYPE_INFO, GROUP_KEYBOARD_GAP, null));
         for (int zone : ZONE_ORDER) {
             items.add(new Item(TYPE_HEADER, zone, null));
             List<String> keys = zones.get(zone);
@@ -543,7 +485,7 @@ public class ComposerLayoutActivity extends BaseFragment {
     private void resetLayout() {
         ComposerLayout.reset();
         NaConfig.INSTANCE.getComposerToolbarScale().setConfigInt(100);
-        NaConfig.INSTANCE.getComposerToolbarSpacing().setConfigInt(100);
+        NaConfig.INSTANCE.getComposerKeyboardGap().setConfigInt(0);
         NaConfig.INSTANCE.getInputTextSize().setConfigInt(TEXT_SIZE_DEFAULT);
         lastSaved = ComposerLayout.snapshot();
         buildItems(lastSaved);
@@ -611,7 +553,7 @@ public class ComposerLayoutActivity extends BaseFragment {
                 // Keep in step with isSliderRowType() below - a slider type added here but not
                 // there silently skips the theme-refresh fix for it, with no compile error.
                 case TYPE_SCALE:
-                case TYPE_SPACING:
+                case TYPE_KEYBOARD_GAP:
                 case TYPE_TEXT_SIZE:
                     view = new SlideIntChooseView(context, null);
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
@@ -676,72 +618,30 @@ public class ComposerLayoutActivity extends BaseFragment {
                         }
                         NaConfig.INSTANCE.getComposerToolbarScale().setConfigInt(value);
                         rebuildPending = true;
-                        // How tight the icons can be packed depends on the scale - a smaller row
-                        // reaches the cell floor sooner - so the other slider's allowed range has to
-                        // follow this one. Defer that rebind to the end of the gesture instead of
-                        // firing it on every step crossed: rebinding the packing row mid-drag is what
-                        // made its thumb and footer jump under the user's finger. The else branch is
-                        // load-bearing, not a guard - the accessibility delegate drives this slider
-                        // with no touch events at all, so a TalkBack change would never settle
-                        // otherwise, and it steps one value at a time so it has no jump to defer.
-                        if (gestureInProgress) {
-                            settlePending = true;
-                        } else {
-                            settleSpacingRows();
-                        }
                         updatePreview();
                     });
                     // Cleared to the options' own minimum rather than Integer.MIN_VALUE: getProgress
                     // subtracts the minimum before dividing, and MIN_VALUE - 75 overflows to a large
                     // positive int, so clamp01 returns 1.0 and setMinProgress pins this slider at its
                     // maximum. SCALE_MIN maps to progress 0, which is the no-op floor that was meant.
-                    // Needed at all only as insurance: this row and the packing row are built by the
+                    // Needed at all only as insurance: this row and the other slider rows are built by the
                     // same branch above, so a future edit that let them share a recycler pool would
                     // otherwise inherit that row's floor.
                     scaleView.setMinValueAllowed(SCALE_MIN);
                     break;
-                case TYPE_SPACING:
-                    SlideIntChooseView spacingView = (SlideIntChooseView) holder.itemView;
-                    spacingView.setLabel(LocaleController.getString(R.string.ComposerSpacingAccDescr));
-                    // Floor down, then apply, then floor up. set() below drives the seek bar to the
-                    // value's progress, and SeekBarView clamps that progress up against whatever floor
-                    // the previous bind left behind - so when the toolbar just grew and the floor fell,
-                    // applying the value against the old higher floor strands the thumb to the right of
-                    // a label that already moved. Dropping the allowed minimum to the slider's own floor
-                    // first makes set() land unclamped.
-                    spacingView.setMinValueAllowed(SPACING_STEPS[0]);
-                    spacingView.set(currentSpacing(), spacingOptions(), value -> {
-                        if (value == NaConfig.INSTANCE.getComposerToolbarSpacing().Int()) {
+                case TYPE_KEYBOARD_GAP:
+                    SlideIntChooseView gapView = (SlideIntChooseView) holder.itemView;
+                    gapView.setLabel(LocaleController.getString(R.string.ComposerKeyboardGap));
+                    gapView.set(currentKeyboardGap(), keyboardGapOptions(), value -> {
+                        if (value == NaConfig.INSTANCE.getComposerKeyboardGap().Int()) {
                             return;
                         }
-                        NaConfig.INSTANCE.getComposerToolbarSpacing().setConfigInt(value);
+                        // The lift is only re-read on layout and inset passes, so the chat is rebuilt
+                        // on leaving rather than trusted to pick it up on resume.
+                        NaConfig.INSTANCE.getComposerKeyboardGap().setConfigInt(value);
                         rebuildPending = true;
-                        // This write can flip what the footer discloses: a clamped write destroys the
-                        // saved value the Overridden text was promising would come back, so the footer
-                        // has to re-evaluate saved-vs-floor or it keeps promising a value that no
-                        // longer exists. Defer to gesture end like the scale path so the text does not
-                        // change under the finger; the else branch covers the accessibility delegate,
-                        // which drives this with no touch events and one discrete step at a time. This
-                        // flag now defers only the footer - the thumb itself is snapped to its value at
-                        // gesture end by snapSliderRows(), which is intended: under unit anchors
-                        // (betweenSteps == 1) the nearest detent is exactly the value the label shows.
-                        if (gestureInProgress) {
-                            spacingFooterRefreshPending = true;
-                        } else {
-                            refreshSpacingFooter();
-                        }
-                        updatePreview();
                     });
-                    // Raise to the real floor after the value has landed. Under the anchors
-                    // spacingSteps() builds this normally equals the array's own minimum, so it
-                    // clamps a genuinely-below-floor saved value up and draws no band; the one case
-                    // it does draw a band is the locked state, where the array keeps a spare anchor
-                    // below a floor of 100. A falling floor must be lowered before set() (above) or
-                    // the thumb strands; a rising floor must be applied after or a value below it
-                    // would not clamp up. On the first bind of a freshly created view the pre-call
-                    // no-ops while options is still null, so this call is also what makes the floor
-                    // stick at all.
-                    spacingView.setMinValueAllowed(spacingFloor());
+                    gapView.setMinValueAllowed(KEYBOARD_GAP_STEPS[0]);
                     break;
                 case TYPE_TEXT_SIZE:
                     SlideIntChooseView textSizeView = (SlideIntChooseView) holder.itemView;
@@ -790,8 +690,8 @@ public class ComposerLayoutActivity extends BaseFragment {
         switch (zone) {
             case GROUP_SCALE:
                 return LocaleController.getString(R.string.ComposerScaleInfo);
-            case GROUP_SPACING:
-                return spacingFooterText();
+            case GROUP_KEYBOARD_GAP:
+                return LocaleController.getString(R.string.ComposerKeyboardGapInfo);
             case GROUP_TEXT_SIZE:
                 return LocaleController.getString(R.string.InputTextSizeInfo);
             case GROUP_STYLE:
@@ -807,45 +707,12 @@ public class ComposerLayoutActivity extends BaseFragment {
         }
     }
 
-    /**
-     * The packing footer says one of a few things depending on how the saved value sits against the
-     * scale-dependent floor, so a user reads which state they are in before touching the slider that
-     * would overwrite a hidden value. Overridden wins whenever a saved value is hidden - telling the
-     * user it still exists and will return is worth more than the "no room" line, which is reserved
-     * for the case where nothing is hidden and the slider genuinely cannot move. When the floor has
-     * reached the top of the range the hidden value is still disclosed, but without the "moving the
-     * slider replaces it" warning: every candidate there clamps to the top, so the slider cannot
-     * write and nothing can replace the saved value.
-     *
-     * The saved value is clamped into the slider's expressible range before it is compared or
-     * printed: the number shown as "your saved X%" has to be the value that would actually be
-     * restored, and spacingPercent() clamps to this same range, so a stored integer below the
-     * minimum reads back as the minimum rather than as itself. Printing the raw integer would name a
-     * value that can never return at any toolbar size and promise a comeback that cannot happen.
-     */
-    private static CharSequence spacingFooterText() {
-        int min = SPACING_STEPS[0];
-        int top = SPACING_STEPS[SPACING_STEPS.length - 1];
-        int saved = Math.max(min, Math.min(top, NaConfig.INSTANCE.getComposerToolbarSpacing().Int()));
-        int floor = spacingFloor();
-        if (saved < floor) {
-            int res = floor >= top
-                    ? R.string.ComposerSpacingInfoOverriddenLocked
-                    : R.string.ComposerSpacingInfoOverridden;
-            return LocaleController.formatString(res, saved);
-        }
-        if (floor >= top) {
-            return LocaleController.getString(R.string.ComposerSpacingInfoNoRoom);
-        }
-        return LocaleController.getString(R.string.ComposerSpacingInfo);
-    }
-
     /** One lookup for every TYPE_SLIDER_HEADER row - a binary ternary worked while there were only
      * two slider groups, but stopped being able to tell four apart. */
     private static int sliderHeaderText(int zone) {
         switch (zone) {
-            case GROUP_SPACING:
-                return R.string.ComposerSpacing;
+            case GROUP_KEYBOARD_GAP:
+                return R.string.ComposerKeyboardGap;
             case GROUP_TEXT_SIZE:
                 return R.string.InputTextSize;
             default:
@@ -1130,69 +997,13 @@ public class ComposerLayoutActivity extends BaseFragment {
         return Math.max(SCALE_MIN, Math.min(SCALE_MAX, percent));
     }
 
-    private static SlideIntChooseView.Options spacingOptions() {
-        return SlideIntChooseView.Options.make(0, spacingSteps(), SPACING_BETWEEN_STEPS,
-                // The left endpoint (type == -1) is handed the step array's own minimum, which
-                // spacingSteps() builds to be the floor - except in the locked state, where it backs
-                // off one step to keep two anchors. Substituting the floor covers that case, so the
-                // label always prints the leftmost value the thumb can actually hold.
-                (type, value) -> (type == -1 ? spacingFloor() : value) + "%");
+    private static SlideIntChooseView.Options keyboardGapOptions() {
+        return SlideIntChooseView.Options.make(0, KEYBOARD_GAP_STEPS, 1,
+                (type, value) -> LocaleController.formatString(R.string.ComposerKeyboardGapValue, value));
     }
 
-    /**
-     * The anchors the packing slider draws, from the floor at the current toolbar size up to 100.
-     *
-     * <p>Built per bind rather than taken from {@link #SPACING_STEPS} because the floor moves with
-     * the toolbar size. A fixed array that starts below the floor leaves a stretch of track the
-     * thumb can never enter - SlideIntChooseView.setMinValueAllowed draws it as a dimmed band, which
-     * at the default toolbar size was four steps wide and read as a jammed slider rather than as a
-     * disabled range, especially against a left-endpoint label that already printed the floor.
-     *
-     * <p>The floor is held one below the top so the array always has at least two entries. At the
-     * toolbar size where packing cannot move at all the floor comes back as 100, and a single-entry
-     * array would send SlideIntChooseView.getProgress down its no-interval fallback and divide by a
-     * zero range. Two entries keep that arithmetic sane; setMinValueAllowed still pins the thumb to
-     * the top, and the footer says why it cannot move.
-     */
-    private static int[] spacingSteps() {
-        int top = SPACING_STEPS[SPACING_STEPS.length - 1];
-        int floor = Math.max(SPACING_STEPS[0], Math.min(spacingFloor(), top - 1));
-        int[] steps = new int[top - floor + 1];
-        for (int i = 0; i < steps.length; i++) {
-            steps[i] = floor + i;
-        }
-        return steps;
-    }
-
-    /**
-     * One place for the scale-dependent packing floor, read both by the knob's clamp above and by
-     * the label lambda here - the bug this fixes was those two agreeing by coincidence rather than
-     * by construction.
-     */
-    private static int spacingFloor() {
-        return ComposerToolbarLayout.lowestUsableSpacing(currentScale());
-    }
-
-    /**
-     * Read through the toolbar rather than re-derived here, so the number on the slider and the row
-     * it draws come from one rule instead of two that have to be kept in step.
-     */
-    private static int currentSpacing() {
-        return ComposerToolbarLayout.spacingPercent();
-    }
-
-    /** Rebinds the packing slider and its footer once, together, for a toolbar-size change that never
-     * goes through a gesture at all - the accessibility branch of the TYPE_SCALE bind, which drives
-     * the scale slider one discrete step at a time with no touch events to defer against, so this
-     * settle fires immediately instead of waiting for a gesture end that will never arrive. A direct
-     * onBindViewHolder on the two attached children, not a notify - it rebuilds the anchor array at
-     * the new floor, moves the min label, and when the saved value is below that floor the thumb and
-     * printed value too, without
-     * a change animation in the middle of the list, and it refreshes the footer so its three-way
-     * disclosure never goes stale. */
-    private void settleSpacingRows() {
-        AndroidUtilities.updateVisibleRow(listView, rowPosition(TYPE_SPACING, GROUP_SPACING));
-        refreshSpacingFooter();
+    private static int currentKeyboardGap() {
+        return Math.max(0, Math.min(KEYBOARD_GAP_MAX, NaConfig.INSTANCE.getComposerKeyboardGap().Int()));
     }
 
     /** Snaps every slider thumb to its value's canonical track position, called once at gesture end
@@ -1200,9 +1011,7 @@ public class ComposerLayoutActivity extends BaseFragment {
      * thumbX at the raw finger pixel on release rather than re-deriving it, so a thumb dragged and let
      * go inside one step's band sits off the detent its label already names. Re-running each slider
      * row's bind path drives its thumb to getProgress(value). Scans items by type rather than the
-     * attached children so an off-screen slider is skipped for free, and never runs mid-gesture - the
-     * settlePending / spacingFooterRefreshPending deferrals exist so a row is never rebound under the
-     * finger. */
+     * attached children so an off-screen slider is skipped for free. */
     private void snapSliderRows() {
         for (int i = 0; i < items.size(); i++) {
             if (isSliderRowType(items.get(i).type)) {
@@ -1211,15 +1020,7 @@ public class ComposerLayoutActivity extends BaseFragment {
         }
     }
 
-    /** Rebinds only the packing footer, so its three-way saved-vs-floor disclosure catches up with a
-     * config change without touching the slider row. Shared by the scale settle (floor moved) and the
-     * spacing write (saved value moved) - both can flip which of the three strings is true. */
-    private void refreshSpacingFooter() {
-        AndroidUtilities.updateVisibleRow(listView, rowPosition(TYPE_INFO, GROUP_SPACING));
-    }
-
-    /** Position of the one row with this type in this group, or NO_POSITION. Both the packing slider
-     * and its footer are found through here so the two scanners cannot drift apart. */
+    /** Position of the one row with this type in this group, or NO_POSITION. */
     private int rowPosition(int type, int zone) {
         for (int i = 0; i < items.size(); i++) {
             Item item = items.get(i);
@@ -1640,9 +1441,7 @@ public class ComposerLayoutActivity extends BaseFragment {
         // fling would scroll the toolbar's middle group, or take the gesture off the list below.
         // Returning true is also load-bearing for the root's gesture flag (see the frameLayout
         // dispatchTouchEvent above): it consumes the strip's DOWN, which is what makes the matching
-        // UP/CANCEL reach that root override and clear gestureInProgress. A future change that lets
-        // touches through here must clear the flag on an unconsumed DOWN, or the accessibility
-        // settle can strand.
+        // UP/CANCEL reach that root override and snap the slider thumbs.
         @Override
         public boolean onInterceptTouchEvent(MotionEvent event) {
             return true;
@@ -1725,7 +1524,7 @@ public class ComposerLayoutActivity extends BaseFragment {
     }
 
     private static boolean isSliderRowType(int type) {
-        return type == TYPE_SCALE || type == TYPE_SPACING || type == TYPE_TEXT_SIZE;
+        return type == TYPE_SCALE || type == TYPE_KEYBOARD_GAP || type == TYPE_TEXT_SIZE;
     }
 
     // getItemViewType() shifts slider rows by generation * STRIDE so a theme flip forces a real
@@ -1745,7 +1544,7 @@ public class ComposerLayoutActivity extends BaseFragment {
      * attached to listView, so a child walk alone would miss it - scanning items by type doesn't.
      * notifyItemChanged (not a structural remove+insert) is enough here: the generation bump alone
      * is what makes the existing holder unusable (see sliderThemeGeneration's javadoc), so this
-     * reruns the exact bind path (including TYPE_SPACING's set()-then-setMinValueAllowed() order) a
+     * reruns the exact bind path (set() then setMinValueAllowed()) a
      * fresh entry would. Correctness does not depend on it, but this needs no pool clear of its own
      * either way: RecyclerView.Recycler#validateViewHolderForOffsetPosition rejects a holder purely
      * on a view-type mismatch, regardless of what is sitting in the pool at the time - and the

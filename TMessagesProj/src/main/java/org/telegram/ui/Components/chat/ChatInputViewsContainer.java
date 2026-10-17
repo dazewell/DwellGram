@@ -269,9 +269,13 @@ public class ChatInputViewsContainer extends FrameLayout {
 
     // Everything anchored to the island's bottom reads this rather than the raw constant, so the pill, its
     // children and the buttons parked beside them stay on the same edge.
+    public boolean keyboardGapEnabled;
+
     public float getInputBubbleBottomLift() {
         // NagramX (#interface-style): the MD3 island sets its own lift, which depends on whether it is docked.
-        return dp(INPUT_BUBBLE_BOTTOM) - inputBubbleBottomLiftReduction + (md3Surface != null ? md3Surface.liftAboveStock(maxBottomInset) : 0);
+        return dp(INPUT_BUBBLE_BOTTOM) - inputBubbleBottomLiftReduction + (md3Surface != null ? md3Surface.liftAboveStock(maxBottomInset) : 0)
+            // NagramX (#composer-keyboard-gap): only the chat composer opts in; DialogsActivity shares this view.
+            + (keyboardGapEnabled ? com.dazewell.gram.ui.ComposerToolbarLayout.keyboardGap(maxBottomInset - windowInsetsProvider.getCurrentNavigationBarInset()) : 0);
     }
 
     public void setInputBubbleOffsets(float left, float right) {
