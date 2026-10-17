@@ -940,4 +940,6 @@
     <string name="StashDeleteHint_one">Stashed to Scheduled. The original message is still here.</string>
     <string name="StashDeleteHint_other">Stashed to Scheduled. %1$d original messages are still here.</string>
     <string name="StashTooFar">Can\'t stash these that far ahead: spaced three minutes apart, the last would land more than a year out</string>
+    <string name="AlbumCaptionPerPhoto">Caption each photo separately</string>
+    <string name="AlbumCaptionPerPhotoAbout">Each photo keeps its own caption. If only one has a caption, it shows under the album.</string>
 </resources>

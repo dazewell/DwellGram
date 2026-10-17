@@ -261,9 +261,13 @@ Tap the outward chevrons to grow the input between the chat header and the keybo
 
 ### Don't lose typed text on an accidental back <!-- #discard-guard --> <!-- #attach-caption-guard -->
 
-A swipe-back gesture while composing a scheduled or edited message will hold and prompt for confirmation so you don't accidentally discard it. Unsaved text in these states also survives an app-lock or if you minimize and return to the app. A caption typed for a photo, video or file comes back in the message box after an app-lock, though the attachment itself must be picked again.
+A swipe-back gesture while composing a scheduled or edited message will hold and prompt for confirmation so you don't accidentally discard it. Unsaved text in these states also survives an app-lock or if you minimize and return to the app. Captions typed for photos, videos or files come back in the message box after an app-lock (every photo's, with *Caption each photo separately* on); the attachment must be picked again.
 
 ## Media and camera
+
+### Caption each photo separately <!-- #album-caption -->
+
+Each photo or video in the attach sheet keeps its own caption; the sheet's caption field edits the first one's. One caption shows under the album; several show only when each photo is opened. Turn on *Caption each photo separately* under N-Settings → Chat → Media; off by default.
 
 ### Recording mode hint <!-- #media-tooltip-repeat -->
 
