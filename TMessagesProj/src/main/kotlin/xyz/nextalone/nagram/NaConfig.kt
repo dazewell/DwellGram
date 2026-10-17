@@ -1936,6 +1936,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val videoMessageFlashBrightness =
+        addConfig(
+            "VideoMessageFlashBrightness",
+            ConfigItem.configTypeFloat,
+            1f
+        )
 
     val preferredTranslateTargetLangList = ArrayList<String>()
     fun updatePreferredTranslateTargetLangList() {

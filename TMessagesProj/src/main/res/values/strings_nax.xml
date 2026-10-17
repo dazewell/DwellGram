@@ -939,4 +939,6 @@
     <string name="StashTooFar">Can\'t stash these that far ahead: spaced three minutes apart, the last would land more than a year out</string>
     <string name="AlbumCaptionPerPhoto">Caption each photo separately</string>
     <string name="AlbumCaptionPerPhotoAbout">Each photo keeps its own caption. If only one has a caption, it shows under the album.</string>
+    <!-- Round video front flash brightness slider #front-flash-brightness -->
+    <string name="FrontFlashBrightness">Flash brightness</string>
 </resources>

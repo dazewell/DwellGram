@@ -305,6 +305,10 @@ Round video recordings warn you before they end. Configured via N-Settings → C
 
 The zoom control under the round video camera has a full-range slider and step buttons. Turn on N-Settings → Chat → Camera → *Newer camera for video messages* (off by default) to reach the telephoto and ultrawide lenses, with tappable zoom stops like 0.6x, 1x, 3x and 6x above the slider. MediaTek phones stop at 1x.
 
+### Front flash brightness for video messages <!-- #front-flash-brightness -->
+
+Turn on the flash while recording a round video with the front camera and a pill grows up out of the flash button. Drag it to set how bright the screen flash is, from 30% to full. It starts at full and keeps your last setting for the next recording.
+
 ### Scrub the video message preview <!-- #video-scrub -->
 
 The preview you get after recording a round video message has a playback cursor you can drag to scrub through the video.

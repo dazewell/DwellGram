@@ -152,6 +152,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     private RectF rect;
     private final FlashViews.ImageViewInvertable flashButton;
     private final ImageView infiniteButton; // NagramX
+    private final com.dazewell.gram.videonote.FrontFlashBrightnessSlider flashBrightnessSlider; // NagramX (#front-flash-brightness)
     private final FlashViews flashViews;
     private RLottieDrawable flashOnDrawable, flashOffDrawable;
     private ImageView muteImageView;
@@ -483,6 +484,19 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         });
         updateInfiniteButton();
 
+        // NagramX (#front-flash-brightness): FlashViews only sets the screen brightness when the flash comes in,
+        // so a change made while it is lit has to bring it in again to reach the screen
+        flashBrightnessSlider = new com.dazewell.gram.videonote.FrontFlashBrightnessSlider(context, v -> {
+            flashViews.setIntensity(v);
+            if (frontFlashing) flashViews.flashIn(null);
+        });
+        flashViews.setIntensity(flashBrightnessSlider.getValue());
+        flashBrightnessSlider.followAlphaOf(buttonsLayout);
+        flashBrightnessSlider.stayBelow(zoomControlView);
+        flashBrightnessSlider.setFillColor(glyphColor(isDarkAppearance()));
+        // over the flash cell of the row, inset by the row background's 6dp padding, with the arm and its fillet above it
+        addView(flashBrightnessSlider, LayoutHelper.createFrame(44 + 14, 44 + 140, Gravity.LEFT | Gravity.BOTTOM, 7, 0, 0, 6));
+
         muteImageView = new ImageView(context);
         muteImageView.setScaleType(ImageView.ScaleType.CENTER);
         muteImageView.setImageResource(R.drawable.video_mute);
@@ -521,6 +535,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         drawable.setRadius(dp(21));
         buttonsLayout.setBackground(drawable);
         zoomControlView.setButtonsBackground(factory, colorProvider);
+        flashBrightnessSlider.setGlassBackground(factory.create(flashBrightnessSlider, colorProvider), factory.create(flashBrightnessSlider, colorProvider)); // NagramX (#front-flash-brightness): the arm joins this row's glass
     }
 
     private Boolean wasFlashing;
@@ -528,6 +543,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     private boolean frontFlashing;
     private void updateFlash() {
         final boolean shouldFrontFlash = flashing && recording && isFrontface;
+        if (flashBrightnessSlider != null) flashBrightnessSlider.setShown(flashing && isFrontface); // NagramX (#front-flash-brightness): the rear torch has no brightness to set
         if (frontFlashing != shouldFrontFlash) {
             if (frontFlashing = shouldFrontFlash) {
                 flashViews.flashIn(null);
@@ -693,6 +709,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (flashButton != null && isNewDesign) {
             applyGlyphColor(flashButton, glyphColor(dark));
         }
+        flashBrightnessSlider.setFillColor(glyphColor(dark)); // NagramX (#front-flash-brightness)
         updateInfiniteButton();
     }
 
