@@ -207,6 +207,8 @@ public final class FrontFlashBrightnessSlider extends View {
     @Override
     protected void onDetachedFromWindow() {
         getViewTreeObserver().removeOnPreDrawListener(preDrawListener);
+        removeCallbacks(hideReadout);
+        readoutShown = false;
         super.onDetachedFromWindow();
     }
 
@@ -253,7 +255,7 @@ public final class FrontFlashBrightnessSlider extends View {
             final float f = rowRight > aw + dp(1) ? dp(FILLET) * t : 0;
             if (f > 1) {
                 wedge.rewind();
-                // starts a little inside the arm to cover the arm's own edge stroke along the join
+                // starts a little inside the arm, drawn over it next, so no anti-aliased gap opens along the join
                 wedge.addRect(aw - dp(1.5f), rowTop - f, aw + f, rowTop + dp(OVERLAP), Path.Direction.CW);
                 clip.rewind();
                 clip.addCircle(aw + f, rowTop - f, f, Path.Direction.CW);
