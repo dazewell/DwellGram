@@ -276,9 +276,9 @@ public final class FrontFlashBrightnessSlider extends View {
         }
         canvas.restore();
 
-        // The level: a capsule with round ends, inset in the arm. It wraps the flash glyph, so the button reads as
-        // its thumb; drawn in the glyph's own color at this alpha it doesn't change the glyph under it. It grows
-        // out of that circle on show along with the arm.
+        // The level: a capsule with round ends, inset in the arm. With the glass row it wraps the flash glyph, so
+        // the button reads as its thumb; drawn in the glyph's own color at this alpha it doesn't change the glyph
+        // under it. Without the row it sits inside the pill above the glyph. It grows with the arm on show.
         final float inset = dp(CAPSULE_INSET);
         final float bottom = capsuleBottom();
         final float top = AndroidUtilities.lerp(capsuleTopFor(0, topLimit), capsuleTopFor((value - MIN) / (MAX - MIN), topLimit), t);
@@ -287,7 +287,13 @@ public final class FrontFlashBrightnessSlider extends View {
         final int alpha = glass != null ? (int) AndroidUtilities.lerp(0x33, 0x44, p) : (int) AndroidUtilities.lerp(0x38, 0x48, p);
         capsulePaint.setColor(ColorUtils.setAlphaComponent(glass != null ? fillColor : 0xffffffff, (int) (alpha * t)));
         final float cr = (aw - inset * 2) / 2f;
+        canvas.save();
+        if (glass == null) {
+            // the legacy pill collapses past the capsule's lowest circle on hide, so keep the capsule inside it
+            canvas.clipRect(0, armTop, aw, rowTop - dp(4));
+        }
         canvas.drawRoundRect(rect, cr, cr, capsulePaint);
+        canvas.restore();
     }
 
     private String percent() {
