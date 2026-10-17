@@ -46,7 +46,7 @@ public final class FrontFlashBrightnessSlider extends View {
     // the arm is as wide as the flash cell; the view is wider by the fillet at the join, and the touch target by
     // a little slop on the right
     private static final int ARM = 44, FILLET = 14, SLOP = 6;
-    // the shortest arm still worth dragging
+    // the shortest capsule travel still worth dragging
     private static final int MIN_ARM = 56;
     // the level capsule's inset from the arm and the row, which also makes its lowest state a circle round the glyph
     private static final int CAPSULE_INSET = 4;
@@ -179,8 +179,9 @@ public final class FrontFlashBrightnessSlider extends View {
         return getHeight() - dp(ROW);
     }
 
+    // measured as the capsule's travel, which is the arm's length with the glass row and shorter without it
     private boolean fits() {
-        return rowTop() - topLimit >= dp(MIN_ARM);
+        return capsuleTopFor(0, topLimit) - capsuleTopFor(1, topLimit) >= dp(MIN_ARM);
     }
 
     private final ViewTreeObserver.OnPreDrawListener preDrawListener = () -> {
