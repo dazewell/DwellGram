@@ -206,7 +206,7 @@ public final class FrontFlashBrightnessSlider extends View {
         canvas.save();
         if (glass != null) {
             // everything the arm adds over the row, plus a strip over the row's top edge so the row's stroke
-            // doesn't draw a seam across the join. the arm's own square bottom ends inside the row, out of sight
+            // doesn't draw a seam across the join. the arm's own bottom ends inside the row, out of sight
             clip.rewind();
             clip.addRect(0, armTop, w, rowCenter, Path.Direction.CW);
             rowPath.rewind();
@@ -219,6 +219,8 @@ public final class FrontFlashBrightnessSlider extends View {
             canvas.clipPath(clip);
             glass.setBounds(0, (int) armTop, (int) w, getHeight());
             glass.draw(canvas);
+            // the clip's lower edge follows the row's left cap, so cut the fill flat where the arm leaves the row
+            canvas.clipRect(0, 0, w, rowTop + dp(OVERLAP));
         } else {
             // no row background to join: a pill of its own, stopping short of the button's glyph
             rect.set(0, armTop, w, Math.max(armTop, rowTop - dp(4)));
@@ -226,7 +228,7 @@ public final class FrontFlashBrightnessSlider extends View {
             canvas.drawRoundRect(rect, r, r, bgPaint);
             canvas.clipRect(rect);
         }
-        // the fill runs on past the clip, so its visible bottom is the flat edge the arm leaves the row at
+        // the fill runs on past the clip, which squares off its bottom
         final float fr = (w - dp(INSET) * 2) / 2f;
         rect.set(dp(INSET), fillTop, w - dp(INSET), rowTop + fr * 2);
         final int color = glass != null ? ColorUtils.setAlphaComponent(fillColor, 0x55) : 0xffffffff;
