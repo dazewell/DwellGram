@@ -387,8 +387,8 @@ public class ComposerLayoutActivity extends BaseFragment {
         // than something the user only finds after scrolling past twenty draggable rows. Each slider
         // is titled: two unlabelled percentage bars stacked together are indistinguishable, and
         // SlideIntChooseView.setLabel() only feeds the accessibility description, never the screen.
-        // Text size comes first because the field sits above the toolbar in the preview.
-        // The composer's shape comes first: it changes the whole preview, not one part of it.
+        // The composer's shape comes first: it changes the whole preview, not one part of it. Of the
+        // sliders, text size leads because the field sits above the toolbar in the preview.
         if (InterfaceStyleController.applyComposer()) {
             items.add(new Item(TYPE_STYLE, GROUP_STYLE, null));
             items.add(new Item(TYPE_INFO, GROUP_STYLE, null));
@@ -602,7 +602,7 @@ public class ComposerLayoutActivity extends BaseFragment {
                     break;
                 case TYPE_STYLE:
                     org.telegram.ui.Cells.TextSettingsCell styleCell = new org.telegram.ui.Cells.TextSettingsCell(context);
-                    styleCell.setBackground(Theme.getSelectorDrawable(true));
+                    styleCell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                     styleCell.setOnClickListener(ComposerLayoutActivity.this::showComposerStyleMenu);
                     view = styleCell;
                     break;
@@ -1791,7 +1791,9 @@ public class ComposerLayoutActivity extends BaseFragment {
         };
 
         descriptions.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
-        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, ButtonRowCell.class, PlaceholderCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, ButtonRowCell.class, PlaceholderCell.class, org.telegram.ui.Cells.TextSettingsCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+        descriptions.add(new ThemeDescription(listView, 0, new Class[]{org.telegram.ui.Cells.TextSettingsCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
+        descriptions.add(new ThemeDescription(listView, 0, new Class[]{org.telegram.ui.Cells.TextSettingsCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteValueText));
         // Delegate only, with no background flag: the preview paints the chat wallpaper itself now,
         // so letting the theme engine set a flat colour on it would just be overdrawn.
         descriptions.add(new ThemeDescription(null, 0, null, null, null, delegate, Theme.key_windowBackgroundWhite));
