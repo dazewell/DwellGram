@@ -38,7 +38,15 @@ public class InterfaceStyleController {
 
     // The MD3 composer as a flat full-width panel on the bottom edge and the keyboard, instead of a floating island.
     public static boolean dockedComposer() {
-        return applyComposer() && NaConfig.INSTANCE.getInterfaceStyleDockedComposer().Bool();
+        return applyComposer() && NaConfig.INSTANCE.getComposerLayoutStyle().Int() == COMPOSER_STYLE_DOCKED;
+    }
+
+    public static final int COMPOSER_STYLE_FLOATING = 0;
+    public static final int COMPOSER_STYLE_DOCKED = 1;
+
+    // Only the two known values; a stale or unknown stored value reads as floating.
+    public static int composerStyle() {
+        return NaConfig.INSTANCE.getComposerLayoutStyle().Int() == COMPOSER_STYLE_DOCKED ? COMPOSER_STYLE_DOCKED : COMPOSER_STYLE_FLOATING;
     }
 
     public static boolean applyBottomNavigation() {
