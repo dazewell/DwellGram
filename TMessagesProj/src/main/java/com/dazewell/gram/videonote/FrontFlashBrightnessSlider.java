@@ -347,8 +347,9 @@ public final class FrontFlashBrightnessSlider extends View {
         final float length = fillTopFor(0, topLimit) - fillTopFor(1, topLimit);
         if (length <= 0) return;
         final float wanted = dragStartValue + (dragStartY - y) / length * (MAX - MIN);
-        setValue(wanted);
-        if (wanted != value) {
+        final float clamped = Utilities.clamp(wanted, MAX, MIN);
+        setValue(clamped);
+        if (clamped != wanted) {
             // pinned at an end: re-anchor, so coming back moves it straight away
             dragStartY = y;
             dragStartValue = value;
@@ -370,7 +371,8 @@ public final class FrontFlashBrightnessSlider extends View {
 
     private void setValue(float v) {
         v = Utilities.clamp(v, MAX, MIN);
-        if (Math.abs(v - value) < .001f) return;
+        // skip tiny steps, but always let an exact end through so the end tick and the a11y actions see it
+        if (v == value || (Math.abs(v - value) < .001f && v > MIN && v < MAX)) return;
         value = v;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             setStateDescription(percent());
