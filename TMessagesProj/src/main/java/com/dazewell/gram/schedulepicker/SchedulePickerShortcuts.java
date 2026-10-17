@@ -105,6 +105,14 @@ public final class SchedulePickerShortcuts {
             }
 
             @Override
+            protected void onDraw(android.graphics.Canvas canvas) {
+                // The wheel's 16dp text rounds its selection lines a pixel or two off the 18dp
+                // wheels beside it, so the lines step at the seam. Draw them where the day wheel does.
+                copySelectionDividersFrom(dayPicker);
+                super.onDraw(canvas);
+            }
+
+            @Override
             protected CharSequence getContentDescription(int value) {
                 return monthFor(value).format(DateTimeFormatter.ofPattern("LLLL yyyy", locale()));
             }
