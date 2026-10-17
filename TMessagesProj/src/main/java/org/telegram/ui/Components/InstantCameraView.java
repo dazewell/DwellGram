@@ -494,8 +494,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         flashBrightnessSlider.followAlphaOf(buttonsLayout);
         flashBrightnessSlider.stayBelow(zoomControlView);
         flashBrightnessSlider.setFillColor(glyphColor(isDarkAppearance()));
-        // over the flash cell of the row, inset by the row background's 6dp padding, with the arm above it
-        addView(flashBrightnessSlider, LayoutHelper.createFrame(44, 44 + 140, Gravity.LEFT | Gravity.BOTTOM, 7, 0, 0, 6));
+        // over the flash cell of the row, inset by the row background's 6dp padding, with the arm and its fillet above it
+        addView(flashBrightnessSlider, LayoutHelper.createFrame(44 + 14, 44 + 140, Gravity.LEFT | Gravity.BOTTOM, 7, 0, 0, 6));
 
         muteImageView = new ImageView(context);
         muteImageView.setScaleType(ImageView.ScaleType.CENTER);
@@ -535,7 +535,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         drawable.setRadius(dp(21));
         buttonsLayout.setBackground(drawable);
         zoomControlView.setButtonsBackground(factory, colorProvider);
-        flashBrightnessSlider.setGlassBackground(factory.create(flashBrightnessSlider, colorProvider)); // NagramX (#front-flash-brightness): the arm joins this row's glass
+        flashBrightnessSlider.setGlassBackground(factory.create(flashBrightnessSlider, colorProvider), factory.create(flashBrightnessSlider, colorProvider)); // NagramX (#front-flash-brightness): the arm joins this row's glass
     }
 
     private Boolean wasFlashing;

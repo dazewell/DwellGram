@@ -43,21 +43,36 @@ public final class FrontFlashBrightnessSlider extends View {
     // the row's drawn height and corner radius (InstantCameraView.setButtonsBackground), shorter than the
     // view's frame by the drawable's 6dp padding
     private static final int ROW = 44, RADIUS = 21;
-    // the shortest arm still worth dragging, and the fill's inset from the arm's edge
-    private static final int MIN_ARM = 56, INSET = 5;
+    // the arm is as wide as the flash cell; the view is wider by the fillet at the join, and the touch target by
+    // a little slop on the right
+    private static final int ARM = 44, FILLET = 14, SLOP = 6;
+    // the shortest arm still worth dragging, and the fill's stub at the lowest brightness
+    private static final int MIN_ARM = 56, MIN_FILL = 8;
     // how far the arm reaches over the row's top edge, enough to cover the row's own stroke there
     private static final int OVERLAP = 2;
 
     private final Utilities.Callback<Float> onChange;
     private final AnimatedFloat shownProgress;
+    private final AnimatedFloat readoutProgress;
     private final Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final android.text.TextPaint textPaint = new android.text.TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final Path clip = new Path();
     private final Path rowPath = new Path();
+    private final Path wedge = new Path();
     private final RectF rect = new RectF();
-    private BlurredBackgroundDrawable glass;
+    private final float[] topRadii = new float[8];
+    private BlurredBackgroundDrawable glass, filletGlass;
     private int fillColor = 0xffffffff;
     private float value;
+    private float dragStartY, dragStartValue;
+    private boolean atEnd;
+    private boolean readoutShown;
+    private final Runnable hideReadout = () -> {
+        readoutShown = false;
+        invalidate();
+    };
     private View alphaSource;
     private com.dazewell.gram.ui.InstantZoomControlView zoomView;
     private float topLimit;
@@ -69,8 +84,17 @@ public final class FrontFlashBrightnessSlider extends View {
         super(context);
         this.onChange = onChange;
         shownProgress = new AnimatedFloat(this, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
+        readoutProgress = new AnimatedFloat(this, 0, 100, CubicBezierInterpolator.EASE_OUT);
         bgPaint.setColor(0x66000000);
+        textPaint.setTextSize(dp(12));
+        textPaint.setTypeface(AndroidUtilities.bold());
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        final float r = dp(RADIUS);
+        topRadii[0] = topRadii[1] = topRadii[2] = topRadii[3] = r;
         value = readStored();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            setStateDescription(percent());
+        }
         setContentDescription(LocaleController.getString(R.string.FrontFlashBrightness));
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
     }
@@ -88,18 +112,23 @@ public final class FrontFlashBrightnessSlider extends View {
 
     // The row's own glass, made by the same factory, so the arm reads as part of it. Without it (the legacy
     // design, which has no row background) the arm is a dark pill of its own above the button.
-    public void setGlassBackground(BlurredBackgroundDrawable background) {
-        background.setPadding(0);
+    // The fillet in the concave corner of the join gets its own drawable, since each one samples the backdrop
+    // under its own bounds.
+    public void setGlassBackground(BlurredBackgroundDrawable background, BlurredBackgroundDrawable fillet) {
         // uniform corners keep the outline a round rect, which RenderNode clips to before API 33 too; the bottom
         // ones fall below the clip anyway (onDraw)
+        background.setPadding(0);
         background.setRadius(dp(RADIUS));
+        fillet.setPadding(0);
+        fillet.setRadius(dp(RADIUS));
         glass = background;
+        filletGlass = fillet;
         invalidate();
     }
 
     public void setFillColor(int color) {
         fillColor = color;
-        if (glass != null) glass.updateColors();
+        textPaint.setColor(color);
         invalidate();
     }
 
@@ -108,8 +137,7 @@ public final class FrontFlashBrightnessSlider extends View {
         this.shown = shown;
         if (!shown && dragging) {
             // a flip or a stop mid-drag has already applied the value, so keep it
-            dragging = false;
-            save();
+            endDrag();
         }
         setImportantForAccessibility(shown ? IMPORTANT_FOR_ACCESSIBILITY_YES : IMPORTANT_FOR_ACCESSIBILITY_NO);
         invalidate();
@@ -142,7 +170,7 @@ public final class FrontFlashBrightnessSlider extends View {
     private void syncTop() {
         float top = 0;
         if (zoomView != null && zoomView.getMeasuredWidth() > 0) {
-            final float occupied = zoomView.occupiedBottomLeftOf(getRight() - zoomView.getX());
+            final float occupied = zoomView.occupiedBottomLeftOf(getLeft() + dp(ARM + SLOP) - zoomView.getX());
             if (occupied >= 0) {
                 top = Math.max(top, zoomView.getY() + occupied + dp(4) - getTop());
             }
@@ -150,8 +178,7 @@ public final class FrontFlashBrightnessSlider extends View {
         if (top != topLimit) {
             topLimit = top;
             if (!fits() && dragging) {
-                dragging = false;
-                save();
+                endDrag();
             }
             invalidate();
         }
@@ -187,61 +214,106 @@ public final class FrontFlashBrightnessSlider extends View {
         return shown && hostAlpha > .5f && fits();
     }
 
-    // where the fill's top sits for a value, between just over the row and just under the arm's top
+    // the flat line the fill rises from: the row's top edge, or just above the glyph without a row background
+    private float trackBottom() {
+        return glass != null ? rowTop() : rowTop() - dp(4);
+    }
+
+    // where the fill's top sits for a value: an 8dp stub at the lowest, the arm's top at the highest
     private float fillTopFor(float fraction, float armTop) {
-        return AndroidUtilities.lerp(rowTop() - dp(INSET), armTop + dp(INSET), fraction);
+        return AndroidUtilities.lerp(trackBottom() - dp(MIN_FILL), armTop, fraction);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        final float t = shownProgress.set(shown && fits());
+        final boolean target = shown && fits();
+        if (shownProgress.getTargetValue() != (target ? 1f : 0f)) {
+            // collapsing back into the button is quicker than growing out of it
+            shownProgress.setDuration(target ? 320 : 220);
+        }
+        final float t = shownProgress.set(target);
         if (t <= 0) return;
-        final float w = getWidth(), r = dp(RADIUS);
+        final float aw = dp(ARM), r = dp(RADIUS);
         final float rowTop = rowTop(), rowCenter = getHeight() - dp(ROW) / 2f;
         // grows up out of the button: at 0 the arm is all inside the row and nothing shows
         final float armTop = AndroidUtilities.lerp(rowTop + dp(OVERLAP), topLimit, t);
-        final float fraction = (value - MIN) / (MAX - MIN);
-        final float fillTop = fillTopFor(fraction, armTop);
+        final float fillTop = fillTopFor((value - MIN) / (MAX - MIN), armTop);
+        final float bottom = trackBottom();
 
         canvas.save();
         if (glass != null) {
+            // the row's real right end: with the infinite button gone it is a lone cell with a rounded right cap.
+            // both start 7dp in (margin 1 + padding 6), and the row's drawn width is 12dp under its own
+            final float rowRight = Math.max(aw, alphaSource != null ? alphaSource.getWidth() - dp(12) : aw + r * 2);
+            rowPath.rewind();
+            rect.set(0, rowTop + dp(OVERLAP), rowRight, getHeight());
+            rowPath.addRoundRect(rect, r, r, Path.Direction.CW);
+
+            // the concave corner where the arm meets a row that carries on to the right, rounded as it grows
+            final float f = rowRight > aw + dp(1) ? dp(FILLET) * t : 0;
+            if (f > 1) {
+                wedge.rewind();
+                // starts a little inside the arm to cover the arm's own edge stroke along the join
+                wedge.addRect(aw - dp(1.5f), rowTop - f, aw + f, rowTop + dp(OVERLAP), Path.Direction.CW);
+                clip.rewind();
+                clip.addCircle(aw + f, rowTop - f, f, Path.Direction.CW);
+                wedge.op(clip, Path.Op.DIFFERENCE);
+                wedge.op(rowPath, Path.Op.DIFFERENCE);
+                canvas.save();
+                canvas.clipPath(wedge);
+                // big enough that its own rounded corners and strokes stay well outside the wedge
+                filletGlass.setBounds((int) (aw - dp(48)), (int) (rowTop - dp(64)), (int) (aw + dp(64)), getHeight() + dp(48));
+                filletGlass.draw(canvas);
+                canvas.restore();
+            }
+
             // everything the arm adds over the row, plus a strip over the row's top edge so the row's stroke
             // doesn't draw a seam across the join. the arm's own bottom ends inside the row, out of sight
             clip.rewind();
-            clip.addRect(0, armTop, w, rowCenter, Path.Direction.CW);
-            rowPath.rewind();
-            // the row's real right end: with the infinite button gone it is a lone cell with a rounded right cap.
-            // both start 7dp in (margin 1 + padding 6), and the row's drawn width is 12dp under its own
-            final float rowRight = alphaSource != null ? alphaSource.getWidth() - dp(12) : w + r * 2;
-            rect.set(0, rowTop + dp(OVERLAP), Math.max(w, rowRight), getHeight());
-            rowPath.addRoundRect(rect, r, r, Path.Direction.CW);
+            rect.set(0, armTop, aw, rowCenter);
+            clip.addRoundRect(rect, topRadii, Path.Direction.CW);
             clip.op(rowPath, Path.Op.DIFFERENCE);
             canvas.clipPath(clip);
-            glass.setBounds(0, (int) armTop, (int) w, getHeight());
+            glass.setBounds(0, (int) armTop, (int) aw, getHeight());
             glass.draw(canvas);
-            // the clip's lower edge follows the row's left cap, so cut the fill flat where the arm leaves the row
-            canvas.clipRect(0, 0, w, rowTop + dp(OVERLAP));
         } else {
             // no row background to join: a pill of its own, stopping short of the button's glyph
-            rect.set(0, armTop, w, Math.max(armTop, rowTop - dp(4)));
+            rect.set(0, armTop, aw, Math.max(armTop, bottom));
             bgPaint.setAlpha((int) (0x66 * t));
             canvas.drawRoundRect(rect, r, r, bgPaint);
-            canvas.clipRect(rect);
+            clip.rewind();
+            clip.addRoundRect(rect, r, r, Path.Direction.CW);
+            canvas.clipPath(clip);
         }
-        // the fill runs on past the clip, which squares off its bottom
-        final float fr = (w - dp(INSET) * 2) / 2f;
-        rect.set(dp(INSET), fillTop, w - dp(INSET), rowTop + fr * 2);
-        final int color = glass != null ? ColorUtils.setAlphaComponent(fillColor, 0x55) : 0xffffffff;
-        fillPaint.setColor(color);
-        fillPaint.setAlpha((int) (Color.alpha(color) * t));
-        canvas.drawRoundRect(rect, fr, fr, fillPaint);
+        // edge to edge with a flat top, so the arm's outline is the only shape; a thin line marks the level
+        canvas.clipRect(0, 0, aw, bottom + (glass != null ? dp(OVERLAP) : 0));
+        final int fill = glass != null ? ColorUtils.setAlphaComponent(fillColor, 0x3D) : 0x40ffffff;
+        fillPaint.setColor(fill);
+        fillPaint.setAlpha((int) (Color.alpha(fill) * t));
+        canvas.drawRect(0, fillTop, aw, getHeight(), fillPaint);
+        final int line = glass != null ? ColorUtils.setAlphaComponent(fillColor, 0x80) : 0x80ffffff;
+        linePaint.setColor(line);
+        linePaint.setAlpha((int) (Color.alpha(line) * t));
+        canvas.drawRect(0, fillTop, aw, fillTop + dp(1.5f), linePaint);
         canvas.restore();
+
+        final float readout = readoutProgress.set(readoutShown) * t;
+        if (readout > 0) {
+            final int color = glass != null ? fillColor : 0xffffffff;
+            textPaint.setColor(color);
+            textPaint.setAlpha((int) (Color.alpha(color) * readout));
+            canvas.drawText(percent(), aw / 2f, armTop + dp(8) - textPaint.ascent(), textPaint);
+        }
+    }
+
+    private String percent() {
+        return Math.round(value * 100) + "%";
     }
 
     // touch exploration over the flash button must find the button, not this view lying over it
     @Override
     public boolean dispatchHoverEvent(MotionEvent event) {
-        if (event.getY() >= rowTop()) return false;
+        if (event.getY() >= rowTop() || event.getX() > dp(ARM + SLOP)) return false;
         return super.dispatchHoverEvent(event);
     }
 
@@ -249,34 +321,60 @@ public final class FrontFlashBrightnessSlider extends View {
     public boolean onTouchEvent(MotionEvent event) {
         final int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_DOWN) {
-            // the row below belongs to the flash button
-            if (!interactive() || event.getY() < topLimit || event.getY() >= rowTop()) return false;
+            // the row below belongs to the flash button, and the fillet is only decoration
+            if (!interactive() || event.getY() < topLimit || event.getY() >= rowTop() || event.getX() > dp(ARM + SLOP)) return false;
             dragging = true;
             if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
-            setFromY(event.getY());
+            // relative, so a tap never jumps the brightness mid-recording
+            dragStartY = event.getY();
+            dragStartValue = value;
+            atEnd = value <= MIN || value >= MAX;
+            removeCallbacks(hideReadout);
+            readoutShown = true;
+            invalidate();
             return true;
         }
         if (!dragging) return false;
         if (action == MotionEvent.ACTION_MOVE) {
-            setFromY(event.getY());
+            dragTo(event.getY());
         } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-            dragging = false;
-            if (action == MotionEvent.ACTION_UP) setFromY(event.getY());
-            save();
+            endDrag();
         }
         return true;
     }
 
-    private void setFromY(float y) {
-        final float bottom = fillTopFor(0, topLimit), top = fillTopFor(1, topLimit);
-        final float fraction = bottom <= top ? 1f : Utilities.clamp((bottom - y) / (bottom - top), 1f, 0f);
-        setValue(MIN + (MAX - MIN) * fraction);
+    private void dragTo(float y) {
+        final float length = fillTopFor(0, topLimit) - fillTopFor(1, topLimit);
+        if (length <= 0) return;
+        final float wanted = dragStartValue + (dragStartY - y) / length * (MAX - MIN);
+        setValue(wanted);
+        if (wanted != value) {
+            // pinned at an end: re-anchor, so coming back moves it straight away
+            dragStartY = y;
+            dragStartValue = value;
+        }
+        final boolean end = value <= MIN || value >= MAX;
+        if (end && !atEnd) {
+            performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+        }
+        atEnd = end;
+    }
+
+    // ends a drag however it ends: the finger lifting, the flash going off, or the zoom control taking the room
+    private void endDrag() {
+        dragging = false;
+        save();
+        removeCallbacks(hideReadout);
+        postDelayed(hideReadout, 500);
     }
 
     private void setValue(float v) {
         v = Utilities.clamp(v, MAX, MIN);
         if (Math.abs(v - value) < .001f) return;
         value = v;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            setStateDescription(percent());
+        }
         invalidate();
         onChange.run(value);
     }
