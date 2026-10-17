@@ -90,7 +90,9 @@ public final class FrontFlashBrightnessSlider extends View {
     // design, which has no row background) the arm is a dark pill of its own above the button.
     public void setGlassBackground(BlurredBackgroundDrawable background) {
         background.setPadding(0);
-        background.setRadius(dp(RADIUS), dp(RADIUS), 0, 0);
+        // uniform corners keep the outline a round rect, which RenderNode clips to before API 33 too; the bottom
+        // ones fall below the clip anyway (onDraw)
+        background.setRadius(dp(RADIUS));
         glass = background;
         invalidate();
     }
@@ -215,7 +217,7 @@ public final class FrontFlashBrightnessSlider extends View {
             rowPath.addRoundRect(rect, r, r, Path.Direction.CW);
             clip.op(rowPath, Path.Op.DIFFERENCE);
             canvas.clipPath(clip);
-            glass.setBounds(0, (int) armTop, (int) w, (int) rowCenter);
+            glass.setBounds(0, (int) armTop, (int) w, getHeight());
             glass.draw(canvas);
         } else {
             // no row background to join: a pill of its own, stopping short of the button's glyph
