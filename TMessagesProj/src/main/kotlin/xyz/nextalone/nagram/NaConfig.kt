@@ -1569,6 +1569,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    val composerLayoutStyle =
+        addConfig(
+            "ComposerLayoutStyle",
+            ConfigItem.configTypeInt,
+            0 // 0 floating island, 1 docked panel; anything else reads as floating
+        )
     val interfaceStyleApplyBottomNavigation =
         addConfig(
             "InterfaceStyleApplyBottomNavigation",

@@ -87,10 +87,13 @@ public class ComposerLayoutActivity extends BaseFragment {
     /** Its own type for the same reason TYPE_SPACING has one: no slider row may inherit another's
      * options or floor through recycling. */
     private static final int TYPE_TEXT_SIZE = 8;
+    /** The MD3 composer's Floating / Docked select, shown only while the MD3 composer applies. */
+    private static final int TYPE_STYLE = 9;
     /** Sentinel "zones" for the slider groups, so one header/footer lookup serves all of them. */
     private static final int GROUP_SCALE = -1;
     private static final int GROUP_SPACING = -2;
     private static final int GROUP_TEXT_SIZE = -3;
+    private static final int GROUP_STYLE = -4;
 
     /** The clamp ChatActivityEnterView.getInputTextSizeDp() applies, and NaConfig.inputTextSize's default. */
     private static final int TEXT_SIZE_MIN = 14;
@@ -384,7 +387,12 @@ public class ComposerLayoutActivity extends BaseFragment {
         // than something the user only finds after scrolling past twenty draggable rows. Each slider
         // is titled: two unlabelled percentage bars stacked together are indistinguishable, and
         // SlideIntChooseView.setLabel() only feeds the accessibility description, never the screen.
-        // Text size comes first because the field sits above the toolbar in the preview.
+        // The composer's shape comes first: it changes the whole preview, not one part of it. Of the
+        // sliders, text size leads because the field sits above the toolbar in the preview.
+        if (InterfaceStyleController.applyComposer()) {
+            items.add(new Item(TYPE_STYLE, GROUP_STYLE, null));
+            items.add(new Item(TYPE_INFO, GROUP_STYLE, null));
+        }
         items.add(new Item(TYPE_SLIDER_HEADER, GROUP_TEXT_SIZE, null));
         items.add(new Item(TYPE_TEXT_SIZE, GROUP_TEXT_SIZE, null));
         items.add(new Item(TYPE_INFO, GROUP_TEXT_SIZE, null));
@@ -541,7 +549,8 @@ public class ComposerLayoutActivity extends BaseFragment {
             // it never reaches performClick. Button rows need to stay enabled for the Hidden/Middle
             // tap-toggle to fire; everything else (headers, footers, placeholders, the scale slider)
             // has no click behaviour, so it can stay disabled as before.
-            return baseType(holder.getItemViewType()) == TYPE_BUTTON;
+            final int type = baseType(holder.getItemViewType());
+            return type == TYPE_BUTTON || type == TYPE_STYLE;
         }
 
         @Override
@@ -590,6 +599,12 @@ public class ComposerLayoutActivity extends BaseFragment {
                 case TYPE_SLIDER_HEADER:
                     view = new HeaderCell(context);
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    break;
+                case TYPE_STYLE:
+                    org.telegram.ui.Cells.TextSettingsCell styleCell = new org.telegram.ui.Cells.TextSettingsCell(context);
+                    styleCell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    styleCell.setOnClickListener(ComposerLayoutActivity.this::showComposerStyleMenu);
+                    view = styleCell;
                     break;
                 default:
                     ButtonRowCell cell = new ButtonRowCell(context);
@@ -724,6 +739,10 @@ public class ComposerLayoutActivity extends BaseFragment {
                 case TYPE_SLIDER_HEADER:
                     ((HeaderCell) holder.itemView).setText(LocaleController.getString(sliderHeaderText(item.zone)));
                     break;
+                case TYPE_STYLE:
+                    ((org.telegram.ui.Cells.TextSettingsCell) holder.itemView).setTextAndValue(
+                            LocaleController.getString(R.string.ComposerStyle), composerStyleName(InterfaceStyleController.composerStyle()), false);
+                    break;
                 default:
                     ComposerButtons.Button button = ComposerButtons.get(item.key);
                     ButtonRowCell cell = (ButtonRowCell) holder.itemView;
@@ -755,6 +774,8 @@ public class ComposerLayoutActivity extends BaseFragment {
                 return spacingFooterText();
             case GROUP_TEXT_SIZE:
                 return LocaleController.getString(R.string.InputTextSizeInfo);
+            case GROUP_STYLE:
+                return LocaleController.getString(R.string.ComposerStyleInfo);
             case ComposerButtons.ZONE_START:
                 return LocaleController.getString(R.string.ComposerZoneLeadingInfo);
             case ComposerButtons.ZONE_MIDDLE:
@@ -810,6 +831,35 @@ public class ComposerLayoutActivity extends BaseFragment {
             default:
                 return R.string.ComposerScale;
         }
+    }
+
+    private static String composerStyleName(int style) {
+        return LocaleController.getString(style == InterfaceStyleController.COMPOSER_STYLE_DOCKED
+                ? R.string.ComposerStyleDocked : R.string.ComposerStyleFloating);
+    }
+
+    /** The same popup a settings select box opens. The open chats pick the style up through the rebuild on leaving. */
+    private void showComposerStyleMenu(View anchor) {
+        final int[] styles = {InterfaceStyleController.COMPOSER_STYLE_FLOATING, InterfaceStyleController.COMPOSER_STYLE_DOCKED};
+        final String[] names = {composerStyleName(styles[0]), composerStyleName(styles[1])};
+        final tw.nekomimi.nekogram.ui.PopupBuilder builder = new tw.nekomimi.nekogram.ui.PopupBuilder(anchor);
+        builder.setItems(names, (index, name) -> {
+            final int style = styles[index];
+            if (style != InterfaceStyleController.composerStyle()) {
+                NaConfig.INSTANCE.getComposerLayoutStyle().setConfigInt(style);
+                rebuildPending = true;
+                final int position = rowPosition(TYPE_STYLE, GROUP_STYLE);
+                if (adapter != null && position >= 0) {
+                    adapter.notifyItemChanged(position);
+                }
+                // The preview's island and field are built for one style, so they are rebuilt like on a theme change.
+                if (previewCell != null) {
+                    previewCell.applyTheme();
+                }
+            }
+            return kotlin.Unit.INSTANCE;
+        });
+        builder.show();
     }
 
     private static final long START_ZONE_SWAP_DWELL_MS = 350;
@@ -1608,7 +1658,9 @@ public class ComposerLayoutActivity extends BaseFragment {
                     md3Island = ComposerMd3Surface.previewIsland(glassFactory, this);
                 }
                 final int pad = ComposerMd3Surface.previewPadding();
-                md3Island.setBounds(stage.getLeft(), stage.getTop() - pad, stage.getRight(), stage.getBottom() + pad);
+                // The docked composer runs edge to edge in the chat, so its stand-in spans the preview's width.
+                final boolean docked = InterfaceStyleController.dockedComposer();
+                md3Island.setBounds(docked ? 0 : stage.getLeft(), stage.getTop() - pad, docked ? getMeasuredWidth() : stage.getRight(), stage.getBottom() + pad);
                 md3Island.draw(canvas);
             }
             shadowDrawable.setBounds(0, 0, getMeasuredWidth(), getMeasuredHeight());
@@ -1739,7 +1791,9 @@ public class ComposerLayoutActivity extends BaseFragment {
         };
 
         descriptions.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
-        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, ButtonRowCell.class, PlaceholderCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, ButtonRowCell.class, PlaceholderCell.class, org.telegram.ui.Cells.TextSettingsCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+        descriptions.add(new ThemeDescription(listView, 0, new Class[]{org.telegram.ui.Cells.TextSettingsCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
+        descriptions.add(new ThemeDescription(listView, 0, new Class[]{org.telegram.ui.Cells.TextSettingsCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteValueText));
         // Delegate only, with no background flag: the preview paints the chat wallpaper itself now,
         // so letting the theme engine set a flat colour on it would just be overdrawn.
         descriptions.add(new ThemeDescription(null, 0, null, null, null, delegate, Theme.key_windowBackgroundWhite));
