@@ -348,7 +348,7 @@ and nested selection buttons use 12dp (`:113`); the top gap grows to 5dp and the
 to 2dp (`:120-122`).
 
 Floating, MD3 adds 2dp to the stock 9dp lift, so the island clears the
-keyboard and emoji panel by the same 9dp as the screen sides; docked,
+keyboard and emoji panel by the same 9dp as the screen sides; in the Floating style's resting sheet,
 `liftAboveStock()` eases the tools row down to 4dp above the nav bar (`ComposerMd3Surface.java:104-106`,
 `:343-352`, `:357-359`; `ChatInputViewsContainer.java:272-275`;
 `ChatActivityEnterView.java:18919-18924`). The island reaches `topOverhang()`
