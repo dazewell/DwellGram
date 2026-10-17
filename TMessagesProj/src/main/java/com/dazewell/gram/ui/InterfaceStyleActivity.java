@@ -501,7 +501,20 @@ public class InterfaceStyleActivity extends BaseNekoXSettingsActivity {
             return;
         }
         interfaceStyleRebuildPending = false;
-        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
+        INavigationLayout layout = getParentLayout();
+        // Same race as ChatMenuLayoutActivity.flushRebuild: a nasettings link can push this page over
+        // an open chat, and a bare reloadInterface from onPause (last=false, us still stacked) skips
+        // that chat after a swipe and clears it on back or arrow. Next loop, once popped, rebuild our
+        // own stack top included; still on top means the app went to background, so the change stays
+        // pending for the real exit. reloadInterface first, so deferred flags keep the top.
+        AndroidUtilities.runOnUIThread(() -> {
+            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
+            if (layout != null && layout.getLastFragment() != this) {
+                layout.rebuildAllFragmentViews(true, true);
+            } else {
+                interfaceStyleRebuildPending = true;
+            }
+        });
     }
 
     private static boolean isClassicOrDayTheme() {
