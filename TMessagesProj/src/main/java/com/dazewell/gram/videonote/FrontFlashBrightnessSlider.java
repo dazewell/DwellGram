@@ -120,7 +120,10 @@ public final class FrontFlashBrightnessSlider extends View {
         }
         if (top != trackTop) {
             trackTop = top;
-            if (!fits()) dragging = false;
+            if (!fits() && dragging) {
+                dragging = false;
+                save();
+            }
             invalidate();
         }
     }
