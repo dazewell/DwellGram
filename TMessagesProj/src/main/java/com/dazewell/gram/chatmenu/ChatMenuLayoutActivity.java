@@ -148,8 +148,10 @@ public class ChatMenuLayoutActivity extends BaseFragment {
         // the chat; back or arrow runs it with us on top and clears the visible chat until the
         // black-screen watchdog in ActionBarLayout puts it back. On the next loop we are past the
         // pop: if we are gone our own stack is rebuilt top included, and reloadInterface still
-        // covers the main stack when we were opened from a bubble or sheet. reloadInterface goes
-        // first so that if both defer behind a transition, the deferred flags keep the top.
+        // covers the main stack when we were opened from a bubble or sheet. Still on top means the
+        // app went to background: nothing is showing beneath us, and reloadInterface alone is right.
+        // reloadInterface goes first so that if both defer behind a transition, the deferred flags
+        // keep the top.
         AndroidUtilities.runOnUIThread(() -> {
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.reloadInterface);
             if (layout != null && layout.getLastFragment() != this) {
