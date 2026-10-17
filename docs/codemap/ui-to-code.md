@@ -414,12 +414,12 @@ upstream-traps, "The enter view's measured height can drift". The circle keeps i
 
 The tools row keeps its Liquid Glass geometry unless MD3 is on. Then size runs
 the row, cell, state layer and glyph linearly through 40/48/56dp rows at
-75/100/125%, and groups sit 8dp
-apart (`ComposerToolbarLayout.java:68-74`, `:400-413`, `:419-444`, `:463-471`).
+75/100/125%, cells are packed 4dp narrower than the row, and groups sit 8dp
+apart (`ComposerToolbarLayout.java:71-77`, `:415-428`, `:434-459`, `:478-487`).
 The Scrolling zone keeps fixed cells, fades its edges inside the viewport and
 scrolls normally: fitting its cells to the viewport made smaller spacing look
-looser (`:128-129`). A 24dp hairline seams it from the leading group, and from
-the trailing group while it overflows (`:1085-1112`). `attachGlass` still clears
+looser (`:131-132`). A 24dp hairline seams it from the leading group, and from
+the trailing group while it overflows (`:1100-1127`). `attachGlass` still clears
 the bubbles under MD3, with the island painted behind them (`:233-235`). The
 layout editor draws the same frosted island and tonal field
 (`ComposerLayoutActivity.java:1422-1423`, `:1566-1570`). Buttons-role surfaces
