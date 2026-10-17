@@ -1044,6 +1044,8 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
                         photoEntry1.caption = parentAlert.getCommentView().getText();
                     }
                 }
+                // NagramX (#album-caption): a cancelled send leaves a clone here while this viewer edits the originals
+                com.dazewell.gram.albumcaption.AlbumCaption.restoreOriginal(selectedPhotos, selectedPhotosOrder, arrayList);
                 if (parentAlert.getAvatarFor() != null) {
                     boolean isVideo = false;
                     if (arrayList.get(position) instanceof MediaController.PhotoEntry) {
@@ -1086,7 +1088,8 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
                     if (parentAlert.isStickerMode) {
                         PhotoViewer.getInstance().enableStickerMode(null, null, false, parentAlert.customStickerHandler);
                     }
-                    if (captionForAllMedia()) {
+                    // NagramX (#album-caption): per-photo mode never pre-fills every photo with the field's text
+                    if (captionForAllMedia() && !com.dazewell.gram.albumcaption.AlbumCaption.enabled()) {
                         PhotoViewer.getInstance().setCaption(parentAlert.getCommentView().getText());
                     }
                 }, hasSpoiler ? 250 : 0);
@@ -1836,7 +1839,10 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
             updatePhotosCounter(false);
             updateCheckedPhotoIndices();
             if (index >= 0) {
+                // NagramX (#album-caption): reset() drops the typed caption with the edits; keep the text
+                final Object[] keptCaption = com.dazewell.gram.albumcaption.AlbumCaption.keepCaption(object);
                 object.reset();
+                com.dazewell.gram.albumcaption.AlbumCaption.restoreCaption(object, keptCaption);
                 photoViewerProvider.updatePhotoAtIndex(index);
             }
             return position;

@@ -1917,6 +1917,12 @@ object NaConfig {
             ConfigItem.configTypeString,
             "[]"
         )
+    val albumCaptionPerPhoto =
+        addConfig(
+            "AlbumCaptionPerPhoto",
+            ConfigItem.configTypeBool,
+            false
+        )
 
     val preferredTranslateTargetLangList = ArrayList<String>()
     fun updatePreferredTranslateTargetLangList() {

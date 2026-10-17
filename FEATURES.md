@@ -257,6 +257,8 @@ A swipe-back gesture while composing a scheduled or edited message will hold and
 
 ## Media and camera
 
+### Caption each photo separately <!-- #album-caption -->
+
 ### Recording mode hint <!-- #media-tooltip-repeat -->
 
 The hint that explains how to switch between voice and round-video recording appears only a few times, then stays out of your way.

@@ -32721,6 +32721,8 @@ public class ChatActivity extends BaseFragment implements
                 attachCaption = chatAttachAlert.getCommentView().getText();
             }
         }
+        // NagramX (#album-caption): with per-photo captions there can be several; the stock value is returned when off
+        attachCaption = com.dazewell.gram.albumcaption.AlbumCaption.rescueText(chatAttachAlert, attachCaption);
         captionToRestoreOnRebuild = TextUtils.isEmpty(attachCaption) ? null : new SpannableStringBuilder(attachCaption);
         // NagramX: a round video that's still capturing -- live with the finger down, or hands-free/locked --
         // would be lost if the app backgrounds now (worst with passcode lock set to Immediately, which rebuilds

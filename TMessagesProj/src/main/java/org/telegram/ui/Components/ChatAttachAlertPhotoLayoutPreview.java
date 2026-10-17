@@ -1074,6 +1074,8 @@ public class ChatAttachAlertPhotoLayoutPreview extends ChatAttachAlert.AttachAle
             if (previousCount != photosOrder.size()) {
                 parentAlert.updateCountButton(1);
             }
+            // NagramX (#album-caption): a reorder keeps the count, so only this point sees the new first photo
+            com.dazewell.gram.albumcaption.AlbumCaption.reconcile(parentAlert);
         }
 
         public int getPhotosCount() {
@@ -1425,6 +1427,12 @@ public class ChatAttachAlertPhotoLayoutPreview extends ChatAttachAlert.AttachAle
             public void onClose() {
                 fromPhotoArrays();
                 toPhotoLayout(photoLayout, false);
+            }
+
+            @Override
+            public void onApplyCaption(CharSequence caption) {
+                // NagramX (#album-caption): the empty base never told the sheet a caption changed
+                com.dazewell.gram.albumcaption.AlbumCaption.syncFieldFromFirst(parentAlert);
             }
 
             @Override
@@ -1859,7 +1867,8 @@ public class ChatAttachAlertPhotoLayoutPreview extends ChatAttachAlert.AttachAle
                         photoViewerProvider.init(arrayList);
                         ArrayList<Object> objectArrayList = new ArrayList<>(arrayList);
                         PhotoViewer.getInstance().openPhotoForSelect(objectArrayList, position, type, false, photoViewerProvider, chatActivity);
-                        if (photoLayout.captionForAllMedia()) {
+                        // NagramX (#album-caption): per-photo mode never pre-fills every photo with the field's text
+                        if (photoLayout.captionForAllMedia() && !com.dazewell.gram.albumcaption.AlbumCaption.enabled()) {
                             PhotoViewer.getInstance().setCaption(parentAlert.getCommentView().getText());
                         }
                     }

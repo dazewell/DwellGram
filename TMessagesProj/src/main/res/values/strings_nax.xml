@@ -929,4 +929,6 @@
     <string name="ChatMenuResetDone">Chat menu reset</string>
     <string name="NaxChatMenuAlerts">Alerts</string>
     <string name="NaxSeenFormatted">seen %1$s</string>
+    <string name="AlbumCaptionPerPhoto">Caption each photo separately</string>
+    <string name="AlbumCaptionPerPhotoAbout">Each photo keeps its own caption. If only one has a caption, it shows under the album.</string>
 </resources>

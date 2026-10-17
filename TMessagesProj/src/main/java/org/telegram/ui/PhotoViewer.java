@@ -10347,6 +10347,14 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 currentAccount, view.getText(), supportsSendingNewEntities(), stored, storedEntities);
     }
 
+    // NagramX (#album-caption): the chat fragment pauses before this viewer does (LaunchActivity.onPause), so the
+    // attach-caption rescue has to ask for the same pause-time apply first or it reads a caption the photo doesn't hold yet.
+    public void applyCaptionForRescue() {
+        if (shouldApplyCaptionOnPause()) {
+            applyCaption();
+        }
+    }
+
     private CharSequence applyCaption() {
         if (!isVisible() || placeProvider == null || currentIndex < 0 || currentIndex >= imagesArrLocals.size()) {
             return null;
