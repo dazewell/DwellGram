@@ -420,9 +420,9 @@ The Scrolling zone keeps fixed cells, fades its edges inside the viewport and
 scrolls normally: fitting its cells to the viewport made smaller spacing look
 looser (`:131-132`). A 24dp hairline seams it from the leading group, and from
 the trailing group while it overflows (`:1100-1127`). `attachGlass` still clears
-the bubbles under MD3, with the island painted behind them (`:233-235`). The
+the bubbles under MD3, with the island painted behind them (`:226-229`). The
 layout editor draws the same frosted island and tonal field
-(`ComposerLayoutActivity.java:1422-1423`, `:1566-1570`). Buttons-role surfaces
+(`ComposerLayoutActivity.java:1474-1476`, `:1333-1334`). Buttons-role surfaces
 keep their own provider (`ChatActivity.java:4202`).
 *(Established 2026-09-22, during `#interface-style`.)*
 
