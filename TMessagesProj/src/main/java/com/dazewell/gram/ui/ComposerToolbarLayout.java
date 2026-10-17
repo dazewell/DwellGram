@@ -51,34 +51,23 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     private static final int BASE_HEIGHT = 56;
     private static final int BASE_BUTTON_SIZE = 48;
+    // Cells are packed to this share of BASE_BUTTON_SIZE: the tightest step the removed Icon spacing
+    // slider offered, now fixed. Never above 100, or the cell would outgrow the row and be clipped.
+    private static final float PACKING = 0.75f;
     private static final int SCALE_MIN = 75;
     private static final int SCALE_MAX = 125;
     /**
-     * The spacing slider is tighter-only on purpose, and that is geometry rather than taste:
-     * ControlsLayout measures its slots at dp(height()) minus its own padding, which comes out at
-     * exactly the unpacked cell - BASE_BUTTON_SIZE at the current scale, before any packing factor -
-     * at every scale step (100%: 56-4-4=48; 125%: 70-5-5=60; 75%: 42-3-3=36). Packing tighter leaves
-     * the cell inside that box, which is why it is safe; a factor above 100% would push it outside,
-     * and the row clips its children, so every button's background and ripple would come out sliced
-     * flat top and bottom.
-     */
-    private static final int SPACING_MIN = 75;
-    private static final int SPACING_MAX = 100;
-    /**
-     * Smallest cell the row will draw, before packing is considered. Two terms, and neither one is a
+     * Smallest cell the row will draw. Two terms, and neither one is a
      * taste number: an absolute floor that stops a small row shrinking its targets away entirely, and
      * the widest glyph the cell has to hold, read from the icon table so that measuring a sparser
      * glyph than today's widest moves this floor with it instead of starving that glyph.
      *
      * <p>The press ripple is sized off this rather than the other way round - see
-     * {@link #panelSelector(int)} - so the tightest packing the row will accept is exactly the point
-     * where two neighbouring ripple circles meet. A fixed ripple radius used to set this floor
-     * instead, which left the circles a good 9dp apart at the tightest step and further still as the
-     * toolbar was scaled up, because the radius was in raw dp and the cell was not.
+     * {@link #panelSelector(int)}.
      */
     private static final int MIN_CELL_FLOOR = 36;
     // MD3 sizes run linearly through the 75/100/125% anchors: row and cell 40/48/56dp, state layer 32/40/48dp,
-    // glyph 20/24/28dp. Spacing takes up to 4dp off the cell width, never off the row.
+    // glyph 20/24/28dp. Cells are packed MD3_SPACING_SQUEEZE narrower than the row, never shorter.
     private static final float MD3_ROW_BASE = 16, MD3_ROW_PER_SCALE = 32;
     private static final float MD3_STATE_BASE = 8, MD3_STATE_PER_SCALE = 32;
     private static final float MD3_GLYPH_BASE = 8, MD3_GLYPH_PER_SCALE = 16;
@@ -92,6 +81,9 @@ public final class ComposerToolbarLayout extends FrameLayout {
     private static final int BOUNDS_SETTLE_DELAY = 48;
     private static final int BOUNDS_SETTLE_MAX = 150;
     private static final int CONFIGURATION_LONG_PRESS_MS = 1000;
+    // The keyboard gap reaches its full size once the keyboard or emoji panel has risen this far.
+    private static final int KEYBOARD_GAP_RAMP = 48;
+    public static final int KEYBOARD_GAP_MAX = 24;
 
     private final ControlsLayout controls;
     private final CollapsingLinearLayout startSlot;
@@ -385,28 +377,30 @@ public final class ComposerToolbarLayout extends FrameLayout {
     }
 
     /**
-     * How densely the cells are packed, as a whole percent. Independent of {@link #scale()}: the
-     * scale grows the row, the cells and the glyphs together and so can never change how much slack
-     * a cell has around its glyph, which is the only thing that sets the gap between two icons.
+     * Extra lift, in px, between the composer and an open keyboard or emoji panel. 0 while the
+     * composer rests on the nav bar, ramping in over the first {@link #KEYBOARD_GAP_RAMP}dp the panel
+     * rises so the composer does not jump as it starts to open.
      *
-     * <p>Snapped up to the lowest step that is not swallowed by the cell floor. The settings slider
-     * blocks the same steps through SlideIntChooseView.setMinValueAllowed, and the row and the
-     * slider both read the value through this one method so they cannot disagree.
-     *
-     * <p>A stored value below what is reachable at the current scale is not rewritten: a toolbar-size
-     * drag never writes composerToolbarSpacing, so shrinking the toolbar leaves the saved value
-     * intact and this method just reports the floor instead. Moving the packing slider while it is
-     * clamped is more subtle - SlideIntChooseView clamps the new value up to minValueAllowed before
-     * its own change test, so a drag that stays on the floor yields the value already installed,
-     * fails the test and writes nothing; only changing the slider to a genuinely different effective
-     * value replaces the hidden saved one. Where the floor has reached the top of the range every
-     * candidate clamps to that top, so no drag can write at all. The packing footer discloses which
-     * of these states the user is in before they drag.
+     * <p>The resting inset is the one WindowInsetsStateHolder builds the container's bottom inset from,
+     * as ComposerMd3Surface.keyboardShare reads it, so a hidden nav bar or a bottom cutout is never
+     * mistaken for a keyboard.
      */
-    public static int spacingPercent() {
-        int percent = NaConfig.INSTANCE.getComposerToolbarSpacing().Int();
-        percent = Math.max(SPACING_MIN, Math.min(SPACING_MAX, percent));
-        return Math.max(lowestUsableSpacing(scalePercent()), percent);
+    public static float keyboardGap(View host, float maxBottomInset) {
+        int gapPx = keyboardGapPx();
+        android.view.WindowInsets insets = gapPx == 0 ? null : host.getRootWindowInsets();
+        if (insets == null) {
+            return 0;
+        }
+        int rest = androidx.core.view.WindowInsetsCompat.toWindowInsetsCompat(insets, host)
+                .getInsetsIgnoringVisibility(androidx.core.view.WindowInsetsCompat.Type.systemBars()
+                        | androidx.core.view.WindowInsetsCompat.Type.displayCutout()).bottom;
+        float share = maxBottomInset - rest;
+        return share <= 0 ? 0 : gapPx * Math.min(1f, share / AndroidUtilities.dp(KEYBOARD_GAP_RAMP));
+    }
+
+    /** The full keyboard gap in px, as it stands once the keyboard is up. */
+    public static int keyboardGapPx() {
+        return AndroidUtilities.dp(Math.max(0, Math.min(KEYBOARD_GAP_MAX, NaConfig.INSTANCE.getComposerKeyboardGap().Int())));
     }
 
     /**
@@ -434,23 +428,19 @@ public final class ComposerToolbarLayout extends FrameLayout {
     }
 
     /**
-     * Button cell size in dp - the row's scale times the packing factor, held above a floor. The
-     * floor is what keeps the two independent: applyIconBox sizes the glyph from scale() alone but
-     * the cell from both, then absorbs any shortfall with a max(0, ...) on the leftover padding, so
-     * without it a tight enough cell would quietly render the widest glyph under its own keyline -
-     * no crash, nothing logged.
+     * Button cell size in dp at the row's scale, packed as tight as it goes and held above a floor
+     * so the cell always holds the widest glyph applyIconBox draws in it.
      */
     public static int buttonSize() {
         float scale = scale();
-        return Math.max(minCellDp(scale), packedCellDp(scale, spacingPercent()));
+        return Math.max(minCellDp(scale), cellDp(scale));
     }
 
-    private static int packedCellDp(float scale, int spacingPercent) {
+    private static int cellDp(float scale) {
         if (InterfaceStyleController.applyComposer()) {
-            float squeeze = MD3_SPACING_SQUEEZE * (SPACING_MAX - spacingPercent) / (float) (SPACING_MAX - SPACING_MIN);
-            return Math.round(MD3_ROW_BASE + MD3_ROW_PER_SCALE * scale - squeeze);
+            return Math.round(MD3_ROW_BASE + MD3_ROW_PER_SCALE * scale - MD3_SPACING_SQUEEZE);
         }
-        return Math.round(BASE_BUTTON_SIZE * scale * (spacingPercent / 100f));
+        return Math.round(BASE_BUTTON_SIZE * scale * PACKING);
     }
 
     /**
@@ -469,10 +459,8 @@ public final class ComposerToolbarLayout extends FrameLayout {
     }
 
     /**
-     * The press selector every button in this row wears, with its circle sized to the tightest cell
-     * the row can reach at the current scale. That is what makes the packing slider's bottom step
-     * mean something a user can see: at that step the cell is exactly this circle, so two circles
-     * meet edge to edge, and every looser step opens a visible gap between them.
+     * The press selector every button in this row wears, with its circle sized to the smallest cell
+     * the row allows at the current scale.
      *
      * <p>Sized off {@link #minCellDp(float)} rather than a dp constant on purpose. The radius has to
      * track the toolbar scale - it did not before, so scaling the row up left the circles further and
@@ -489,46 +477,13 @@ public final class ComposerToolbarLayout extends FrameLayout {
      */
     public static Drawable panelSelector(int color) {
         // NagramX (#interface-style): MD3 draws a state layer 8dp narrower than the row, and at least 4dp
-        // narrower than a squeezed cell so neighbouring circles never touch.
+        // narrower than the cell so neighbouring circles never touch.
         if (InterfaceStyleController.applyComposer()) {
             float radius = Math.min(MD3_STATE_BASE + MD3_STATE_PER_SCALE * scale(), buttonSize() - MD3_SPACING_SQUEEZE) / 2f;
             return Theme.createSelectorDrawable(color, Theme.RIPPLE_MASK_CIRCLE_20DP, AndroidUtilities.dp(radius));
         }
         return Theme.createSelectorDrawable(color, Theme.RIPPLE_MASK_CIRCLE_20DP,
                 AndroidUtilities.dp(minCellDp(scale()) / 2f));
-    }
-
-    /**
-     * Whether a packing step actually reaches the row at this scale, or is swallowed at one end or
-     * the other. A step that cannot move anything must not be offered: the slider would still slide
-     * and still buzz while changing nothing on screen.
-     *
-     * <p>Two ways to be swallowed, and both have to be tested here rather than left to whatever
-     * grid the caller happens to walk. Under the cell floor is the obvious one. The other is a step
-     * that rounds straight back to the unpacked cell - at 75% scale the floor and the unpacked cell
-     * are the same 36dp, so 99% packing rounds to 36 and passes the floor test while drawing exactly
-     * what 100% draws.
-     */
-    private static boolean spacingIsUsable(int scalePercent, int spacingPercent) {
-        float scale = scalePercent / 100f;
-        int cell = packedCellDp(scale, spacingPercent);
-        return cell >= minCellDp(scale) && cell < packedCellDp(scale, SPACING_MAX);
-    }
-
-    /**
-     * The tightest packing that still reaches the row at this scale.
-     *
-     * <p>Walked a percent at a time, matching what the slider delivers. The cell is a rounded dp, so
-     * the first packing that clears the floor is usually not a multiple of five - at 85% scale it is
-     * 88 - and a coarser walk would grey out steps the row can actually draw.
-     */
-    public static int lowestUsableSpacing(int scalePercent) {
-        for (int percent = SPACING_MIN; percent < SPACING_MAX; percent++) {
-            if (spacingIsUsable(scalePercent, percent)) {
-                return percent;
-            }
-        }
-        return SPACING_MAX;
     }
 
     /**
@@ -735,9 +690,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private float requestedRadiusPx;
         // The gap reserved in layout between two adjacent occupied bubbles, and the same value the
         // bubbles then read back when they derive their rects from the laid-out geometry. Scale-derived
-        // off the construction snapshot (2 x the box inset, 8dp at 100%) and never multiplied by
-        // spacingPercent(), whose job is icon-to-icon packing inside a bubble - letting both knobs touch
-        // this dimension would compound one squeeze the user meant once. Fixed for the view's life like
+        // off the construction snapshot (2 x the box inset, 8dp at 100%). Fixed for the view's life like
         // the rest of the geometry, so it is captured in the constructor rather than at attachGlass.
         private final int gapPx;
         // Which of the four semantic groups actually occupy space this pass. The two trailing groups

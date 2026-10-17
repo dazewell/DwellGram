@@ -41,6 +41,8 @@ public class ChatInputViewsContainer extends FrameLayout {
     private final boolean flatComposer;
     // NagramX: set only by ChatActivity when the MD3 Composer is on; it then paints this container's island.
     public com.dazewell.gram.composer.ComposerMd3Surface md3Surface;
+    // NagramX (#composer-keyboard-gap): set only by ChatActivity, so DialogsActivity keeps the stock lift.
+    public boolean keyboardGapEnabled;
 
     public ChatInputViewsContainer(@NonNull Context context) {
         this(context, false);
@@ -271,7 +273,9 @@ public class ChatInputViewsContainer extends FrameLayout {
     // children and the buttons parked beside them stay on the same edge.
     public float getInputBubbleBottomLift() {
         // NagramX (#interface-style): the MD3 island sets its own lift, which depends on whether it is docked.
-        return dp(INPUT_BUBBLE_BOTTOM) - inputBubbleBottomLiftReduction + (md3Surface != null ? md3Surface.liftAboveStock(maxBottomInset) : 0);
+        return dp(INPUT_BUBBLE_BOTTOM) - inputBubbleBottomLiftReduction + (md3Surface != null ? md3Surface.liftAboveStock(maxBottomInset) : 0)
+            // NagramX (#composer-keyboard-gap): extra room over an open keyboard, none at rest.
+            + (keyboardGapEnabled ? com.dazewell.gram.ui.ComposerToolbarLayout.keyboardGap(this, maxBottomInset) : 0);
     }
 
     public void setInputBubbleOffsets(float left, float right) {

@@ -140,9 +140,11 @@ Cut, Copy, and Paste are available as composer toolbar buttons, added through th
 
 ### Composer toolbar size <!-- #composer-scale --> <!-- #composer-spacing -->
 
-The toolbar row can be scaled from 75% to 125% in 5% steps. A second slider sets icon spacing, packing buttons closer without shrinking them. Its tightest step puts the buttons' press circles edge to edge; steps below that grey out so icons can't overlap. In the Material Design 3 composer, size scales the whole row and spacing narrows each button.
+The toolbar row can be scaled from 75% to 125% in 5% steps. Its buttons sit packed close together without shrinking.
 
-<img height="260" alt="Toolbar size slider set to 90 percent above an Icon spacing slider set to 87 percent, each with its explanation below" src="docs/images/features/composer-toolbar-sliders.png" />
+### Gap above keyboard <!-- #composer-keyboard-gap -->
+
+Adds space between the composer and the keyboard or emoji panel while either is open. With both closed the composer stays where it was. Set it from 0 to 24 dp under Chat settings → Composer Toolbar → Gap above keyboard. Defaults to 0.
 
 ### Interface style <!-- #interface-style --> <!-- #composer-transparency --> <!-- #rounded-navigation -->
 

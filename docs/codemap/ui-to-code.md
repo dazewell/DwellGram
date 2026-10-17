@@ -414,15 +414,15 @@ upstream-traps, "The enter view's measured height can drift". The circle keeps i
 
 The tools row keeps its Liquid Glass geometry unless MD3 is on. Then size runs
 the row, cell, state layer and glyph linearly through 40/48/56dp rows at
-75/100/125%, spacing takes up to 4dp off every cell's width, and groups sit 8dp
-apart (`ComposerToolbarLayout.java:82-88`, `:421-434`, `:448-469`, `:489-498`).
+75/100/125%, cells are packed 4dp narrower than the row, and groups sit 8dp
+apart (`ComposerToolbarLayout.java:71-77`, `:415-428`, `:434-459`, `:478-487`).
 The Scrolling zone keeps fixed cells, fades its edges inside the viewport and
 scrolls normally: fitting its cells to the viewport made smaller spacing look
-looser (`:139-140`). A 24dp hairline seams it from the leading group, and from
-the trailing group while it overflows (`:1147-1174`). `attachGlass` still clears
-the bubbles under MD3, with the island painted behind them (`:233-235`). The
+looser (`:131-132`). A 24dp hairline seams it from the leading group, and from
+the trailing group while it overflows (`:1100-1127`). `attachGlass` still clears
+the bubbles under MD3, with the island painted behind them (`:226-229`). The
 layout editor draws the same frosted island and tonal field
-(`ComposerLayoutActivity.java:1422-1423`, `:1566-1570`). Buttons-role surfaces
+(`ComposerLayoutActivity.java:1474-1476`, `:1333-1334`). Buttons-role surfaces
 keep their own provider (`ChatActivity.java:4202`).
 *(Established 2026-09-22, during `#interface-style`.)*
 
@@ -1080,14 +1080,9 @@ silent: nothing crashes or fails to compile, a footer just renders under the
 wrong row. This is why the Light/Dark glass-transparency merge kept both
 `case GROUP_GLASS_LIGHT:` and `case GROUP_GLASS_DARK:` as explicit fall-through
 labels sharing one return, instead of deleting one and letting it land in
-`default:`. The `GROUP_SPACING` arm is the one that isn't a fixed string: it
-delegates to `spacingFooterText()` (`:815-830`), which picks one of three
-strings from the saved spacing value against `spacingFloor()`, which is why the
-method returns `CharSequence` rather than a `@StringRes int` and why the
-packing footer is rebound (with the packing slider) whenever Toolbar size
-settles.
+`default:`.
 
-*(Established 2026-09-06; footerText signature and disclosure updated 2026-09-06 for #composer-spacing; citations re-verified against `5b73e5a15c`.)*
+*(Established 2026-09-06; footerText signature and disclosure updated 2026-09-06 for #composer-spacing; the Icon spacing arm removed 2026-10-17, #composer-keyboard-gap.)*
 
 ## Tapping a formatting button on already-styled text toggles it off, via `makeSelectedX`, not `toggleStyleForSelection`
 
