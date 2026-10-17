@@ -199,6 +199,10 @@ list it in your process ledger.
 
 User-visible ⇒ the `FEATURES.md` entry ships in the same PR, under the right
 `## section`, with a `### Feature name` heading marked `<!-- #slug -->`.
+**Write the prose last**: until dazewell has passed the verification build,
+carry a bare heading with the marker and no prose (all `ci` checks). Then write
+and count the entry against the final code, send it through a prose-only
+`nagramx-architect` pass, and never merge with the stub bare.
 
 **70 words, hard ceiling — count them.** Prose under the heading; images and
 shortcut tables excluded. Most entries are ~35. Two beats: what it does and

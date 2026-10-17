@@ -173,6 +173,12 @@ hard-line policy, docs.
 
 ### Documentation checks, when user-visible or docs changed
 
+- **Timing:** the entry's prose is written at the end, so do not raise its
+  wording, length, accuracy or absence while the feature is still iterating
+  (round 1, round 2, any fix round). A bare `###` heading with the marker is
+  correct then; only the marker is checked. Review the entry only in the
+  prose-only pass the implementer dispatches after the verification build
+  (word count, accuracy against the final code, format).
 - `FEATURES.md` entry exists under the right section, rides with the code, uses
   plain prose, matches neighbour format, and carries `<!-- #slug -->`.
 - Entry prose under its `###` heading is at most 70 words, excluding images and
@@ -264,7 +270,8 @@ praise makes the rest trusted.
   in source/log, security issues, broken functionality.
 - **Important (should fix):** wrong hook point / heavy base-file footprint,
   reinventing an existing component, threading/lifecycle risks, missing
-  null-guards, missing `#tag` or `FEATURES.md` entry, upstream-fragile hook.
+  null-guards, missing `#tag` or `FEATURES.md` marker, upstream-fragile hook.
+  (Entry prose is not a finding before the prose-only pass; see Documentation checks.)
 - **Minor (nice to have):** style, naming, a cleaner idiom, comment polish.
 
 If a finding is about the plan (round 1) or upstream code rather than this
