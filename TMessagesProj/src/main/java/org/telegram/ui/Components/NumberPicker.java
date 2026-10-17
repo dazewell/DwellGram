@@ -1233,6 +1233,12 @@ public class NumberPicker extends LinearLayout {
         return String.format(Locale.getDefault(), "%d", value);
     }
 
+    // NagramX: lets a wheel with a different text size draw its selection lines at another wheel's height.
+    public void copySelectionDividersFrom(NumberPicker other) {
+        mTopSelectionDividerTop = other.mTopSelectionDividerTop;
+        mBottomSelectionDividerBottom = other.mBottomSelectionDividerBottom;
+    }
+
     public void setDrawDividers(boolean drawDividers) {
         this.drawDividers = drawDividers;
         invalidate();
