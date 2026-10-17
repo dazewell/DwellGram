@@ -208,7 +208,10 @@ public final class FrontFlashBrightnessSlider extends View {
             clip.rewind();
             clip.addRect(0, armTop, w, rowCenter, Path.Direction.CW);
             rowPath.rewind();
-            rect.set(0, rowTop + dp(OVERLAP), w + r * 2, getHeight());
+            // the row's real right end: with the infinite button gone it is a lone cell with a rounded right cap.
+            // both start 7dp in (margin 1 + padding 6), and the row's drawn width is 12dp under its own
+            final float rowRight = alphaSource != null ? alphaSource.getWidth() - dp(12) : w + r * 2;
+            rect.set(0, rowTop + dp(OVERLAP), Math.max(w, rowRight), getHeight());
             rowPath.addRoundRect(rect, r, r, Path.Direction.CW);
             clip.op(rowPath, Path.Op.DIFFERENCE);
             canvas.clipPath(clip);
