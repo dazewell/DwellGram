@@ -330,6 +330,14 @@ public class ChatAttachAlertPhotoLayoutPreview extends ChatAttachAlert.AttachAle
         }
     }
 
+    // NagramX (#album-caption): the viewer opened from here edits this layout's own copy of the selection and only copies
+    // it back on close, so a rescue taken while it is open has to pull it across first.
+    public void syncSelectionToPhotoLayout() {
+        if (groupsView != null && photoLayout != null) {
+            groupsView.toPhotoLayout(photoLayout, false);
+        }
+    }
+
     private static HashMap<MediaController.PhotoEntry, Boolean> photoRotate = new HashMap<>();
     private class GroupCalculator {
 

@@ -14,6 +14,7 @@ import org.telegram.ui.Components.AnimatedEmojiDrawable;
 import org.telegram.ui.Components.AnimatedEmojiSpan;
 import org.telegram.ui.Components.ChatAttachAlert;
 import org.telegram.ui.Components.ChatAttachAlertPhotoLayout;
+import org.telegram.ui.Components.ChatAttachAlertPhotoLayoutPreview;
 import org.telegram.ui.Components.EditTextEmoji;
 import org.telegram.ui.PhotoViewer;
 
@@ -298,8 +299,18 @@ public final class AlbumCaption {
         if (layout == null) {
             return stock;
         }
+        // Opened from the full-screen preview, the viewer edits the preview's selection; it reaches the photo layout
+        // only on close. Pull it across before reading, and again after the apply, which can check an unchecked photo.
+        final ChatAttachAlertPhotoLayoutPreview preview = alert.getPhotoPreviewLayout();
+        final boolean fromPreview = preview != null && alert.getCurrentAttachLayout() == preview;
+        if (fromPreview) {
+            preview.syncSelectionToPhotoLayout();
+        }
         if (PhotoViewer.hasInstance()) {
             PhotoViewer.getInstance().applyCaptionForRescue();
+            if (fromPreview) {
+                preview.syncSelectionToPhotoLayout();
+            }
         }
         final ArrayList<CharSequence> parts = new ArrayList<>();
         final ArrayList<Object> order = layout.getSelectedPhotosOrder();
