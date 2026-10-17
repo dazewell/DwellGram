@@ -130,8 +130,13 @@ public final class FrontFlashBrightnessSlider extends View {
             // a flip or a stop mid-drag has already applied the value, so keep it
             endDrag();
         }
-        setImportantForAccessibility(shown ? IMPORTANT_FOR_ACCESSIBILITY_YES : IMPORTANT_FOR_ACCESSIBILITY_NO);
+        updateAccessibility();
         invalidate();
+    }
+
+    // TalkBack only finds the slider while it is actually drawn
+    private void updateAccessibility() {
+        setImportantForAccessibility(shown && fits() ? IMPORTANT_FOR_ACCESSIBILITY_YES : IMPORTANT_FOR_ACCESSIBILITY_NO);
     }
 
     // Fades with the given view (the flash button's row), so the host's fade animations need no hook each. Read on
@@ -171,6 +176,7 @@ public final class FrontFlashBrightnessSlider extends View {
             if (!fits() && dragging) {
                 endDrag();
             }
+            updateAccessibility();
             invalidate();
         }
     }
