@@ -32,8 +32,8 @@ import xyz.nextalone.nagram.NaConfig;
  * viewer: opening the viewer pre-fills every photo with the field's text, and typing a different caption on
  * any later photo silently turns the mode off. With the setting on, that mode is never entered. Each photo
  * owns its caption, and the sheet's field is a live mirror of the <em>first selected</em> photo's caption --
- * the only caption an album can show under the whole bubble -- so text typed in either place is always held by
- * exactly one entry and a selection change can never leave it with no owner.
+ * the only caption an album can show under the whole bubble. When the first photo changes, the field's text
+ * is carried onto the new first photo unless a selected photo already holds it, so it is not dropped.
  *
  * <p>Nothing here changes what is sent. Every entry is sent with the caption it holds, as stock does.
  *
@@ -83,12 +83,21 @@ public final class AlbumCaption {
         return null;
     }
 
-    /** Stores a detached copy, so the entry never holds the sheet field's live Editable. */
+    /** Stores a detached copy of the text, skipping the write when the entry already holds it. */
     private static void setCaption(Object entry, CharSequence text) {
+        setCaption(entry, text, false);
+    }
+
+    /**
+     * {@code force} also rewrites an entry whose text already matches: stock stores the field's live Editable
+     * on the first photo when the viewer opens, and that reference has to be replaced by a copy or later typing
+     * in the field would show up on that photo too.
+     */
+    private static void setCaption(Object entry, CharSequence text, boolean force) {
         if (!(entry instanceof MediaController.PhotoEntry) && !(entry instanceof MediaController.SearchImage)) {
             return;
         }
-        if (!AttachCaptionHelper.hasUnappliedCaption(UserConfig.selectedAccount, text, false, captionOf(entry), entitiesOf(entry))) {
+        if (!force && !AttachCaptionHelper.hasUnappliedCaption(UserConfig.selectedAccount, text, false, captionOf(entry), entitiesOf(entry))) {
             return;
         }
         CharSequence caption = null;
@@ -143,8 +152,11 @@ public final class AlbumCaption {
     }
 
     /**
-     * Called wherever the selection can change. When a different photo has become first, the field follows it.
-     * The previous first photo keeps its own caption, so the text leaving the field is never the only copy.
+     * Called wherever the selection can change. When a different photo has become first, the field's text is
+     * carried onto it unless a selected photo already holds that text (a reorder: the old first is still there)
+     * and the new first has no caption of its own; otherwise the field follows the new first photo. The one
+     * case that drops text from the field is a new first photo that already has its own caption while no
+     * selected photo holds the field's text; that text stays on the unselected photo it came from.
      * Idempotent: it does nothing while the first photo is the one the field already mirrors.
      */
     public static void reconcile(ChatAttachAlert alert) {
@@ -170,12 +182,29 @@ public final class AlbumCaption {
         if (entry == null || field == null) {
             return;
         }
-        if (previous == null && TextUtils.isEmpty(captionOf(entry)) && field.length() > 0) {
-            // Nothing owned the field: text typed before any photo was selected goes onto the first one.
+        if (field.length() > 0 && TextUtils.isEmpty(captionOf(entry)) && !heldBySelected(layout, key, field.getText())) {
+            // The photo that held this text left the selection (unchecked, or the selection was cleared by a tab
+            // switch), or nothing was selected when it was typed. Stock sends it with the new first photo.
             setCaption(entry, field.getText());
         } else {
             mirrorFirstIntoField(field, entry);
         }
+    }
+
+    /** Whether a selected photo other than {@code skipKey} already carries exactly {@code text}. */
+    private static boolean heldBySelected(ChatAttachAlertPhotoLayout layout, Object skipKey, CharSequence text) {
+        final ArrayList<Object> order = layout.getSelectedPhotosOrder();
+        final HashMap<Object, Object> selected = layout.getSelectedPhotos();
+        for (int i = 0; i < order.size(); i++) {
+            if (Objects.equals(order.get(i), skipKey)) {
+                continue;
+            }
+            final Object other = selected.get(order.get(i));
+            if (!AttachCaptionHelper.hasUnappliedCaption(UserConfig.selectedAccount, text, false, captionOf(other), entitiesOf(other))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Refills the field from the first selected photo, after the full-screen preview edited a caption. */
@@ -206,25 +235,34 @@ public final class AlbumCaption {
     /**
      * A send that was started and then cancelled leaves a clone of the first photo in the selection (stock's
      * applyCaption swaps one in), while the grid's full-screen viewer edits the originals. Put the original
-     * back, carrying the clone's caption, so there is one owner and an edit made in the viewer is not lost.
+     * back, carrying the clone's caption, so there is one owner and an edit made in the viewer is not lost
+     * (crop and filter edits made on the clone in that window are not carried back).
+     *
+     * <p>Runs right after stock stores the field's live Editable on the first photo as its caption; that
+     * reference is replaced here with a detached, parsed copy so typing in the field later cannot change a
+     * photo's caption behind its back.
      */
-    public static void restoreOriginal(HashMap<Object, Object> selected, ArrayList<Object> order, List<?> originals) {
-        if (!enabled() || order == null || order.isEmpty() || originals == null) {
+    public static void restoreOriginal(ChatAttachAlert alert, HashMap<Object, Object> selected, ArrayList<Object> order, List<?> originals) {
+        if (!enabled() || alert == null || order == null || order.isEmpty()) {
             return;
         }
         final Object key = order.get(0);
-        final Object current = selected.get(key);
-        if (!(current instanceof MediaController.PhotoEntry)) {
-            return;
-        }
-        for (Object o : originals) {
-            if (o instanceof MediaController.PhotoEntry && o != current && key.equals(((MediaController.PhotoEntry) o).imageId)) {
-                final MediaController.PhotoEntry original = (MediaController.PhotoEntry) o;
-                original.caption = ((MediaController.PhotoEntry) current).caption;
-                original.entities = ((MediaController.PhotoEntry) current).entities;
-                selected.put(key, original);
-                return;
+        Object first = selected.get(key);
+        if (first instanceof MediaController.PhotoEntry && originals != null) {
+            for (Object o : originals) {
+                if (o instanceof MediaController.PhotoEntry && o != first && key.equals(((MediaController.PhotoEntry) o).imageId)) {
+                    final MediaController.PhotoEntry original = (MediaController.PhotoEntry) o;
+                    original.caption = ((MediaController.PhotoEntry) first).caption;
+                    original.entities = ((MediaController.PhotoEntry) first).entities;
+                    selected.put(key, original);
+                    first = original;
+                    break;
+                }
             }
+        }
+        final EditTextEmoji field = alert.getCommentView();
+        if (first != null && field != null) {
+            setCaption(first, field.getText(), true);
         }
     }
 
@@ -260,7 +298,9 @@ public final class AlbumCaption {
         if (layout == null) {
             return stock;
         }
-        PhotoViewer.getInstance().applyCaptionForRescue();
+        if (PhotoViewer.hasInstance()) {
+            PhotoViewer.getInstance().applyCaptionForRescue();
+        }
         final ArrayList<CharSequence> parts = new ArrayList<>();
         final ArrayList<Object> order = layout.getSelectedPhotosOrder();
         final HashMap<Object, Object> selected = layout.getSelectedPhotos();

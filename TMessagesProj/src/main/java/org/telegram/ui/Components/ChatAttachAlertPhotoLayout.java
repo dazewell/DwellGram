@@ -1044,8 +1044,9 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
                         photoEntry1.caption = parentAlert.getCommentView().getText();
                     }
                 }
-                // NagramX (#album-caption): a cancelled send leaves a clone here while this viewer edits the originals
-                com.dazewell.gram.albumcaption.AlbumCaption.restoreOriginal(selectedPhotos, selectedPhotosOrder, arrayList);
+                // NagramX (#album-caption): a cancelled send leaves a clone here while this viewer edits the originals,
+                // and the write above stores the field's live Editable on the photo; this swaps in the original and a copy
+                com.dazewell.gram.albumcaption.AlbumCaption.restoreOriginal(parentAlert, selectedPhotos, selectedPhotosOrder, arrayList);
                 if (parentAlert.getAvatarFor() != null) {
                     boolean isVideo = false;
                     if (arrayList.get(position) instanceof MediaController.PhotoEntry) {
