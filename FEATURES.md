@@ -120,6 +120,10 @@ Style buttons (Bold, Italic, Monospace, Strikethrough, Underline, Spoiler, Quote
 
 Send and the mic sit inside the text pill, drawn slightly in from its rounded end so a thin ring of glass shows around them. The Material Design 3 composer puts them just outside its tonal field instead.
 
+### Docked composer <!-- #docked-composer -->
+
+The Material Design 3 composer can run as a flat panel edge to edge along the bottom, resting straight on the keyboard instead of floating as an island. The field, reply strip and selection buttons share one corner radius. Pick *Composer style* → Floating or Docked at the top of Chat settings → Composer Toolbar, where the preview shows it. Defaults to Floating.
+
 ### Composer toolbar layout editor <!-- #composer-layout --> <!-- #composer-layout-tap-toggle --> <!-- #composer-leading-2slot -->
 
 The button row under the compose box is yours to arrange via chat settings. You can place any action in any zone (Leading, Scrolling, Trailing, Hidden). The Leading zone is capped at two slots. Tapping a row in Hidden or Scrolling toggles it straight to the other section without dragging. Hold any button on the live toolbar for about one second to open this editor directly.
@@ -238,6 +242,10 @@ Telegram's forward API cannot forward a message that hasn't been sent yet. The s
 *Repost as Copy* comes from NagramX — turn it on in settings (it's off by default) and it re-sends a message without a "Forwarded from" header, re-uploading the media. Copies keep the original reply and quote, and offer to delete the originals once sent. A scheduled *NoQuote* forward is re-sent as a copy too when it replies to something, so the reply survives; several are spaced three minutes apart.
 
 <img height="150" alt="Reposted as a copy confirmation bar with a Delete action for the original messages" src="docs/images/features/repost-copy.png" />
+
+### Stash <!-- #stash -->
+
+*Stash*, in the message menu or the selection bar's ⋯, moves messages into this chat's Scheduled list: pick a time and they're re-sent there without a sender, several spaced three minutes apart. Then, like *Repost as Copy*, a bar offers to *Delete* the originals for 15 seconds, following you into Scheduled while you check; letting it go keeps them. Off by default; turn it on under N-Settings → Chat → Message Menu.
 
 ### Pin or number several messages at once <!-- #bulk-actions -->
 

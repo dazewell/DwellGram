@@ -265,6 +265,13 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    // NagramX: #stash
+    val showStash =
+        addConfig(
+            "Stash",
+            ConfigItem.configTypeBool,
+            false
+        )
     val showOnlineStatus =
         addConfig(
             "ShowOnlineStatus",
@@ -1561,6 +1568,12 @@ object NaConfig {
             "InterfaceStyleApplyComposer",
             ConfigItem.configTypeBool,
             true
+        )
+    val composerLayoutStyle =
+        addConfig(
+            "ComposerLayoutStyle",
+            ConfigItem.configTypeInt,
+            0 // 0 floating island, 1 docked panel; anything else reads as floating
         )
     val interfaceStyleApplyBottomNavigation =
         addConfig(

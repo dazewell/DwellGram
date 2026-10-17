@@ -103,8 +103,10 @@ skipped gate passed.
 - **Close every review point before handoff**: fix it, or reply explaining why
   not, then resolve the thread. Verify none remain unresolved.
 - User-visible change ⇒ its `FEATURES.md` entry ships in the same PR (70 words
-  hard ceiling). Durable finding ⇒ its `docs/codemap/` entry ships in the same
-  PR, with a `file:line` citation you actually checked.
+  hard ceiling), prose written last, after the verification build; a bare
+  marker heading until then, and reviewers don't raise the prose before that.
+  Durable finding ⇒ its `docs/codemap/` entry ships in the same PR, with a
+  `file:line` citation you actually checked.
 - **Verify the artifact, not your intent.** After writing anything the system
   stores for you — a file, a PR body, a manifest, a pin — read back what it now
   holds and check that, not what you sent. Line citations are verified at the
@@ -154,7 +156,7 @@ the cap is checked when a doc changes — not the corpus total, which is
 irrelevant while files load on demand.
 
 - **Always-on** (`AGENTS.md` + `CLAUDE.md` + the running agent file): **≤ 40 KB**.
-  Today 37 KB.
+  Today 38 KB.
 - **Typical change** (always-on + `nagramx-workflow`): **≤ 60 KB**. Today 57 KB.
 - Each skill body stays within Anthropic's 10–20 KB guidance. `nagramx-branch-flow`
   (21 KB) and `nagramx-process-lifecycle` (20.5 KB) sit just over and are not to

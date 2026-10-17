@@ -361,7 +361,11 @@
     <string name="InterfaceStyleApplyButtons">Buttons</string>
     <string name="InterfaceStyleApplyButtonsInfo">Floating and pill-shaped buttons in chats, the chat list, and the emoji keyboard.</string>
     <string name="InterfaceStyleApplyComposer">Composer</string>
-    <string name="InterfaceStyleApplyComposerInfo">The message field and its tools row in chats, drawn as one floating Material Design 3 island, and the panel under the keyboard.</string>
+    <string name="InterfaceStyleApplyComposerInfo">The message field and its tools row in chats, drawn as one Material Design 3 island or docked panel, and the panel under the keyboard.</string>
+    <string name="ComposerStyle">Composer style</string>
+    <string name="ComposerStyleFloating">Floating</string>
+    <string name="ComposerStyleDocked">Docked</string>
+    <string name="ComposerStyleInfo">Floating draws the composer as an island over the chat. Docked runs it edge to edge along the bottom, flat on the keyboard.</string>
     <string name="InterfaceStyleApplyBottomNavigation">Bottom navigation</string>
     <string name="InterfaceStyleApplyBottomNavigationInfo">The Chats, Settings, and Profile bar at the bottom of the screen.</string>
     <string name="InterfaceStyleRoundedNavigation">Rounded navigation</string>
@@ -929,6 +933,13 @@
     <string name="ChatMenuResetDone">Chat menu reset</string>
     <string name="NaxChatMenuAlerts">Alerts</string>
     <string name="NaxSeenFormatted">seen %1$s</string>
+    <!-- Stash selected messages into this chat's Scheduled list #stash -->
+    <string name="Stash">Stash</string>
+    <string name="StashUnsupported_one">Can\'t stash this message</string>
+    <string name="StashUnsupported_other">Can\'t stash %1$d of these messages</string>
+    <string name="StashDeleteHint_one">Stashed to Scheduled. The original message is still here.</string>
+    <string name="StashDeleteHint_other">Stashed to Scheduled. %1$d original messages are still here.</string>
+    <string name="StashTooFar">Can\'t stash these that far ahead: spaced three minutes apart, the last would land more than a year out</string>
     <string name="AlbumCaptionPerPhoto">Caption each photo separately</string>
     <string name="AlbumCaptionPerPhotoAbout">Each photo keeps its own caption. If only one has a caption, it shows under the album.</string>
 </resources>
