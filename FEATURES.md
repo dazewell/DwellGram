@@ -223,7 +223,7 @@ Tap the bookmark icon in the schedule picker to remember your schedule offset â€
 
 ### Schedule picker shortcuts <!-- #schedule-quick-picks --> <!-- #schedule-wheel-bounds -->
 
-The schedule picker has a month wheel left of the days, which jumps whole months and keeps the day and time, and `:00` `:30` `:59` pills beside the minutes. Above the wheels, pills offer the next round hour, midnight, noon and other set times over the next 24 hours, in the peer's zone on the *Peer's time* tab. Always on.
+The schedule picker's month wheel, left of the days, jumps whole months, keeping the day and time. The day wheel stays inside that month, and no wheel loops past its ends. `:00` `:30` `:59` pills sit beside the minutes. Pills above the wheels offer the next round hour, midnight, noon and other set times within 24 hours, in the peer's zone on the *Peer's time* tab. Always on.
 
 ### Status and unread count in the scheduled header <!-- #scheduled-header-status --> <!-- #scheduled-header-unread -->
 
