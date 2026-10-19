@@ -4513,7 +4513,7 @@ public class AlertsCreator {
                 return LocaleController.formatPluralString("Hours", value);
             }
         };
-        hourPicker.setWrapSelectorWheel(true);
+        hourPicker.setWrapSelectorWheel(false); // NagramX: stops at 00 and 23 instead of looping, so a flick lands on an end
         hourPicker.setAllItemsCount(24);
         hourPicker.setItemCount(5);
         hourPicker.setTextColor(datePickerColors.textColor);
@@ -4524,7 +4524,7 @@ public class AlertsCreator {
                 return LocaleController.formatPluralString("Minutes", value);
             }
         };
-        minutePicker.setWrapSelectorWheel(true);
+        minutePicker.setWrapSelectorWheel(false); // NagramX: stops at 00 and 59 instead of looping
         minutePicker.setAllItemsCount(60);
         minutePicker.setItemCount(5);
         minutePicker.setTextColor(datePickerColors.textColor);
