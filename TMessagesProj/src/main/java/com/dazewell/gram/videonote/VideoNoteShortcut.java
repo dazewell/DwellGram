@@ -263,7 +263,7 @@ public final class VideoNoteShortcut {
     // saved, so a crash, a kill or a trip to the background still lands on the passcode, and isWaitingForPasscodeEnter
     // sends every other intent through the passcode gate, which ends the session. Any showPasscodeActivity, whoever
     // calls it, ends the session too (onPasscodeShown). Everything else below only decides when to lock early, and
-    // whether to also step back to the launcher: a send, a discard or a back press does (lockAndLeave, lockAndMinimize).
+    // whether to also step back to the launcher: a send, a discard or a back press does (lockAndLeave, lockAndClose).
     // A stall or anything that tried to leave the memo some other way stays on the passcode, which tells the user why it
     // ended.
 
@@ -285,6 +285,12 @@ public final class VideoNoteShortcut {
     private static final Runnable poll = VideoNoteShortcut::poll;
     private static final Runnable leave = VideoNoteShortcut::lockAndLeave;
     private static final long LEAVE_DELAY_MS = 220; // the fade below, plus a margin
+    private static final long MIN_CLIP_MS = 800; // InstantCameraView.send drops anything shorter, so no preview ever binds
+    // The memo chat a back press left behind, closed once its clip is safe (closeWhenSafe)
+    private static WeakReference<ChatActivity> closingChat;
+    private static boolean closingWaitsForClip;
+    private static long closingSince;
+    private static final Runnable close = VideoNoteShortcut::closeTick;
 
     private static void setPhase(int newPhase) {
         phase = newPhase;
@@ -311,6 +317,8 @@ public final class VideoNoteShortcut {
         SharedConfig.isWaitingForPasscodeEnter = true;
         SharedConfig.saveConfig();
         setPhase(STARTING);
+        AndroidUtilities.cancelRunOnUIThread(close); // a new memo may reuse the chat the last one is still closing
+        closingChat = null;
         AndroidUtilities.cancelRunOnUIThread(poll);
         AndroidUtilities.runOnUIThread(poll, POLL_MS);
         activity.hidePasscodeForVideoNote();
@@ -364,25 +372,67 @@ public final class VideoNoteShortcut {
         // waits in this chat's preview.
         if (chat != null) {
             AndroidUtilities.runOnUIThread(() -> {
-                if (phase == IDLE && !chat.isFinished && chat.isLastFragment() && chat.getParentLayout() != null
-                        && chat.getParentLayout().getFragmentStack().size() > 1) {
+                if (phase == IDLE && canClose(chat)) {
                     chat.finishFragment(false);
                 }
             });
         }
     }
 
-    // Also a back press on its own. The lock stops a live recording into the preview (onPasscodeShown) and the chat stays
-    // on the stack, so the clip waits there for the unlock. That finalize is still in flight when the task goes back: an
-    // unlock that lands before it does rebuilds the chat and leaves the clip as an orphan on disk. The race is accepted,
-    // since the window is the finalize itself plus a relaunch, where waiting for it in place left the bare composer on
-    // screen for seconds.
+    // A memo chat that is the only fragment (a cold start) stays open: closing it would close the app's last screen
+    private static boolean canClose(ChatActivity chat) {
+        return !chat.isFinished && chat.isLastFragment() && chat.getParentLayout() != null
+                && chat.getParentLayout().getFragmentStack().size() > 1;
+    }
+
     private static void lockAndMinimize() {
         LaunchActivity activity = LaunchActivity.instance;
         lockNow();
         if (activity != null && !activity.isFinishing()) {
             activity.moveTaskToBack(true);
         }
+    }
+
+    // Back keeps the clip: the lock stops a live recording into the preview (onPasscodeShown), and that preview is also
+    // where the draft store saves it, in the same call. So the chat closes as soon as a preview is bound, or at once if no
+    // clip is coming. Closed any earlier, the clip would land in a destroyed composer and be lost. The chat is left open,
+    // as the fallback, if the wait outlasts SEND_TIMEOUT_MS or the user unlocks first. An unlock that beats the finalize
+    // also rebuilds the chat and leaves the clip as an orphan on disk; that race is accepted, since it needs a relaunch.
+    private static void lockAndClose(ChatActivity chat) {
+        ChatActivityEnterView enterView = chat.getChatActivityEnterView();
+        boolean live = chat.instantCameraView != null && chat.instantCameraView.isRecording();
+        // Certain to be dropped: a camera still opening (onPasscodeShown cancels it), or a live clip younger than
+        // MIN_CLIP_MS, which phaseSince bounds since it marks the camera starting to open. A stop or pause has already
+        // cleared isRecordingAudioVideo, so its finalize still counts as coming.
+        boolean dropped = enterView != null && enterView.isRecordingAudioVideo()
+                && (!live || SystemClock.elapsedRealtime() - phaseSince < MIN_CLIP_MS);
+        // A recording phase without a bound preview has a clip on its way: live, stopped, or paused and finalizing
+        boolean clipComing = phase == RECORDING && !dropped && (enterView == null || !enterView.hasVideoToSend());
+        lockAndMinimize();
+        closingChat = new WeakReference<>(chat);
+        closingWaitsForClip = clipComing;
+        closingSince = SystemClock.elapsedRealtime();
+        AndroidUtilities.cancelRunOnUIThread(close);
+        AndroidUtilities.runOnUIThread(close); // posted: never finish the chat from inside its own onBackPressed
+    }
+
+    private static void closeTick() {
+        ChatActivity chat = closingChat != null ? closingChat.get() : null;
+        if (chat == null || phase != IDLE || !SharedConfig.appLocked || !canClose(chat)) {
+            closingChat = null; // gone, a new memo started, or the user unlocked and may be looking at it
+            return;
+        }
+        ChatActivityEnterView enterView = chat.getChatActivityEnterView(); // an unlock rebuild replaces it, so read it fresh
+        if (!closingWaitsForClip || enterView != null && enterView.hasVideoToSend()) {
+            closingChat = null;
+            chat.finishFragment(false);
+            return;
+        }
+        if (SystemClock.elapsedRealtime() - closingSince > SEND_TIMEOUT_MS) {
+            closingChat = null; // a slow finalize may still land here: leave the chat rather than lose the clip
+            return;
+        }
+        AndroidUtilities.runOnUIThread(close, POLL_MS);
     }
 
     /** ChatActivity.createView, right after the input container is added. */
@@ -530,7 +580,7 @@ public final class VideoNoteShortcut {
             return false;
         }
         if (invoked) {
-            lockAndMinimize();
+            lockAndClose(chat);
         }
         return true;
     }
