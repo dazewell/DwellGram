@@ -1,5 +1,6 @@
 package com.dazewell.gram.schedulecountdown;
 
+import android.util.Log;
 import android.util.SparseArray;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -7,6 +8,9 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.TLObject;
+import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.tl.TL_update;
 import org.telegram.ui.Components.BulletinFactory;
 
 /**
@@ -18,6 +22,7 @@ import org.telegram.ui.Components.BulletinFactory;
  */
 public final class ScheduleCountdown {
 
+    private static final String TAG = "ScheduleCountdown";
     private static final long SETTLE_MS = 600;
     // A burst whose media preparation outlasts SETTLE_MS shows again when it settles; skip that if nothing earlier came in.
     private static final long REPEAT_WINDOW_MS = 5000;
@@ -47,6 +52,49 @@ public final class ScheduleCountdown {
             return;
         }
         AndroidUtilities.runOnUIThread(() -> collect(account, scheduleDate, count));
+    }
+
+    /**
+     * A reschedule the server accepted. Counts to the date its reply carries for {@code messageId} rather than the one
+     * we asked for, so the bulletin can only show what the server stored. Reads the reply before processUpdates gets it.
+     */
+    public static void onRescheduled(int account, int messageId, TLObject response) {
+        int date = 0;
+        if (response instanceof TLRPC.Updates) {
+            TLRPC.Updates updates = (TLRPC.Updates) response;
+            date = serverDate(updates.update, messageId);
+            if (updates.updates != null) {
+                for (int i = 0; date == 0 && i < updates.updates.size(); i++) {
+                    date = serverDate(updates.updates.get(i), messageId);
+                }
+            }
+        }
+        if (date == 0) {
+            Log.w(TAG, "reschedule reply had no date for the edited message: " + (response == null ? "null" : response.getClass().getSimpleName()));
+            return;
+        }
+        onScheduled(account, date, 1);
+    }
+
+    private static int serverDate(TLRPC.Update update, int messageId) {
+        TLRPC.Message message = null;
+        // A scheduled edit comes back as a new scheduled message; the edit types are accepted in case that changes.
+        if (update instanceof TL_update.TL_updateNewScheduledMessage) {
+            message = ((TL_update.TL_updateNewScheduledMessage) update).message;
+        } else if (update instanceof TL_update.TL_updateEditMessage) {
+            message = ((TL_update.TL_updateEditMessage) update).message;
+        } else if (update instanceof TL_update.TL_updateEditChannelMessage) {
+            message = ((TL_update.TL_updateEditChannelMessage) update).message;
+        }
+        return message != null && message.id == messageId ? message.date : 0;
+    }
+
+    /** "2 hours and 5 minutes" until a date the caller already confirmed with the server, or null when it isn't a date. */
+    public static String describeIn(int account, int date) {
+        if (date <= 0 || date >= FIRST_SENTINEL) {
+            return null;
+        }
+        return formatIn(date - ConnectionsManager.getInstance(account).getCurrentTime());
     }
 
     private static void collect(int account, int scheduleDate, int count) {

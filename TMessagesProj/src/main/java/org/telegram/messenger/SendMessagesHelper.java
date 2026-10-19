@@ -3556,9 +3556,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         }
         return getConnectionsManager().sendRequest(req, (response, error) -> {
             if (error == null) {
+                // NagramX: only the reschedule callers pass a date here; counts to the server's stored date, read before processUpdates consumes the reply
+                if (scheduleDate != 0) com.dazewell.gram.schedulecountdown.ScheduleCountdown.onRescheduled(currentAccount, req.id, response);
                 getMessagesController().processUpdates((TLRPC.Updates) response, false);
-                // NagramX: only the reschedule callers pass a date here; on success, so a refused time stays silent
-                if (scheduleDate != 0) com.dazewell.gram.schedulecountdown.ScheduleCountdown.onScheduled(currentAccount, scheduleDate, 1);
             } else {
                 AndroidUtilities.runOnUIThread(() -> AlertsCreator.processError(currentAccount, error, fragment, req));
             }
