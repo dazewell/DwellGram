@@ -27,7 +27,8 @@ import java.util.Map;
  * <p>A held message lives as a single row in {@code ghost_held} inside this
  * account's own {@code ghosthold_<account>.db} file -- a table no stock query
  * ever names. That is the point: the no-leak invariant (a held message must
- * never reach the server while Ghost is on) becomes <em>structural</em> rather
+ * never reach the server while holding is active, i.e. Ghost and Hold Messages
+ * both on) becomes <em>structural</em> rather
  * than a set of guards scattered through upstream files. Stock cannot transmit a
  * row it cannot see. A separate file, not a table in {@code cache4.db}, is used
  * on purpose: a stock-DB table needs a schema-version bump, and upstream changes
