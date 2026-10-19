@@ -2638,6 +2638,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 if (arr.size() == 100 || a == messages.size() - 1 || a != messages.size() - 1 && messages.get(a + 1).getDialogId() != msgObj.getDialogId()) {
                     getMessagesStorage().putMessages(new ArrayList<>(arr), false, true, false, 0, scheduleDate != 0 ? 1 : 0, 0);
                     getMessagesController().updateInterfaceWithMessages(peer, objArr, scheduleDate != 0 ? 1 : 0);
+                    // NagramX: at the insert rather than method entry, which the paid-message confirmation re-enters
+                    com.dazewell.gram.schedulecountdown.ScheduleCountdown.onScheduled(currentAccount, scheduleDate, objArr.size());
                     getNotificationCenter().postNotificationName(NotificationCenter.dialogsNeedReload);
                     getUserConfig().saveConfig(false);
 
@@ -5298,6 +5300,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             newMsgObj.wasJustSent = true;
             newMsgObj.sentHighQuality = sendMessageParams.sendingHighQuality;
             newMsgObj.scheduled = scheduleDate != 0;
+            // NagramX: before the album split below, so grouped media counts too; Ghost Hold has returned above and its release re-drives arrive as retries, which are not new
+            if (retryMessageObject == null) com.dazewell.gram.schedulecountdown.ScheduleCountdown.onScheduled(currentAccount, scheduleDate, 1);
             if (!newMsgObj.isForwarded() && (newMsgObj.type == MessageObject.TYPE_VIDEO || videoEditedInfo != null || newMsgObj.type == MessageObject.TYPE_VOICE) && !TextUtils.isEmpty(newMsg.attachPath)) {
                 newMsgObj.attachPathExists = true;
             }
