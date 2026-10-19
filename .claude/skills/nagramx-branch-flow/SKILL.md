@@ -208,8 +208,6 @@ round 2 has cleared and `ci.yml` is green on the head SHA, via the
 PR**, the second only after fixing an Important-or-above finding; none on doc-
 or process-only PRs unless dazewell asks. The script enforces this.
 
-Close every review point: fix or reply why not, resolve, verify none remain.
-
 ## Follow-up commits
 
 Review fixes, on-device bugs, and later improvements are new commits, not amends:
