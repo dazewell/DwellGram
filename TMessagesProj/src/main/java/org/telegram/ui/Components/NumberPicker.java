@@ -525,11 +525,11 @@ public class NumberPicker extends LinearLayout {
     @Override
     public void scrollBy(int x, int y) {
         int[] selectorIndices = mSelectorIndices;
-        if (!mWrapSelectorWheel && y > 0 && selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] <= mMinValue && mCurrentScrollOffset + y > mInitialScrollOffset) {
+        if (!mWrapSelectorWheel && y > 0 && (selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] <= mMinValue || naxSplit(selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX], selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] - 1)) && mCurrentScrollOffset + y > mInitialScrollOffset) {
             mCurrentScrollOffset = mInitialScrollOffset;
             return;
         }
-        if (!mWrapSelectorWheel && y < 0 && selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] >= mMaxValue && mCurrentScrollOffset + y < mInitialScrollOffset) {
+        if (!mWrapSelectorWheel && y < 0 && (selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] >= mMaxValue || naxSplit(selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX], selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] + 1)) && mCurrentScrollOffset + y < mInitialScrollOffset) {
             mCurrentScrollOffset = mInitialScrollOffset;
             return;
         }
@@ -537,14 +537,14 @@ public class NumberPicker extends LinearLayout {
         while (mCurrentScrollOffset - mInitialScrollOffset > mSelectorTextGapHeight) {
             mCurrentScrollOffset -= mSelectorElementHeight;
             decrementSelectorIndices(selectorIndices);
-            if (!mWrapSelectorWheel && selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] <= mMinValue && mCurrentScrollOffset > mInitialScrollOffset) {
+            if (!mWrapSelectorWheel && (selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] <= mMinValue || naxSplit(selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX], selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] - 1)) && mCurrentScrollOffset > mInitialScrollOffset) {
                 mCurrentScrollOffset = mInitialScrollOffset;
             }
         }
         while (mCurrentScrollOffset - mInitialScrollOffset < -mSelectorTextGapHeight) {
             mCurrentScrollOffset += mSelectorElementHeight;
             incrementSelectorIndices(selectorIndices);
-            if (!mWrapSelectorWheel && selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] >= mMaxValue && mCurrentScrollOffset < mInitialScrollOffset) {
+            if (!mWrapSelectorWheel && (selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] >= mMaxValue || naxSplit(selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX], selectorIndices[SELECTOR_MIDDLE_ITEM_INDEX] + 1)) && mCurrentScrollOffset < mInitialScrollOffset) {
                 mCurrentScrollOffset = mInitialScrollOffset;
             }
         }
@@ -1035,7 +1035,7 @@ public class NumberPicker extends LinearLayout {
         if (scrollSelectorValue != null) {
             return;
         }
-        if (selectorIndex < mMinValue || selectorIndex > mMaxValue) {
+        if (selectorIndex < mMinValue || selectorIndex > mMaxValue || naxSplit(selectorIndex, mValue)) {
             scrollSelectorValue = "";
         } else {
             if (mDisplayedValues != null) {
@@ -1237,6 +1237,20 @@ public class NumberPicker extends LinearLayout {
     public void copySelectionDividersFrom(NumberPicker other) {
         mTopSelectionDividerTop = other.mTopSelectionDividerTop;
         mBottomSelectionDividerBottom = other.mBottomSelectionDividerBottom;
+    }
+
+    // NagramX: optional segment per value (the schedule day wheel's month). User scrolling stops where
+    // it changes and other segments draw blank; setValue is not bounded, so code writes can cross it.
+    private java.util.function.IntUnaryOperator naxSegment;
+
+    public void setScrollSegment(java.util.function.IntUnaryOperator segment) {
+        naxSegment = segment;
+        initializeSelectorWheelIndices();
+        invalidate();
+    }
+
+    private boolean naxSplit(int a, int b) {
+        return naxSegment != null && naxSegment.applyAsInt(a) != naxSegment.applyAsInt(b);
     }
 
     public void setDrawDividers(boolean drawDividers) {

@@ -42,7 +42,7 @@ import java.util.TreeMap;
  * ({@code AlertsCreator.createScheduleDatePickerDialog}):
  * <ul>
  *   <li>a month wheel left of the day wheel, which moves the selected date by whole months and
- *       keeps the day of month and the time,
+ *       keeps the day of month and the time; the day wheel scrolls only within the selected month,
  *   <li>{@code :00 :30 :59} pills right of the minute wheel, and
  *   <li>a row of pills above the wheels for the upcoming midnight, noon, other round hours and the
  *       next top of the hour, over the next 24 hours.
@@ -127,6 +127,8 @@ public final class SchedulePickerShortcuts {
         // The month moves out of the day labels into its own wheel, which frees the width it needs.
         dayPicker.setFormatter(dayFormatter(null));
         dayPicker.setContentDescriptionCallback(this::dayDescription);
+        // The day wheel scrolls within the selected month only; crossing months is the month wheel's job.
+        dayPicker.setScrollSegment(this::monthIndexOf);
         dayPicker.setTextOffset(0);
         hourPicker.setTextOffset(dp(6));
         minutePicker.setTextOffset(-dp(6));
@@ -304,7 +306,13 @@ public final class SchedulePickerShortcuts {
         final LocalDate selected = today(zone().toZoneId()).plusDays(dayPicker.getValue());
         anchorDayOfMonth = selected.getDayOfMonth();
         monthPicker.setMaxValue(maxMonthIndex());
-        monthPicker.setValue((int) ChronoUnit.MONTHS.between(YearMonth.from(today(zone().toZoneId())), YearMonth.from(selected)));
+        monthPicker.setValue(monthIndexOf(dayPicker.getValue()));
+    }
+
+    /** Month wheel index of a day wheel value, in the active zone. */
+    private int monthIndexOf(int dayOffset) {
+        final LocalDate today = today(zone().toZoneId());
+        return (int) ChronoUnit.MONTHS.between(YearMonth.from(today), YearMonth.from(today.plusDays(dayOffset)));
     }
 
     private CharSequence dayDescription(int value) {
