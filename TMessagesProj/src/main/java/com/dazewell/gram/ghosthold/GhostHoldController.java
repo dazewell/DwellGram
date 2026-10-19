@@ -54,11 +54,12 @@ import tw.nekomimi.nekogram.NekoConfig;
  * load chokepoint ({@link #injectHeldScheduled}); the injected objects are
  * display-only and never written back to any stock table.
  *
- * <p>The queue drains ("flush") only when Ghost Mode turns off. Ghost is a
- * derived predicate over five independently-flippable toggles
- * ({@link NekoConfig#isGhostModeActive()}), so the flush is triggered from an
- * edge detector that watches the derived active/inactive transition rather than
- * any single toggle, plus a convergence check at process start. On flush a record
+ * <p>The queue drains ("flush") only when holding stops: Ghost Mode turns off, or
+ * Hold Messages is switched off while Ghost stays on. Ghost is a derived predicate
+ * over five independently-flippable toggles ({@link NekoConfig#isGhostModeActive()}),
+ * so the flush is triggered from an edge detector that watches the derived
+ * {@link #isHoldActive()} transition rather than any single toggle, plus a
+ * convergence check at process start. On flush a record
  * is handed back to the normal send funnel by reusing its negative id; the fork
  * record is deleted only once the funnel has provably written its stock row
  * (delete-on-write), after which stock owns delivery and cross-restart retry.
@@ -97,7 +98,10 @@ public final class GhostHoldController {
     private static final String PARAM_BYPASS = "ghost_hold_bypass";
 
     private static final String PREFS_NAME = "ghosthold_state";
-    private static final String KEY_LAST_GHOST_ACTIVE = "last_ghost_active";
+    // Tracks isHoldActive(), not Ghost alone. The key string predates Hold being
+    // switchable from the send menu and is kept so no stored value is orphaned;
+    // checkOnProcessStart re-seeds it every launch anyway.
+    private static final String KEY_LAST_HOLD_ACTIVE = "last_ghost_active";
     // Snapshot of the five ghost toggles captured while Ghost is active, so a
     // cancelled flush restores exactly that per-toggle state instead of force-
     // enabling all of them (setGhostMode(true) would).
@@ -158,6 +162,18 @@ public final class GhostHoldController {
 
     public static boolean isHoldActive() {
         return NekoConfig.isGhostModeActive() && NekoConfig.holdMessagesWhileGhost.Bool();
+    }
+
+    /**
+     * Flips the Hold Messages preference and runs the edge detector, so switching it
+     * off with messages held offers the same "Send held messages?" confirmation as
+     * turning Ghost off. Every Hold switch (Ghost settings, the send button's
+     * long-press menu) goes through here. Returns the new value.
+     */
+    public static boolean toggleHoldMessages() {
+        boolean enabled = NekoConfig.holdMessagesWhileGhost.toggleConfigBool();
+        onGhostStateMaybeChanged();
+        return enabled;
     }
 
     public static boolean isHeld(@Nullable MessageObject mo) {
@@ -758,17 +774,21 @@ public final class GhostHoldController {
     // ---- ghost-off edge detection ----
 
     /**
-     * Invoked wherever Ghost state can change (the aggregate toggle and each of
-     * the five individual toggles). Compares the persisted previous active state
-     * against the current derived value and, on a true -> false edge, requests a
-     * flush. Idempotent: a repeated call with no transition does nothing.
+     * Invoked wherever hold state can change (the aggregate Ghost toggle, each of
+     * the five individual toggles, and the Hold Messages switch). Compares the
+     * persisted previous {@link #isHoldActive()} against the current value and, on a
+     * true -> false edge, requests a flush. Idempotent: a repeated call with no
+     * transition does nothing.
      */
     public static synchronized void onGhostStateMaybeChanged() {
-        boolean nowActive = NekoConfig.isGhostModeActive();
-        boolean wasActive = prefs().getBoolean(KEY_LAST_GHOST_ACTIVE, false);
+        boolean nowActive = isHoldActive();
+        boolean wasActive = prefs().getBoolean(KEY_LAST_HOLD_ACTIVE, false);
         SharedPreferences.Editor editor = prefs().edit();
-        editor.putBoolean(KEY_LAST_GHOST_ACTIVE, nowActive);
-        if (nowActive) {
+        editor.putBoolean(KEY_LAST_HOLD_ACTIVE, nowActive);
+        // Snapshot on Ghost, not on hold: a cancel after Hold was switched off must
+        // restore the Ghost toggles as they are now, not as they were when Hold was
+        // last on.
+        if (NekoConfig.isGhostModeActive()) {
             // Remember the exact toggle configuration while Ghost is active; a
             // cancelled flush restores precisely this, not an all-toggles-on state.
             writeGhostSnapshot(editor);
@@ -780,8 +800,8 @@ public final class GhostHoldController {
     }
 
     /**
-     * Convergence check at process start. If Ghost ended (or was never on) while a
-     * backlog remained -- e.g. the app was killed after Ghost went off but before the
+     * Convergence check at process start. If holding ended (Ghost or Hold off) while a
+     * backlog remained -- e.g. the app was killed after holding stopped but before the
      * flush confirmation was accepted -- re-offer the same "Send held messages?"
      * confirmation so the queue is not stranded across launches. It prompts, never
      * drains silently: the confirmation is a UX guarantee dazewell approved, so a
@@ -792,7 +812,7 @@ public final class GhostHoldController {
      * the edge baseline.
      */
     public static void checkOnProcessStart() {
-        boolean nowActive = NekoConfig.isGhostModeActive();
+        boolean nowActive = isHoldActive();
         // Per-account bring-up, before any flush prompt below can collect: register
         // the fork observers, migrate any legacy held rows out of the stock tables
         // into ghost_held, and reconcile a flush interrupted by a kill. All three
@@ -804,8 +824,8 @@ public final class GhostHoldController {
             }
         }
         SharedPreferences.Editor editor = prefs().edit();
-        editor.putBoolean(KEY_LAST_GHOST_ACTIVE, nowActive);
-        if (nowActive) {
+        editor.putBoolean(KEY_LAST_HOLD_ACTIVE, nowActive);
+        if (NekoConfig.isGhostModeActive()) {
             writeGhostSnapshot(editor);
         }
         editor.apply();
@@ -867,10 +887,12 @@ public final class GhostHoldController {
                 }
             }
             String body;
+            // Ghost still on means it was the Hold switch that went off.
+            boolean holdOff = NekoConfig.isGhostModeActive();
             if (pending == 1) {
-                body = LocaleController.getString(R.string.GhostHoldFlushConfirmOne);
+                body = LocaleController.getString(holdOff ? R.string.GhostHoldFlushConfirmOneHoldOff : R.string.GhostHoldFlushConfirmOne);
             } else {
-                body = LocaleController.formatString(R.string.GhostHoldFlushConfirmMany, pending, chats);
+                body = LocaleController.formatString(holdOff ? R.string.GhostHoldFlushConfirmManyHoldOff : R.string.GhostHoldFlushConfirmMany, pending, chats);
             }
             AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
             builder.setTitle(LocaleController.getString(R.string.GhostHoldFlushConfirmTitle));
@@ -895,7 +917,7 @@ public final class GhostHoldController {
      * app-wide ForegroundDetector so no lifecycle hook is added to a base file. The
      * listener stays for the process lifetime: if the user dismisses the re-offered
      * dialog it defers again, and the next foreground re-offers once more. The retry
-     * is gated on Ghost being off -- while Ghost is on the backlog must stay held, so
+     * is gated on holding being off -- while it is active the backlog must stay held, so
      * there is nothing to flush and we skip the collect entirely.
      */
     private static void armForegroundRetry() {
@@ -912,7 +934,7 @@ public final class GhostHoldController {
             detector.addListener(new org.telegram.ui.Components.ForegroundDetector.Listener() {
                 @Override
                 public void onBecameForeground() {
-                    if (!NekoConfig.isGhostModeActive()) {
+                    if (!isHoldActive()) {
                         AndroidUtilities.runOnUIThread(GhostHoldController::promptFlush);
                     }
                 }
@@ -949,6 +971,11 @@ public final class GhostHoldController {
     }
 
     private static void restoreGhost() {
+        // Cancel means "keep holding", whichever switch went off. Turning Hold back on
+        // is a no-op when it was Ghost that went off.
+        if (!NekoConfig.holdMessagesWhileGhost.Bool()) {
+            NekoConfig.holdMessagesWhileGhost.setConfigBool(true);
+        }
         if (prefs().getBoolean(KEY_GHOST_SNAPSHOT_VALID, false)) {
             // Cancel means "keep holding". Re-activate Ghost by restoring the exact
             // per-toggle state captured while it was last active, writing back only the
@@ -967,7 +994,7 @@ public final class GhostHoldController {
             NekoConfig.setGhostMode(true);
         }
         // Re-seed the baseline so the next genuine ghost-off edge still fires.
-        prefs().edit().putBoolean(KEY_LAST_GHOST_ACTIVE, NekoConfig.isGhostModeActive()).apply();
+        prefs().edit().putBoolean(KEY_LAST_HOLD_ACTIVE, isHoldActive()).apply();
         NotificationCenter.getInstance(UserConfig.selectedAccount).postNotificationName(NotificationCenter.mainUserInfoChanged);
     }
 
@@ -990,7 +1017,7 @@ public final class GhostHoldController {
         final int all = items.size();
         final int pending = all;
         // Completion is observed, not timed: each item, whatever its fate (sent and
-        // cleaned, re-held because Ghost came back on, discarded because the user
+        // cleaned, re-held because holding resumed, discarded because the user
         // deleted it mid-stagger, or a stale orphan cleared) decrements this counter,
         // and only the item that brings it to zero releases the flush guard and
         // reports. An elapsed-time completion could fire while a paid-message dialog
@@ -1093,11 +1120,10 @@ public final class GhostHoldController {
     }
 
     private static void flushItem(HeldItem item, AtomicInteger remaining, int pending, int epoch, int session) {
-        // Re-check Ghost per item on the privacy invariant, which is about Ghost
-        // alone, not the hold preference: if Ghost came back on mid-flush this
-        // message must stay held even when Hold Messages was turned off in the same
-        // window (isHoldActive() would be false then and wrongly let it leak).
-        if (NekoConfig.isGhostModeActive()) {
+        // Re-check per item: if holding resumed mid-flush (Ghost back on with Hold
+        // on, or Hold switched back on) this message stays held. Hold off with Ghost
+        // on releases it -- the user confirmed exactly that.
+        if (isHoldActive()) {
             onItemTerminal(remaining, pending);
             return;
         }
@@ -1146,9 +1172,9 @@ public final class GhostHoldController {
             onItemTerminal(remaining, pending);
             return;
         }
-        // Ghost flipped back on during the re-read hop -> keep it held. Revert the
+        // Holding resumed during the re-read hop -> keep it held. Revert the
         // FLUSHING mark so it renders and re-drives cleanly on the next flush.
-        if (NekoConfig.isGhostModeActive()) {
+        if (isHoldActive()) {
             revertToHeld(account, mid, epoch, () -> onItemTerminal(remaining, pending));
             return;
         }
@@ -1255,7 +1281,7 @@ public final class GhostHoldController {
                     onItemTerminal(remaining, pending);
                     return;
                 }
-                if (NekoConfig.isGhostModeActive() || isPaidDialog(account, dialogId)) {
+                if (isHoldActive() || isPaidDialog(account, dialogId)) {
                     revertToHeld(account, mid, epoch, () -> onItemTerminal(remaining, pending));
                     return;
                 }
@@ -1437,7 +1463,7 @@ public final class GhostHoldController {
 
     /**
      * Reverts a record's FLUSHING mark back to HELD when the flush declined to send
-     * it (Ghost came back on, or the dialog became paid), then runs {@code onDone} on
+     * it (holding resumed, or the dialog became paid), then runs {@code onDone} on
      * the UI thread. The record stays visible in Scheduled and re-drives cleanly on
      * the next flush.
      */

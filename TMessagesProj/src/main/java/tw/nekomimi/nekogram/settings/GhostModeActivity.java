@@ -134,6 +134,8 @@ public class GhostModeActivity extends BaseNekoSettingsActivity implements Notif
         notifyRowChanged(sendUploadProgressRow, !isActive);
         notifyRowChanged(sendReadStoriesPacketsRow, !isActive);
         notifyRowChanged(sendOfflinePacketAfterOnlineRow, isActive);
+        // NagramX: a cancelled "Send held messages?" turns Hold back on behind this screen
+        notifyRowChanged(holdMessagesRow, null);
     }
 
     private void notifyRowChanged(int row, Object payload) {
@@ -204,8 +206,8 @@ public class GhostModeActivity extends BaseNekoSettingsActivity implements Notif
             ((TextCheckCell) view).setChecked(NekoConfig.markReadAfterSend.Bool());
             AyuState.setAllowReadPacket(false, -1);
         } else if (position == holdMessagesRow) {
-            NekoConfig.holdMessagesWhileGhost.toggleConfigBool();
-            ((TextCheckCell) view).setChecked(NekoConfig.holdMessagesWhileGhost.Bool());
+            // NagramX: switching Hold off now offers to send what is held, same as turning Ghost off
+            ((TextCheckCell) view).setChecked(com.dazewell.gram.ghosthold.GhostHoldController.toggleHoldMessages());
         } else if (position == sendWithoutSoundRow) {
             NaConfig.INSTANCE.getSilentMessageByDefault().toggleConfigBool();
             ((TextCheckCell) view).setChecked(NaConfig.INSTANCE.getSilentMessageByDefault().Bool());

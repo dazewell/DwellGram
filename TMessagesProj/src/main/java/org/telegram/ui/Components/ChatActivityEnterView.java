@@ -6261,6 +6261,25 @@ public class ChatActivityEnterView extends FrameLayout implements
             options.addGap();
         }
 
+        // NagramX (#ghost-hold): Hold Messages switch, offered only while Ghost is on (it does nothing
+        // otherwise). Switching it off dismisses the menu because a "Send held messages?" prompt may follow.
+        if (parentFragment != null && tw.nekomimi.nekogram.NekoConfig.isGhostModeActive()) {
+            Switch holdSwitch = new Switch(getContext(), resourcesProvider);
+            holdSwitch.setColors(Theme.key_switchTrack, Theme.key_switchTrackChecked, Theme.key_windowBackgroundWhite, Theme.key_windowBackgroundWhite);
+            holdSwitch.setChecked(tw.nekomimi.nekogram.NekoConfig.holdMessagesWhileGhost.Bool(), false);
+            LinearLayout holdRow = createPopupSwitchRow(R.drawable.ayu_ghost_solar, getString(R.string.GhostHoldSwitch), holdSwitch, true, 0);
+            holdRow.setOnClickListener(v -> {
+                boolean held = com.dazewell.gram.ghosthold.GhostHoldController.toggleHoldMessages();
+                holdSwitch.setChecked(held, true);
+                if (!held && messageSendPreview != null) {
+                    messageSendPreview.dismissInstant();
+                    messageSendPreview = null;
+                }
+            });
+            options.addView(holdRow, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
+            options.addGap();
+        }
+
         if (scheduleButtonValue) {
             options.addChecked(armedBeforeMenu == RememberedSendAction.SCHEDULE, R.drawable.msg_calendar2, getString(self ? R.string.SetReminder : R.string.ScheduleMessage), () -> {
                 // NagramX (#remember-send-action): re-read fresh, not armedBeforeMenu -- the Remember
