@@ -217,6 +217,10 @@ Selected scheduled messages show their pick number, which *Send Now* follows; *R
 <img height="260" alt="Message Triggers list showing armed triggers with their message-type and text conditions" src="docs/images/features/message-triggers-list.png" />
 <img height="260" alt="the Presets card listing one saved preset by name with a summary of its conditions, above a Save current as preset row" src="docs/images/features/trigger-presets-card.png" />
 
+### Countdown after scheduling <!-- #scheduled-countdown -->
+
+After you schedule a message, a bulletin says how long until it sends, such as *Sends in 3 days, 11 hours and 2 minutes*. When you schedule several at once, like an album or a forwarded set, it counts to the first. Always on.
+
 ### Remember the schedule offset <!-- #schedule-remember -->
 
 Tap the bookmark icon in the schedule picker to remember your schedule offset — new messages then default to that offset instead of 10 minutes ahead. Reschedule and Edit schedule pickers get the same delay slider, but keep opening on the message's existing time unless you drag it. Turn the bookmark off to revert to normal behavior.

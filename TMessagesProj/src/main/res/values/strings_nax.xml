@@ -941,4 +941,10 @@
     <string name="AlbumCaptionPerPhotoAbout">Each photo keeps its own caption. If only one has a caption, it shows under the album.</string>
     <!-- Round video front flash brightness slider #front-flash-brightness -->
     <string name="FrontFlashBrightness">Flash brightness</string>
+    <!-- Bulletin after scheduling, counting to the first send #scheduled-countdown -->
+    <string name="ScheduleCountdownOne">Scheduled. Sends in %1$s</string>
+    <string name="ScheduleCountdownFirst">Scheduled. The first sends in %1$s</string>
+    <string name="ScheduleCountdownUnderMinute">less than a minute</string>
+    <string name="ScheduleCountdownJoin2">%1$s and %2$s</string>
+    <string name="ScheduleCountdownJoin3">%1$s, %2$s and %3$s</string>
 </resources>
