@@ -152,14 +152,14 @@ no matching remote branch, open PR, or live session; remove label and explain.
 
 Use sibling worktree `..\NagramX-<slug>` for iterative features; main clone for
 one-shot CI/workflow tweaks, small fixes, tuning, or docs. When unsure, use a
-worktree. Hooks are shared.
+worktree. Hooks are shared; `post-checkout` fast-forwards a new worktree to the server's `origin/dev`.
 
 ```powershell
-git switch dev; git pull --ff-only origin dev          # trunk already carries upstream via the guarded sync
+git switch dev; git pull --ff-only origin dev          # trunk already carries upstream
 git config core.hooksPath .githooks                     # once per clone, if not set
 
 git switch -c <YYYY-MM-DD>_<slug> dev                   # in place: cut the change branch from the trunk
-git worktree add -b <YYYY-MM-DD>_<slug> ..\NagramX-<slug> dev   # or a sibling folder on the same fresh branch
+git worktree add -b <YYYY-MM-DD>_<slug> ..\NagramX-<slug> dev   # or a sibling worktree
 cd ..\NagramX-<slug>                                    # work here; the main clone stays on dev
 # ...nagramx-workflow steps: design review, hooks, compile, code review...
 ```

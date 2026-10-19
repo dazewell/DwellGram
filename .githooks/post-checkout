@@ -1,15 +1,48 @@
 #!/bin/sh
-# Give a fresh checkout (a new worktree or clone) the media submodule the
-# compile needs, from the shared local cache. See
-# .github/scripts/ensure-media-submodule.sh.
+# Prepare a fresh checkout (a new worktree or clone):
+#  1. fast-forward a branch with no commits of its own to the server's origin/dev,
+#     so it never starts from a stale local ref;
+#  2. give it the media submodule the compile needs, from the shared local cache
+#     (.github/scripts/ensure-media-submodule.sh). Second, so it sees the pin the
+#     fast-forward landed on.
 #
 # Enable once per clone:  git config core.hooksPath .githooks
-# Opt out for one checkout: NAX_NO_MEDIA_SUBMODULE=1 git worktree add ...
+# Opt out for one checkout by setting NAX_NO_DEV_SYNC=1 and/or
+# NAX_NO_MEDIA_SUBMODULE=1 around the `git worktree add`:
+#   sh:          NAX_NO_DEV_SYNC=1 git worktree add ...
+#   PowerShell:  $env:NAX_NO_DEV_SYNC='1'; git worktree add ...; Remove-Item Env:NAX_NO_DEV_SYNC
 
 # $1 is the all-zero object id only on the initial checkout; branch switches are left alone.
 case "$1" in
   *[!0]*) exit 0 ;;
 esac
+
+# Step 1 never fails the checkout: offline, a hung remote or a diverged branch
+# just leaves the branch where it is and says so on stderr. A branch that already
+# has commits (HEAD not an ancestor of origin/dev) is never moved; a detached
+# HEAD is a deliberate pin and is left alone.
+if [ "${NAX_NO_DEV_SYNC:-}" = "1" ]; then
+  echo "post-checkout: NAX_NO_DEV_SYNC=1; not syncing with origin/dev." >&2
+elif ! git symbolic-ref -q HEAD >/dev/null; then
+  echo "post-checkout: detached HEAD; not syncing with origin/dev." >&2
+else
+  export GIT_TERMINAL_PROMPT=0
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 60 git fetch --quiet origin dev
+  else
+    git fetch --quiet origin dev
+  fi
+  if [ $? -ne 0 ]; then
+    echo "post-checkout: could not fetch origin/dev; this branch may start behind the server ('git fetch origin dev', then 'git log HEAD..origin/dev')." >&2
+  elif ! git merge-base --is-ancestor HEAD refs/remotes/origin/dev; then
+    echo "post-checkout: branch has commits that are not on origin/dev; left where it is." >&2
+  else
+    git merge --quiet --ff-only refs/remotes/origin/dev >/dev/null 2>&1 \
+      && echo "post-checkout: at origin/dev ($(git rev-parse --short HEAD))." >&2 \
+      || echo "post-checkout: could not fast-forward to origin/dev; run 'git merge --ff-only origin/dev'." >&2
+  fi
+fi
+
 [ "${NAX_NO_MEDIA_SUBMODULE:-}" = "1" ] && exit 0
 
 script="$(git rev-parse --show-toplevel)/.github/scripts/ensure-media-submodule.sh"
