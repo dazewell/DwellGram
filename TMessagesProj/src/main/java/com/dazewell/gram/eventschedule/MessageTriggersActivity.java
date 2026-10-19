@@ -33,6 +33,8 @@ import org.telegram.SQLite.SQLiteDatabase;
 import org.telegram.tgnet.NativeByteBuffer;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
@@ -41,20 +43,24 @@ import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.UserCell;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.BulletinFactory;
-import org.telegram.ui.Components.ItemOptions;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.NumberTextView;
 import org.telegram.ui.Components.RecyclerListView;
+import org.telegram.ui.Components.RecyclerViewItemRangeSelector;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * Read-only list of every armed {@code #eventschedule} trigger for the current account, reached
- * by long-pressing the Chats nav button (see {@link MessageTriggersMenu}). Its whole reason to
+ * List of every armed {@code #eventschedule} trigger for the current account, reached by
+ * long-pressing the Chats nav button (see {@link MessageTriggersMenu}). Tap opens a trigger's
+ * chat; long-press starts a selection whose only action is removal. Its whole reason to
  * exist: after arming several messages on one trigger, this is the one place that tells the truth
  * about whether they are actually armed, without the user having to wait and see if they fire.
  *
@@ -95,17 +101,52 @@ public class MessageTriggersActivity extends BaseFragment {
     private record FooterItem() implements ListItem {
     }
 
+    private static final int ACTION_DELETE = 1;
+
     private RecyclerListView listView;
     private ListAdapter adapter;
     private TextView emptyView;
     private final ArrayList<ListItem> items = new ArrayList<>();
     private int loadRequestId;
 
+    /**
+     * Selected rows by entry.key(), not by position or entry instance: every reload rebuilds both,
+     * and the key is what EventScheduleStore.remove() acts on anyway. This fragment is bound to
+     * one account, so the key needs no account term here.
+     */
+    private final LinkedHashSet<String> selectedKeys = new LinkedHashSet<>();
+    private NumberTextView selectedCountView;
+    private RecyclerViewItemRangeSelector rangeSelector;
+    /** Which way the current hold-and-swipe paints: every row it crosses becomes this. */
+    private boolean dragSelects;
+
     @Override
     public View createView(Context context) {
         actionBar.setBackButtonImage(R.drawable.ic_ab_back);
         actionBar.setAllowOverlayTitle(true);
         actionBar.setTitle(LocaleController.getString(R.string.MessageTriggersTitle));
+        actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
+            @Override
+            public void onItemClick(int id) {
+                if (id == -1) {
+                    if (actionBar.isActionModeShowed()) {
+                        clearSelection();
+                    } else {
+                        finishFragment();
+                    }
+                } else if (id == ACTION_DELETE) {
+                    confirmRemoveSelected();
+                }
+            }
+        });
+        ActionBarMenu actionMode = actionBar.createActionMode();
+        selectedCountView = new NumberTextView(actionMode.getContext());
+        selectedCountView.setTextSize(18);
+        selectedCountView.setTypeface(AndroidUtilities.bold());
+        selectedCountView.setTextColor(Theme.getColor(Theme.key_actionBarActionModeDefaultIcon));
+        selectedCountView.setOnTouchListener((v, event) -> true);
+        actionMode.addView(selectedCountView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 72, 0, 0, 0));
+        actionMode.addItemWithWidth(ACTION_DELETE, R.drawable.msg_delete, AndroidUtilities.dp(54), LocaleController.getString(R.string.Delete));
 
         FrameLayout frameLayout = new FrameLayout(context);
         fragmentView = frameLayout;
@@ -115,26 +156,71 @@ public class MessageTriggersActivity extends BaseFragment {
         listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
         listView.setVerticalScrollBarEnabled(false);
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-        adapter = new ListAdapter(context, items);
+        adapter = new ListAdapter(context, items, selectedKeys);
         listView.setAdapter(adapter);
 
         listView.setOnItemClickListener((view, position) -> {
             if (position < 0 || position >= items.size() || !(items.get(position) instanceof RowItem row)) {
                 return;
             }
+            if (actionBar.isActionModeShowed()) {
+                setRowSelected(view, row, !selectedKeys.contains(row.entry().key()));
+                return;
+            }
             openScheduled(row.dialogId(), row.entry().serverIds.isEmpty() ? 0 : row.entry().serverIds.get(0));
         });
+        // Same hold-then-swipe as the photo picker: the long-press picks the first row and the
+        // direction (select, or deselect if it was already selected), then every row the finger
+        // crosses before lifting gets that same state.
         listView.setOnItemLongClickListener((view, position) -> {
             if (position < 0 || position >= items.size() || !(items.get(position) instanceof RowItem row)) {
                 return false;
             }
-            EventScheduleEntry entry = row.entry();
-            ItemOptions.makeOptions(this, view)
-                    .setScrimViewBackground(listView.getClipBackground(view))
-                    .add(R.drawable.msg_delete, LocaleController.getString(R.string.EventScheduleClear), true, () -> confirmRemove(entry))
-                    .show();
+            dragSelects = !selectedKeys.contains(row.entry().key());
+            rangeSelector.setIsActive(view, true, position, dragSelects);
             return true;
         });
+        rangeSelector = new RecyclerViewItemRangeSelector(new RecyclerViewItemRangeSelector.RecyclerViewItemRangeSelectorDelegate() {
+            @Override
+            public int getItemCount() {
+                return items.size();
+            }
+
+            // Resolves the row from the view rather than the index: setIsActive() passes the
+            // *previous* drag's start index alongside the newly pressed view (upstream quirk,
+            // RecyclerViewItemRangeSelector.setIsActive), and the view is the one that's right.
+            @Override
+            public void setSelected(View view, int index, boolean selected) {
+                if (selected != dragSelects || view == null) {
+                    return;
+                }
+                int position = listView.getChildAdapterPosition(view);
+                if (position >= 0 && position < items.size() && items.get(position) instanceof RowItem row) {
+                    setRowSelected(view, row, selected);
+                }
+            }
+
+            @Override
+            public boolean isSelected(int index) {
+                return index >= 0 && index < items.size() && items.get(index) instanceof RowItem row
+                        && selectedKeys.contains(row.entry().key());
+            }
+
+            @Override
+            public boolean isIndexSelectable(int index) {
+                return index >= 0 && index < items.size() && items.get(index) instanceof RowItem;
+            }
+
+            @Override
+            public void onStartStopSelection(boolean start) {
+                if (start && parentLayout != null && parentLayout.getView() != null) {
+                    // Keeps the swipe-back gesture from stealing a sideways drift mid-drag.
+                    parentLayout.getView().requestDisallowInterceptTouchEvent(true);
+                }
+                listView.hideSelector(true);
+            }
+        });
+        listView.addOnItemTouchListener(rangeSelector);
 
         emptyView = new TextView(context);
         emptyView.setText(LocaleController.getString(R.string.MessageTriggersEmpty));
@@ -155,6 +241,53 @@ public class MessageTriggersActivity extends BaseFragment {
     public void onResume() {
         super.onResume();
         reloadData();
+    }
+
+    @Override
+    public boolean onBackPressed(boolean invoked) {
+        if (actionBar != null && actionBar.isActionModeShowed()) {
+            if (invoked) {
+                clearSelection();
+            }
+            return false;
+        }
+        return super.onBackPressed(invoked);
+    }
+
+    private void setRowSelected(View view, @NonNull RowItem row, boolean selected) {
+        String key = row.entry().key();
+        if (selected ? !selectedKeys.add(key) : !selectedKeys.remove(key)) {
+            return;
+        }
+        if (view instanceof UserCell cell) {
+            cell.setChecked(selected, true);
+        }
+        updateSelectionMode();
+    }
+
+    private void clearSelection() {
+        selectedKeys.clear();
+        for (int i = 0, n = listView.getChildCount(); i < n; i++) {
+            if (listView.getChildAt(i) instanceof UserCell cell) {
+                cell.setChecked(false, true);
+            }
+        }
+        updateSelectionMode();
+    }
+
+    /** Shows, updates or hides the count-and-delete bar to match selectedKeys. */
+    private void updateSelectionMode() {
+        if (selectedKeys.isEmpty()) {
+            if (actionBar.isActionModeShowed()) {
+                actionBar.hideActionMode();
+            }
+            return;
+        }
+        boolean wasShowing = actionBar.isActionModeShowed();
+        if (!wasShowing) {
+            actionBar.showActionMode();
+        }
+        selectedCountView.setNumber(selectedKeys.size(), wasShowing);
     }
 
     private void openScheduled(long dialogId, int messageId) {
@@ -254,15 +387,24 @@ public class MessageTriggersActivity extends BaseFragment {
      * from the store with serverIds unchanged. Asking first, then only ever removing, sidesteps
      * that distinction instead of trying to make it.
      */
-    private void confirmRemove(@NonNull EventScheduleEntry entry) {
-        if (getParentActivity() == null) {
+    private void confirmRemoveSelected() {
+        if (getParentActivity() == null || selectedKeys.isEmpty()) {
             return;
         }
+        // Snapshot now: the selection can still change (a reload pruning a fired row) while the
+        // dialog is up, and the user confirmed the count they were shown.
+        final ArrayList<String> keys = new ArrayList<>(selectedKeys);
+        int count = keys.size();
         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-        builder.setTitle(LocaleController.getString(R.string.EventScheduleClear));
-        builder.setMessage(LocaleController.getString(R.string.MessageTriggersRemoveConfirm));
+        if (count == 1) {
+            builder.setTitle(LocaleController.getString(R.string.EventScheduleClear));
+            builder.setMessage(LocaleController.getString(R.string.MessageTriggersRemoveConfirm));
+        } else {
+            builder.setTitle(LocaleController.formatPluralString("MessageTriggersRemoveCount", count));
+            builder.setMessage(LocaleController.getString(R.string.MessageTriggersRemoveSelectedConfirm));
+        }
         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
-        builder.setPositiveButton(LocaleController.getString(R.string.Remove), (dialog, which) -> removeEntry(entry));
+        builder.setPositiveButton(LocaleController.getString(R.string.Remove), (dialog, which) -> removeEntries(keys));
         showDialog(builder.create());
     }
 
@@ -272,30 +414,35 @@ public class MessageTriggersActivity extends BaseFragment {
      * bulletin only ever confirms a removal, never offers to reverse a send that may already be at
      * the server.
      */
-    private void removeEntry(@NonNull EventScheduleEntry entry) {
+    private void removeEntries(@NonNull ArrayList<String> keys) {
         int account = getCurrentAccount();
-        EventScheduleStore.remove(account, entry);
-        // NagramX: strip the row now, synchronously -- reloadData() below is async (it hops
-        // through the storage queue), and leaving a confirmed-removed row in place until it
-        // returns would let it be tapped or long-pressed again during that gap.
-        removeRowSynchronously(entry);
+        for (String key : keys) {
+            EventScheduleStore.remove(account, key);
+            // NagramX: strip the row now, synchronously -- reloadData() below is async (it hops
+            // through the storage queue), and leaving a confirmed-removed row in place until it
+            // returns would let it be tapped or long-pressed again during that gap.
+            removeRowSynchronously(key);
+        }
+        clearSelection();
         reloadData();
-        BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete, LocaleController.getString(R.string.MessageTriggersRemoved)).show();
+        String text = keys.size() == 1
+                ? LocaleController.getString(R.string.MessageTriggersRemoved)
+                : LocaleController.formatPluralString("MessageTriggersRemovedCount", keys.size());
+        BulletinFactory.of(this).createSimpleBulletin(R.raw.ic_delete, text).show();
     }
 
     /**
      * Also drops the group's HeaderItem if this was its only row -- otherwise a lone header with
      * nothing under it would sit there until the async reload catches up.
      *
-     * Compares by entry.key(), not object identity: a reload between the long-press (which
-     * captured this EventScheduleEntry) and the confirm click rebuilds fresh entry instances with
-     * the same key, and reference equality would silently fail to find the row, leaving it
-     * tappable until the async reload lands.
+     * Compares by entry.key(), not object identity: a reload between the selection and the
+     * confirm click rebuilds fresh entry instances with the same key, and reference equality
+     * would silently fail to find the row, leaving it tappable until the async reload lands.
      */
-    private void removeRowSynchronously(@NonNull EventScheduleEntry entry) {
+    private void removeRowSynchronously(@NonNull String key) {
         int rowIndex = -1;
         for (int i = 0; i < items.size(); i++) {
-            if (items.get(i) instanceof RowItem row && row.entry().key().equals(entry.key())) {
+            if (items.get(i) instanceof RowItem row && row.entry().key().equals(key)) {
                 rowIndex = i;
                 break;
             }
@@ -589,6 +736,15 @@ public class MessageTriggersActivity extends BaseFragment {
         if (!items.isEmpty()) {
             items.add(new FooterItem());
         }
+        // A selected trigger that fired or was removed elsewhere since the last load is gone from
+        // the rows, so it leaves the selection too -- Delete must never count a row you can't see.
+        HashSet<String> liveKeys = new HashSet<>();
+        for (EventScheduleEntry entry : live) {
+            liveKeys.add(entry.key());
+        }
+        if (selectedKeys.retainAll(liveKeys)) {
+            updateSelectionMode();
+        }
         adapter.notifyDataSetChanged();
         updateEmptyView();
     }
@@ -655,7 +811,7 @@ public class MessageTriggersActivity extends BaseFragment {
     /**
      * Chat name (GraySectionCell) plus this group's trigger, styled with the same rounded-rect
      * chip recipe EventScheduleHelper.addTriggerRow uses for the schedule sheet -- deliberately
-     * not clickable, this page is read-only and per-row/chip editing is out of scope for it.
+     * not clickable, the page never edits a trigger (it only opens or removes one).
      */
     private static class TriggerGroupHeaderCell extends LinearLayout {
         private final GraySectionCell sectionCell;
@@ -701,10 +857,12 @@ public class MessageTriggersActivity extends BaseFragment {
 
         private final Context context;
         private final ArrayList<ListItem> items;
+        private final Set<String> selectedKeys;
 
-        ListAdapter(Context context, ArrayList<ListItem> items) {
+        ListAdapter(Context context, ArrayList<ListItem> items, Set<String> selectedKeys) {
             this.context = context;
             this.items = items;
+            this.selectedKeys = selectedKeys;
         }
 
         @Override
@@ -733,7 +891,7 @@ public class MessageTriggersActivity extends BaseFragment {
                 cell.setText(LocaleController.getString(R.string.MessageTriggersFooter));
                 return new RecyclerListView.Holder(cell);
             }
-            return new RecyclerListView.Holder(new UserCellNoBadge(context, 8, 0, false));
+            return new RecyclerListView.Holder(new UserCellNoBadge(context, 8, 1, false));
         }
 
         @Override
@@ -746,6 +904,7 @@ public class MessageTriggersActivity extends BaseFragment {
                 cell.bind(header.chatTitle(), header.triggerSummary());
             } else if (item instanceof RowItem row && holder.itemView instanceof UserCell cell) {
                 cell.setData(row.peer(), row.brief(), row.timeline(), 0, row.divider());
+                cell.setChecked(selectedKeys.contains(row.entry().key()), false);
             }
         }
 
