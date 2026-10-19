@@ -58,8 +58,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Read-only list of every armed {@code #eventschedule} trigger for the current account, reached
- * by long-pressing the Chats nav button (see {@link MessageTriggersMenu}). Its whole reason to
+ * List of every armed {@code #eventschedule} trigger for the current account, reached by
+ * long-pressing the Chats nav button (see {@link MessageTriggersMenu}). Tap opens a trigger's
+ * chat; long-press starts a selection whose only action is removal. Its whole reason to
  * exist: after arming several messages on one trigger, this is the one place that tells the truth
  * about whether they are actually armed, without the user having to wait and see if they fire.
  *
@@ -810,7 +811,7 @@ public class MessageTriggersActivity extends BaseFragment {
     /**
      * Chat name (GraySectionCell) plus this group's trigger, styled with the same rounded-rect
      * chip recipe EventScheduleHelper.addTriggerRow uses for the schedule sheet -- deliberately
-     * not clickable, this page is read-only and per-row/chip editing is out of scope for it.
+     * not clickable, the page never edits a trigger (it only opens or removes one).
      */
     private static class TriggerGroupHeaderCell extends LinearLayout {
         private final GraySectionCell sectionCell;
