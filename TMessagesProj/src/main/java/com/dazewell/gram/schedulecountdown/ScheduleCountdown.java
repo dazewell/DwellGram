@@ -126,6 +126,14 @@ public final class ScheduleCountdown {
         onScheduled(account, date, 1);
     }
 
+    /**
+     * A reschedule the server refused as not modified. Only the date (and repeat period) was sent, so "not modified" is
+     * the server saying it already stores {@code scheduleDate}; counting to it is still counting to the server's date.
+     */
+    public static void onRescheduleUnchanged(int account, int scheduleDate) {
+        onScheduled(account, scheduleDate, 1);
+    }
+
     private static int serverDate(TLRPC.Update update, int messageId) {
         TLRPC.Message message = null;
         // A scheduled edit comes back as a new scheduled message; the edit types are accepted in case that changes.

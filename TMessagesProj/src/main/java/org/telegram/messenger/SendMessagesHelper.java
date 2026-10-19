@@ -3562,6 +3562,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 if (scheduleDate != 0) com.dazewell.gram.schedulecountdown.ScheduleCountdown.onRescheduled(currentAccount, req.id, response);
                 getMessagesController().processUpdates((TLRPC.Updates) response, false);
             } else {
+                // NagramX: rescheduling to the time it already has is refused as not modified, which means the server holds exactly that date
+                if (scheduleDate != 0 && "MESSAGE_NOT_MODIFIED".equals(error.text)) com.dazewell.gram.schedulecountdown.ScheduleCountdown.onRescheduleUnchanged(currentAccount, scheduleDate);
                 AndroidUtilities.runOnUIThread(() -> AlertsCreator.processError(currentAccount, error, fragment, req));
             }
         });
