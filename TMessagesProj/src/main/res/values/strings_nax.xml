@@ -693,6 +693,11 @@
     <string name="MessageTriggersEmpty">Nothing here yet. A trigger you just armed can take a few seconds to show up</string>
     <string name="MessageTriggersRemoved">Trigger removed</string>
     <string name="MessageTriggersRemoveConfirm">Remove this trigger? It won\'t fire again, but a message it already sent won\'t be undone.</string>
+    <string name="MessageTriggersRemoveCount_one">Remove %1$d trigger?</string>
+    <string name="MessageTriggersRemoveCount_other">Remove %1$d triggers?</string>
+    <string name="MessageTriggersRemoveSelectedConfirm">They won\'t fire again, but messages they already sent won\'t be undone.</string>
+    <string name="MessageTriggersRemovedCount_one">%1$d trigger removed</string>
+    <string name="MessageTriggersRemovedCount_other">%1$d triggers removed</string>
     <string name="MessageTriggersUnavailable">Message unavailable</string>
     <string name="MessageTriggersAnyMoment">Any moment now</string>
     <string name="MessageTriggersFooter">Everything listed here is armed and will fire on its own. If you just armed something — especially a video that\'s still uploading — it can take a few seconds to appear while its send confirmation comes back from the server.</string>
