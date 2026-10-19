@@ -210,7 +210,7 @@ Select text in a message and tap *Cite* to drop it into your input box as a quot
 
 ### Scheduled message triggers <!-- #reschedule --> <!-- #eventschedule --> <!-- #reschedule-order -->
 
-Selected scheduled messages show their pick number, which *Send Now* follows; *Reschedule* spreads them from a base time and interval, in pick or current order. *Send on event* arms from the schedule picker or *Reschedule*: one trigger watches message type, text, or both, and sends early while each keeps its fallback schedule. Presets save setups. Armed triggers live under Chats nav ⋯ → *Message Triggers*; tap one to jump there.
+Selected scheduled messages show pick numbers, which *Send Now* follows; *Reschedule* spreads them from a base time and interval, in pick or current order. *Send on event* arms from the schedule picker or *Reschedule*: one trigger watches message type, text, or both, and sends early, each keeping its fallback schedule. Presets save setups. Chats nav ⋯ → *Message Triggers* lists armed triggers: tap to jump there; hold, swipe to select, then delete.
 
 <img height="260" alt="bulk Reschedule sheet with a base time, per-message interval, and a delay slider" src="docs/images/features/reschedule.png" />
 <img height="260" alt="Send on event trigger editor with By message type and Or by text collapsible sections" src="docs/images/features/trigger-editor.png" />
