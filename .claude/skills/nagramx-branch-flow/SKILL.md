@@ -152,41 +152,41 @@ no matching remote branch, open PR, or live session; remove label and explain.
 
 Use sibling worktree `..\NagramX-<slug>` for iterative features; main clone for
 one-shot CI/workflow tweaks, small fixes, tuning, or docs. When unsure, use a
-worktree. Hooks are shared.
+worktree. Hooks are shared; local `dev` can lag the server, so `post-checkout`
+fetches and fast-forwards a new worktree with no commits of its own to
+`origin/dev` (`NAX_NO_DEV_SYNC=1` opts out). Hooks off: `git fetch origin dev;
+git merge --ff-only origin/dev` before editing.
 
 ```powershell
-git switch dev; git pull --ff-only origin dev          # trunk already carries upstream via the guarded sync
+git switch dev; git pull --ff-only origin dev          # trunk already carries upstream
 git config core.hooksPath .githooks                     # once per clone, if not set
 
 git switch -c <YYYY-MM-DD>_<slug> dev                   # in place: cut the change branch from the trunk
-git worktree add -b <YYYY-MM-DD>_<slug> ..\NagramX-<slug> dev   # or a sibling folder on the same fresh branch
+git worktree add -b <YYYY-MM-DD>_<slug> ..\NagramX-<slug> dev   # or a sibling worktree
 cd ..\NagramX-<slug>                                    # work here; the main clone stays on dev
 # ...nagramx-workflow steps: design review, hooks, compile, code review...
 ```
 
-`FEATURES.md` rides in the same branch. Before self-managed worktree removal
-(`git worktree remove ..\NagramX-<slug>` from the main clone, then
-`git worktree prune`), stop/verify processes per `nagramx-process-lifecycle`;
-app-managed worktrees use only `archive_session`.
+`FEATURES.md` rides in the same branch. Before removing a self-managed worktree
+(`git worktree remove`, then `git worktree prune`, from the main clone), verify
+processes per `nagramx-process-lifecycle`; app-managed ones use `archive_session`.
 
 ## PR, builds, and review
 
-User-visible features open non-draft PRs into `dev` by default; CI/bug/chore PRs
-are optional.
+User-visible features open non-draft PRs into `dev`; CI/bug/chore PRs are optional.
 
 ```powershell
 gh pr create --base dev --head <YYYY-MM-DD>_<slug> --title "<title>" --body "<body>"
 ```
 
 `ci.yml` compiles every PR push and is the no-local-tools gate; say so in the
-body. `process-rules.yml` also runs. Prefer `build-apk`: it builds the PR merge ref
-(`dev` + branch), uploads a signed dual test build, and auto-removes itself.
+body. Prefer `build-apk`: it builds the PR merge ref (`dev` + branch), uploads a
+signed dual test build, and auto-removes itself.
 
 If labelling produces **no run at all** — not a skipped one — check
 `mergeable_state`: `dirty` means there is no merge ref to build. Merge
-`origin/dev` **into the feature branch**, push, re-label. The one case that
-overrides "do not catch up feature branches" above: nothing builds until it is
-resolved.
+`origin/dev` **into the feature branch**, push, re-label; the one exception to
+"do not catch up feature branches" above.
 
 Manual `workflow_dispatch` builds branch head as-is; use only if label fails,
 after:
@@ -195,8 +195,8 @@ after:
 git diff --name-only origin/<branch>...origin/dev -- 'TMessagesProj/src'
 ```
 
-Empty means dispatch is app-source equivalent; non-empty means merge `dev` first.
-Report trigger/ref. A workflow that never ran is not a pass.
+Empty: dispatch is app-source equivalent; non-empty: merge `dev` first. Report
+trigger/ref. A workflow that never ran is not a pass.
 
 Request behaviour verification only after review is clean. A UI-facing change
 also gets one earlier smoke build after compile, for reachability only.
@@ -206,11 +206,9 @@ round 2 has cleared and `ci.yml` is green on the head SHA, via the
 `request_copilot_review` tool or its script,
 `.github/scripts/request-copilot-review.ps1 -PullRequest <n> -Wait`. **Two per
 PR**, the second only after fixing an Important-or-above finding; none on doc-
-or process-only PRs unless dazewell asks. The script enforces this; never
-hand-roll the request.
+or process-only PRs unless dazewell asks. The script enforces this.
 
-Close every review point: fix or reply why not,
-resolve, verify none remain.
+Close every review point: fix or reply why not, resolve, verify none remain.
 
 ## Follow-up commits
 

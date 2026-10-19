@@ -1,18 +1,31 @@
 #!/bin/sh
-# Give a fresh checkout (a new worktree or clone) the media submodule the
-# compile needs, from the shared local cache. See
-# .github/scripts/ensure-media-submodule.sh.
+# Prepare a fresh checkout (a new worktree or clone):
+#  1. fast-forward a branch with no commits of its own to the server's
+#     origin/dev, so it never starts from a stale local ref
+#     (.github/scripts/sync-new-branch-with-dev.sh);
+#  2. give it the media submodule the compile needs, from the shared local
+#     cache (.github/scripts/ensure-media-submodule.sh). Second, so it sees the
+#     pin the fast-forward landed on.
 #
 # Enable once per clone:  git config core.hooksPath .githooks
-# Opt out for one checkout: NAX_NO_MEDIA_SUBMODULE=1 git worktree add ...
+# Opt out for one checkout: NAX_NO_MEDIA_SUBMODULE=1 and/or NAX_NO_DEV_SYNC=1
+#   in front of the `git worktree add`.
 
 # $1 is the all-zero object id only on the initial checkout; branch switches are left alone.
 case "$1" in
   *[!0]*) exit 0 ;;
 esac
+
+top="$(git rev-parse --show-toplevel)"
+
+if [ "${NAX_NO_DEV_SYNC:-}" != "1" ]; then
+  script="$top/.github/scripts/sync-new-branch-with-dev.sh"
+  [ -f "$script" ] && { sh "$script" || true; }
+fi
+
 [ "${NAX_NO_MEDIA_SUBMODULE:-}" = "1" ] && exit 0
 
-script="$(git rev-parse --show-toplevel)/.github/scripts/ensure-media-submodule.sh"
+script="$top/.github/scripts/ensure-media-submodule.sh"
 [ -f "$script" ] || exit 0
 sh "$script" || echo "post-checkout: media submodule not set up; the compile fails until 'sh .github/scripts/ensure-media-submodule.sh' succeeds." >&2
 exit 0
