@@ -263,19 +263,18 @@ public final class VideoNoteShortcut {
     // saved, so a crash, a kill or a trip to the background still lands on the passcode, and isWaitingForPasscodeEnter
     // sends every other intent through the passcode gate, which ends the session. Any showPasscodeActivity, whoever
     // calls it, ends the session too (onPasscodeShown). Everything else below only decides when to lock early, and
-    // whether to also step back to the launcher: only a deliberate send or discard does (lockAndLeave). A stall, a back
-    // press or anything that tried to leave the memo stays on the passcode, which tells the user why it ended.
+    // whether to also step back to the launcher: a send, a discard or a back press does (lockAndLeave, lockAndClose).
+    // A stall or anything that tried to leave the memo some other way stays on the passcode, which tells the user why it
+    // ended.
 
     private static final int IDLE = 0;
     private static final int STARTING = 1;   // gate passed, the memo's chat is opening
     private static final int RECORDING = 2;  // camera open, or its clip sitting in the preview
-    private static final int FINALIZING = 3; // stopped by us, waiting for the clip to land in the preview (and the draft store)
     private static final int SENDING = 4;    // send requested, waiting for the clip to reach SendMessagesHelper
 
     private static final long POLL_MS = 250;
     private static final long START_TIMEOUT_MS = 5_000;
     private static final long IDLE_GRACE_MS = 2_000;
-    private static final long FINALIZE_TIMEOUT_MS = 3_000;
     private static final long SEND_TIMEOUT_MS = 10_000;
 
     private static int phase = IDLE;
@@ -286,6 +285,12 @@ public final class VideoNoteShortcut {
     private static final Runnable poll = VideoNoteShortcut::poll;
     private static final Runnable leave = VideoNoteShortcut::lockAndLeave;
     private static final long LEAVE_DELAY_MS = 220; // the fade below, plus a margin
+    private static final long MIN_CLIP_MS = 800; // InstantCameraView.send drops anything shorter, so no preview ever binds
+    // The memo chat a back press left behind, closed once its clip is safe (closeWhenSafe)
+    private static WeakReference<ChatActivity> closingChat;
+    private static boolean closingWaitsForClip;
+    private static long closingSince;
+    private static final Runnable close = VideoNoteShortcut::closeTick;
 
     private static void setPhase(int newPhase) {
         phase = newPhase;
@@ -312,6 +317,8 @@ public final class VideoNoteShortcut {
         SharedConfig.isWaitingForPasscodeEnter = true;
         SharedConfig.saveConfig();
         setPhase(STARTING);
+        AndroidUtilities.cancelRunOnUIThread(close); // a new memo may reuse the chat the last one is still closing
+        closingChat = null;
         AndroidUtilities.cancelRunOnUIThread(poll);
         AndroidUtilities.runOnUIThread(poll, POLL_MS);
         activity.hidePasscodeForVideoNote();
@@ -358,33 +365,74 @@ public final class VideoNoteShortcut {
     // The passcode is up (and the lock saved) before the task goes back, so recents shows the passcode, not the chat.
     // moveTaskToBack only stops the activity; the send or discard is already handed over by the time this is called.
     private static void lockAndLeave() {
-        LaunchActivity activity = LaunchActivity.instance;
         ChatActivity chat = sessionChat != null ? sessionChat.get() : null;
-        lockNow();
-        if (activity != null && !activity.isFinishing()) {
-            activity.moveTaskToBack(true);
-        }
+        lockAndMinimize();
         // Left on the stack, the memo's chat would be the first thing the unlock shows, and showing it reads it. Posted,
         // because this can run from inside the chat's own send. Only on a send or discard: a clip kept for later
         // waits in this chat's preview.
         if (chat != null) {
             AndroidUtilities.runOnUIThread(() -> {
-                if (phase == IDLE && !chat.isFinished && chat.isLastFragment() && chat.getParentLayout() != null
-                        && chat.getParentLayout().getFragmentStack().size() > 1) {
+                if (phase == IDLE && canClose(chat)) {
                     chat.finishFragment(false);
                 }
             });
         }
     }
 
-    // Back while the camera is live: stop into the preview first and lock once the clip is safely bound, so a quick
-    // fingerprint unlock can't race the finalize.
-    private static void lockKeepingClip(ChatActivity chat) {
-        if (phase == RECORDING && chat.finalizeRoundVideoForLock()) {
-            setPhase(FINALIZING);
-        } else if (phase != FINALIZING) {
-            lockNow();
+    // A memo chat that is the only fragment (a cold start) stays open: closing it would close the app's last screen
+    private static boolean canClose(ChatActivity chat) {
+        return !chat.isFinished && chat.isLastFragment() && chat.getParentLayout() != null
+                && chat.getParentLayout().getFragmentStack().size() > 1;
+    }
+
+    private static void lockAndMinimize() {
+        LaunchActivity activity = LaunchActivity.instance;
+        lockNow();
+        if (activity != null && !activity.isFinishing()) {
+            activity.moveTaskToBack(true);
         }
+    }
+
+    // Back keeps the clip: the lock stops a live recording into the preview (onPasscodeShown), and that preview is also
+    // where the draft store saves it, in the same call. So the chat closes as soon as a preview is bound, or at once if no
+    // clip is coming. Closed any earlier, the clip would land in a destroyed composer and be lost. The chat is left open,
+    // as the fallback, if the wait outlasts SEND_TIMEOUT_MS or the user unlocks first. An unlock that beats the finalize
+    // also rebuilds the chat and leaves the clip as an orphan on disk; that race is accepted, since it needs a relaunch.
+    private static void lockAndClose(ChatActivity chat) {
+        ChatActivityEnterView enterView = chat.getChatActivityEnterView();
+        boolean live = chat.instantCameraView != null && chat.instantCameraView.isRecording();
+        // Certain to be dropped: a camera still opening (onPasscodeShown cancels it), or a live clip younger than
+        // MIN_CLIP_MS, which phaseSince bounds since it marks the camera starting to open. A stop or pause has already
+        // cleared isRecordingAudioVideo, so its finalize still counts as coming.
+        boolean dropped = enterView != null && enterView.isRecordingAudioVideo()
+                && (!live || SystemClock.elapsedRealtime() - phaseSince < MIN_CLIP_MS);
+        // A recording phase without a bound preview has a clip on its way: live, stopped, or paused and finalizing
+        boolean clipComing = phase == RECORDING && !dropped && (enterView == null || !enterView.hasVideoToSend());
+        lockAndMinimize();
+        closingChat = new WeakReference<>(chat);
+        closingWaitsForClip = clipComing;
+        closingSince = SystemClock.elapsedRealtime();
+        AndroidUtilities.cancelRunOnUIThread(close);
+        AndroidUtilities.runOnUIThread(close); // posted: never finish the chat from inside its own onBackPressed
+    }
+
+    private static void closeTick() {
+        ChatActivity chat = closingChat != null ? closingChat.get() : null;
+        if (chat == null || phase != IDLE || !SharedConfig.appLocked || !canClose(chat)) {
+            closingChat = null; // gone, a new memo started, or the user unlocked and may be looking at it
+            return;
+        }
+        ChatActivityEnterView enterView = chat.getChatActivityEnterView(); // an unlock rebuild replaces it, so read it fresh
+        if (!closingWaitsForClip || enterView != null && enterView.hasVideoToSend()) {
+            closingChat = null;
+            chat.finishFragment(false);
+            return;
+        }
+        if (SystemClock.elapsedRealtime() - closingSince > SEND_TIMEOUT_MS) {
+            closingChat = null; // a slow finalize may still land here: leave the chat rather than lose the clip
+            return;
+        }
+        AndroidUtilities.runOnUIThread(close, POLL_MS);
     }
 
     /** ChatActivity.createView, right after the input container is added. */
@@ -503,7 +551,7 @@ public final class VideoNoteShortcut {
             setPhase(RECORDING);
         } else if (state == 3) {
             stopRequested = true;
-        } else if ((state == 1 || state == 4) && (phase == RECORDING || phase == FINALIZING)) {
+        } else if ((state == 1 || state == 4) && phase == RECORDING) {
             setPhase(SENDING);
         } else if (state == 2 || state == 5) {
             lockAndLeave(); // a lock's own cancel echoes here too, but onPasscodeShown has already ended the session
@@ -512,7 +560,7 @@ public final class VideoNoteShortcut {
 
     /** ChatActivity.sendMedia, once the clip has been handed to SendMessagesHelper. Ends the memo on the launcher. */
     public static void onMediaSent(ChatActivity chat) {
-        if (isSessionChat(chat) && (phase == RECORDING || phase == FINALIZING || phase == SENDING)) {
+        if (isSessionChat(chat) && (phase == RECORDING || phase == SENDING)) {
             // The round video fades first: the passcode would cover it. The lock is already saved,
             // so the wait fails closed, and any other lock cancels the pending leave (onPasscodeShown).
             if (chat.instantCameraView != null && org.telegram.messenger.SharedConfig.animationsEnabled() && AndroidUtilities.getAnimatorDurationScale() > 0 && AndroidUtilities.shouldEnableAnimation()) {
@@ -532,7 +580,7 @@ public final class VideoNoteShortcut {
             return false;
         }
         if (invoked) {
-            lockKeepingClip(chat);
+            lockAndClose(chat);
         }
         return true;
     }
@@ -573,10 +621,6 @@ public final class VideoNoteShortcut {
             ChatActivityEnterView enterView = chat.getChatActivityEnterView();
             boolean recording = enterView != null && enterView.isRecordingAudioVideo();
             boolean preview = enterView != null && enterView.hasVideoToSend();
-            if (phase == FINALIZING && (preview || !recording && age > FINALIZE_TIMEOUT_MS)) {
-                lockNow();
-                return;
-            }
             if (phase == SENDING && age > SEND_TIMEOUT_MS) {
                 lockNow();
                 return;
