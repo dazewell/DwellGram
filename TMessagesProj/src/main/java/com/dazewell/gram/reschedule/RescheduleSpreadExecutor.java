@@ -375,6 +375,15 @@ public final class RescheduleSpreadExecutor {
             clearArmSerial(currentAccount, dialogId, serial);
             final int[] movedDates = moveListener != null
                     ? confirmedDates(targets, failedIds, serverDates, authoritative, rejected) : null;
+            // The countdown only ever comes from the read-back, never from the times we asked for.
+            int earliest = 0;
+            if (authoritative && wrongFinal == 0) {
+                for (Target t : targets) {
+                    int d = serverDates.get(t.id, 0);
+                    if (d > 0 && (earliest == 0 || d < earliest)) earliest = d;
+                }
+            }
+            final int earliestFinal = earliest;
             AndroidUtilities.runOnUIThread(() -> {
                 // Before the fragment check: the trigger store has to follow the move even when the
                 // chat was closed mid-run, or a later reload prunes the trigger on its old time.
@@ -396,7 +405,10 @@ public final class RescheduleSpreadExecutor {
                     return;
                 }
                 if (wrongFinal == 0) {
-                    BulletinFactory.of(fragment).createSimpleBulletin(R.raw.chats_infotip, LocaleController.formatPluralString("RescheduleApplied", total)).show();
+                    String in = com.dazewell.gram.schedulecountdown.ScheduleCountdown.describeIn(currentAccount, earliestFinal);
+                    BulletinFactory.of(fragment).createSimpleBulletin(R.raw.chats_infotip, in != null
+                            ? LocaleController.formatPluralString("RescheduleAppliedCountdown", total, in)
+                            : LocaleController.formatPluralString("RescheduleApplied", total)).show();
                 } else {
                     BulletinFactory.of(fragment).createSimpleBulletin(R.raw.error, LocaleController.formatString(R.string.RescheduleVerifyFailed, wrongFinal, total)).show();
                 }

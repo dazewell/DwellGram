@@ -2639,7 +2639,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     getMessagesStorage().putMessages(new ArrayList<>(arr), false, true, false, 0, scheduleDate != 0 ? 1 : 0, 0);
                     getMessagesController().updateInterfaceWithMessages(peer, objArr, scheduleDate != 0 ? 1 : 0);
                     // NagramX: at the insert rather than method entry, which the paid-message confirmation re-enters
-                    com.dazewell.gram.schedulecountdown.ScheduleCountdown.onScheduled(currentAccount, scheduleDate, objArr.size());
+                    com.dazewell.gram.schedulecountdown.ScheduleCountdown.arm(currentAccount, scheduleDate, objArr);
                     getNotificationCenter().postNotificationName(NotificationCenter.dialogsNeedReload);
                     getUserConfig().saveConfig(false);
 
@@ -2787,6 +2787,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                                             int existFlags = msgObj1.getMediaExistanceFlags();
                                             newMsgObj1.id = message.id;
                                             sentCount++;
+                                            // NagramX: the server's own date; a reply that is no longer scheduled was sent straight away
+                                            com.dazewell.gram.schedulecountdown.ScheduleCountdown.confirmed(currentAccount, oldId, currentSchedule ? message.date : 0);
 
                                             if (scheduled != currentSchedule) {
                                                 final int fromMode = scheduled ? ChatActivity.MODE_SCHEDULED : 0;
@@ -3556,8 +3558,12 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         }
         return getConnectionsManager().sendRequest(req, (response, error) -> {
             if (error == null) {
+                // NagramX: only the reschedule callers pass a date here; counts to the server's stored date, read before processUpdates consumes the reply
+                if (scheduleDate != 0) com.dazewell.gram.schedulecountdown.ScheduleCountdown.onRescheduled(currentAccount, req.id, response);
                 getMessagesController().processUpdates((TLRPC.Updates) response, false);
             } else {
+                // NagramX: rescheduling to the time it already has is refused as not modified, which means the server holds exactly that date
+                if (scheduleDate != 0 && "MESSAGE_NOT_MODIFIED".equals(error.text)) com.dazewell.gram.schedulecountdown.ScheduleCountdown.onRescheduleUnchanged(currentAccount, scheduleDate);
                 AndroidUtilities.runOnUIThread(() -> AlertsCreator.processError(currentAccount, error, fragment, req));
             }
         });
@@ -5301,7 +5307,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             newMsgObj.sentHighQuality = sendMessageParams.sendingHighQuality;
             newMsgObj.scheduled = scheduleDate != 0;
             // NagramX: before the album split below, so grouped media counts too; Ghost Hold has returned above and its release re-drives arrive as retries, which are not new
-            if (retryMessageObject == null) com.dazewell.gram.schedulecountdown.ScheduleCountdown.onScheduled(currentAccount, scheduleDate, 1);
+            if (retryMessageObject == null) com.dazewell.gram.schedulecountdown.ScheduleCountdown.arm(currentAccount, scheduleDate, newMsg.id);
             if (!newMsgObj.isForwarded() && (newMsgObj.type == MessageObject.TYPE_VIDEO || videoEditedInfo != null || newMsgObj.type == MessageObject.TYPE_VOICE) && !TextUtils.isEmpty(newMsg.attachPath)) {
                 newMsgObj.attachPathExists = true;
             }
@@ -7904,6 +7910,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                                 }
                                 existFlags = msgObj.getMediaExistanceFlags();
                                 newMsgObj.id = message.id;
+                                // NagramX: the server's own date; a reply that is no longer scheduled was sent straight away
+                                com.dazewell.gram.schedulecountdown.ScheduleCountdown.confirmed(currentAccount, oldId, currentSchedule ? message.date : 0);
                                 newMsgObj.quick_reply_shortcut_id = message.quick_reply_shortcut_id;
                                 if (newMsgObj.quick_reply_shortcut_id != 0) {
                                     newMsgObj.flags |= 1073741824;
@@ -8442,6 +8450,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                                 updateMediaPaths(msgObj, message, message.id, originalPath, false, params);
                                 existFlags = msgObj.getMediaExistanceFlags();
                                 newMsgObj.id = message.id;
+                                // NagramX: the server's own date; a reply that is no longer scheduled was sent straight away
+                                com.dazewell.gram.schedulecountdown.ScheduleCountdown.confirmed(currentAccount, oldId, currentSchedule ? message.date : 0);
                             } else {
                                 isSentError = true;
                                 existFlags = 0;
