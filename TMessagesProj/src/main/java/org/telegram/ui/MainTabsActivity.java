@@ -1445,6 +1445,8 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
                     BulletinFactory.of(contentView, resourceProvider).createSuccessBulletin(toggleMsg).show();
                     NotificationCenter.getInstance(UserConfig.selectedAccount).postNotificationName(NotificationCenter.mainUserInfoChanged);
                 });
+                // NagramX: what others see as your last seen while Ghost Mode hides you
+                com.dazewell.gram.ownlastseen.OwnLastSeenRow.decorate(o.getLast(), this);
                 o.addGap();
             }
             // NagramX: privacy-profile quick switch, built by its own feature class

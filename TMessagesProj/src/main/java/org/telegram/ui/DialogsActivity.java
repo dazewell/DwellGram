@@ -14286,6 +14286,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     BulletinFactory.of(this).createSuccessBulletin(toggleMsg).show();
                     NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.mainUserInfoChanged);
                 });
+                // NagramX: what others see as your last seen while Ghost Mode hides you
+                com.dazewell.gram.ownlastseen.OwnLastSeenRow.decorate(io.getLast(), this);
             }
             io.addGapIf(hideBottomNavigationBar);
             if (ApplicationLoader.applicationLoaderInstance != null) {

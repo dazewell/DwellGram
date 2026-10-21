@@ -2807,3 +2807,15 @@ A cold start from the Ghost shortcut was checked and is fine: the intent is hand
 (`MessagesController.java:10741-10742`).
 
 *(Established 2026-10-21, `#ghost-off-fix`.)*
+
+## Your own status is never written from your own updateStatus
+
+The cached self `User.status` changes only when the server sends something: a `TL_updateUserStatus` for your id
+(`MessagesController.java:20276`, written at `:20294`; the self case feeds `setLastOnlineFromOtherDevice`
+at `:20301`), or a fresh user object, which `putUser` stores and makes the current user (`:6988-6993`). The app's own heartbeats (`MessagesController.java:10750` online, `:10771` offline) touch no
+`User`, so the self status in cache is often stale or null. To show what the server holds for you, ask it:
+`users.getUsers(inputUserSelf)`. Ghost Mode rewrites only `account.updateStatus` to `offline = true`
+(`AyuGhostUtils.java:195`, called for every request from `ConnectionsManager.java:418`) and lets that read
+through.
+
+*(Established 2026-10-21, `#own-last-seen`.)*
