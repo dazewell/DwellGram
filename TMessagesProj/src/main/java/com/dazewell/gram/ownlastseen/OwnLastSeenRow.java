@@ -18,9 +18,9 @@ import xyz.nextalone.nagram.NaConfig;
  * Puts your own last seen under the Ayu Mode switch while Ghost Mode is on. Both menus that carry
  * that switch (the chats ⋮ menu and the Settings tab long-press) call this right after adding it.
  *
- * The value comes from the server, not from what this app sent: the self user's status is only
- * written locally from TL_updateUserStatus (MessagesController's update handler), never from our
- * own account.updateStatus, so the cache alone is often stale. A users.getUsers(self) on open asks
+ * The value comes from the server, not from what this app sent: our own account.updateStatus never
+ * touches the cached self user, which only changes when the server sends us a user object or a
+ * status update, so the cache alone is often stale. A users.getUsers(self) on open asks
  * the server for the status it currently holds for us. That request does not itself mark us
  * online -- Ghost Mode only rewrites account.updateStatus and lets every other request through
  * (AyuGhostUtils.interceptRequest), so if ordinary requests flipped the status Ghost Mode could
