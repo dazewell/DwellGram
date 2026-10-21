@@ -2743,19 +2743,27 @@ Anything else this method reads from outside the container needs the same treatm
 
 ## Only one bulletin is visible app-wide, and an undo bar's delayed action fires when another replaces it
 
-`Bulletin.show()` hides whatever bulletin is currently visible, on any screen (`Bulletin.java:286`). An
-`UndoButton`'s delayed action runs when its bar is detached without an undo (`:2328`). So a bar that commits on
+`Bulletin.show()` hides whatever bulletin is currently visible, on any screen (`Bulletin.java:288`). An
+`UndoButton`'s delayed action runs when its bar is detached without an undo (`:2342`). So a bar that commits on
 timeout, such as delete-unless-undone, commits early the moment any other toast appears. Run the commit on your
 own timer and keep the button for undo only. To tell a swipe-away from being pushed off, check
-`Bulletin.getVisibleBulletin()` one tick after your hide listener fires. `hide()` clears it at once (`:436`), and
+`Bulletin.getVisibleBulletin()` one tick after your hide listener fires. `hide()` clears it at once (`:439`), and
 a displacing bar has taken it by then.
 
+The fork's exception: a bar passed through `BulletinStack.keep()` is not hidden by a newer bottom bulletin in the
+same container. The newer one stacks above it instead (`Bulletin.java:288`, `BulletinStack.makeRoom`). The stack
+is two high at most. A kept bar's hide listener can ask, synchronously, what sat on it or under it
+(`BulletinStack.above`/`below`), since the links are cleared only after the listener runs (`Bulletin.java:474`).
+`StashOffer` uses this so a bar swiped out from under another one doesn't come back. A chat repositions only
+the visible bulletin (`ChatActivity.updateBulletinLayout`); `Bulletin.updatePosition` sends that to the lower bar,
+which carries the upper one.
+
 Two more ways a bar can't be put anywhere:
-- A `BulletinWindow` can't take touches: it is created `FLAG_NOT_TOUCHABLE` (`:2541`), so its buttons do nothing.
+- A `BulletinWindow` can't take touches: it is created `FLAG_NOT_TOUCHABLE` (`:2555`), so its buttons do nothing.
 - A bar on `LaunchActivity.frameLayout` only gets the navigation-bar offset (`LaunchActivity.java:754`), so in a
   chat it sits over the composer.
 
-Placement comes from the host screen's own delegate (`Bulletin.java:332`). A bar meant to follow the user across
+Placement comes from the host screen's own delegate (`Bulletin.java:333`). A bar meant to follow the user across
 screens has to be re-made on the top screen (`StashOffer.java`).
 
 *(Established 2026-10-16, `#stash`.)*

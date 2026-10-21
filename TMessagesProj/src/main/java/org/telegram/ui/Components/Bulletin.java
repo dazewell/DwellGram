@@ -284,7 +284,8 @@ public class Bulletin {
             }
 
             if (visibleBulletin != null) {
-                visibleBulletin.hide();
+                // NagramX: a bar marked kept stays up and this one stacks on it instead of replacing it (#bulletin-stacking)
+                com.dazewell.gram.bulletinstack.BulletinStack.makeRoom(this, top, containerLayout);
             }
             visibleBulletin = this;
             layout.onAttach(this);
@@ -432,8 +433,10 @@ public class Bulletin {
         if (showing) {
             showing = false;
 
+            // NagramX: the kept bar this one was stacked on is the visible bulletin again (#bulletin-stacking)
+            Bulletin under = com.dazewell.gram.bulletinstack.BulletinStack.release(this);
             if (visibleBulletin == this) {
-                visibleBulletin = null;
+                visibleBulletin = under;
             }
 
             int bottomOffset = currentBottomOffset;
@@ -467,6 +470,8 @@ public class Bulletin {
                         if (onHideListener != null) {
                             onHideListener.run();
                         }
+                        // NagramX: after the listener, which may still ask what was stacked on this bar (#bulletin-stacking)
+                        com.dazewell.gram.bulletinstack.BulletinStack.detach(this);
                     }, offset -> {
                         if (currentDelegate != null && !layout.top) {
                             currentDelegate.onBottomOffsetChange(layout.getHeight() - offset);
@@ -494,6 +499,8 @@ public class Bulletin {
             if (onHideListener != null) {
                 onHideListener.run();
             }
+            // NagramX: after the listener, which may still ask what was stacked on this bar (#bulletin-stacking)
+            com.dazewell.gram.bulletinstack.BulletinStack.detach(this);
         }
     }
 
@@ -510,12 +517,16 @@ public class Bulletin {
     }
 
     public void updatePosition() {
+        // NagramX: when stacked, move the bar underneath, which carries this one (#bulletin-stacking)
+        if (com.dazewell.gram.bulletinstack.BulletinStack.updateBase(this)) return;
         if (layout != null) {
             layout.updatePosition();
         }
     }
 
     public static void updateCurrentPosition() {
+        // NagramX: when stacked, move the bar underneath, which carries this one (#bulletin-stacking)
+        if (com.dazewell.gram.bulletinstack.BulletinStack.updateBase(visibleBulletin)) return;
         if (visibleBulletin != null && visibleBulletin.layout != null) {
             visibleBulletin.layout.updatePosition();
         }
@@ -995,7 +1006,10 @@ public class Bulletin {
                     translation += getBottomOffset();
                 }
             }
+            // NagramX: a bar stacked on a kept one rises to clear it, and the bar on this one follows (#bulletin-stacking)
+            translation += com.dazewell.gram.bulletinstack.BulletinStack.lift(bulletin, this, -translation);
             setTranslationY(-translation + inOutOffset * (top ? -1 : 1));
+            com.dazewell.gram.bulletinstack.BulletinStack.follow(bulletin);
         }
 
         public float getTopOffset() {

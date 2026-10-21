@@ -2,6 +2,8 @@ package com.dazewell.gram.stash;
 
 import android.os.SystemClock;
 
+import com.dazewell.gram.bulletinstack.BulletinStack;
+
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
@@ -18,8 +20,9 @@ import org.telegram.ui.LaunchActivity;
 //
 // Unlike the repost bar, this one follows the user while they check: it rides whichever screen of the same account
 // is on top, so it takes that screen's own placement (above a chat's composer, say), and a watcher moves it when
-// the top screen changes. A bar pushed off by another bulletin comes back RESHOW_DELAY_MS later, long enough
-// for that one to be read; one the user dismisses stays gone. On a screen of another account it waits unseen, so
+// the top screen changes. Other bottom bulletins stack above it (BulletinStack); a bar still pushed off by one that
+// can't stack comes back RESHOW_DELAY_MS later, long enough for that one to be read; one the user dismisses stays
+// gone. On a screen of another account it waits unseen, so
 // Delete never runs against the wrong account. The bar carries Telegram's countdown circle, as the undo bars do.
 public final class StashOffer {
 
@@ -87,20 +90,26 @@ public final class StashOffer {
             settled = true;
             onDelete.run(top);
         }));
-        Bulletin shown = factory.create(layout, (int) left());
+        Bulletin shown = BulletinStack.keep(factory.create(layout, (int) left()));
         // a tap settles before the bar hides, the bar's own timeout lands with under a second left, and a bar the
-        // watcher moved is no longer the current one. Any other hide is told apart a tick later: hide() clears the
-        // visible bulletin at once and one that displaced ours takes its place, so another bulletin up means ours
-        // was pushed off and comes back, none means the user dismissed it and the offer ends.
+        // watcher moved is no longer the current one. Our bar is kept, so a bulletin stacked on it means the user
+        // dismissed ours from under it. Any other hide is told apart a tick later: hide() clears the visible
+        // bulletin at once and one that displaced ours takes its place, so another bulletin up - other than the one
+        // ours sat on - means ours was pushed off and comes back, none means the user dismissed it.
         shown.setOnHideListener(() -> {
             if (bulletin != shown) {
                 return;
             }
             bulletin = null;
+            if (BulletinStack.above(shown) != null) {
+                settled = true;
+                return;
+            }
+            Bulletin under = BulletinStack.below(shown);
             reshowAt = Long.MAX_VALUE;
             AndroidUtilities.runOnUIThread(() -> {
                 Bulletin visible = Bulletin.getVisibleBulletin();
-                if (visible != null && visible != shown) {
+                if (visible != null && visible != shown && visible != under) {
                     reshowAt = SystemClock.elapsedRealtime() + RESHOW_DELAY_MS;
                 } else {
                     settled = true;

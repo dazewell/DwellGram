@@ -4,6 +4,8 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.util.SparseArray;
 
+import com.dazewell.gram.bulletinstack.BulletinStack;
+
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
@@ -202,7 +204,8 @@ public final class ScheduleCountdown {
         String text = last.count > 1
                 ? LocaleController.formatString(R.string.ScheduleCountdownFirst, in)
                 : LocaleController.formatString(R.string.ScheduleCountdownOne, in);
-        BulletinFactory.global().createSimpleBulletinWithIconSize(R.raw.timer_toast, text, 24).show();
+        // kept, so a Stash bar (or another kept bar) and this one stack rather than push each other off
+        BulletinStack.keep(BulletinFactory.global().createSimpleBulletinWithIconSize(R.raw.timer_toast, text, 24)).show();
     }
 
     /** "3 days, 11 hours and 2 minutes", to the nearest minute, leaving out units that are zero. */
