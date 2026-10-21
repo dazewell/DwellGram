@@ -846,7 +846,10 @@ public final class GhostHoldController {
             if (pinEdge) {
                 ghostOffPending = true;
             }
-            AndroidUtilities.runOnUIThread(GhostHoldController::promptFlush);
+            AndroidUtilities.runOnUIThread(() -> {
+                hostRetries = 0;
+                promptFlush();
+            });
         }
     }
 
@@ -912,7 +915,10 @@ public final class GhostHoldController {
             }
             int pending = items.size();
             BaseFragment fragment = LaunchActivity.getLastFragment();
-            if (fragment == null || fragment.getParentActivity() == null) {
+            // A finishing or destroyed host still reports a fragment, and AlertDialog.show()
+            // silently does nothing on it, so treat it as no host at all.
+            if (fragment == null || fragment.getParentActivity() == null
+                    || !AndroidUtilities.isActivityRunning(fragment.getParentActivity())) {
                 // No foreground screen to confirm on (e.g. process-start convergence
                 // before any UI is up, including a headless push-service process whose
                 // only checkOnProcessStart() runs with no Activity). Defer, never drain:
@@ -985,6 +991,7 @@ public final class GhostHoldController {
             builder.setOnCancelListener(dialog -> cancel.run());
             // The activity's onDestroy dismisses only what is in visibleDialogs; without
             // this a destroyed host leaves the prompt, flushInProgress and the pin set.
+            // Known gap: a prompt hosted by BubbleActivity (host == null) is not covered.
             final LaunchActivity host = LaunchActivity.instance != null
                     && LaunchActivity.instance == fragment.getParentActivity() ? LaunchActivity.instance : null;
             builder.setOnDismissListener(dialog -> {
@@ -995,7 +1002,17 @@ public final class GhostHoldController {
             });
             try {
                 AlertDialog shown = builder.show();
-                if (host != null && shown != null) {
+                if (shown == null || !shown.isShowing()) {
+                    // show() returns without throwing when the host is going away. The user
+                    // never saw this prompt, so defer it rather than cancel it (Cancel would
+                    // switch Ghost back on for them).
+                    resolved[0] = true;
+                    flushInProgress = false;
+                    armForegroundRetry();
+                    if (hostRetries++ < HOST_RETRY_MAX) {
+                        AndroidUtilities.runOnUIThread(GhostHoldController::promptFlush, 500);
+                    }
+                } else if (host != null) {
                     host.visibleDialogs.add(shown);
                 }
             } catch (Exception e) {
@@ -1029,6 +1046,7 @@ public final class GhostHoldController {
             detector.addListener(new org.telegram.ui.Components.ForegroundDetector.Listener() {
                 @Override
                 public void onBecameForeground() {
+                    hostRetries = 0;
                     if (!isHoldActive()) {
                         // Same evidence rule as process start, and never during a
                         // flush the user already confirmed (nothing would release it).
