@@ -76,6 +76,8 @@ With Ghost Mode on, the ghost indicator next to the chat list title stays visibl
 
 ### Your last seen under the Ayu Mode switch <!-- #own-last-seen -->
 
+With Ghost Mode on, the Ayu Mode switch in the chats ⋮ menu and the Settings tab's long-press menu shows your last seen underneath, as Telegram has it for you, e.g. *seen at 14:05*. Settings → Ghost Mode → *Show my last seen*, on by default.
+
 ### Ghost send warning <!-- #ghost-send-warning --> <!-- #ghost-type-warning -->
 
 Ghost Mode hides read receipts, typing and online status, but does not hold sends by itself. With Hold Messages off, the first time you type in a chat each Ghost session you get a heads-up, and that chat then stays quiet for the session. With it on, held text, contacts and static locations use the Scheduled-list caption as feedback; unsupported sends still warn before the quiet period starts.
