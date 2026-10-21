@@ -1498,6 +1498,7 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 videoMuteButton.setVisibility(GONE);
             }
         }
+        updateColors(); // NagramX: buttons are built before the style is known and survive style flips; recolour them for this style
     }
 
     @Override
@@ -2906,7 +2907,7 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
 
     private int getThemedColor(int key) {
         // NagramX: a chat's audio strip shares the pinned bar's band over the header photo; call and story strips paint their own background.
-        return com.dazewell.gram.headerbg.HeaderBgForeground.playerColor(chatActivity, !isLocation && (currentStyle == STYLE_AUDIO_PLAYER || currentStyle == STYLE_NOT_SET), key, Theme.getColor(key, resourcesProvider));
+        return com.dazewell.gram.headerbg.HeaderBgForeground.playerColor(chatActivity, !isLocation && currentStyle == STYLE_AUDIO_PLAYER, key, Theme.getColor(key, resourcesProvider));
     }
 
     private int toggleGroupCallStartSubscriptionReqId = 0;
