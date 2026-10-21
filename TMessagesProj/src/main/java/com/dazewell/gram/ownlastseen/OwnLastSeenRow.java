@@ -31,6 +31,11 @@ public final class OwnLastSeenRow {
     private OwnLastSeenRow() {}
 
     public static void decorate(ActionBarMenuSubItem item, BaseFragment fragment) {
+        android.util.Log.i("NaxOwnLastSeen", "NAX_SMOKE_own-last-seen BEGIN build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING
+                + " app=" + org.telegram.messenger.BuildConfig.APPLICATION_ID + " item=" + (item != null)
+                + " ghost=" + NekoConfig.isGhostModeActive() + " onlinePackets=" + NekoConfig.sendOnlinePackets.Bool()
+                + " setting=" + NaConfig.INSTANCE.getShowOwnLastSeen().Bool()
+                + " account=" + (fragment != null ? fragment.getCurrentAccount() : -1));
         if (item == null || fragment == null || !NekoConfig.isGhostModeActive() || !NaConfig.INSTANCE.getShowOwnLastSeen().Bool()) {
             return;
         }
@@ -56,6 +61,10 @@ public final class OwnLastSeenRow {
                 }
             }
             final TLRPC.User fresh = self;
+            int now = ConnectionsManager.getInstance(account).getCurrentTime();
+            android.util.Log.i("NaxOwnLastSeen", "NAX_SMOKE_own-last-seen END err=" + (err != null)
+                    + " cachedStatus=" + (cached != null && cached.status != null ? cached.status.getClass().getSimpleName() + " delta=" + (cached.status.expires - now) : "none")
+                    + " serverStatus=" + (fresh != null && fresh.status != null ? fresh.status.getClass().getSimpleName() + " delta=" + (fresh.status.expires - now) : "none"));
             AndroidUtilities.runOnUIThread(() -> {
                 if (fresh != null && fresh.status != null) {
                     item.setSubtext(format(account, fresh));
