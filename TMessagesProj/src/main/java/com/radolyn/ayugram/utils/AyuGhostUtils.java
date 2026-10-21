@@ -173,7 +173,8 @@ public class AyuGhostUtils {
 
         // Block read receipts if disabled
         if ((!NekoConfig.sendReadMessagePackets.Bool() || ghostOffPending) && (isReadMessageRequest(object))) {
-            if (!AyuState.getAllowReadPacket() && !readExcluded) {
+            // NagramX: getAllowReadPacket() is true whenever the read toggle is, which it already is while the pin holds.
+            if ((ghostOffPending || !AyuState.getAllowReadPacket()) && !readExcluded) {
                 FileLog.d("GhostMode: Blocking read status request and sending fake response.");
                 sendFakeReadResponse(onCompleteOrig);
                 return InterceptResult.Blocked(onCompleteOrig);
