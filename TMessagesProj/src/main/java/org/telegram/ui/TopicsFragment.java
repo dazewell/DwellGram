@@ -879,7 +879,8 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
         reportSubmenu = other.addSubItem(report, R.drawable.msg_report, getString(R.string.ReportChat));
         deleteChatSubmenu = other.addSubItem(delete_chat_id, R.drawable.msg_leave, getString(R.string.LeaveMegaMenu), themeDelegate);
 
-        avatarContainer = new ChatAvatarContainer(context, this, false, resourceProvider);
+        // NagramX: slid in beside the chat list this bar is transparent over the chat list's solid surface, so the title takes that surface's colours.
+        avatarContainer = new ChatAvatarContainer(context, this, false, com.dazewell.gram.helpers.InterfaceStyleSolidHeader.wrapTopicsOverChatList(resourceProvider, isRightFragment()));
         avatarContainer.getAvatarImageView().setRoundRadius(AndroidUtilities.dp(16));
         avatarContainer.setOccupyStatusBar(!AndroidUtilities.isTablet() && !inPreviewMode);
         avatarContainer.allowDrawStories = getDialogId() < 0;
@@ -1545,6 +1546,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
     }
 
     private void updateColors() {
+        com.dazewell.gram.helpers.InterfaceStyleSolidHeader.applyTopicsOverChatList(actionBar, avatarContainer, isRightFragment()); // NagramX: see avatarContainer
         if (bottomOverlayProgress == null) {
             return;
         }
@@ -2186,11 +2188,11 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
 
     private void updateSearchProgress(float value) {
         searchAnimationProgress = value;
-        int color1 = getThemedColor(Theme.key_actionBarDefaultIcon);
+        int color1 = com.dazewell.gram.helpers.InterfaceStyleSolidHeader.topicsOverChatListColor(isRightFragment(), Theme.key_actionBarDefaultIcon, getThemedColor(Theme.key_actionBarDefaultIcon)); // NagramX: see avatarContainer
         actionBar.setItemsColor(ColorUtils.blendARGB(color1, getThemedColor(Theme.key_actionBarActionModeDefaultIcon), searchAnimationProgress), false);
         actionBar.setItemsColor(ColorUtils.blendARGB(getThemedColor(Theme.key_actionBarActionModeDefaultIcon), getThemedColor(Theme.key_actionBarActionModeDefaultIcon), searchAnimationProgress), true);
 
-        color1 = getThemedColor(Theme.key_actionBarDefaultSelector);
+        color1 = com.dazewell.gram.helpers.InterfaceStyleSolidHeader.topicsOverChatListColor(isRightFragment(), Theme.key_actionBarDefaultSelector, getThemedColor(Theme.key_actionBarDefaultSelector)); // NagramX: see avatarContainer
         int color2 = getThemedColor(Theme.key_actionBarActionModeDefaultSelector);
         actionBar.setItemsBackgroundColor(ColorUtils.blendARGB(color1, color2, searchAnimationProgress), false);
 

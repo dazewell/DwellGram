@@ -169,6 +169,29 @@ public final class InterfaceStyleSolidHeader {
         if (actionBar == null || !chatHeaderClassic()) {
             return;
         }
+        applyHeaderTable(actionBar, avatarContainer);
+    }
+
+    // A forum's topic list slid in beside the chat list draws a transparent bar over the chat list's own
+    // surface, so its foregrounds follow that surface, not the chat header option.
+    public static int topicsOverChatListColor(boolean slidIn, int key, int themedColor) {
+        return slidIn && chatListTopBarClassic() ? lookup(CHAT_HEADER, key, themedColor) : themedColor;
+    }
+
+    // The avatar container rereads its keys whenever the member count or typing status changes.
+    public static Theme.ResourcesProvider wrapTopicsOverChatList(Theme.ResourcesProvider base, boolean slidIn) {
+        return slidIn ? wrap(base, (key, color) -> topicsOverChatListColor(true, key, color)) : base;
+    }
+
+    // Same push contract as applyChatHeader: after createView and again after the key-only descriptions.
+    public static void applyTopicsOverChatList(ActionBar actionBar, ChatAvatarContainer avatarContainer, boolean slidIn) {
+        if (actionBar == null || !slidIn || !chatListTopBarClassic()) {
+            return;
+        }
+        applyHeaderTable(actionBar, avatarContainer);
+    }
+
+    private static void applyHeaderTable(ActionBar actionBar, ChatAvatarContainer avatarContainer) {
         actionBar.setItemsColor(lookup(CHAT_HEADER, Theme.key_actionBarDefaultIcon, 0), false);
         actionBar.setItemsBackgroundColor(lookup(CHAT_HEADER, Theme.key_actionBarDefaultSelector, 0), false);
         actionBar.setTitleColor(lookup(CHAT_HEADER, Theme.key_actionBarDefaultTitle, 0));
