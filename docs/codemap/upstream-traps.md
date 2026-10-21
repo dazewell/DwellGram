@@ -2815,7 +2815,7 @@ The cached self `User.status` changes only when the server pushes `TL_updateUser
 at `:20301`). The app's own heartbeats (`MessagesController.java:10750` online, `:10771` offline) touch no
 `User`, so the self status in cache is often stale or null. To show what the server holds for you, ask it:
 `users.getUsers(inputUserSelf)`. Ghost Mode rewrites only `account.updateStatus` to `offline = true`
-(`AyuGhostUtils.java:188`, called for every request from `ConnectionsManager.java:418`) and lets that read
+(`AyuGhostUtils.java:195`, called for every request from `ConnectionsManager.java:418`) and lets that read
 through.
 
 *(Established 2026-10-21, `#own-last-seen`.)*
