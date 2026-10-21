@@ -2787,10 +2787,10 @@ Four facts that decide whether a typed attach caption survives.
 
 `NekoConfig.setGhostMode(false)` rewrites all five toggles at once (`NekoConfig.java:324-332`), and
 `toggleGhostMode` sends an `updateStatus(offline=false)` on the next line (`:351-356`). The "Send held messages?"
-prompt only opens later, from a posted runnable (`GhostHoldController.java:837`), so Cancel used to restore the
+prompt only opens later, from a posted runnable (`GhostHoldController.java:849`), so Cancel used to restore the
 config after online status, read receipts and typing had already left. `AyuGhostUtils.interceptRequest` decides
-purely from the toggles (`AyuGhostUtils.java:167-190`), so nothing stopped them. `ghostOffPending`
-(`GhostHoldController.java:158`) is now set synchronously on the hold-off edge (`:835`) and makes the intercept keep
+purely from the toggles (`AyuGhostUtils.java:167-192`), so nothing stopped them. `ghostOffPending`
+(`GhostHoldController.java:162`) is now set synchronously on the hold-off edge (`:846`) and makes the intercept keep
 blocking until the prompt resolves.
 
 Two traps for the next override. The read-receipt gate also asks `AyuState.getAllowReadPacket()`
