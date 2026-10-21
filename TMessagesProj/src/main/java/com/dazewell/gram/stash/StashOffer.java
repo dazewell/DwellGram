@@ -20,10 +20,10 @@ import org.telegram.ui.LaunchActivity;
 //
 // Unlike the repost bar, this one follows the user while they check: it rides whichever screen of the same account
 // is on top, so it takes that screen's own placement (above a chat's composer, say), and a watcher moves it when
-// the top screen changes. Other bottom bulletins stack above it (BulletinStack); a bar still pushed off by one that
-// can't stack comes back RESHOW_DELAY_MS later, long enough for that one to be read; one the user dismisses stays
-// gone. On a screen of another account it waits unseen, so
-// Delete never runs against the wrong account. The bar carries Telegram's countdown circle, as the undo bars do.
+// the top screen changes. Other bottom bulletins stack above it (BulletinStack); a bar still pushed off by one
+// that can't stack comes back RESHOW_DELAY_MS later, long enough for that one to be read; one the user dismisses
+// stays gone. On a screen of another account it waits unseen, so Delete never runs against the wrong account. The
+// bar carries Telegram's countdown circle, as the undo bars do.
 public final class StashOffer {
 
     private static final int SECONDS = 15;
