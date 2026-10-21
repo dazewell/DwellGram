@@ -2796,8 +2796,9 @@ blocking until the prompt resolves.
 Two traps for the next override. The read-receipt gate also asks `AyuState.getAllowReadPacket()`
 (`AyuGhostUtils.java:177`), which is `sendReadMessagePackets.Bool() || permit` (`AyuState.java:45-47`), so it is
 true whenever the toggle is and a "block reads" override must bypass it. And `AlertDialog.dismiss()` fires only the
-dismiss listener (`AlertDialog.java:1574-1597`), so a prompt that can be torn down needs `setOnDismissListener` to
-release anything it holds.
+dismiss listener (`AlertDialog.java:1574-1597`), so a prompt that holds state needs `setOnDismissListener` to
+release it on a programmatic dismiss. Destroying the activity does not dismiss it: the prompt is not in
+`LaunchActivity.visibleDialogs` (`LaunchActivity.java:7055-7062`).
 
 A cold start from the Ghost shortcut was checked and is fine: the intent is handled in `onCreate`
 (`LaunchActivity.java:689`), before the stage-queue flag goes false (`:7187`, default true at

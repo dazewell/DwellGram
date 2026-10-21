@@ -915,7 +915,7 @@ public final class GhostHoldController {
                 // the app is already in front but has no fragment yet, look again shortly,
                 // or the pin would sit with no prompt to end it.
                 org.telegram.ui.Components.ForegroundDetector fd = org.telegram.ui.Components.ForegroundDetector.getInstance();
-                if (fd != null && fd.isForeground()) {
+                if (fd != null && fd.isForeground() && !isHoldActive()) {
                     AndroidUtilities.runOnUIThread(GhostHoldController::promptFlush, 500);
                 }
                 return;
@@ -947,8 +947,7 @@ public final class GhostHoldController {
             AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
             builder.setTitle(LocaleController.getString(R.string.GhostHoldFlushConfirmTitle));
             builder.setMessage(body);
-            // A programmatic dismiss (or the activity going away) fires neither a button
-            // nor the cancel listener; without the dismiss fallback the pin would stay on
+            // A programmatic dismiss fires neither a button nor the cancel listener; without the dismiss fallback the pin would stay on
             // with the UI showing Ghost off. An unanswered prompt resolves as Cancel.
             final boolean[] resolved = {false};
             builder.setPositiveButton(LocaleController.getString(R.string.MessageScheduleSend), (dialog, which) -> {
