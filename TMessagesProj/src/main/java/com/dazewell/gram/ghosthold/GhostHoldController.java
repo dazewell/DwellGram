@@ -908,7 +908,9 @@ public final class GhostHoldController {
         // or completion (performFlush).
         flushInProgress = true;
         collectHeld(items -> {
-            if (items.isEmpty()) {
+            // Holding can resume while the collect or a queued retry was in flight; a
+            // prompt to release then would send nothing (flushItem refuses while held).
+            if (isHoldActive() || items.isEmpty()) {
                 flushInProgress = false;
                 releaseGhostPin();
                 return;
