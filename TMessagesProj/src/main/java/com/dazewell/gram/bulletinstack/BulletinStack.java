@@ -5,6 +5,7 @@ import android.view.ViewParent;
 
 import org.telegram.ui.Components.Bulletin;
 
+import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -20,12 +21,13 @@ import java.util.WeakHashMap;
 // and lifting a bar above one in another window would leave it floating over nothing.
 //
 // Links live until the lower or upper bar's exit animation ends (detach), so the upper keeps following the lower
-// while it slides out, and a hide listener can still ask what was stacked on its bar. UI thread only.
+// while it slides out, and a hide listener can still ask what was stacked on its bar. The links are weak both
+// ways: a strong value pointing at another key would pin the pair for good if an exit never finished. UI thread only.
 public final class BulletinStack {
 
     private static final Set<Bulletin> kept = Collections.newSetFromMap(new WeakHashMap<>());
-    private static final WeakHashMap<Bulletin, Bulletin> below = new WeakHashMap<>();
-    private static final WeakHashMap<Bulletin, Bulletin> above = new WeakHashMap<>();
+    private static final WeakHashMap<Bulletin, WeakReference<Bulletin>> below = new WeakHashMap<>();
+    private static final WeakHashMap<Bulletin, WeakReference<Bulletin>> above = new WeakHashMap<>();
 
     private BulletinStack() {
     }
@@ -39,11 +41,16 @@ public final class BulletinStack {
     }
 
     public static Bulletin below(Bulletin bulletin) {
-        return below.get(bulletin);
+        return get(below, bulletin);
     }
 
     public static Bulletin above(Bulletin bulletin) {
-        return above.get(bulletin);
+        return get(above, bulletin);
+    }
+
+    private static Bulletin get(WeakHashMap<Bulletin, WeakReference<Bulletin>> links, Bulletin bulletin) {
+        WeakReference<Bulletin> link = bulletin != null ? links.get(bulletin) : null;
+        return link != null ? link.get() : null;
     }
 
     // Called from Bulletin.show in place of hiding the visible bulletin: hides until what is left can be stacked
@@ -56,8 +63,8 @@ public final class BulletinStack {
                 return;
             }
             if (!top && canStackOn(visible, container)) {
-                below.put(incoming, visible);
-                above.put(visible, incoming);
+                below.put(incoming, new WeakReference<>(visible));
+                above.put(visible, new WeakReference<>(incoming));
                 return;
             }
             visible.hide();
@@ -68,7 +75,7 @@ public final class BulletinStack {
     }
 
     private static boolean canStackOn(Bulletin visible, View container) {
-        if (!kept.contains(visible) || below.containsKey(visible) || above.containsKey(visible) || !visible.isShowing()) {
+        if (!kept.contains(visible) || below(visible) != null || above(visible) != null || !visible.isShowing()) {
             return false;
         }
         Bulletin.Layout layout = visible.getLayout();
@@ -82,7 +89,7 @@ public final class BulletinStack {
     // Called as a bulletin starts hiding: the bar under it stops carrying it, and comes back as the visible one
     // if it is still up. The hiding bulletin keeps its own link, so it slides out from where it is.
     public static Bulletin release(Bulletin hiding) {
-        Bulletin under = below.get(hiding);
+        Bulletin under = below(hiding);
         if (under == null) {
             return null;
         }
@@ -94,7 +101,8 @@ public final class BulletinStack {
     public static void detach(Bulletin gone) {
         below.remove(gone);
         kept.remove(gone);
-        Bulletin upper = above.remove(gone);
+        Bulletin upper = above(gone);
+        above.remove(gone);
         if (upper != null) {
             below.remove(upper);
             if (upper.getLayout() != null) {
@@ -105,7 +113,7 @@ public final class BulletinStack {
 
     /** How far a stacked bulletin must rise above its own placement to clear the bar under it. */
     public static float lift(Bulletin bulletin, View layout, float translation) {
-        Bulletin under = bulletin != null ? below.get(bulletin) : null;
+        Bulletin under = below(bulletin);
         View underLayout = under != null ? under.getLayout() : null;
         if (underLayout == null || layout.getHeight() <= 0 || underLayout.getHeight() <= 0) {
             return 0;
@@ -115,7 +123,7 @@ public final class BulletinStack {
 
     // After a bar moves, the one stacked on it moves with it. Upward only, so it can't recurse.
     public static void follow(Bulletin bulletin) {
-        Bulletin upper = bulletin != null ? above.get(bulletin) : null;
+        Bulletin upper = above(bulletin);
         if (upper != null && upper.getLayout() != null) {
             upper.getLayout().updatePosition();
         }
@@ -124,7 +132,7 @@ public final class BulletinStack {
     // A screen repositions only its visible bulletin (a chat does it by hand on every composer change), which is
     // the upper one when two are stacked. Moving the lower one instead carries both. True when it took over.
     public static boolean updateBase(Bulletin bulletin) {
-        Bulletin under = bulletin != null ? below.get(bulletin) : null;
+        Bulletin under = below(bulletin);
         if (under == null || under.getLayout() == null) {
             return false;
         }
