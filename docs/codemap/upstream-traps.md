@@ -2790,9 +2790,18 @@ Four facts that decide whether a typed attach caption survives.
 prompt only opens later, from a posted runnable (`GhostHoldController.java:837`), so Cancel used to restore the
 config after online status, read receipts and typing had already left. `AyuGhostUtils.interceptRequest` decides
 purely from the toggles (`AyuGhostUtils.java:167-190`), so nothing stopped them. `ghostOffPending`
-(`GhostHoldController.java:158`) is now set synchronously on the hold-off edge (`:834`) and makes the intercept keep
-blocking until the prompt resolves. A cold start from the Ghost shortcut was checked and is fine: the intent is handled in
-`onCreate` (`LaunchActivity.java:689`), before `mainInterfacePaused` goes false (`:7183`, default true at
-`ApplicationLoader.java:90`), and the 55 s status timer only sends while it is false (`MessagesController.java:10741`).
+(`GhostHoldController.java:158`) is now set synchronously on the hold-off edge (`:835`) and makes the intercept keep
+blocking until the prompt resolves.
+
+Two traps for the next override. The read-receipt gate also asks `AyuState.getAllowReadPacket()`
+(`AyuGhostUtils.java:177`), which is `sendReadMessagePackets.Bool() || permit` (`AyuState.java:45-47`), so it is
+true whenever the toggle is and a "block reads" override must bypass it. And `AlertDialog.dismiss()` fires only the
+dismiss listener (`AlertDialog.java:1574-1597`), so a prompt that can be torn down needs `setOnDismissListener` to
+release anything it holds.
+
+A cold start from the Ghost shortcut was checked and is fine: the intent is handled in `onCreate`
+(`LaunchActivity.java:689`), before the stage-queue flag goes false (`:7187`, default true at
+`ApplicationLoader.java:93`), and the 55 s status timer only sends while it is false and more than a second old
+(`MessagesController.java:10741-10742`).
 
 *(Established 2026-10-21, `#ghost-off-fix`.)*

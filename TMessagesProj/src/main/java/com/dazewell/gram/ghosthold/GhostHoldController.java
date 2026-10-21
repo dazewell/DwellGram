@@ -156,9 +156,10 @@ public final class GhostHoldController {
     // set, AyuGhostUtils.interceptRequest keeps blocking those signals as if Ghost
     // were still on. Volatile: set on the UI thread, read on the network send path.
     private static volatile boolean ghostOffPending;
-    // True when the edge came from a user flip (not process start or a foreground
-    // retry), so a confirmed release sends the online status the pin suppressed.
-    private static volatile boolean onlineOnRelease;
+    // UI-thread only. True from the user's confirmation until the flush ends, so a
+    // Ghost-off edge in that span does not pin: nothing would release it, because the
+    // posted promptFlush returns early while the flush runs.
+    private static boolean flushConfirmed;
 
     // Set once we register the foreground retry below, so it is never added twice.
     private static volatile boolean foregroundRetryArmed;
@@ -181,12 +182,13 @@ public final class GhostHoldController {
     }
 
     private static void releaseGhostPin() {
+        boolean wasPinned = ghostOffPending;
         ghostOffPending = false;
-        boolean sendOnline = onlineOnRelease;
-        onlineOnRelease = false;
-        // Cancel re-enables Ghost (restoreGhost runs first), so only a real release
-        // goes online, and straight away like Ghost-off did before the pin existed.
-        if (sendOnline && !NekoConfig.isGhostModeActive()) {
+        // The pin forces the status timer's online ping to offline and the timer then
+        // waits ~55s, so a real release sends online itself, as Ghost-off did before the
+        // pin existed. Cancel re-enables Ghost first and a background process has no
+        // foreground to be online in.
+        if (wasPinned && !NekoConfig.isGhostModeActive() && !ApplicationLoader.mainInterfacePaused) {
             com.radolyn.ayugram.utils.AyuGhostUtils.performStatusRequest(false);
         }
     }
@@ -824,15 +826,13 @@ public final class GhostHoldController {
         if (nowActive) {
             // Hold is enforced by config again; nothing left to pin.
             ghostOffPending = false;
-            onlineOnRelease = false;
         }
         if (wasActive && !nowActive) {
             // Pin synchronously, before the prompt is even queued: the caller may send
-            // its own status request on the next line. A flush already past its
-            // confirmation owns its own ending, so it needs no pin.
-            if (!flushInProgress) {
+            // its own status request on the next line. A flush the user already
+            // confirmed owns its own ending, so it needs no pin.
+            if (!flushConfirmed) {
                 ghostOffPending = true;
-                onlineOnRelease = true;
             }
             AndroidUtilities.runOnUIThread(GhostHoldController::promptFlush);
         }
@@ -911,6 +911,13 @@ public final class GhostHoldController {
                 // (nothing is lost, the rows stay visible in Scheduled).
                 flushInProgress = false;
                 armForegroundRetry();
+                // The listener only fires on the next background-to-foreground change. If
+                // the app is already in front but has no fragment yet, look again shortly,
+                // or the pin would sit with no prompt to end it.
+                org.telegram.ui.Components.ForegroundDetector fd = org.telegram.ui.Components.ForegroundDetector.getInstance();
+                if (fd != null && fd.isForeground()) {
+                    AndroidUtilities.runOnUIThread(GhostHoldController::promptFlush, 500);
+                }
                 return;
             }
 
@@ -940,17 +947,26 @@ public final class GhostHoldController {
             AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
             builder.setTitle(LocaleController.getString(R.string.GhostHoldFlushConfirmTitle));
             builder.setMessage(body);
-            builder.setPositiveButton(LocaleController.getString(R.string.MessageScheduleSend), (dialog, which) -> performFlush(items, epochByAccount, sessionByAccount));
-            builder.setNegativeButton(LocaleController.getString(R.string.Cancel), (dialog, which) -> {
+            // A programmatic dismiss (or the activity going away) fires neither a button
+            // nor the cancel listener; without the dismiss fallback the pin would stay on
+            // with the UI showing Ghost off. An unanswered prompt resolves as Cancel.
+            final boolean[] resolved = {false};
+            builder.setPositiveButton(LocaleController.getString(R.string.MessageScheduleSend), (dialog, which) -> {
+                resolved[0] = true;
+                performFlush(items, epochByAccount, sessionByAccount);
+            });
+            Runnable cancel = () -> {
+                if (resolved[0]) {
+                    return;
+                }
+                resolved[0] = true;
                 flushInProgress = false;
                 restoreGhost();
                 releaseGhostPin();
-            });
-            builder.setOnCancelListener(dialog -> {
-                flushInProgress = false;
-                restoreGhost();
-                releaseGhostPin();
-            });
+            };
+            builder.setNegativeButton(LocaleController.getString(R.string.Cancel), (dialog, which) -> cancel.run());
+            builder.setOnCancelListener(dialog -> cancel.run());
+            builder.setOnDismissListener(dialog -> cancel.run());
             builder.show();
         });
     }
@@ -1053,6 +1069,7 @@ public final class GhostHoldController {
             return;
         }
         flushInProgress = true;
+        flushConfirmed = true;
         // Confirmed: the user chose to leave Ghost, so the pin ends here.
         releaseGhostPin();
         // Stash this flush's pinned per-account session tokens for the terminal report.
@@ -1096,6 +1113,7 @@ public final class GhostHoldController {
         // Runs on the UI thread (every caller path posts here), so this write to
         // flushInProgress is serialised with promptFlush's claim.
         flushInProgress = false;
+        flushConfirmed = false;
         if (pending <= 0) {
             return;
         }
