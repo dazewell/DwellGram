@@ -2782,3 +2782,15 @@ Four facts that decide whether a typed attach caption survives.
   has to ask the viewer to apply first (`PhotoViewer.applyCaptionForRescue`, `:10352`).
 
 *(Established 2026-10-16, `#album-caption`.)*
+
+## Your own status is never written from your own updateStatus
+
+The cached self `User.status` changes only when the server pushes `TL_updateUserStatus` for your id
+(`MessagesController.java:20276`, written at `:20294`; the self case feeds `setLastOnlineFromOtherDevice`
+at `:20301`). The app's own heartbeats (`MessagesController.java:10750` online, `:10771` offline) touch no
+`User`, so the self status in cache is often stale or null. To show what the server holds for you, ask it:
+`users.getUsers(inputUserSelf)`. Ghost Mode rewrites only `account.updateStatus` to `offline = true`
+(`AyuGhostUtils.java:188`, called for every request from `ConnectionsManager.java:418`) and lets that read
+through.
+
+*(Established 2026-10-21, `#own-last-seen`.)*
