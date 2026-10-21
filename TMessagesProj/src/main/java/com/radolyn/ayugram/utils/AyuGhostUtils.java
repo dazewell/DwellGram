@@ -175,6 +175,8 @@ public class AyuGhostUtils {
         if ((!NekoConfig.sendReadMessagePackets.Bool() || ghostOffPending) && (isReadMessageRequest(object))) {
             // NagramX: getAllowReadPacket() is true whenever the read toggle is, which it already is while the pin holds.
             if ((ghostOffPending || !AyuState.getAllowReadPacket()) && !readExcluded) {
+                // NagramX: the pin short-circuits the permit check, so drop any armed one-shot permit here.
+                if (ghostOffPending) AyuState.setAllowReadPacket(false, -1);
                 FileLog.d("GhostMode: Blocking read status request and sending fake response.");
                 sendFakeReadResponse(onCompleteOrig);
                 return InterceptResult.Blocked(onCompleteOrig);
