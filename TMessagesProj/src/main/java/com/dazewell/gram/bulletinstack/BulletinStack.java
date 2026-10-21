@@ -131,9 +131,10 @@ public final class BulletinStack {
 
     // A screen repositions only its visible bulletin (a chat does it by hand on every composer change), which is
     // the upper one when two are stacked. Moving the lower one instead carries both. True when it took over.
+    // Only while the lower one still carries it: an upper sliding out has been released and moves on its own.
     public static boolean updateBase(Bulletin bulletin) {
         Bulletin under = below(bulletin);
-        if (under == null || under.getLayout() == null) {
+        if (under == null || above(under) != bulletin || under.getLayout() == null) {
             return false;
         }
         under.getLayout().updatePosition();
