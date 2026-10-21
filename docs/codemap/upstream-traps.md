@@ -2782,3 +2782,28 @@ Four facts that decide whether a typed attach caption survives.
   has to ask the viewer to apply first (`PhotoViewer.applyCaptionForRescue`, `:10352`).
 
 *(Established 2026-10-16, `#album-caption`.)*
+
+## Switching Ghost off flips the config before anyone answers the prompt
+
+`NekoConfig.setGhostMode(false)` rewrites all five toggles at once (`NekoConfig.java:324-332`), and
+`toggleGhostMode` sends an `updateStatus(offline=false)` on the next line (`:351-356`). The "Send held messages?"
+prompt only opens later, from a posted runnable (`GhostHoldController.java:849`), so Cancel used to restore the
+config after online status, read receipts and typing had already left. `AyuGhostUtils.interceptRequest` decides
+purely from the toggles (`AyuGhostUtils.java:167-196`), so nothing stopped them. `ghostOffPending`
+(`GhostHoldController.java:162`) is now set synchronously on the hold-off edge (`:847`) and makes the intercept keep
+blocking until the prompt resolves.
+
+Two traps for the next override. The read-receipt gate also asks `AyuState.getAllowReadPacket()`
+(`AyuGhostUtils.java:177`), which is `sendReadMessagePackets.Bool() || permit` (`AyuState.java:45-47`), so it is
+true whenever the toggle is and a "block reads" override must bypass it. And `AlertDialog.dismiss()` fires only the
+dismiss listener (`AlertDialog.java:1574-1597`), so a prompt that holds state needs `setOnDismissListener` to
+release it on a programmatic dismiss. A destroyed host only dismisses what is in
+`LaunchActivity.visibleDialogs` (`LaunchActivity.java:7062-7068`), so the prompt registers itself there, and
+`AlertDialog.show()` returns silently on a finishing host (`AlertDialog.java:325-326`), so check `isShowing()`.
+
+A cold start from the Ghost shortcut was checked and is fine: the intent is handled in `onCreate`
+(`LaunchActivity.java:689`), before the stage-queue flag goes false (`:7187`, default true at
+`ApplicationLoader.java:93`), and the 55 s status timer only sends while it is false and more than a second old
+(`MessagesController.java:10741-10742`).
+
+*(Established 2026-10-21, `#ghost-off-fix`.)*
