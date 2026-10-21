@@ -400,7 +400,7 @@ When music, a voice message or a round video plays in a chat with a pinned messa
 
 ### Chat photo header background <!-- #header-avatar-bg -->
 
-A chat can show its photo behind the Material Design 3 chat header and pinned bar. Open the chat's ⋮ menu → *Header background*: a sheet positions the photo and sets its opacity, blur, tint, gradient and scrim. Status bar icons follow the photo; *Header text* and *Pinned bar text* pick light or dark text, kept separately per theme. Off by default; in Glass the sheet links to Interface Style.
+A chat can show its photo behind the Material Design 3 chat header and pinned bar. The chat's ⋮ menu → *Header background* opens a sheet to position the photo and set opacity, blur, tint, gradient and scrim. Status bar icons follow the photo; *Header text* and *Pinned bar text* (also the player's) pick light or dark text per theme. Off by default; in Glass the sheet links to Interface Style.
 
 <!-- Retired entries, plus sync-reconciliation and superseded feature slugs that have no catalog entry of their own.
      The behaviour still ships; it is documented in README instead of here.
