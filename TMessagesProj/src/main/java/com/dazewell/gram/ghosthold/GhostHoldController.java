@@ -149,6 +149,17 @@ public final class GhostHoldController {
     // UI thread -- the thread logout bumps sessionEpoch on -- before the async count.
     private static volatile java.util.Map<Integer, Integer> flushSessionByAccount;
 
+    // NagramX: set on the hold-off edge and cleared when the "Send held messages?"
+    // prompt resolves. The five Ghost toggles flip the instant Ghost is switched off,
+    // before the user has answered, so without this a Cancel would restore the config
+    // only after online status, read receipts and typing had already gone out. While
+    // set, AyuGhostUtils.interceptRequest keeps blocking those signals as if Ghost
+    // were still on. Volatile: set on the UI thread, read on the network send path.
+    private static volatile boolean ghostOffPending;
+    // True when the edge came from a user flip (not process start or a foreground
+    // retry), so a confirmed release sends the online status the pin suppressed.
+    private static volatile boolean onlineOnRelease;
+
     // Set once we register the foreground retry below, so it is never added twice.
     private static volatile boolean foregroundRetryArmed;
 
@@ -162,6 +173,22 @@ public final class GhostHoldController {
 
     public static boolean isHoldActive() {
         return NekoConfig.isGhostModeActive() && NekoConfig.holdMessagesWhileGhost.Bool();
+    }
+
+    /** True from the hold-off edge until the flush prompt resolves; see {@link #ghostOffPending}. */
+    public static boolean isGhostOffPending() {
+        return ghostOffPending;
+    }
+
+    private static void releaseGhostPin() {
+        ghostOffPending = false;
+        boolean sendOnline = onlineOnRelease;
+        onlineOnRelease = false;
+        // Cancel re-enables Ghost (restoreGhost runs first), so only a real release
+        // goes online, and straight away like Ghost-off did before the pin existed.
+        if (sendOnline && !NekoConfig.isGhostModeActive()) {
+            com.radolyn.ayugram.utils.AyuGhostUtils.performStatusRequest(false);
+        }
     }
 
     /**
@@ -794,7 +821,19 @@ public final class GhostHoldController {
             writeGhostSnapshot(editor);
         }
         editor.apply();
+        if (nowActive) {
+            // Hold is enforced by config again; nothing left to pin.
+            ghostOffPending = false;
+            onlineOnRelease = false;
+        }
         if (wasActive && !nowActive) {
+            // Pin synchronously, before the prompt is even queued: the caller may send
+            // its own status request on the next line. A flush already past its
+            // confirmation owns its own ending, so it needs no pin.
+            if (!flushInProgress) {
+                ghostOffPending = true;
+                onlineOnRelease = true;
+            }
             AndroidUtilities.runOnUIThread(GhostHoldController::promptFlush);
         }
     }
@@ -830,6 +869,9 @@ public final class GhostHoldController {
         }
         editor.apply();
         if (!nowActive) {
+            // A kill between the Ghost-off flip and the answer leaves rows held with
+            // Ghost off; keep the pin until this launch's prompt resolves.
+            ghostOffPending = true;
             AndroidUtilities.runOnUIThread(GhostHoldController::promptFlush);
         }
     }
@@ -850,6 +892,7 @@ public final class GhostHoldController {
         collectHeld(items -> {
             if (items.isEmpty()) {
                 flushInProgress = false;
+                releaseGhostPin();
                 return;
             }
             int pending = items.size();
@@ -901,10 +944,12 @@ public final class GhostHoldController {
             builder.setNegativeButton(LocaleController.getString(R.string.Cancel), (dialog, which) -> {
                 flushInProgress = false;
                 restoreGhost();
+                releaseGhostPin();
             });
             builder.setOnCancelListener(dialog -> {
                 flushInProgress = false;
                 restoreGhost();
+                releaseGhostPin();
             });
             builder.show();
         });
@@ -935,6 +980,7 @@ public final class GhostHoldController {
                 @Override
                 public void onBecameForeground() {
                     if (!isHoldActive()) {
+                        ghostOffPending = true;
                         AndroidUtilities.runOnUIThread(GhostHoldController::promptFlush);
                     }
                 }
@@ -1003,9 +1049,12 @@ public final class GhostHoldController {
                                      java.util.HashMap<Integer, Integer> sessionByAccount) {
         if (items.isEmpty()) {
             flushInProgress = false;
+            releaseGhostPin();
             return;
         }
         flushInProgress = true;
+        // Confirmed: the user chose to leave Ghost, so the pin ends here.
+        releaseGhostPin();
         // Stash this flush's pinned per-account session tokens for the terminal report.
         flushSessionByAccount = sessionByAccount;
         // Reset the honest sent-counter for this flush. Only a proven handoff

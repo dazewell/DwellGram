@@ -159,8 +159,12 @@ public class AyuGhostUtils {
         boolean readExcluded = dialogId != null && AyuGhostPreferences.getGhostModeReadExclusion(dialogId);
         boolean typingExcluded = dialogId != null && AyuGhostPreferences.getGhostModeTypingExclusion(dialogId);
 
+        // NagramX: Ghost was just switched off with messages held and the user has not answered the
+        // "Send held messages?" prompt, so the toggles already read non-ghost. Keep blocking until it resolves.
+        final boolean ghostOffPending = com.dazewell.gram.ghosthold.GhostHoldController.isGhostOffPending();
+
         // Block typing if disabled
-        if (!NekoConfig.sendUploadProgress.Bool() && (object instanceof TLRPC.TL_messages_setTyping || object instanceof TLRPC.TL_messages_setEncryptedTyping)) {
+        if ((!NekoConfig.sendUploadProgress.Bool() || ghostOffPending) && (object instanceof TLRPC.TL_messages_setTyping || object instanceof TLRPC.TL_messages_setEncryptedTyping)) {
             if (!typingExcluded) {
                 FileLog.d("GhostMode: Blocking typing status request.");
                 return InterceptResult.Blocked(onCompleteOrig);
@@ -168,14 +172,14 @@ public class AyuGhostUtils {
         }
 
         // Block read receipts if disabled
-        if (!NekoConfig.sendReadMessagePackets.Bool() && (isReadMessageRequest(object))) {
+        if ((!NekoConfig.sendReadMessagePackets.Bool() || ghostOffPending) && (isReadMessageRequest(object))) {
             if (!AyuState.getAllowReadPacket() && !readExcluded) {
                 FileLog.d("GhostMode: Blocking read status request and sending fake response.");
                 sendFakeReadResponse(onCompleteOrig);
                 return InterceptResult.Blocked(onCompleteOrig);
             }
         }
-        if (!NekoConfig.sendReadStoriesPackets.Bool() && isReadStoriesRequest(object)) {
+        if ((!NekoConfig.sendReadStoriesPackets.Bool() || ghostOffPending) && isReadStoriesRequest(object)) {
             if (!readExcluded) {
                 FileLog.d("GhostMode: Blocking story read request.");
                 return InterceptResult.Blocked(onCompleteOrig);
@@ -183,7 +187,7 @@ public class AyuGhostUtils {
         }
 
         // Force offline if online status sending disabled
-        if (!NekoConfig.sendOnlinePackets.Bool() && object instanceof TL_account.updateStatus updateStatus) {
+        if ((!NekoConfig.sendOnlinePackets.Bool() || ghostOffPending) && object instanceof TL_account.updateStatus updateStatus) {
             FileLog.d("GhostMode: Forcing offline status in updateStatus request.");
             updateStatus.offline = true;
         }

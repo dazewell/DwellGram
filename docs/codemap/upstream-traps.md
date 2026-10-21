@@ -2782,3 +2782,17 @@ Four facts that decide whether a typed attach caption survives.
   has to ask the viewer to apply first (`PhotoViewer.applyCaptionForRescue`, `:10352`).
 
 *(Established 2026-10-16, `#album-caption`.)*
+
+## Switching Ghost off flips the config before anyone answers the prompt
+
+`NekoConfig.setGhostMode(false)` rewrites all five toggles at once (`NekoConfig.java:324-332`), and
+`toggleGhostMode` sends an `updateStatus(offline=false)` on the next line (`:351-356`). The "Send held messages?"
+prompt only opens later, from a posted runnable (`GhostHoldController.java:837`), so Cancel used to restore the
+config after online status, read receipts and typing had already left. `AyuGhostUtils.interceptRequest` decides
+purely from the toggles (`AyuGhostUtils.java:167-190`), so nothing stopped them. `ghostOffPending`
+(`GhostHoldController.java:158`) is now set synchronously on the hold-off edge (`:834`) and makes the intercept keep
+blocking until the prompt resolves. A cold start from the Ghost shortcut was checked and is fine: the intent is handled in
+`onCreate` (`LaunchActivity.java:689`), before `mainInterfacePaused` goes false (`:7183`, default true at
+`ApplicationLoader.java:90`), and the 55 s status timer only sends while it is false (`MessagesController.java:10741`).
+
+*(Established 2026-10-21, `#ghost-off-fix`.)*
