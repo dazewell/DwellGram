@@ -2905,7 +2905,8 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
     }
 
     private int getThemedColor(int key) {
-        return Theme.getColor(key, resourcesProvider);
+        // NagramX: a chat's audio strip shares the pinned bar's band over the header photo; call and story strips paint their own background.
+        return com.dazewell.gram.headerbg.HeaderBgForeground.playerColor(chatActivity, !isLocation && (currentStyle == STYLE_AUDIO_PLAYER || currentStyle == STYLE_NOT_SET), key, Theme.getColor(key, resourcesProvider));
     }
 
     private int toggleGroupCallStartSubscriptionReqId = 0;

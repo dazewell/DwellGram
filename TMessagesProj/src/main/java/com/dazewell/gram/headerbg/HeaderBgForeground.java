@@ -17,6 +17,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.AnimatedTextView;
 import org.telegram.ui.Components.ChatAvatarContainer;
+import org.telegram.ui.Components.FragmentContextView;
 import org.telegram.ui.Components.NumberTextView;
 
 import com.dazewell.gram.helpers.InterfaceStyleSolidHeader;
@@ -108,6 +109,20 @@ public final class HeaderBgForeground {
         return map(mode, key, themedColor);
     }
 
+    /**
+     * A chat's audio player strip sits in the pinned bar's band, over the same photo, so it follows the pinned bar's text.
+     * The play button goes neutral with the close button: the accent has no contrast guarantee on a photo.
+     */
+    public static int playerColor(Object host, boolean audioStrip, int key, int themedColor) {
+        if (!audioStrip || !(host instanceof ChatActivity)) {
+            return themedColor;
+        }
+        int pinKey = key == Theme.key_inappPlayerTitle ? Theme.key_chat_topPanelTitle
+                : key == Theme.key_inappPlayerPerformer ? Theme.key_chat_topPanelMessage
+                : key == Theme.key_inappPlayerClose || key == Theme.key_inappPlayerPlayPause ? Theme.key_chat_topPanelClose : -1;
+        return pinKey < 0 ? themedColor : pinColor((ChatActivity) host, pinKey, themedColor);
+    }
+
     /** For the auto-delete timer, which reads the title key through its own provider at draw time. */
     public static Theme.ResourcesProvider wrapChatHeader(Theme.ResourcesProvider base, ChatActivity fragment) {
         return InterfaceStyleSolidHeader.wrap(base, (key, color) -> color(fragment, key, color));
@@ -156,6 +171,11 @@ public final class HeaderBgForeground {
         if (pin) {
             drawer.appliedPin = drawer.wantedPin();
             applyPinned(fragment);
+            // Not inside applyPinned: that returns early in a chat with no pinned message, and the player can still show.
+            FragmentContextView player = fragment.getFragmentContextView();
+            if (player != null) {
+                player.updateColors();
+            }
         }
         if (!header) {
             return;
