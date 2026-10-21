@@ -208,6 +208,8 @@
     <string name="GhostModeDisabled">Ghost mode turned off</string>
     <string name="GhostModeInDrawer">Ghost Mode in menus</string>
     <string name="GhostModeInDrawerNotice">An Ayu Mode switch in the main menu, and a per-chat exclusion in profiles.</string>
+    <string name="GhostModeOwnLastSeen">Show my last seen</string>
+    <string name="GhostModeOwnLastSeenNotice">Under the Ayu Mode switch while it\'s on, the last seen Telegram shows for you.</string>
     <string name="AyuModeShortcut">Ayu Mode</string>
     <string name="GhostModeStatusIndicator">Ghost Mode Indicator</string>
     <string name="DontSendReadMessagePackets">Don\'t Read Messages</string>

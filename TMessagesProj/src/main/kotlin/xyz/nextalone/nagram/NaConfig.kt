@@ -1040,6 +1040,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val showOwnLastSeen =
+        addConfig(
+            "ShowOwnLastSeen",
+            ConfigItem.configTypeBool,
+            true
+        )
     val translatorKeepMarkdown =
         addConfig(
             "TranslatorKeepMarkdown",

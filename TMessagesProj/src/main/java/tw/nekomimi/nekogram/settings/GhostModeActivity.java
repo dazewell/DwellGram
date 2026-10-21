@@ -50,6 +50,7 @@ public class GhostModeActivity extends BaseNekoSettingsActivity implements Notif
     private int sendWithoutSoundRow;
     private int sendWithoutSoundNoticeRow;
     private int showGhostInDrawerRow;
+    private int showOwnLastSeenRow;
     private int showGhostModeStatusRow;
     private boolean ghostModeMenuExpanded;
 
@@ -81,6 +82,7 @@ public class GhostModeActivity extends BaseNekoSettingsActivity implements Notif
         sendWithoutSoundRow = addRow();
         sendWithoutSoundNoticeRow = addRow();
         showGhostInDrawerRow = addRow();
+        showOwnLastSeenRow = addRow();
         showGhostModeStatusRow = addRow();
     }
 
@@ -215,6 +217,9 @@ public class GhostModeActivity extends BaseNekoSettingsActivity implements Notif
             NekoConfig.showGhostInDrawer.toggleConfigBool();
             ((TextCheckCell) view).setChecked(NekoConfig.showGhostInDrawer.Bool());
             getNotificationCenter().postNotificationName(NotificationCenter.mainUserInfoChanged);
+        } else if (position == showOwnLastSeenRow) {
+            NaConfig.INSTANCE.getShowOwnLastSeen().toggleConfigBool();
+            ((TextCheckCell) view).setChecked(NaConfig.INSTANCE.getShowOwnLastSeen().Bool());
         } else if (position == showGhostModeStatusRow) {
             NekoConfig.showGhostModeStatus.toggleConfigBool();
             ((TextCheckCell) view).setChecked(NekoConfig.showGhostModeStatus.Bool());
@@ -324,6 +329,8 @@ public class GhostModeActivity extends BaseNekoSettingsActivity implements Notif
                         textCheckCell.setTextAndCheck(getString(R.string.SilentMessageByDefault), NaConfig.INSTANCE.getSilentMessageByDefault().Bool(), true);
                     } else if (position == showGhostInDrawerRow) {
                         textCheckCell.setTextAndValueAndCheck(getString(R.string.GhostModeInDrawer), getString(R.string.GhostModeInDrawerNotice), NekoConfig.showGhostInDrawer.Bool(), true, true, true);
+                    } else if (position == showOwnLastSeenRow) {
+                        textCheckCell.setTextAndValueAndCheck(getString(R.string.GhostModeOwnLastSeen), getString(R.string.GhostModeOwnLastSeenNotice), NaConfig.INSTANCE.getShowOwnLastSeen().Bool(), true, true, true);
                     } else if (position == showGhostModeStatusRow) {
                         textCheckCell.setTextAndCheck(getString(R.string.GhostModeStatusIndicator), NekoConfig.showGhostModeStatus.Bool(), false);
                     }

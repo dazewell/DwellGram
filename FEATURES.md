@@ -74,6 +74,8 @@ Turn on **Hold Messages** under Settings → Ghost Mode, or from the Send button
 
 With Ghost Mode on, the ghost indicator next to the chat list title stays visible even when contacts' stories collapse the header.
 
+### Your last seen under the Ayu Mode switch <!-- #own-last-seen -->
+
 ### Ghost send warning <!-- #ghost-send-warning --> <!-- #ghost-type-warning -->
 
 Ghost Mode hides read receipts, typing and online status, but does not hold sends by itself. With Hold Messages off, the first time you type in a chat each Ghost session you get a heads-up, and that chat then stays quiet for the session. With it on, held text, contacts and static locations use the Scheduled-list caption as feedback; unsupported sends still warn before the quiet period starts.
