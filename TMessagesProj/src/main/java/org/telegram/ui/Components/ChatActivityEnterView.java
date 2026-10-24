@@ -19268,6 +19268,9 @@ public class ChatActivityEnterView extends FrameLayout implements
                 composerInlineRest.onHeightFactor(factor, animatorInputFieldHeight.getToFactor());
             }
             checkUi_IslandTotalHeight();
+            if (composerInlineRest != null) {
+                composerInlineRest.settleIfDone();
+            }
             checkUi_TopViewVisibility();
             // NagramX (#composer-text-clip-fix): drawMessageEditText reads this factor for its layer top, but it runs in
             // the edit container's display list, which our own invalidate() below does not re-record. Without this the

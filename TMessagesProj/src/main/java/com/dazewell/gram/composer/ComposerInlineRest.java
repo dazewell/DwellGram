@@ -35,6 +35,7 @@ public final class ComposerInlineRest {
     private final ComposerToolbarLayout toolbar;
     private boolean compact;
     private boolean morphing;
+    private boolean pendingFinish;
     private float morphFromHeight;
     private float morphFromProgress;
     private float progress = 1f;
@@ -172,6 +173,15 @@ public final class ComposerInlineRest {
         toolbar.setMiddleAlpha(compact ? 0f : Math.max(0, (progress - 0.5f) * 2f));
         if (remaining <= 0) {
             android.util.Log.i("NaxSmoke", "NAX_SMOKE_composer-inline-rest END via=height rest=" + compact);
+            // Not finished yet: this frame's island height still has to go out, and the history pin reads morphing()
+            // while it does. settleIfDone() lets go once it has.
+            pendingFinish = true;
+        }
+    }
+
+    /** Called once the frame's island height has gone out; ends a morph whose last frame that was. */
+    public void settleIfDone() {
+        if (pendingFinish) {
             finishMorph();
         }
     }
@@ -182,6 +192,7 @@ public final class ComposerInlineRest {
             android.util.Log.w("NaxSmoke", "NAX_SMOKE_composer-inline-rest END via=cut remaining=" + remaining + " rest=" + compact);
         }
         morphing = false;
+        pendingFinish = false;
         remaining = 0;
         startDelta = bottomDelta = 0;
         progress = compact ? 0f : 1f;
