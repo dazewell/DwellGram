@@ -778,6 +778,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private int sendReservePx;
         private int restLeading = -1;
         private int restTrailing = -1;
+        private int restWidth = -1;
         private Runnable restGeometryListener;
         // A slot occupancy change should clear on the very next traversal: checkSlotOccupancy(true) runs
         // before measuring slots and force-layouts the changed slot (and the middle strip host when needed),
@@ -1125,9 +1126,11 @@ public final class ComposerToolbarLayout extends FrameLayout {
             }
             int leading = startWidth > 0 ? getPaddingStart() + startWidth : 0;
             int trailing = getPaddingEnd() + endWidth;
-            if (leading != restLeading || trailing != restTrailing) {
+            // The fit check also reads the row's width, which rotation and multi-window move on their own.
+            if (leading != restLeading || trailing != restTrailing || getWidth() != restWidth) {
                 restLeading = leading;
                 restTrailing = trailing;
+                restWidth = getWidth();
                 if (restGeometryListener != null) {
                     // Posted: the listener moves the field's margins, which must not request layout mid-pass.
                     post(restGeometryListener);
