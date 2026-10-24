@@ -149,6 +149,8 @@ public final class ComposerMd3Surface {
     // Read once: the chat is rebuilt when the setting changes, like the rest of Interface Style.
     private final boolean docked;
     private final RectF run = new RectF();
+    // The tools row's share of the pill this frame, kept for drawContents, which the docked panel also calls.
+    private float toolsInset;
 
     public ComposerMd3Surface(Theme.ResourcesProvider resourcesProvider) {
         this.resourcesProvider = resourcesProvider;
@@ -402,6 +404,7 @@ public final class ComposerMd3Surface {
             barVisible = false;
             return;
         }
+        this.toolsInset = toolsInset;
         final float alpha = pillAlpha / 255f;
         final float inputFactor = visibility(enterView);
         final float channelFactor = visibility(channelButtons);
@@ -590,6 +593,7 @@ public final class ComposerMd3Surface {
         float columnLeft = pillLeft + fieldSideInset();
         float columnRight = pillRight - fieldSideInset();
         sendSlot.setEmpty();
+        final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
         if (enterView != null) {
             final int primaryEndInset = enterView.getComposerPrimaryEndInset();
             if (primaryEndInset > 0) {
@@ -603,9 +607,34 @@ public final class ComposerMd3Surface {
                     // The slot is square at the bottom of the text row, flush with the enter view's send side.
                     final float slot = dp(ChatActivityEnterView.DEFAULT_HEIGHT);
                     final float slotLeft = LocaleController.isRTL ? enterView.getLeft() : enterView.getRight() - slot;
-                    sendSlot.set(slotLeft, pill.bottom - slot, slotLeft + slot, pill.bottom);
+                    // Folding at rest, the column sits in the tools row instead, below the pill.
+                    final float slotBottom = rest != null
+                            ? pill.bottom + toolsInset - dp(rest.primaryColumnBottomDp(ChatActivityEnterView.DEFAULT_HEIGHT))
+                            : pill.bottom;
+                    sendSlot.set(slotLeft, slotBottom - slot, slotLeft + slot, slotBottom);
                 }
             }
+        }
+        // The field alone follows the fold: at rest it runs between the leading and trailing buttons, open it takes
+        // the whole row, the send column having gone down to the tools row. The reply strip keeps its column.
+        float fieldLeft = columnLeft;
+        float fieldRight = columnRight;
+        if (rest != null) {
+            final float openLeft = pillLeft + fieldSideInset();
+            final float openRight = pillRight - fieldSideInset();
+            final int restStart = rest.restFieldStart();
+            final int restEnd = rest.restFieldEnd();
+            final float restLeft, restRight;
+            if (LocaleController.isRTL) {
+                restLeft = enterView.getLeft() + restEnd;
+                restRight = restStart > 0 ? enterView.getRight() - restStart : openRight;
+            } else {
+                restLeft = restStart > 0 ? enterView.getLeft() + restStart : openLeft;
+                restRight = enterView.getRight() - restEnd;
+            }
+            final float open = rest.progress();
+            fieldLeft = restLeft + (openLeft - restLeft) * open;
+            fieldRight = restRight + (openRight - restRight) * open;
         }
 
         if (drawPill && inputFactor > 0 && topViewHeight > dp(STRIP_INSET * 2)) {
@@ -624,7 +653,7 @@ public final class ComposerMd3Surface {
         }
 
         if (drawPill && inputFactor > 0) {
-            rect.set(columnLeft, pill.top + topViewHeight + dp(FIELD_INSET), columnRight, pill.bottom - dp(FIELD_INSET));
+            rect.set(fieldLeft, pill.top + topViewHeight + dp(FIELD_INSET), fieldRight, pill.bottom - dp(FIELD_INSET));
             final float fieldRadius = Math.min(fieldRadius(), rect.height() / 2f);
             fillPaint.setColor(Theme.multAlpha(fieldOverlay(), alpha * inputFactor));
             canvas.drawRoundRect(rect, fieldRadius, fieldRadius, fillPaint);
