@@ -36,6 +36,8 @@ public final class ComposerInlineRest {
     private boolean compact;
     private boolean morphing;
     private boolean pendingFinish;
+    private boolean awaitingTarget;
+    private float staleTarget;
     private float morphFromHeight;
     private float morphFromProgress;
     private float progress = 1f;
@@ -112,7 +114,7 @@ public final class ComposerInlineRest {
      * {@code openBottom} is its bottom margin with two rows, the tools row's height plus its gap.
      */
     public void layoutField(View field, @Nullable View richPreview, boolean wantsRest, int openStart, int sendReserve,
-                            int openBottom, float currentHeight) {
+                            int openBottom, float currentHeight, float currentTarget) {
         toolbar.setSendReserve(sendReserve);
         final boolean rest = wantsRest && fits(field) && !toolbar.hasMiddleLeading();
         final ViewGroup.LayoutParams params = field.getLayoutParams();
@@ -142,6 +144,8 @@ public final class ComposerInlineRest {
             startDelta = fromStart - start;
             bottomDelta = bottom - fromBottom;
             morphFromHeight = currentHeight;
+            staleTarget = currentTarget;
+            awaitingTarget = true;
             morphFromProgress = progress;
             morphing = true;
             remaining = 1f;
@@ -164,6 +168,14 @@ public final class ComposerInlineRest {
     public void onHeightFactor(float factor, float toFactor) {
         if (!morphing) {
             return;
+        }
+        // Until the flip's re-measure aims the animation at the new height, its target is the old one; measuring
+        // against that would step the field the wrong way for a tick. The timeout covers a target that never moves.
+        if (awaitingTarget) {
+            if (toFactor == staleTarget) {
+                return;
+            }
+            awaitingTarget = false;
         }
         final float span = toFactor - morphFromHeight;
         remaining = span == 0 ? 0 : Math.max(0, Math.min(1, (toFactor - factor) / span));

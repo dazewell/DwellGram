@@ -11297,7 +11297,8 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (composerInlineRest != null) {
             composerInlineRest.layoutField(messageEditText, richDraftPreview,
                     TextUtils.isEmpty(messageEditText.getText()) && !(keyboardVisible || waitingForKeyboardOpen || isPopupShowing()) && !messageEditExpanded && !richDraftActive,
-                    inset, getComposerPrimaryEndInset(), dp(composerToolbarHeight() + COMPOSER_TOOLBAR_GAP), animatorInputFieldHeight.getFactor());
+                    inset, getComposerPrimaryEndInset(), dp(composerToolbarHeight() + COMPOSER_TOOLBAR_GAP), animatorInputFieldHeight.getFactor(),
+                    animatorInputFieldHeight.getToFactor());
             return;
         }
         applyComposerTextMargins(messageEditText, inset, endInset);
