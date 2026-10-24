@@ -12,6 +12,10 @@ import com.dazewell.gram.ui.ComposerToolbarLayout;
 
 import org.telegram.messenger.LocaleController;
 import org.telegram.ui.Components.ChatActivityEnterView;
+import org.telegram.ui.Components.CubicBezierInterpolator;
+import org.telegram.ui.recyclerview.ChatListItemAnimator;
+
+import me.vkryl.android.animator.FactorAnimator;
 
 /**
  * The floating MD3 composer at rest: with the field empty and no keyboard or panel up, the field moves into the
@@ -29,8 +33,11 @@ public final class ComposerInlineRest {
     private static final int MIN_FIELD = 96;
     // The text sits this far inside the field, measured from the button cell beside it.
     private static final int TEXT_INSET = 12;
+    // The fold's own pace, close to the reference recording's: the stock 250ms that line wraps use was over before
+    // the eye caught the field moving. Ease-out, so it starts with the keyboard and settles gently.
+    private static final long FOLD_DURATION = 450;
     // A morph whose height never animated (nothing to animate between) still has to let go of its offsets.
-    private static final long MORPH_TIMEOUT = 400;
+    private static final long MORPH_TIMEOUT = FOLD_DURATION + 150;
 
     private final ComposerToolbarLayout toolbar;
     // Read once at creation, like the surface's docked flag: the chat is rebuilt when the style changes.
@@ -97,6 +104,15 @@ public final class ComposerInlineRest {
     /** The send column's bottom margin, in dp, centring it on the tools row it sits in. */
     public int primaryColumnBottomDp(int columnHeightDp) {
         return Math.max(0, (toolbar.rowHeightDp() - columnHeightDp) / 2);
+    }
+
+    /**
+     * Sets the enter view's height animation up for the change it is about to animate: the fold's pace while a fold is
+     * under way, the stock one for everything else. Read at each animateTo, so a fold re-aimed midway keeps its pace.
+     */
+    public void tuneHeightAnimator(FactorAnimator animator) {
+        animator.setDuration(morphing ? FOLD_DURATION : ChatListItemAnimator.DEFAULT_DURATION);
+        animator.setInterpolator(morphing ? CubicBezierInterpolator.EASE_OUT : ChatListItemAnimator.DEFAULT_INTERPOLATOR);
     }
 
     public float fieldOffsetX() {

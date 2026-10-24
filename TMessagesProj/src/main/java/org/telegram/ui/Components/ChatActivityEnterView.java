@@ -2866,6 +2866,10 @@ public class ChatActivityEnterView extends FrameLayout implements
                     // target changed, and a padding change re-measures us, so re-aiming at the height we are already
                     // animating to would restart it from the current frame and stutter the resize.
                     if (animatorInputFieldHeight.getToFactor() != height) {
+                        // NagramX (#composer-inline-rest): a fold animates at its own pace, everything else at the stock one.
+                        if (composerInlineRest != null) {
+                            composerInlineRest.tuneHeightAnimator(animatorInputFieldHeight);
+                        }
                         animatorInputFieldHeight.animateTo(height);
                     }
                 } else {
