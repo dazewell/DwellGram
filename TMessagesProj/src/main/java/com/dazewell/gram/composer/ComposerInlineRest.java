@@ -17,7 +17,7 @@ import org.telegram.ui.Components.ChatActivityEnterView;
  * The floating MD3 composer at rest: with the field empty and no keyboard or panel up, the field moves into the
  * tools row between the leading and trailing zones, so the island is one row. Opening the keyboard grows it back
  * to two rows, the field rising out of the row while the buttons stay put. The send column sits at the end of the
- * tools row in both states, so it never moves either.
+ * tools row in both states, so it never moves either; the docked panel puts it there too, but never folds.
  * <p>
  * Nothing here runs a clock of its own. The flip changes the field's margins, the enter view's height animation
  * eases the island to its new height, and every offset below is that animation's remaining share, so the field,
@@ -33,6 +33,8 @@ public final class ComposerInlineRest {
     private static final long MORPH_TIMEOUT = 400;
 
     private final ComposerToolbarLayout toolbar;
+    // Read once at creation, like the surface's docked flag: the chat is rebuilt when the style changes.
+    private final boolean foldable;
     private boolean compact;
     private boolean morphing;
     private boolean pendingFinish;
@@ -48,22 +50,27 @@ public final class ComposerInlineRest {
     private View morphView;
     private final Runnable morphTimeout = this::finishMorph;
 
-    private ComposerInlineRest(ComposerToolbarLayout toolbar, Runnable onGeometryChanged) {
+    private ComposerInlineRest(ComposerToolbarLayout toolbar, boolean foldable, Runnable onGeometryChanged) {
         this.toolbar = toolbar;
+        this.foldable = foldable;
         toolbar.setOnRestGeometryChanged(onGeometryChanged);
     }
 
-    /** Only the floating MD3 composer in a chat folds; Docked, Liquid Glass and the enter views outside a chat keep two rows. */
+    /**
+     * The MD3 composer in a chat gets one; Liquid Glass and the enter views outside a chat keep their layout. Docked
+     * takes the send column in the tools row, so both styles put it in the same place, but never folds: a flat panel
+     * resting on the keyboard has no island to shrink.
+     */
     @Nullable
     public static ComposerInlineRest createIfEnabled(@Nullable ComposerToolbarLayout toolbar, boolean inChat, Runnable onGeometryChanged) {
-        if (toolbar == null || !inChat || !InterfaceStyleController.applyComposer() || InterfaceStyleController.dockedComposer()) {
+        if (toolbar == null || !inChat || !InterfaceStyleController.applyComposer()) {
             android.util.Log.i("NaxSmoke", "NAX_SMOKE_composer-inline-rest SKIP toolbar=" + (toolbar != null) + " inChat=" + inChat
-                    + " md3=" + InterfaceStyleController.applyComposer() + " docked=" + InterfaceStyleController.dockedComposer());
+                    + " md3=" + InterfaceStyleController.applyComposer());
             return null;
         }
         android.util.Log.i("NaxSmoke", "NAX_SMOKE_composer-inline-rest BEGIN build=" + org.telegram.messenger.BuildVars.BUILD_VERSION_STRING
-                + " app=" + org.telegram.messenger.BuildConfig.APPLICATION_ID);
-        return new ComposerInlineRest(toolbar, onGeometryChanged);
+                + " app=" + org.telegram.messenger.BuildConfig.APPLICATION_ID + " docked=" + InterfaceStyleController.dockedComposer());
+        return new ComposerInlineRest(toolbar, !InterfaceStyleController.dockedComposer(), onGeometryChanged);
     }
 
     public static boolean morphing(@Nullable ChatActivityEnterView enterView) {
@@ -116,7 +123,7 @@ public final class ComposerInlineRest {
     public void layoutField(View field, @Nullable View richPreview, boolean wantsRest, int openStart, int sendReserve,
                             int openBottom, float currentHeight, float currentTarget) {
         toolbar.setSendReserve(sendReserve);
-        final boolean rest = wantsRest && fits(field) && !toolbar.hasMiddleLeading();
+        final boolean rest = foldable && wantsRest && fits(field) && !toolbar.hasMiddleLeading();
         final ViewGroup.LayoutParams params = field.getLayoutParams();
         boolean flipped = false;
         float fromStart = 0, fromBottom = 0;
