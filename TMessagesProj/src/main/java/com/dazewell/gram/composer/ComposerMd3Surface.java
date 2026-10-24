@@ -589,7 +589,8 @@ public final class ComposerMd3Surface {
                               float pillLeft, float pillRight, float topViewProgress, float topViewHeight, int surface,
                               Rect underKeyboard) {
         final int container = containerOverlay();
-        // The field and the reply strip share one column: both stop where the send and close controls begin.
+        // The reply strip stops where the send and close controls begin; so does the field, unless the send column sits
+        // in the tools row (below).
         float columnLeft = pillLeft + fieldSideInset();
         float columnRight = pillRight - fieldSideInset();
         sendSlot.setEmpty();
@@ -604,7 +605,7 @@ public final class ComposerMd3Surface {
                     columnRight = Math.min(columnRight, enterView.getRight() - primaryEndInset - dp(FIELD_SEND_GAP));
                 }
                 if (barVisible && drawPill && inputFactor >= 1f) {
-                    // The slot is square at the bottom of the text row, flush with the enter view's send side.
+                    // The slot is square at the bottom of the column's row, flush with the enter view's send side.
                     final float slot = dp(ChatActivityEnterView.DEFAULT_HEIGHT);
                     final float slotLeft = LocaleController.isRTL ? enterView.getLeft() : enterView.getRight() - slot;
                     // Folding at rest, the column sits in the tools row instead, below the pill.
