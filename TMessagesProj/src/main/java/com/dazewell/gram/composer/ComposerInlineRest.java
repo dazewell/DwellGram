@@ -54,8 +54,12 @@ public final class ComposerInlineRest {
     @Nullable
     public static ComposerInlineRest createIfEnabled(@Nullable ComposerToolbarLayout toolbar, boolean inChat, Runnable onGeometryChanged) {
         if (toolbar == null || !inChat || !InterfaceStyleController.applyComposer() || InterfaceStyleController.dockedComposer()) {
+            android.util.Log.i("NaxSmoke", "NAX_SMOKE_composer-inline-rest SKIP toolbar=" + (toolbar != null) + " inChat=" + inChat
+                    + " md3=" + InterfaceStyleController.applyComposer() + " docked=" + InterfaceStyleController.dockedComposer());
             return null;
         }
+        android.util.Log.i("NaxSmoke", "NAX_SMOKE_composer-inline-rest BEGIN build=" + org.telegram.messenger.BuildVars.BUILD_VERSION_STRING
+                + " app=" + org.telegram.messenger.BuildConfig.APPLICATION_ID);
         return new ComposerInlineRest(toolbar, onGeometryChanged);
     }
 
@@ -114,6 +118,9 @@ public final class ComposerInlineRest {
         boolean flipped = false;
         float fromStart = 0, fromBottom = 0;
         if (rest != compact) {
+            android.util.Log.i("NaxSmoke", "NAX_SMOKE_composer-inline-rest FLIP rest=" + rest + " wants=" + wantsRest + " fits=" + fits(field)
+                    + " middle=" + toolbar.hasMiddleLeading() + " height=" + currentHeight + " leading=" + toolbar.leadingExtent()
+                    + " trailing=" + toolbar.trailingExtent());
             compact = rest;
             toolbar.setRestCompact(rest);
             if (params instanceof ViewGroup.MarginLayoutParams && currentHeight > 0) {
@@ -164,12 +171,16 @@ public final class ComposerInlineRest {
         // The scrolling zone comes back in the second half, once the field has left the row it reappears in.
         toolbar.setMiddleAlpha(compact ? 0f : Math.max(0, (progress - 0.5f) * 2f));
         if (remaining <= 0) {
+            android.util.Log.i("NaxSmoke", "NAX_SMOKE_composer-inline-rest END via=height rest=" + compact);
             finishMorph();
         }
     }
 
     private void finishMorph() {
         final boolean wasMorphing = morphing;
+        if (wasMorphing && remaining > 0) {
+            android.util.Log.w("NaxSmoke", "NAX_SMOKE_composer-inline-rest END via=cut remaining=" + remaining + " rest=" + compact);
+        }
         morphing = false;
         remaining = 0;
         startDelta = bottomDelta = 0;
