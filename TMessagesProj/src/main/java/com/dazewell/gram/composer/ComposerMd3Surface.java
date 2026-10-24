@@ -608,7 +608,7 @@ public final class ComposerMd3Surface {
                     // The slot is square at the bottom of the column's row, flush with the enter view's send side.
                     final float slot = dp(ChatActivityEnterView.DEFAULT_HEIGHT);
                     final float slotLeft = LocaleController.isRTL ? enterView.getLeft() : enterView.getRight() - slot;
-                    // Folding at rest, the column sits in the tools row instead, below the pill.
+                    // Under both MD3 styles the column sits in the tools row instead, below the pill.
                     final float slotBottom = rest != null
                             ? pill.bottom + toolsInset - dp(rest.primaryColumnBottomDp(ChatActivityEnterView.DEFAULT_HEIGHT))
                             : pill.bottom;
@@ -616,8 +616,8 @@ public final class ComposerMd3Surface {
                 }
             }
         }
-        // The field alone follows the fold: at rest it runs between the leading and trailing buttons, open it takes
-        // the whole row, the send column having gone down to the tools row. The reply strip keeps its column.
+        // The field alone follows the floating fold: at rest it runs between the leading and trailing buttons, open it
+        // takes the whole row, the send column having gone down to the tools row. The reply strip keeps its column.
         float fieldLeft = columnLeft;
         float fieldRight = columnRight;
         if (rest != null) {
