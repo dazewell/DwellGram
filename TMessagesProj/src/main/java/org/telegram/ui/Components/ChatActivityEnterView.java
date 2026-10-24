@@ -2933,7 +2933,11 @@ public class ChatActivityEnterView extends FrameLayout implements
             composerFormattingActions = new com.dazewell.gram.composer.ComposerFormattingActions(this, composerToolbar, resourcesProvider, isChat);
             messageEditTextContainer.addView(composerToolbar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, composerToolbarHeight(), Gravity.BOTTOM));
             // NagramX (#composer-inline-rest): made before the send column, whose bottom margin it decides.
-            composerInlineRest = com.dazewell.gram.composer.ComposerInlineRest.createIfEnabled(composerToolbar, parentFragment != null, this::applyComposerTextGeometry);
+            composerInlineRest = com.dazewell.gram.composer.ComposerInlineRest.createIfEnabled(composerToolbar, parentFragment != null, () -> {
+                if (!destroyed) {
+                    applyComposerTextGeometry();
+                }
+            });
         }
 
         emojiButton = new ChatActivityEnterViewAnimatedIconView(context) {
