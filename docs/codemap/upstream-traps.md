@@ -2727,7 +2727,7 @@ so `TextView` never clips the top: the lines a long draft has scrolled past are 
 Nothing in the composer clips them except `ChatActivityEnterView.drawChild`'s cut at the input row's top
 (`ChatActivityEnterView.java:5185`) and `drawMessageEditText`'s layer and 14dp top fade (`:19041`). Any edge
 for that clip or fade has to be the input row's top, which the MD3 field is drawn from too
-(`ComposerMd3Surface.java:693`). The fade used to sit at `messageEditText.getY() + animatedTop`, and
+(`ComposerMd3Surface.java:696`). The fade used to sit at `messageEditText.getY() + animatedTop`, and
 `animatedTop` stays wherever it was while `waitingForSendingMessageLoad` holds back its reset animator
 (`ChatActivity.java:8829`), so the fade could land across a line in the middle of the field and leave the
 real top as a hard cut. It is now anchored to the row (`ChatActivityEnterView.java:19050-19060`).
@@ -2838,7 +2838,7 @@ scale 1 (`:9166-9180`). The method's last `updateRichDraftPreview()` does the sa
 `checkSendButton(true)` (`:14034`) runs on that flip. Any animation of the attach button on edit exit has to start
 after both. It does, at `:13180`.
 
-The toolbar row only gives a control its slot once its alpha reaches 0.5 (`ComposerToolbarLayout.java:1819-1825`).
+The toolbar row only gives a control its slot once its alpha reaches 0.5 (`ComposerToolbarLayout.java:1823-1829`).
 Fade a returning control in on `EASE_OUT_QUINT`: it crosses 0.5 in the first frames, so the slot is claimed
 straight away. On a linear or `DEFAULT` curve the control draws into a zero-width box until it reaches half opacity.
 

@@ -316,7 +316,7 @@ surface, so they keep their glass.
 The surface paints one island: the 44dp text row and the tools row
 plus 2dp all round, radius 13dp, with a soft shadow in
 `key_chat_messagePanelShadow` and, in dark themes, a faint light edge
-(`ComposerMd3Surface.java:81`, `:402-706`). It sits 9dp from each screen side;
+(`ComposerMd3Surface.java:81`, `:402-709`). It sits 9dp from each screen side;
 its children are padded 4dp in from the container, so the stock 38dp send
 circle clears the island's side and top by the same 5dp (`:96-100`). The channel
 run, the selection bar and the plain pill (search, the bottom overlay text)
@@ -384,7 +384,7 @@ Channel and selection runs tone the island itself (`ComposerMd3Surface.java:518-
 With MD3 Buttons on, the selection bar's Reply and Forward instead become the run's
 fields: an opaque field tone at an 11dp radius, 2dp inside an untoned island, set once at
 `bind` through `ChatActivityBlurredRoundButton.setNestedBackground`
-(`ComposerMd3Surface.java:180`, `:798-836`; `ChatActivityBlurredRoundButton.java:246-259`).
+(`ComposerMd3Surface.java:180`, `:801-839`; `ChatActivityBlurredRoundButton.java:246-259`).
 Opaque, because a translucent drawable fill shows its own wallpaper blur, not the island.
 Nested, they fade in place rather than fly in from outside the island
 (`ChatActivityActionsButtonsLayout.java:183-184`).
@@ -395,7 +395,7 @@ trash is a Lottie whose stripes are recoloured by layer name to `key_chat_messag
 to fake holes, and its resting stripes share those names, so stock it rests as a hollow can.
 A frosted field has no single colour to match, so on the field they read as bars; under MD3 the
 chat's own enter view paints stripes and can in one composer icon tint, a plain striped glyph
-(`ChatActivityEnterView.java:13302-13304`; `ComposerMd3Surface.java:778-792`;
+(`ChatActivityEnterView.java:13302-13304`; `ComposerMd3Surface.java:781-795`;
 `res/raw/chat_audio_record_delete_2.json`, precomp `Box Grey`). The reply strip shares its column, is centred
 on the upstream close button and carries its accent as a separate rounded bar
 (`:678-689`); under MD3 the close button draws without its glass disc
@@ -406,7 +406,7 @@ Buttons provider's. It is the island glass shrunk to the button run by
 called from `ChannelAdminLogActivity.java:1511`. Dropping the island glass
 without painting that run is what blanked channel chats in #409. The reply strip
 stops short of the send column using the existing `getComposerPrimaryEndInset()`, on
-the left under `LocaleController.isRTL` (`ComposerMd3Surface.java:630-643`;
+the left under `LocaleController.isRTL` (`ComposerMd3Surface.java:630-646`;
 `ChatActivityEnterView.java:19192`). The field no longer does: under both MD3 styles the
 send column sits at the end of the tools row (next section). The reply strip reads `getTopViewHeight()`
 and `getTopViewEnterProgress()` (`ComposerMd3Surface.java:427-428`), while the
@@ -416,7 +416,7 @@ upstream-traps, "The enter view's measured height can drift". The circle keeps i
 The tools row keeps its Liquid Glass geometry unless MD3 is on. Then size runs
 the row, cell, state layer and glyph linearly through 40/48/56dp rows at
 75/100/125%, cells are packed 4dp narrower than the row, and groups sit 8dp
-apart (`ComposerToolbarLayout.java:71-77`, `:415-428`, `:434-459`, `:478-487`).
+apart (`ComposerToolbarLayout.java:71-77`, `:419-432`, `:438-463`, `:482-491`).
 The Scrolling zone keeps fixed cells, fades its edges inside the viewport and
 scrolls normally: fitting its cells to the viewport made smaller spacing look
 looser (`:131-132`). A 24dp hairline seams it from the leading group, and from
@@ -431,27 +431,29 @@ keep their own provider (`ChatActivity.java:4202`).
 
 `ComposerInlineRest` owns it, one per chat enter view under MD3 (`ComposerInlineRest.java:69`,
 created at `ChatActivityEnterView.java:2940`). Under both styles the send column sits at the end of
-the tools row, centred on it (`ComposerInlineRest.java:102`, `ChatActivityEnterView.java:4395`), and the
-toolbar's end padding reserves it (`ComposerToolbarLayout.java:841`). Both styles fold: with the field
+the tools row, centred on it (`ComposerInlineRest.java:107`, `ChatActivityEnterView.java:4395`), and the
+toolbar's end padding reserves it (`ComposerToolbarLayout.java:845`). Both styles fold: with the field
 empty and no keyboard, panel, fullscreen input or rich draft, the field moves into the tools row between the
 leading and trailing zones and the Scrolling viewport goes INVISIBLE at width 0, its buttons untouched
-(`ComposerInlineRest.java:149`; `ComposerToolbarLayout.java:831`, `:970`). The decision rides
+(`ComposerInlineRest.java:154`; `ComposerToolbarLayout.java:835`, `:974`). The decision rides
 `checkBotMenu()`, which every text, keyboard and panel change already calls (`ChatActivityEnterView.java:5150`),
 and `applyComposerTextGeometry()` hands it the field (`:11306`). A row that would leave the field under 96dp,
 or a send-as avatar or bot pill at the head of the Scrolling zone, keeps two rows (`ComposerInlineRest.java:33`,
-`:258`; `ComposerToolbarLayout.java:170`).
+`:263`; `ComposerToolbarLayout.java:170`).
 
 The fold has no clock. The margin flip re-measures the edit container, `animatorInputFieldHeight` eases the
-island, at 450ms ease-out for a fold instead of its stock 250ms (`ComposerInlineRest.java:38`, `:110`;
+island, at 450ms ease-out for a fold instead of its stock 250ms (`ComposerInlineRest.java:38`, `:115`;
 `ChatActivityEnterView.java:2871`), and the field's draw offset (`:2911`), the tools inset
-(`:19163`) and the surface's field tone (`ComposerMd3Surface.java:673`, `:693`) all read that animation's
-remaining share (`ComposerInlineRest.java:196`). The morph must not end inside that frame's height tick: the
+(`:19181`) and the surface's field tone (`ComposerMd3Surface.java:676`, `:696`) all read that animation's
+remaining share (`ComposerInlineRest.java:201`). The morph must not end inside that frame's height tick: the
 `#fullscreen-input` history pin reads `ComposerInlineRest.morphing()` further down the same synchronous call
 (`ChatActivity.java:13633`), and ending first let it arm on the last frame and hold history still against the
-keyboard. It ends in `settleIfDone()`, after `checkUi_IslandTotalHeight()` (`ChatActivityEnterView.java:19281`;
-`ComposerInlineRest.java:217`, `:222`). Docked needs nothing of its own: the panel takes its top from the
+keyboard. It ends in `settleIfDone()`, after `checkUi_IslandTotalHeight()` (`ChatActivityEnterView.java:19299-19302`;
+`ComposerInlineRest.java:222`, `:227`). Docked needs nothing of its own: the panel takes its top from the
 island's and keeps its bottom on the keyboard or screen edge (`ComposerMd3Surface.java:570`), so it folds from the
-top. The layout editor preview does not show the fold yet.
+top. While a record, review or bot panel replaces the tools row, the surface ignores the fold and draws the
+field tone and send slot from the column geometry (`ComposerMd3Surface.java:635-636`;
+`ChatActivityEnterView.java:12549`). The layout editor preview does not show the fold yet.
 *(Established 2026-10-24, `#composer-inline-rest`, PR 549.)*
 
 ## MD3 Buttons reaches buttons through shared providers and targeted hooks
