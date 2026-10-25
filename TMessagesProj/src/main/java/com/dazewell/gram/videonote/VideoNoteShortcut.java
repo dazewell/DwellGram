@@ -256,6 +256,11 @@ public final class VideoNoteShortcut {
             }
             return 0;
         }
+        if (CameraMemo.isLive()) {
+            // Another memo would close the chats under the one recording (LaunchActivity's closeChats). Returning 0
+            // just brings the app forward, back onto the live camera screen.
+            return 0;
+        }
         long userId = VideoNoteTarget.resolve(account, true);
         pendingAccount = account;
         pendingDialogId = userId;
@@ -266,6 +271,11 @@ public final class VideoNoteShortcut {
             phaseSince = pendingSince; // the database read above mustn't eat into the start timeout
         }
         return userId;
+    }
+
+    /** A memo recorded under the lock is in progress, and the phase machine owns locking and leaving. */
+    static boolean isLockedMemo() {
+        return phase != IDLE;
     }
 
     private static boolean isPendingChat(ChatActivity chat) {
@@ -288,9 +298,14 @@ public final class VideoNoteShortcut {
         }
         boolean fresh = SystemClock.elapsedRealtime() - pendingSince < PENDING_TTL_MS;
         boolean front = !pendingRear;
+        boolean camera = pendingCamera;
         pendingAccount = -1;
         pendingDialogId = 0;
+        pendingCamera = false;
         if (!fresh) {
+            if (camera) {
+                CameraMemo.onStart(chat, false);
+            }
             return;
         }
         boolean locked = phase == STARTING;
@@ -306,6 +321,9 @@ public final class VideoNoteShortcut {
             ChatActivityEnterView enterView = chat.getChatActivityEnterView();
             boolean started = enterView != null && !chat.isFinished && chat.getParentActivity() != null
                     && enterView.startRoundVideoFromShortcut(front, !locked);
+            if (camera) {
+                CameraMemo.onStart(chat, started);
+            }
             if (locked && !started) {
                 lockNow();
             }
@@ -382,6 +400,7 @@ public final class VideoNoteShortcut {
 
     /** First thing in LaunchActivity.showPasscodeActivity. */
     public static void onPasscodeShown() {
+        CameraMemo.end(); // the passcode ends a camera memo in either mode; its cover comes down behind the passcode
         // #video-pause-grace: onPause defers finalizing a live round video, so a lock must stop it or the unlock rebuild drops it. A shortcut session finalizes below.
         BaseFragment top = LaunchActivity.getLastFragment();
         if (phase == IDLE && top instanceof ChatActivity) {
@@ -396,6 +415,7 @@ public final class VideoNoteShortcut {
         sessionChat = null;
         pendingAccount = -1;
         pendingDialogId = 0;
+        pendingCamera = false;
         AndroidUtilities.cancelRunOnUIThread(poll);
         AndroidUtilities.cancelRunOnUIThread(leave);
         if (chat != null && !chat.finalizeRoundVideoForLock() && cameraMayBeOpening) {
@@ -492,6 +512,10 @@ public final class VideoNoteShortcut {
 
     /** ChatActivity.createView, right after the input container is added. */
     public static void onChatViewCreated(ChatActivity chat, ViewGroup contentView, View inputContainer, org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory wallpaperBlurFactory) {
+        // Locked or not. Added first, it still ends up over the shield below and everything else: it is raised by Z.
+        if (pendingCamera && isPendingChat(chat) && SystemClock.elapsedRealtime() - pendingSince < PENDING_TTL_MS) {
+            CameraMemo.attach(chat, contentView);
+        }
         if (!(phase == STARTING && isPendingChat(chat)) && !isSessionChat(chat)) {
             return;
         }
@@ -529,7 +553,9 @@ public final class VideoNoteShortcut {
         // Above the input container: the round camera is drawn just before it (ChatActivity's drawChild), and its backdrop
         // would wash out anything placed below
         index = contentView.indexOfChild(inputContainer);
-        addStatusRow(chat, contentView, index < 0 ? contentView.getChildCount() : index + 1);
+        if (!CameraMemo.isSessionChat(chat)) { // the camera screen covers it, and it would name the person
+            addStatusRow(chat, contentView, index < 0 ? contentView.getChildCount() : index + 1);
+        }
     }
 
     // The real header is under the shield, so the recipient's online state and unread count go on it instead
@@ -631,6 +657,9 @@ public final class VideoNoteShortcut {
 
     /** ChatActivity.onBackPressed. True means the back was taken. */
     public static boolean onBackPressed(ChatActivity chat, boolean invoked) {
+        if (phase == IDLE && CameraMemo.onBackPressed(chat, invoked)) {
+            return true;
+        }
         if (!isSessionChat(chat) && !(phase == STARTING && isPendingChat(chat))) {
             return false;
         }
@@ -646,11 +675,14 @@ public final class VideoNoteShortcut {
 
     /** ChatActivity's visible-messages read check. The shield is up, so nothing on screen has been read. */
     public static boolean hidesHistory(ChatActivity chat) {
-        return isSessionChat(chat) || phase == STARTING && isPendingChat(chat);
+        return isSessionChat(chat) || phase == STARTING && isPendingChat(chat) || CameraMemo.isSessionChat(chat);
     }
 
     /** LaunchActivity.needPresentFragment / needAddFragmentToStack. Opening anything but our own chat locks. */
     public static void onNavigation(BaseFragment fragment) {
+        if (phase == IDLE && !(pendingCamera && isPendingChatPush(fragment))) {
+            CameraMemo.onNavigation(fragment); // locked, the lock below ends it instead
+        }
         if (phase == IDLE || phase == STARTING && isPendingChatPush(fragment)) {
             return;
         }

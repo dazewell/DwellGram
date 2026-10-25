@@ -347,6 +347,8 @@ Turn on *Video memo shortcut* or *Text memo shortcut* under N-Settings → Gener
 
 A text memo shows *online* next to its label, and an unread badge, when your *Recipient* is online or has messages you haven't read. A video memo recorded while the app is locked shows both at the top of the screen. Always on.
 
+### Camera memo shortcut <!-- #camera-memo -->
+
 ### Custom file names for saved media <!-- #custom-file-names -->
 
 Turn on *Custom File Names* (N-Settings → General → Storage) to save videos, voice, and round messages under the message's send date and time — `20260101_173812.mp4` by default — instead of Telegram's generic `video.mp4`. The setting's dialog lets you customize the pattern with `{date}`, `{time}`, and `{name}` (the sender's original filename), with a live preview as you type. Saved photos are unaffected.
