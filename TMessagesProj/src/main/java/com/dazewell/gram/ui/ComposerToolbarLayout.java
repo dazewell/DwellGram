@@ -79,11 +79,6 @@ public final class ComposerToolbarLayout extends FrameLayout {
     private static final int GLASS_INSET = 4;
     private static final int GLASS_DRAW_INSET = 2;
     private static final int BOUNDS_SETTLE_DELAY = 48;
-    // Temporary NAX_SMOKE_attach-return probe window, opened by the edit exit.
-    public static long naxSmokeUntil;
-    public static boolean naxSmoke() {
-        return android.os.SystemClock.elapsedRealtime() < naxSmokeUntil;
-    }
     private static final int BOUNDS_SETTLE_MAX = 150;
     private static final int CONFIGURATION_LONG_PRESS_MS = 1000;
     // The keyboard gap reaches its full size once the keyboard or emoji panel has risen this far.
@@ -838,9 +833,6 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 return;
             }
             restCompact = compact;
-            if (naxSmoke()) {
-                android.util.Log.i("NAX_SMOKE_attach-return", "FOLD compact=" + compact);
-            }
             middleScrollView.setVisibility(compact ? INVISIBLE : VISIBLE);
             requestLayout();
         }
@@ -850,9 +842,6 @@ public final class ComposerToolbarLayout extends FrameLayout {
             px = Math.max(0, px);
             if (sendReservePx == px) {
                 return;
-            }
-            if (naxSmoke()) {
-                android.util.Log.i("NAX_SMOKE_attach-return", "RESERVE " + sendReservePx + "->" + px);
             }
             sendReservePx = px;
             setPaddingRelative(sidePaddingPx, verticalPaddingPx, sidePaddingPx + px, verticalPaddingPx);
@@ -1465,10 +1454,6 @@ public final class ComposerToolbarLayout extends FrameLayout {
             // the distance it still had to cover instead of snapping back to the new anchor.
             pendingEndShift = rightAnchoredSlot.getTranslationX() + endShift;
             rightAnchoredSlot.setTranslationX(pendingEndShift);
-            if (naxSmoke()) {
-                android.util.Log.i("NAX_SMOKE_attach-return", "HOLD endShift=" + endShift + " pending=" + pendingEndShift
-                        + " slotLeft=" + rightAnchoredSlot.getLeft() + " resuming=" + resumingMidAnimation);
-            }
         }
 
         // Each further change pushes the start back, so cap the wait: a slot that keeps resizing must not
@@ -1648,10 +1633,6 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 if (previousWidth > 0 && offset != 0) {
                     slides.put(child, new int[]{childLeft, offset});
                     child.offsetLeftAndRight(offset);
-                    if (naxSmoke()) {
-                        android.util.Log.i("NAX_SMOKE_attach-return", "SLIDE child=" + child.getClass().getSimpleName() + "#" + child.getId()
-                                + " desc=" + child.getContentDescription() + " to=" + childLeft + " offset=" + offset + " parent=" + getClass().getSimpleName());
-                    }
                 }
             }
             if (slides.isEmpty()) {

@@ -9164,9 +9164,6 @@ public class ChatActivityEnterView extends FrameLayout implements
     // NagramX (#composer-attach-pinned): repairs a pinned button left morphed or faded by slow
     // mode or a stale "..." state, since nothing else in checkSendButton touches it once pinned.
     private void pinAttachButton(int duration) {
-        if (com.dazewell.gram.ui.ComposerToolbarLayout.naxSmoke()) {
-            android.util.Log.w("NAX_SMOKE_attach-return", "PIN running=" + (attachButtonAnimator != null));
-        }
         if (attachButtonAnimator != null) { attachButtonAnimator.cancel(); attachButtonAnimator = null; }
         Object tag = attachButton == null ? null : attachButton.getTag();
         if (tag instanceof Integer && (Integer) tag == 1) {
@@ -13065,29 +13062,6 @@ public class ChatActivityEnterView extends FrameLayout implements
             }
         } else {
             boolean fadeAttachIn = false; // NagramX (#attach-return-fix)
-            if (composerToolbarEnabled && attachButton != null) {
-                com.dazewell.gram.ui.ComposerToolbarLayout.naxSmokeUntil = android.os.SystemClock.elapsedRealtime() + 1500;
-                android.util.Log.i("NAX_SMOKE_attach-return", "BEGIN build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING + " app=" + org.telegram.messenger.BuildConfig.APPLICATION_ID
-                        + " account=" + currentAccount + " parent=" + ((View) attachButton.getParent()).getClass().getSimpleName()
-                        + " left=" + attachButton.getLeft() + " width=" + attachButton.getWidth() + " keyboard=" + keyboardVisible);
-                final View probeButton = attachButton;
-                final float[] probeLastX = {Float.NaN};
-                final android.view.ViewTreeObserver.OnPreDrawListener probe = () -> {
-                    int[] loc = new int[2];
-                    probeButton.getLocationOnScreen(loc);
-                    if (loc[0] != probeLastX[0]) {
-                        probeLastX[0] = loc[0];
-                        android.util.Log.i("NAX_SMOKE_attach-return", "FRAME screenX=" + loc[0] + " left=" + probeButton.getLeft() + " width=" + probeButton.getWidth()
-                                + " alpha=" + probeButton.getAlpha() + " scale=" + probeButton.getScaleX());
-                    }
-                    return true;
-                };
-                probeButton.getViewTreeObserver().addOnPreDrawListener(probe);
-                AndroidUtilities.runOnUIThread(() -> {
-                    probeButton.getViewTreeObserver().removeOnPreDrawListener(probe);
-                    android.util.Log.i("NAX_SMOKE_attach-return", "END");
-                }, 1500);
-            }
             if (setTextFieldRunnable != null) {
                 AndroidUtilities.cancelRunOnUIThread(setTextFieldRunnable);
                 setTextFieldRunnable = null;
