@@ -46,11 +46,15 @@ public final class CameraMemo {
         contentView.addView(cover, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         sessionChat = new WeakReference<>(chat);
         sessionCover = new WeakReference<>(cover);
+        android.util.Log.i("NaxCameraMemo", "NAX_SMOKE_camera-memo BEGIN build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING
+                + " app=" + org.telegram.messenger.BuildConfig.APPLICATION_ID + " account=" + chat.getCurrentAccount()
+                + " locked=" + VideoNoteShortcut.isLockedMemo());
     }
 
     /** VideoNoteShortcut.onChatOpened, with whether the camera actually started. */
     static void onStart(ChatActivity chat, boolean started) {
         CameraMemoCover cover = isSessionChat(chat) && sessionCover != null ? sessionCover.get() : null;
+        android.util.Log.i("NaxCameraMemo", "NAX_SMOKE_camera-memo start started=" + started + " cover=" + (cover != null));
         if (cover != null && !started) {
             cover.showFailed();
         }
@@ -62,6 +66,7 @@ public final class CameraMemo {
         sessionChat = null;
         sessionCover = null;
         if (cover != null) {
+            android.util.Log.i("NaxCameraMemo", "NAX_SMOKE_camera-memo END locked=" + VideoNoteShortcut.isLockedMemo(), new Throwable());
             AndroidUtilities.runOnUIThread(cover::remove);
         }
     }

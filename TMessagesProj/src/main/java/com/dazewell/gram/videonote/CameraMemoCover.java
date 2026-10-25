@@ -86,6 +86,8 @@ final class CameraMemoCover extends FrameLayout {
     private boolean failed;
     private boolean removed;
     private int controlsTop = -1;
+    private int loggedState = -1;
+    private int loggedHole = -1;
 
     private final Runnable tick = this::tick;
 
@@ -260,6 +262,12 @@ final class CameraMemoCover extends FrameLayout {
         } else if (wasRecording) {
             pausedByCover = false;
         }
+        int state = (recording ? 1 : 0) | (bound ? 2 : 0) | (pausedByCover ? 4 : 0);
+        if (state != loggedState) {
+            loggedState = state;
+            android.util.Log.i("NaxCameraMemo", "NAX_SMOKE_camera-memo state recording=" + recording + " bound=" + bound
+                    + " pausedByCover=" + pausedByCover + " elapsedMs=" + elapsed);
+        }
         wasRecording = recording;
         lastTick = now;
     }
@@ -326,6 +334,12 @@ final class CameraMemoCover extends FrameLayout {
         }
         boolean isRecording = camera != null && camera.isRecording();
         setVisibility(isRecording && !valid ? INVISIBLE : VISIBLE);
+        int holeState = (valid ? 1 : 0) | (isRecording && !valid ? 2 : 0);
+        if (holeState != loggedHole) {
+            loggedHole = holeState;
+            android.util.Log.i("NaxCameraMemo", "NAX_SMOKE_camera-memo hole valid=" + valid + " failOpen=" + (isRecording && !valid)
+                    + " size=" + (int) (right - left) + "x" + (int) (bottom - top) + " cover=" + getWidth() + "x" + getHeight());
+        }
         if (valid != hasHole || valid && (hole.left != left || hole.top != top || hole.right != right || hole.bottom != bottom)) {
             hasHole = valid;
             hole.set(left, top, right, bottom);
