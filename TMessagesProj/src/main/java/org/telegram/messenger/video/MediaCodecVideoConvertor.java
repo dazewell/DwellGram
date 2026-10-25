@@ -636,6 +636,8 @@ public class MediaCodecVideoConvertor {
                                             } else {
                                                 decoder.queueInputBuffer(inputBufIndex, 0, chunkSize, extractor.getSampleTime(), 0);
                                                 extractor.advance();
+                                                // NagramX: no-op unless a round-video save is encoding; keeps the decoder several frames ahead instead of one
+                                                com.dazewell.gram.videonote.RoundVideoMask.feedAhead(decoder, extractor, videoIndex);
                                             }
                                         }
                                         com.dazewell.gram.videonote.RoundVideoMask.probeAdd(5, naxT5); // NAX_SMOKE_round-video-black-corners

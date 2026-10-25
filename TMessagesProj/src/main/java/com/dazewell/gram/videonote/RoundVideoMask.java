@@ -259,6 +259,31 @@ public final class RoundVideoMask {
         }
     }
 
+    // The convertor queues one compressed frame per pass and then waits up to 2.5 ms each for encoder and
+    // decoder output, so a codec with a few frames of latency sits idle most of the time. During a
+    // round-video save this keeps filling whatever decoder input slots are free while the next sample is
+    // video. End of stream is left to the convertor: getSampleTrackIndex() is -1 there, so this stops first.
+    public static void feedAhead(android.media.MediaCodec decoder, android.media.MediaExtractor extractor, int videoIndex) {
+        if (!Boolean.TRUE.equals(SPEED_HINT.get())) {
+            return;
+        }
+        while (extractor.getSampleTrackIndex() == videoIndex) {
+            int index = decoder.dequeueInputBuffer(0);
+            if (index < 0) {
+                return;
+            }
+            java.nio.ByteBuffer buffer = decoder.getInputBuffer(index);
+            int size = buffer == null ? -1 : extractor.readSampleData(buffer, 0);
+            if (size < 0) {
+                // Hand the slot back empty rather than leak it; the convertor's own pass sees the end.
+                decoder.queueInputBuffer(index, 0, 0, extractor.getSampleTime(), 0);
+                return;
+            }
+            decoder.queueInputBuffer(index, 0, size, extractor.getSampleTime(), 0);
+            extractor.advance();
+        }
+    }
+
     // Deletes a file prepare() made, and its folder. Anything else (the original cache file) is left alone.
     public static void release(File file) {
         if (file == null) {
