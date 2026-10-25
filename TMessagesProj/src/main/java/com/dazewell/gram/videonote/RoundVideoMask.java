@@ -130,7 +130,9 @@ public final class RoundVideoMask {
                     info
             );
             boolean error = new MediaCodecVideoConvertor().convertVideo(convertParams);
-            if (error || listener.checkConversionCanceled() || !output.exists() || output.length() == 0) {
+            // The convertor logs a finishMovie() failure without reporting an error, which can leave a
+            // non-empty file nothing can play, so the output has to parse as a video before it replaces the original.
+            if (error || listener.checkConversionCanceled() || !output.exists() || output.length() == 0 || !isPlayable(output)) {
                 Log.w(TAG, "encode did not finish (error=" + error + "), saving unmasked");
                 deleteRecursive(workDir);
                 return source;
@@ -184,6 +186,14 @@ public final class RoundVideoMask {
         } finally {
             bitmap.recycle();
         }
+    }
+
+    private static boolean isPlayable(File file) {
+        int[] params = new int[AnimatedFileInfo.PARAM_NUM_COUNT];
+        AnimatedFileNative.getVideoInfo(file.getAbsolutePath(), params, 0);
+        return params[AnimatedFileInfo.PARAM_NUM_SUPPORTED_VIDEO_CODEC] != 0
+                && params[AnimatedFileInfo.PARAM_NUM_WIDTH] > 0
+                && params[AnimatedFileInfo.PARAM_NUM_DURATION] > 0;
     }
 
     private static void sweep(File baseDir) {
