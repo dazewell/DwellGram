@@ -130,7 +130,7 @@ The Material Design 3 composer can run as a flat panel edge to edge along the bo
 
 ### One-row composer at rest <!-- #composer-inline-rest -->
 
-With the keyboard down and the compose box empty, the Floating composer folds into one row: Leading buttons, field, Trailing buttons, mic. Opening the keyboard grows it back to two rows. It comes with *Composer style* → Floating in Chat settings → Composer Toolbar, which is the default.
+With the keyboard down and the compose box empty, the composer folds into one row: Leading buttons, field, Trailing buttons, mic. Opening the keyboard grows it back to two rows. It comes with the MD3 composer, in both *Composer style* options (Chat settings → Composer Toolbar).
 
 ### Composer toolbar layout editor <!-- #composer-layout --> <!-- #composer-layout-tap-toggle --> <!-- #composer-leading-2slot -->
 
