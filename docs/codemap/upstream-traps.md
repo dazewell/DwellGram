@@ -2827,3 +2827,19 @@ at `:20301`), or a fresh user object, which `putUser` stores and makes the curre
 through.
 
 *(Established 2026-10-21, `#own-last-seen`.)*
+
+## Leaving edit mode re-runs checkSendButton, so a hand-set attach state is overwritten in the same call
+
+`setEditingMessageObject`'s exit branch restores the pre-edit draft with `setText` under `ignoreTextChange`
+(`ChatActivityEnterView.java:13162-13165`). That flag does not guard the text watcher's `checkSendButton(true)`
+(`:7496`). `editingMessageObject` is already null by then (`:12891`). So with a non-empty draft the send branch
+runs, and its `pinAttachButton(150)` (`:10588`) cancels `attachButtonAnimator` and pins the paperclip to alpha 1,
+scale 1 (`:9166-9180`). The method's last `updateRichDraftPreview()` does the same when a rich draft comes back: its
+`checkSendButton(true)` (`:14034`) runs on that flip. Any animation of the attach button on edit exit has to start
+after both. It does, at `:13180`.
+
+The toolbar row only gives a control its slot once its alpha reaches 0.5 (`ComposerToolbarLayout.java:1819-1825`).
+Fade a returning control in on `EASE_OUT_QUINT`: it crosses 0.5 in the first frames, so the slot is claimed
+straight away. On a linear or `DEFAULT` curve the control draws into a zero-width box until it reaches half opacity.
+
+*(Established 2026-10-24, `#attach-return-fix`.)*

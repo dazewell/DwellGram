@@ -12887,6 +12887,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         createMessageEditText();
         setMessageEditExpanded(false); // NagramX: entering or leaving edit mode replaces the field text, start it collapsed
         boolean hadEditingMessage = editingMessageObject != null;
+        boolean fadeAttachIn = false; // NagramX (#attach-return-fix)
         editingMessageObject = messageObject;
         editingCaption = caption;
         CharSequence textToSetWithKeyboard;
@@ -13051,6 +13052,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             audioVideoButtonContainer.setVisibility(GONE);
             attachLayout.setVisibility(GONE);
             if (attachButton != null) {
+                attachButton.animate().cancel(); // NagramX (#attach-return-fix): a return fade still running would re-show it mid-edit
                 attachButton.setAlpha(attachButtonAlpha = 0.0f);
                 attachButton.setScaleX(0.5f);
                 attachButton.setScaleY(0.5f);
@@ -13121,7 +13123,9 @@ public class ChatActivityEnterView extends FrameLayout implements
                 attachLayoutAlpha = 1.0f;
                 updateAttachLayoutParams();
                 attachLayout.setVisibility(VISIBLE);
-                if (attachButton != null) {
+                // NagramX (#attach-return-fix): the toolbar fades it in at the end of this branch instead of popping it
+                fadeAttachIn = composerToolbarEnabled && attachButton != null;
+                if (attachButton != null && !fadeAttachIn) {
                     attachButton.setAlpha(attachButtonAlpha = 1.0f);
                     attachButton.setScaleX(1.0f);
                     attachButton.setScaleY(1.0f);
@@ -13173,6 +13177,22 @@ public class ChatActivityEnterView extends FrameLayout implements
         updateButtons();
         updateRichDraftPreview();
         updateFieldRight(lastAttachVisible);
+        if (fadeAttachIn) {
+            // NagramX (#attach-return-fix): started last, after the draft restore and the rich-draft refresh, since
+            // either one's checkSendButton pins the button fully visible. Restart from the edit-mode state in place: the row claims the slot as alpha crosses
+            // 0.5, which EASE_OUT_QUINT reaches in its first frames, so the paperclip never draws at a stale spot.
+            if (attachButtonAnimator != null) {
+                attachButtonAnimator.cancel();
+            }
+            attachButton.setAlpha(0.0f);
+            attachButton.setScaleX(0.5f);
+            attachButton.setScaleY(0.5f);
+            attachButtonAnimator = attachButton.animate()
+                .alpha(attachButtonAlpha = 1.0f).scaleX(1.0f).scaleY(1.0f)
+                .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT)
+                .setDuration(320);
+            attachButtonAnimator.start();
+        }
     }
 
     @Nullable
