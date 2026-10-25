@@ -8218,6 +8218,11 @@ public class ChatActivityEnterView extends FrameLayout implements
         delegate.toggleVideoRecordingPause();
     }
 
+    // NagramX (#camera-memo): the paused preview's delete button, for a screen that covers it
+    public void discardVideoPreview() {
+        if (videoToSendMessageObject != null && recordDeleteImageView != null) recordDeleteImageView.performClick();
+    }
+
     // NagramX (#video-hold-send): the locked-state send button's action, verbatim, shared with a hold on the round video
     public void sendLockedRecording() {
         if (!hasRecordVideo || calledRecordRunnable) {
