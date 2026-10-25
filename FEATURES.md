@@ -122,13 +122,15 @@ Style buttons (Bold, Italic, Monospace, Strikethrough, Underline, Spoiler, Quote
 
 ### Send and mic inside the input <!-- #composer-input -->
 
-Send and the mic sit inside the text pill, drawn slightly in from its rounded end so a thin ring of glass shows around them. The Material Design 3 composer puts them just outside its tonal field instead.
+Send and the mic sit inside the text pill, drawn slightly in from its rounded end so a thin ring of glass shows around them. The Material Design 3 composer puts them at the end of its button row instead.
 
 ### Docked composer <!-- #docked-composer -->
 
 The Material Design 3 composer can run as a flat panel edge to edge along the bottom, resting straight on the keyboard instead of floating as an island. The field, reply strip and selection buttons share one corner radius. Pick *Composer style* → Floating or Docked at the top of Chat settings → Composer Toolbar, where the preview shows it. Defaults to Floating.
 
 ### One-row composer at rest <!-- #composer-inline-rest -->
+
+With the keyboard down and the compose box empty, the Floating composer folds into one row: Leading buttons, field, Trailing buttons, mic. Opening the keyboard grows it back to two rows. It comes with *Composer style* → Floating in Chat settings → Composer Toolbar, which is the default.
 
 ### Composer toolbar layout editor <!-- #composer-layout --> <!-- #composer-layout-tap-toggle --> <!-- #composer-leading-2slot -->
 
