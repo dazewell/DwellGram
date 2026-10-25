@@ -2832,9 +2832,9 @@ through.
 
 `setEditingMessageObject`'s exit branch restores the pre-edit draft with `setText` under `ignoreTextChange`
 (`ChatActivityEnterView.java:13162-13165`). That flag does not guard the text watcher's `checkSendButton(true)`
-(`:7496`). `editingMessageObject` is already null by then (`:13146`). So with a non-empty draft the send branch
+(`:7496`). `editingMessageObject` is already null by then (`:12890`). So with a non-empty draft the send branch
 runs, and its `pinAttachButton(150)` (`:10588`) cancels `attachButtonAnimator` and pins the paperclip to alpha 1,
-scale 1 (`:9166`). Any animation of the attach button on edit exit has to start after the draft restore. It does at
+scale 1 (`:9166-9180`). Any animation of the attach button on edit exit has to start after the draft restore. It does at
 `:13174`.
 
 The toolbar row only gives a control its slot once its alpha reaches 0.5 (`ComposerToolbarLayout.java:1819-1825`).
