@@ -45,6 +45,7 @@ public final class ComposerInlineRest {
     private boolean compact;
     private boolean morphing;
     private boolean pendingFinish;
+    private int foldId;
     private boolean awaitingTarget;
     private float staleTarget;
     private float morphFromHeight;
@@ -119,6 +120,11 @@ public final class ComposerInlineRest {
         return morphing;
     }
 
+    /** Counts flips, so a reader holding state for one fold can tell a reversal from the fold it started on. */
+    public int foldId() {
+        return foldId;
+    }
+
     /** How far the running fold has got, 0 to 1; 1 while none runs. */
     public float foldFraction() {
         return morphing ? 1f - remaining : 1f;
@@ -166,6 +172,7 @@ public final class ComposerInlineRest {
         final int end = rest ? restFieldEnd() + dp(TEXT_INSET) : openStart;
         final int bottom = rest ? restBottom(field) : openBottom;
         if (flipped) {
+            foldId++;
             startDelta = fromStart - start;
             bottomDelta = bottom - fromBottom;
             morphFromHeight = currentHeight;

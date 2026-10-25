@@ -152,6 +152,7 @@ public final class ComposerMd3Surface {
     // The tools row's share of the pill this frame, kept for drawContents, which the docked panel also calls.
     private float toolsInset;
     private boolean sheetFollowsFold;
+    private int sheetFoldId;
     private float sheetFoldFrom;
     private float sheetFoldFromFraction;
 
@@ -538,8 +539,10 @@ public final class ComposerMd3Surface {
         final float foldTarget = rest.isCompact() ? 1f : 0f;
         if (rest.isMorphing() && sheetShape.getTargetValue() == foldTarget) {
             final float fraction = rest.foldFraction();
-            if (!sheetFollowsFold) {
+            // A reversal can flip both targets inside one draw, so a new fold, not only a disagreeing frame, re-captures.
+            if (!sheetFollowsFold || sheetFoldId != rest.foldId()) {
                 sheetFollowsFold = true;
+                sheetFoldId = rest.foldId();
                 sheetFoldFrom = sheetDock;
                 sheetFoldFromFraction = Math.min(fraction, 0.99f);
             }
