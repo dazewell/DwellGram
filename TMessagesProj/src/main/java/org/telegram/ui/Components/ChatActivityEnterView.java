@@ -12887,6 +12887,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         createMessageEditText();
         setMessageEditExpanded(false); // NagramX: entering or leaving edit mode replaces the field text, start it collapsed
         boolean hadEditingMessage = editingMessageObject != null;
+        boolean fadeAttachIn = false; // NagramX (#attach-return-fix)
         editingMessageObject = messageObject;
         editingCaption = caption;
         CharSequence textToSetWithKeyboard;
@@ -13061,7 +13062,6 @@ public class ChatActivityEnterView extends FrameLayout implements
                 scheduledButton.setVisibility(GONE);
             }
         } else {
-            boolean fadeAttachIn = false; // NagramX (#attach-return-fix)
             if (setTextFieldRunnable != null) {
                 AndroidUtilities.cancelRunOnUIThread(setTextFieldRunnable);
                 setTextFieldRunnable = null;
@@ -13171,28 +13171,28 @@ public class ChatActivityEnterView extends FrameLayout implements
             }
             checkAttachButton(false, 0);
             updateFieldRight(1);
-            if (fadeAttachIn) {
-                // NagramX (#attach-return-fix): started after the draft restore, whose checkSendButton pins the button
-                // fully visible. Restart from the edit-mode state in place: the row claims the slot as alpha crosses
-                // 0.5, which EASE_OUT_QUINT reaches in its first frames, so the paperclip never draws at a stale spot.
-                if (attachButtonAnimator != null) {
-                    attachButtonAnimator.cancel();
-                }
-                attachButton.setAlpha(0.0f);
-                attachButton.setScaleX(0.5f);
-                attachButton.setScaleY(0.5f);
-                attachButtonAnimator = attachButton.animate()
-                    .alpha(attachButtonAlpha = 1.0f).scaleX(1.0f).scaleY(1.0f)
-                    .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT)
-                    .setDuration(320);
-                attachButtonAnimator.start();
-            }
         }
         updateFieldHint(true);
         updateSendAsButton(true);
         updateButtons();
         updateRichDraftPreview();
         updateFieldRight(lastAttachVisible);
+        if (fadeAttachIn) {
+            // NagramX (#attach-return-fix): started last, after the draft restore and the rich-draft refresh, since
+            // either one's checkSendButton pins the button fully visible. Restart from the edit-mode state in place: the row claims the slot as alpha crosses
+            // 0.5, which EASE_OUT_QUINT reaches in its first frames, so the paperclip never draws at a stale spot.
+            if (attachButtonAnimator != null) {
+                attachButtonAnimator.cancel();
+            }
+            attachButton.setAlpha(0.0f);
+            attachButton.setScaleX(0.5f);
+            attachButton.setScaleY(0.5f);
+            attachButtonAnimator = attachButton.animate()
+                .alpha(attachButtonAlpha = 1.0f).scaleX(1.0f).scaleY(1.0f)
+                .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT)
+                .setDuration(320);
+            attachButtonAnimator.start();
+        }
     }
 
     @Nullable
