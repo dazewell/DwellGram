@@ -175,7 +175,11 @@ public final class RoundVideoMask {
             clear.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
             canvas.drawCircle(width / 2f, height / 2f, Math.min(width, height) / 2f, clear);
             try (FileOutputStream out = new FileOutputStream(target)) {
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+                // TextureRenderer skips a paint layer it can't decode and still encodes, so a bad PNG
+                // has to fail here or the save ships an unmasked re-encode.
+                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) {
+                    throw new IllegalStateException("mask png not written");
+                }
             }
         } finally {
             bitmap.recycle();
