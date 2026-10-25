@@ -407,7 +407,7 @@ called from `ChannelAdminLogActivity.java:1511`. Dropping the island glass
 without painting that run is what blanked channel chats in #409. The reply strip
 stops short of the send column using the existing `getComposerPrimaryEndInset()`, on
 the left under `LocaleController.isRTL` (`ComposerMd3Surface.java:594-607`;
-`ChatActivityEnterView.java:19188`). The field no longer does: under both MD3 styles the
+`ChatActivityEnterView.java:19192`). The field no longer does: under both MD3 styles the
 send column sits at the end of the tools row (next section). The reply strip reads `getTopViewHeight()`
 and `getTopViewEnterProgress()` (`ComposerMd3Surface.java:423-424`), while the
 reply content is placed against the enter view's laid-out height; see
@@ -429,26 +429,27 @@ keep their own provider (`ChatActivity.java:4202`).
 
 ## MD3 composer folds into one row at rest
 
-`ComposerInlineRest` owns it, one per chat enter view under MD3 (`ComposerInlineRest.java:65`,
-created at `ChatActivityEnterView.java:2936`). Under both styles the send column sits at the end of
-the tools row, centred on it (`ComposerInlineRest.java:98`, `ChatActivityEnterView.java:4391`), and the
-toolbar's end padding reserves it (`ComposerToolbarLayout.java:840`). Only Floating folds: with the field
+`ComposerInlineRest` owns it, one per chat enter view under MD3 (`ComposerInlineRest.java:72`,
+created at `ChatActivityEnterView.java:2940`). Under both styles the send column sits at the end of
+the tools row, centred on it (`ComposerInlineRest.java:105`, `ChatActivityEnterView.java:4395`), and the
+toolbar's end padding reserves it (`ComposerToolbarLayout.java:841`). Only Floating folds: with the field
 empty and no keyboard, panel, fullscreen input or rich draft, the field moves into the tools row between the
 leading and trailing zones and the Scrolling viewport goes INVISIBLE at width 0, its buttons untouched
-(`ComposerInlineRest.java:122`; `ComposerToolbarLayout.java:830`, `:969`). The decision rides
-`checkBotMenu()`, which every text, keyboard and panel change already calls (`ChatActivityEnterView.java:5146`),
-and `applyComposerTextGeometry()` hands it the field (`:11302`). A row that would leave the field under 96dp,
-or a send-as avatar or bot pill at the head of the Scrolling zone, keeps two rows (`ComposerInlineRest.java:29`,
-`:230`; `ComposerToolbarLayout.java:170`).
+(`ComposerInlineRest.java:138`; `ComposerToolbarLayout.java:831`, `:970`). The decision rides
+`checkBotMenu()`, which every text, keyboard and panel change already calls (`ChatActivityEnterView.java:5150`),
+and `applyComposerTextGeometry()` hands it the field (`:11306`). A row that would leave the field under 96dp,
+or a send-as avatar or bot pill at the head of the Scrolling zone, keeps two rows (`ComposerInlineRest.java:33`,
+`:246`; `ComposerToolbarLayout.java:170`).
 
 The fold has no clock. The margin flip re-measures the edit container, `animatorInputFieldHeight` eases the
-island, and the field's draw offset (`ChatActivityEnterView.java:2907`), the tools inset
-(`:19159`) and the surface's field tone (`ComposerMd3Surface.java:637`, `:657`) all read that animation's
-remaining share (`ComposerInlineRest.java:168`). The morph must not end inside that frame's height tick: the
+island, at 450ms ease-out for a fold instead of its stock 250ms (`ComposerInlineRest.java:38`, `:113`;
+`ChatActivityEnterView.java:2871`), and the field's draw offset (`:2911`), the tools inset
+(`:19163`) and the surface's field tone (`ComposerMd3Surface.java:637`, `:657`) all read that animation's
+remaining share (`ComposerInlineRest.java:184`). The morph must not end inside that frame's height tick: the
 `#fullscreen-input` history pin reads `ComposerInlineRest.morphing()` further down the same synchronous call
 (`ChatActivity.java:13633`), and ending first let it arm on the last frame and hold history still against the
-keyboard. It ends in `settleIfDone()`, after `checkUi_IslandTotalHeight()` (`ChatActivityEnterView.java:19277`;
-`ComposerInlineRest.java:189`, `:194`). The layout editor preview does not show the fold yet.
+keyboard. It ends in `settleIfDone()`, after `checkUi_IslandTotalHeight()` (`ChatActivityEnterView.java:19281`;
+`ComposerInlineRest.java:205`, `:210`). The layout editor preview does not show the fold yet.
 *(Established 2026-10-24, `#composer-inline-rest`, PR 549.)*
 
 ## MD3 Buttons reaches buttons through shared providers and targeted hooks
