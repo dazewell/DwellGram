@@ -13051,6 +13051,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             audioVideoButtonContainer.setVisibility(GONE);
             attachLayout.setVisibility(GONE);
             if (attachButton != null) {
+                attachButton.animate().cancel(); // NagramX (#attach-return-fix): a return fade still running would re-show it mid-edit
                 attachButton.setAlpha(attachButtonAlpha = 0.0f);
                 attachButton.setScaleX(0.5f);
                 attachButton.setScaleY(0.5f);
@@ -13060,6 +13061,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                 scheduledButton.setVisibility(GONE);
             }
         } else {
+            boolean fadeAttachIn = false; // NagramX (#attach-return-fix)
             if (setTextFieldRunnable != null) {
                 AndroidUtilities.cancelRunOnUIThread(setTextFieldRunnable);
                 setTextFieldRunnable = null;
@@ -13121,7 +13123,9 @@ public class ChatActivityEnterView extends FrameLayout implements
                 attachLayoutAlpha = 1.0f;
                 updateAttachLayoutParams();
                 attachLayout.setVisibility(VISIBLE);
-                if (attachButton != null) {
+                // NagramX (#attach-return-fix): the toolbar fades it in at the end of this branch instead of popping it
+                fadeAttachIn = composerToolbarEnabled && attachButton != null;
+                if (attachButton != null && !fadeAttachIn) {
                     attachButton.setAlpha(attachButtonAlpha = 1.0f);
                     attachButton.setScaleX(1.0f);
                     attachButton.setScaleY(1.0f);
@@ -13167,6 +13171,22 @@ public class ChatActivityEnterView extends FrameLayout implements
             }
             checkAttachButton(false, 0);
             updateFieldRight(1);
+            if (fadeAttachIn) {
+                // NagramX (#attach-return-fix): started after the draft restore, whose checkSendButton pins the button
+                // fully visible. Restart from the edit-mode state in place: the row claims the slot as alpha crosses
+                // 0.5, which EASE_OUT_QUINT reaches in its first frames, so the paperclip never draws at a stale spot.
+                if (attachButtonAnimator != null) {
+                    attachButtonAnimator.cancel();
+                }
+                attachButton.setAlpha(0.0f);
+                attachButton.setScaleX(0.5f);
+                attachButton.setScaleY(0.5f);
+                attachButtonAnimator = attachButton.animate()
+                    .alpha(attachButtonAlpha = 1.0f).scaleX(1.0f).scaleY(1.0f)
+                    .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT)
+                    .setDuration(320);
+                attachButtonAnimator.start();
+            }
         }
         updateFieldHint(true);
         updateSendAsButton(true);
