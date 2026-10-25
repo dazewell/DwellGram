@@ -652,7 +652,7 @@ public final class ComposerMd3Surface {
                 }
             }
         }
-        // The field alone follows the floating fold: at rest it runs between the leading and trailing buttons, open it
+        // The field alone follows the fold: at rest it runs between the leading and trailing buttons, open it
         // takes the whole row, the send column having gone down to the tools row. The reply strip keeps its column.
         float fieldLeft = columnLeft;
         float fieldRight = columnRight;

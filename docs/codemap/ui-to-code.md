@@ -429,27 +429,29 @@ keep their own provider (`ChatActivity.java:4202`).
 
 ## MD3 composer folds into one row at rest
 
-`ComposerInlineRest` owns it, one per chat enter view under MD3 (`ComposerInlineRest.java:73`,
+`ComposerInlineRest` owns it, one per chat enter view under MD3 (`ComposerInlineRest.java:69`,
 created at `ChatActivityEnterView.java:2940`). Under both styles the send column sits at the end of
-the tools row, centred on it (`ComposerInlineRest.java:106`, `ChatActivityEnterView.java:4395`), and the
-toolbar's end padding reserves it (`ComposerToolbarLayout.java:841`). Only Floating folds: with the field
+the tools row, centred on it (`ComposerInlineRest.java:102`, `ChatActivityEnterView.java:4395`), and the
+toolbar's end padding reserves it (`ComposerToolbarLayout.java:841`). Both styles fold: with the field
 empty and no keyboard, panel, fullscreen input or rich draft, the field moves into the tools row between the
 leading and trailing zones and the Scrolling viewport goes INVISIBLE at width 0, its buttons untouched
-(`ComposerInlineRest.java:153`; `ComposerToolbarLayout.java:831`, `:970`). The decision rides
+(`ComposerInlineRest.java:149`; `ComposerToolbarLayout.java:831`, `:970`). The decision rides
 `checkBotMenu()`, which every text, keyboard and panel change already calls (`ChatActivityEnterView.java:5150`),
 and `applyComposerTextGeometry()` hands it the field (`:11306`). A row that would leave the field under 96dp,
 or a send-as avatar or bot pill at the head of the Scrolling zone, keeps two rows (`ComposerInlineRest.java:33`,
-`:262`; `ComposerToolbarLayout.java:170`).
+`:258`; `ComposerToolbarLayout.java:170`).
 
 The fold has no clock. The margin flip re-measures the edit container, `animatorInputFieldHeight` eases the
-island, at 450ms ease-out for a fold instead of its stock 250ms (`ComposerInlineRest.java:38`, `:114`;
+island, at 450ms ease-out for a fold instead of its stock 250ms (`ComposerInlineRest.java:38`, `:110`;
 `ChatActivityEnterView.java:2871`), and the field's draw offset (`:2911`), the tools inset
 (`:19163`) and the surface's field tone (`ComposerMd3Surface.java:673`, `:693`) all read that animation's
-remaining share (`ComposerInlineRest.java:200`). The morph must not end inside that frame's height tick: the
+remaining share (`ComposerInlineRest.java:196`). The morph must not end inside that frame's height tick: the
 `#fullscreen-input` history pin reads `ComposerInlineRest.morphing()` further down the same synchronous call
 (`ChatActivity.java:13633`), and ending first let it arm on the last frame and hold history still against the
 keyboard. It ends in `settleIfDone()`, after `checkUi_IslandTotalHeight()` (`ChatActivityEnterView.java:19281`;
-`ComposerInlineRest.java:221`, `:226`). The layout editor preview does not show the fold yet.
+`ComposerInlineRest.java:217`, `:222`). Docked needs nothing of its own: the panel takes its top from the
+island's and keeps its bottom on the keyboard or screen edge (`ComposerMd3Surface.java:570`), so it folds from the
+top. The layout editor preview does not show the fold yet.
 *(Established 2026-10-24, `#composer-inline-rest`, PR 549.)*
 
 ## MD3 Buttons reaches buttons through shared providers and targeted hooks
