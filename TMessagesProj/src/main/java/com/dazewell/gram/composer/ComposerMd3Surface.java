@@ -630,7 +630,10 @@ public final class ComposerMd3Surface {
         float columnLeft = pillLeft + fieldSideInset();
         float columnRight = pillRight - fieldSideInset();
         sendSlot.setEmpty();
-        final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
+        // A record or review panel takes the tools row away, and the send column drops beside the field again, so
+        // neither the fold nor the tools-row slot applies while it is up.
+        final ComposerInlineRest fold = enterView != null ? enterView.getComposerInlineRest() : null;
+        final ComposerInlineRest rest = fold != null && fold.toolsRowShown() ? fold : null;
         if (enterView != null) {
             final int primaryEndInset = enterView.getComposerPrimaryEndInset();
             if (primaryEndInset > 0) {

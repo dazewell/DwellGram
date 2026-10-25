@@ -344,6 +344,10 @@ public final class ComposerToolbarLayout extends FrameLayout {
         controls.setPanelVisible(visible);
     }
 
+    public boolean controlsVisible() {
+        return controls.getVisibility() == VISIBLE;
+    }
+
     // NagramX (#composer-inline-rest): the floating composer folds the field into this row at rest. The scrolling
     // zone has no room beside the field, so it goes rather than its buttons, which keeps every slot's occupancy as is.
     public void setRestCompact(boolean compact) {

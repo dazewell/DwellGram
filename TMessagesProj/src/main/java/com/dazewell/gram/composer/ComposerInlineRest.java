@@ -87,6 +87,11 @@ public final class ComposerInlineRest {
         return progress;
     }
 
+    /** False while a record, review or bot panel has replaced the tools row's controls. */
+    public boolean toolsRowShown() {
+        return toolbar.controlsVisible();
+    }
+
     /** The field's start edge at rest, in px from the toolbar's start, or -1 when the leading zone is empty. */
     public int restFieldStart() {
         final int leading = toolbar.leadingExtent();
