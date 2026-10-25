@@ -151,6 +151,9 @@ public final class ComposerMd3Surface {
     private final RectF run = new RectF();
     // The tools row's share of the pill this frame, kept for drawContents, which the docked panel also calls.
     private float toolsInset;
+    private boolean sheetFollowsFold;
+    private float sheetFoldFrom;
+    private float sheetFoldFromFraction;
 
     public ComposerMd3Surface(Theme.ResourcesProvider resourcesProvider) {
         this.resourcesProvider = resourcesProvider;
@@ -470,7 +473,7 @@ public final class ComposerMd3Surface {
         // than after it, and docks again halfway down, so closing the keyboard doesn't wait for the island to land.
         final float resting = dockFactor(height - host.getInputBubbleBottom() - host.getInputBubbleBottomLift());
         final float dockAt = sheetShape != null && sheetShape.getTargetValue() > 0.5f ? SHEET_FLOAT_AT : 0.5f;
-        final float dock = sheetShape != null ? sheetShape.set(resting > dockAt ? 1f : 0f) : resting;
+        final float dock = coupleSheetToFold(sheetShape != null ? sheetShape.set(resting > dockAt ? 1f : 0f) : resting);
         island.bottom += (height - island.bottom) * dock;
         final float radius = Math.min(dp(ISLAND_RADIUS), island.height() / 2f);
         final float bottomRadius = Math.min(dp(ISLAND_RADIUS) * (1f - dock), island.height() / 2f);
@@ -519,6 +522,36 @@ public final class ComposerMd3Surface {
         }
 
         drawContents(canvas, width, height, pill, alpha, inputFactor, drawPill, pillLeft, pillRight, topViewProgress, topViewHeight, surface, underKeyboard);
+    }
+
+    /**
+     * The sheet's own 300ms clock starts once the keyboard has lifted it a few dp, the fold's when the enter view sees
+     * the keyboard, so side by side the bottom edge trailed the fold. While both head the same way (keyboard up:
+     * floating and two rows; down: docked and one row) the sheet follows the fold from wherever it had got to, and
+     * lands with it; a fold the keyboard didn't cause, or a sheet change without a fold, keeps the sheet's own clock.
+     */
+    private float coupleSheetToFold(float sheetDock) {
+        final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
+        if (sheetShape == null || rest == null) {
+            return sheetDock;
+        }
+        final float foldTarget = rest.isCompact() ? 1f : 0f;
+        if (rest.isMorphing() && sheetShape.getTargetValue() == foldTarget) {
+            final float fraction = rest.foldFraction();
+            if (!sheetFollowsFold) {
+                sheetFollowsFold = true;
+                sheetFoldFrom = sheetDock;
+                sheetFoldFromFraction = Math.min(fraction, 0.99f);
+            }
+            final float share = Math.max(0, Math.min(1, (fraction - sheetFoldFromFraction) / (1f - sheetFoldFromFraction)));
+            final float dock = sheetFoldFrom + (foldTarget - sheetFoldFrom) * share;
+            // Held where the fold has it, so letting go when the fold ends, or a reversal, starts from here.
+            sheetShape.set(dock, true);
+            sheetShape.set(foldTarget);
+            return dock;
+        }
+        sheetFollowsFold = false;
+        return sheetDock;
     }
 
     /**

@@ -115,6 +115,15 @@ public final class ComposerInlineRest {
         animator.setInterpolator(morphing ? CubicBezierInterpolator.EASE_OUT : ChatListItemAnimator.DEFAULT_INTERPOLATOR);
     }
 
+    public boolean isMorphing() {
+        return morphing;
+    }
+
+    /** How far the running fold has got, 0 to 1; 1 while none runs. */
+    public float foldFraction() {
+        return morphing ? 1f - remaining : 1f;
+    }
+
     public float fieldOffsetX() {
         if (!morphing) {
             return 0;
