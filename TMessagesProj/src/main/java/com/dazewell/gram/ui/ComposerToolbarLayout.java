@@ -165,6 +165,13 @@ public final class ComposerToolbarLayout extends FrameLayout {
             }
         });
         middleScrollView.post(this::pinMiddleToStart);
+        // NagramX (#composer-inline-rest): the send-as avatar and the bot pill arrive after the chat opens, and either
+        // one keeps the composer in two rows. The slot still lays out while a one-row composer hides it.
+        middleLeadingSlot.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (right - left != oldRight - oldLeft && controls.restGeometryListener != null) {
+                post(controls.restGeometryListener);
+            }
+        });
     }
 
     public void setConfigurationLongPress(Runnable listener) {
@@ -335,6 +342,52 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     public void setControlsVisible(boolean visible) {
         controls.setPanelVisible(visible);
+    }
+
+    // NagramX (#composer-inline-rest): the floating composer folds the field into this row at rest. The scrolling
+    // zone has no room beside the field, so it goes rather than its buttons, which keeps every slot's occupancy as is.
+    public void setRestCompact(boolean compact) {
+        controls.setRestCompact(compact);
+    }
+
+    /** Keeps the send column, which sits at this row's end under the inline-rest composer, clear of the trailing zone. */
+    public void setSendReserve(int px) {
+        controls.setSendReserve(px);
+    }
+
+    public void setMiddleAlpha(float alpha) {
+        if (middleScrollView.getAlpha() != alpha) {
+            middleScrollView.setAlpha(alpha);
+        }
+    }
+
+    /** How far the leading zone reaches in from the row's start edge, in px; 0 while it is empty, -1 before layout. */
+    public int leadingExtent() {
+        return controls.restLeading;
+    }
+
+    /** How far the trailing zone, plus the send reserve, reaches in from the row's end edge, in px; -1 before layout. */
+    public int trailingExtent() {
+        return controls.restTrailing;
+    }
+
+    /** The send-as avatar or the bot menu pill: both head the scrolling zone, which the one-row layout drops. */
+    public boolean hasMiddleLeading() {
+        for (int i = 0; i < middleLeadingSlot.getChildCount(); i++) {
+            if (middleLeadingSlot.isOccupied(middleLeadingSlot.getChildAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public int rowHeightDp() {
+        return controls.rowHeightDp();
+    }
+
+    /** Runs, posted, whenever a layout moves either extent. */
+    public void setOnRestGeometryChanged(Runnable listener) {
+        controls.restGeometryListener = listener;
     }
 
     private void pinMiddleToStart() {
@@ -719,6 +772,14 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private float pendingEndShift;
         private boolean resumingMidAnimation;
         private final Runnable boundsAnimationStarter = this::startBoundsAnimation;
+        private final int sidePaddingPx;
+        private final int verticalPaddingPx;
+        private boolean restCompact;
+        private int sendReservePx;
+        private int restLeading = -1;
+        private int restTrailing = -1;
+        private int restWidth = -1;
+        private Runnable restGeometryListener;
         // A slot occupancy change should clear on the very next traversal: checkSlotOccupancy(true) runs
         // before measuring slots and force-layouts the changed slot (and the middle strip host when needed),
         // so this listener only needs to request one fresh pass when a mismatch is observed at pre-draw time.
@@ -758,11 +819,32 @@ public final class ComposerToolbarLayout extends FrameLayout {
             int sidePadding = InterfaceStyleController.applyComposer() ? AndroidUtilities.dp(1) : 0;
             // MD3 cells are as tall as the row, so there is no vertical inset to keep.
             int verticalPadding = InterfaceStyleController.applyComposer() ? 0 : AndroidUtilities.dp(geometryInsetDp);
+            sidePaddingPx = sidePadding;
+            verticalPaddingPx = verticalPadding;
             setPaddingRelative(sidePadding, verticalPadding, sidePadding, verticalPadding);
         }
 
         int rowHeightDp() {
             return geometryHeightDp;
+        }
+
+        void setRestCompact(boolean compact) {
+            if (restCompact == compact) {
+                return;
+            }
+            restCompact = compact;
+            middleScrollView.setVisibility(compact ? INVISIBLE : VISIBLE);
+            requestLayout();
+        }
+
+        // The reserve rides the end padding, which onMeasure and onLayout already take the slots' room from.
+        void setSendReserve(int px) {
+            px = Math.max(0, px);
+            if (sendReservePx == px) {
+                return;
+            }
+            sendReservePx = px;
+            setPaddingRelative(sidePaddingPx, verticalPaddingPx, sidePaddingPx + px, verticalPaddingPx);
         }
 
         void setSlots(CollapsingLinearLayout startSlot, HorizontalScrollView middleScrollView, LinearLayout middleContent, CollapsingLinearLayout endSlot) {
@@ -885,7 +967,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
             // padding, and counting that as occupied would draw a blank pill and reserve gaps around it.
             int middleButtonsWidth = Math.max(0, middleWidth - middleContent.getPaddingLeft() - middleContent.getPaddingRight());
             occLeading = startWidth > 0;
-            occMiddle = middleButtonsWidth > 0;
+            occMiddle = middleButtonsWidth > 0 && !restCompact;
             // Always take the full width the row offers instead of shrink-wrapping the content, so the
             // leading and trailing bubbles can reach the row edges and line up with the main input pill
             // above, and the trailing zone stays anchored right at every button count.
@@ -1041,6 +1123,18 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 startSlot.layout(contentLeft, contentTop, contentLeft + startWidth, contentBottom);
                 middleScrollView.layout(middleLeft, contentTop, middleLeft + middleWidth, contentBottom);
                 endSlot.layout(contentRight - endWidth, contentTop, contentRight, contentBottom);
+            }
+            int leading = startWidth > 0 ? getPaddingStart() + startWidth : 0;
+            int trailing = getPaddingEnd() + endWidth;
+            // The fit check also reads the row's width, which rotation and multi-window move on their own.
+            if (leading != restLeading || trailing != restTrailing || getWidth() != restWidth) {
+                restLeading = leading;
+                restTrailing = trailing;
+                restWidth = getWidth();
+                if (restGeometryListener != null) {
+                    // Posted: the listener moves the field's margins, which must not request layout mid-pass.
+                    post(restGeometryListener);
+                }
             }
             // Whichever slot is pinned to the trailing edge is laid out against its new anchor the
             // instant a control claims or frees a slot, so it jumps there in a single frame. Hand its

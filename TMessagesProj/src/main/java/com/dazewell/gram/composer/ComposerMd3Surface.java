@@ -149,6 +149,12 @@ public final class ComposerMd3Surface {
     // Read once: the chat is rebuilt when the setting changes, like the rest of Interface Style.
     private final boolean docked;
     private final RectF run = new RectF();
+    // The tools row's share of the pill this frame, kept for drawContents, which the docked panel also calls.
+    private float toolsInset;
+    private boolean sheetFollowsFold;
+    private int sheetFoldId;
+    private float sheetFoldFrom;
+    private float sheetFoldFromFraction;
 
     public ComposerMd3Surface(Theme.ResourcesProvider resourcesProvider) {
         this.resourcesProvider = resourcesProvider;
@@ -402,6 +408,7 @@ public final class ComposerMd3Surface {
             barVisible = false;
             return;
         }
+        this.toolsInset = toolsInset;
         final float alpha = pillAlpha / 255f;
         final float inputFactor = visibility(enterView);
         final float channelFactor = visibility(channelButtons);
@@ -467,7 +474,7 @@ public final class ComposerMd3Surface {
         // than after it, and docks again halfway down, so closing the keyboard doesn't wait for the island to land.
         final float resting = dockFactor(height - host.getInputBubbleBottom() - host.getInputBubbleBottomLift());
         final float dockAt = sheetShape != null && sheetShape.getTargetValue() > 0.5f ? SHEET_FLOAT_AT : 0.5f;
-        final float dock = sheetShape != null ? sheetShape.set(resting > dockAt ? 1f : 0f) : resting;
+        final float dock = coupleSheetToFold(sheetShape != null ? sheetShape.set(resting > dockAt ? 1f : 0f) : resting);
         island.bottom += (height - island.bottom) * dock;
         final float radius = Math.min(dp(ISLAND_RADIUS), island.height() / 2f);
         final float bottomRadius = Math.min(dp(ISLAND_RADIUS) * (1f - dock), island.height() / 2f);
@@ -516,6 +523,38 @@ public final class ComposerMd3Surface {
         }
 
         drawContents(canvas, width, height, pill, alpha, inputFactor, drawPill, pillLeft, pillRight, topViewProgress, topViewHeight, surface, underKeyboard);
+    }
+
+    /**
+     * The sheet's own 300ms clock starts once the keyboard has lifted it a few dp, the fold's when the enter view sees
+     * the keyboard, so side by side the bottom edge trailed the fold. While both head the same way (keyboard up:
+     * floating and two rows; down: docked and one row) the sheet follows the fold from wherever it had got to, and
+     * lands with it; a fold the keyboard didn't cause, or a sheet change without a fold, keeps the sheet's own clock.
+     */
+    private float coupleSheetToFold(float sheetDock) {
+        final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
+        if (sheetShape == null || rest == null) {
+            return sheetDock;
+        }
+        final float foldTarget = rest.isCompact() ? 1f : 0f;
+        if (rest.isMorphing() && sheetShape.getTargetValue() == foldTarget) {
+            final float fraction = rest.foldFraction();
+            // A reversal can flip both targets inside one draw, so a new fold, not only a disagreeing frame, re-captures.
+            if (!sheetFollowsFold || sheetFoldId != rest.foldId()) {
+                sheetFollowsFold = true;
+                sheetFoldId = rest.foldId();
+                sheetFoldFrom = sheetDock;
+                sheetFoldFromFraction = Math.min(fraction, 0.99f);
+            }
+            final float share = Math.max(0, Math.min(1, (fraction - sheetFoldFromFraction) / (1f - sheetFoldFromFraction)));
+            final float dock = sheetFoldFrom + (foldTarget - sheetFoldFrom) * share;
+            // Held where the fold has it, so letting go when the fold ends, or a reversal, starts from here.
+            sheetShape.set(dock, true);
+            sheetShape.set(foldTarget);
+            return dock;
+        }
+        sheetFollowsFold = false;
+        return sheetDock;
     }
 
     /**
@@ -586,10 +625,12 @@ public final class ComposerMd3Surface {
                               float pillLeft, float pillRight, float topViewProgress, float topViewHeight, int surface,
                               Rect underKeyboard) {
         final int container = containerOverlay();
-        // The field and the reply strip share one column: both stop where the send and close controls begin.
+        // The reply strip stops where the send and close controls begin; so does the field, unless the send column sits
+        // in the tools row (below).
         float columnLeft = pillLeft + fieldSideInset();
         float columnRight = pillRight - fieldSideInset();
         sendSlot.setEmpty();
+        final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
         if (enterView != null) {
             final int primaryEndInset = enterView.getComposerPrimaryEndInset();
             if (primaryEndInset > 0) {
@@ -600,12 +641,37 @@ public final class ComposerMd3Surface {
                     columnRight = Math.min(columnRight, enterView.getRight() - primaryEndInset - dp(FIELD_SEND_GAP));
                 }
                 if (barVisible && drawPill && inputFactor >= 1f) {
-                    // The slot is square at the bottom of the text row, flush with the enter view's send side.
+                    // The slot is square at the bottom of the column's row, flush with the enter view's send side.
                     final float slot = dp(ChatActivityEnterView.DEFAULT_HEIGHT);
                     final float slotLeft = LocaleController.isRTL ? enterView.getLeft() : enterView.getRight() - slot;
-                    sendSlot.set(slotLeft, pill.bottom - slot, slotLeft + slot, pill.bottom);
+                    // Under both MD3 styles the column sits in the tools row instead, below the pill.
+                    final float slotBottom = rest != null
+                            ? pill.bottom + toolsInset - dp(rest.primaryColumnBottomDp(ChatActivityEnterView.DEFAULT_HEIGHT))
+                            : pill.bottom;
+                    sendSlot.set(slotLeft, slotBottom - slot, slotLeft + slot, slotBottom);
                 }
             }
+        }
+        // The field alone follows the floating fold: at rest it runs between the leading and trailing buttons, open it
+        // takes the whole row, the send column having gone down to the tools row. The reply strip keeps its column.
+        float fieldLeft = columnLeft;
+        float fieldRight = columnRight;
+        if (rest != null) {
+            final float openLeft = pillLeft + fieldSideInset();
+            final float openRight = pillRight - fieldSideInset();
+            final int restStart = rest.restFieldStart();
+            final int restEnd = rest.restFieldEnd();
+            final float restLeft, restRight;
+            if (LocaleController.isRTL) {
+                restLeft = enterView.getLeft() + restEnd;
+                restRight = restStart > 0 ? enterView.getRight() - restStart : openRight;
+            } else {
+                restLeft = restStart > 0 ? enterView.getLeft() + restStart : openLeft;
+                restRight = enterView.getRight() - restEnd;
+            }
+            final float open = rest.progress();
+            fieldLeft = restLeft + (openLeft - restLeft) * open;
+            fieldRight = restRight + (openRight - restRight) * open;
         }
 
         if (drawPill && inputFactor > 0 && topViewHeight > dp(STRIP_INSET * 2)) {
@@ -624,7 +690,7 @@ public final class ComposerMd3Surface {
         }
 
         if (drawPill && inputFactor > 0) {
-            rect.set(columnLeft, pill.top + topViewHeight + dp(FIELD_INSET), columnRight, pill.bottom - dp(FIELD_INSET));
+            rect.set(fieldLeft, pill.top + topViewHeight + dp(FIELD_INSET), fieldRight, pill.bottom - dp(FIELD_INSET));
             final float fieldRadius = Math.min(fieldRadius(), rect.height() / 2f);
             fillPaint.setColor(Theme.multAlpha(fieldOverlay(), alpha * inputFactor));
             canvas.drawRoundRect(rect, fieldRadius, fieldRadius, fillPaint);

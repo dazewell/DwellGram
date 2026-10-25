@@ -13630,6 +13630,7 @@ public class ChatActivity extends BaseFragment implements
             && islandHeightNow != (int) lastIslandHeight;
         final boolean paddingMoving = lastPaddingBottom >= 0 && (int) paddingBottom != (int) lastPaddingBottom;
         if (islandResizing && !islandPinActive && !chatListView.fastScrollAnimationRunning && !forceScrollToTop // NagramX (#round-send-hang-fix): a jump to the newest message is pending
+                && !com.dazewell.gram.composer.ComposerInlineRest.morphing(chatActivityEnterView) // NagramX (#composer-inline-rest): the composer folding or unfolding moves no message to hold
                 && chatLayoutManager.findFirstVisibleItemPosition() != 0) {
             for (int i = 0; i < chatListView.getChildCount(); i++) {
                 final View child = chatListView.getChildAt(i);
