@@ -161,6 +161,7 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
 
     @Override
     public void onFrameAvailable(SurfaceTexture st) {
+        com.dazewell.gram.videonote.RoundVideoMask.probeFrameCallback(); // NAX_SMOKE_round-video-black-corners
         synchronized (mFrameSyncObject) {
             if (mFrameAvailable) {
                 throw new RuntimeException("mFrameAvailable already set, frame could be dropped");

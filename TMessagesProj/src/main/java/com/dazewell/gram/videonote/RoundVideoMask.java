@@ -41,6 +41,49 @@ public final class RoundVideoMask {
     // "the encode running on this thread is a round-video save" without adding a field to upstream's params.
     private static final ThreadLocal<Boolean> SPEED_HINT = new ThreadLocal<>();
 
+    // NAX_SMOKE probe state, one save at a time (MediaLoader saves serially). Stages: 0 awaitNewImage,
+    // 1 drawImage, 2 swapBuffers, 3 encoder dequeueOutput, 4 decoder dequeueOutput, 5 decoder input.
+    // Counts: 0 frames drawn, 1 encoder try-again, 2 decoder try-again, 3 frame callbacks on main, 4 frame callbacks.
+    private static volatile boolean probeActive;
+    private static final long[] PROBE_NS = new long[6];
+    private static final int[] PROBE_N = new int[5];
+
+    public static long probeT() {
+        return probeActive ? System.nanoTime() : 0;
+    }
+
+    public static void probeAdd(int stage, long t0) {
+        if (t0 != 0) {
+            PROBE_NS[stage] += System.nanoTime() - t0;
+        }
+    }
+
+    public static void probeCount(int k) {
+        if (probeActive) {
+            PROBE_N[k]++;
+        }
+    }
+
+    public static void probeFrameCallback() {
+        if (probeActive) {
+            PROBE_N[4]++;
+            if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+                PROBE_N[3]++;
+            }
+        }
+    }
+
+    private static String probeDump() {
+        StringBuilder sb = new StringBuilder();
+        String[] names = {"awaitMs", "drawMs", "swapMs", "encDeqMs", "decDeqMs", "decInMs"};
+        for (int i = 0; i < PROBE_NS.length; i++) {
+            sb.append(' ').append(names[i]).append('=').append(PROBE_NS[i] / 1_000_000);
+        }
+        sb.append(" frames=").append(PROBE_N[0]).append(" encTryAgain=").append(PROBE_N[1]).append(" decTryAgain=").append(PROBE_N[2])
+                .append(" cbOnMain=").append(PROBE_N[3]).append(" cbTotal=").append(PROBE_N[4]);
+        return sb.toString();
+    }
+
     public interface Cancel {
         boolean isCancelled();
     }
@@ -161,11 +204,16 @@ public final class RoundVideoMask {
             );
             boolean error;
             SPEED_HINT.set(Boolean.TRUE);
+            java.util.Arrays.fill(PROBE_NS, 0);
+            java.util.Arrays.fill(PROBE_N, 0);
+            probeActive = true;
             try {
                 error = new MediaCodecVideoConvertor().convertVideo(convertParams);
             } finally {
+                probeActive = false;
                 SPEED_HINT.remove();
             }
+            Log.i(TAG, "NAX_SMOKE_round-video-black-corners STAGES" + probeDump());
             final long probeConvertMs = android.os.SystemClock.elapsedRealtime() - probeConvertStart;
             final long probeCheckStart = android.os.SystemClock.elapsedRealtime();
             final boolean probePlayable = output.exists() && output.length() > 0 && isPlayable(output);
