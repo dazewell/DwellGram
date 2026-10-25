@@ -53,6 +53,7 @@ public final class RoundVideoMask {
     // Runs on the save thread and blocks for the length of the encode. Returns the masked temp,
     // or source unchanged when the feature is off, this isn't a round video, or anything fails.
     public static File prepare(File source, MessageObject message, Cancel cancel) {
+        Log.i(TAG, "NAX_SMOKE_round-video-black-corners BEGIN build=" + org.telegram.messenger.BuildVars.BUILD_VERSION_STRING + " app=" + ApplicationLoader.applicationContext.getPackageName() + " round=" + (message != null && message.isRoundVideo()));
         if (!isSupported()
                 || !NaConfig.INSTANCE.getBlackRoundVideoCorners().Bool()
                 || message == null || !message.isRoundVideo()
@@ -63,6 +64,7 @@ public final class RoundVideoMask {
         try {
             File baseDir = new File(ApplicationLoader.applicationContext.getCacheDir(), DIR);
             sweep(baseDir);
+            final long probeStart = android.os.SystemClock.elapsedRealtime();
             String path = source.getAbsolutePath();
             int[] params = new int[AnimatedFileInfo.PARAM_NUM_COUNT];
             AnimatedFileNative.getVideoInfo(path, params, 0);
@@ -99,8 +101,23 @@ public final class RoundVideoMask {
                 Log.w(TAG, "cannot create temp dir, saving unmasked");
                 return source;
             }
+            final long probeInfoMs = android.os.SystemClock.elapsedRealtime() - probeStart;
             File mask = new File(workDir, "mask.png");
             writeMask(mask, outWidth, outHeight);
+            final long probeMaskMs = android.os.SystemClock.elapsedRealtime() - probeStart - probeInfoMs;
+            String probeEncoder = "?";
+            try {
+                android.media.MediaCodec probeCodec = android.media.MediaCodec.createEncoderByType("video/avc");
+                probeEncoder = probeCodec.getName();
+                probeCodec.release();
+            } catch (Throwable ignore) {
+            }
+            Log.i(TAG, "NAX_SMOKE_round-video-black-corners INFO " + width + "x" + height + " rot=" + rotation + " fps=" + framerate + " bitrate=" + bitrate
+                    + " durMs=" + (durationUs / 1000) + " srcBytes=" + source.length() + " hasAudio=" + params[AnimatedFileInfo.PARAM_NUM_HAS_AUDIO]
+                    + " aacAudio=" + params[AnimatedFileInfo.PARAM_NUM_SUPPORTED_AUDIO_CODEC] + " encoder=" + probeEncoder + " infoMs=" + probeInfoMs + " maskMs=" + probeMaskMs);
+            final int[] probeRestarts = new int[1];
+            final float[] probeLastProgress = new float[1];
+            final long[] probeFirstWriteMs = {-1};
             // Same file name as the source so nothing downstream that reads it can tell the difference.
             File output = new File(workDir, source.getName());
 
@@ -114,8 +131,17 @@ public final class RoundVideoMask {
 
                 @Override
                 public void didWriteData(long availableSize, float progress) {
+                    if (probeFirstWriteMs[0] < 0) {
+                        probeFirstWriteMs[0] = android.os.SystemClock.elapsedRealtime() - probeStart;
+                    }
+                    // A drop back toward zero means the convertor started the whole encode again.
+                    if (progress + 0.3f < probeLastProgress[0]) {
+                        probeRestarts[0]++;
+                    }
+                    probeLastProgress[0] = progress;
                 }
             };
+            final long probeConvertStart = android.os.SystemClock.elapsedRealtime();
             // needCompress must be true: false sends an AVC source down readAndWriteTracks, which copies
             // the stream without drawing the paint layer and still reports success.
             MediaCodecVideoConvertor.ConvertVideoParams convertParams = MediaCodecVideoConvertor.ConvertVideoParams.of(
@@ -130,14 +156,22 @@ public final class RoundVideoMask {
                     info
             );
             boolean error = new MediaCodecVideoConvertor().convertVideo(convertParams);
+            final long probeConvertMs = android.os.SystemClock.elapsedRealtime() - probeConvertStart;
+            final long probeCheckStart = android.os.SystemClock.elapsedRealtime();
+            final boolean probePlayable = output.exists() && output.length() > 0 && isPlayable(output);
+            Log.i(TAG, "NAX_SMOKE_round-video-black-corners CONVERT error=" + error + " convertMs=" + probeConvertMs + " firstWriteMs=" + probeFirstWriteMs[0]
+                    + " restarts=" + probeRestarts[0] + " lastProgress=" + probeLastProgress[0] + " outBytes=" + output.length()
+                    + " playable=" + probePlayable + " checkMs=" + (android.os.SystemClock.elapsedRealtime() - probeCheckStart));
             // The convertor logs a finishMovie() failure without reporting an error, which can leave a
             // non-empty file nothing can play, so the output has to parse as a video before it replaces the original.
             if (error || listener.checkConversionCanceled() || !output.exists() || output.length() == 0 || !isPlayable(output)) {
                 Log.w(TAG, "encode did not finish (error=" + error + "), saving unmasked");
+                Log.i(TAG, "NAX_SMOKE_round-video-black-corners END fallback");
                 deleteRecursive(workDir);
                 return source;
             }
             mask.delete();
+            Log.i(TAG, "NAX_SMOKE_round-video-black-corners END masked totalMs=" + (android.os.SystemClock.elapsedRealtime() - probeStart));
             return output;
         } catch (Throwable t) {
             Log.e(TAG, "mask failed, saving unmasked", t);
