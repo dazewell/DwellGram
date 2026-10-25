@@ -499,6 +499,8 @@ public class MediaCodecVideoConvertor {
                             selectedEncoderName = encoder.getName();
                             canBeBrokenEncoder = "c2.qti.avc.encoder".equalsIgnoreCase(selectedEncoderName);
                             FileLog.d("selected encoder " + selectedEncoderName);
+                            // NagramX: no-op unless a round-video save is encoding on this thread; without it the codecs run at real-time priority and a save takes as long as the note
+                            com.dazewell.gram.videonote.RoundVideoMask.applySpeedHint(outputFormat, true);
                             encoder.configure(outputFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
                             inputSurface = new InputSurface(encoder.createInputSurface());
                             inputSurface.makeCurrent();
@@ -529,6 +531,8 @@ public class MediaCodecVideoConvertor {
                                 );
                             }
                             decoder = getDecoderByFormat(videoFormat);
+                            // NagramX: same speed hint for the decoder side of a round-video save
+                            com.dazewell.gram.videonote.RoundVideoMask.applySpeedHint(videoFormat, false);
                             decoder.configure(videoFormat, outputSurface.getSurface(), null, 0);
                             decoder.start();
 

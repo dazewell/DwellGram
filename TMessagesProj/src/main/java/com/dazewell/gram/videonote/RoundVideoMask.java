@@ -37,6 +37,10 @@ public final class RoundVideoMask {
     private static final int FALLBACK_BITRATE = 1_500_000;
     private static final int FALLBACK_FRAMERATE = 30;
 
+    // MediaCodecVideoConvertor configures its codecs on the thread that calls convertVideo, so this marks
+    // "the encode running on this thread is a round-video save" without adding a field to upstream's params.
+    private static final ThreadLocal<Boolean> SPEED_HINT = new ThreadLocal<>();
+
     public interface Cancel {
         boolean isCancelled();
     }
@@ -155,7 +159,13 @@ public final class RoundVideoMask {
                     listener,
                     info
             );
-            boolean error = new MediaCodecVideoConvertor().convertVideo(convertParams);
+            boolean error;
+            SPEED_HINT.set(Boolean.TRUE);
+            try {
+                error = new MediaCodecVideoConvertor().convertVideo(convertParams);
+            } finally {
+                SPEED_HINT.remove();
+            }
             final long probeConvertMs = android.os.SystemClock.elapsedRealtime() - probeConvertStart;
             final long probeCheckStart = android.os.SystemClock.elapsedRealtime();
             final boolean probePlayable = output.exists() && output.length() > 0 && isPlayable(output);
@@ -179,6 +189,25 @@ public final class RoundVideoMask {
                 deleteRecursive(workDir);
             }
             return source;
+        }
+    }
+
+    // Without these the codecs default to real-time priority and, on MediaTek at least, encode at
+    // playback speed. Values are media3 Transformer's (DefaultEncoderFactory / DefaultDecoderFactory):
+    // 1000 instead of Integer.MAX_VALUE because some chipsets throw near the overflow limit, and the
+    // decoder only gets a priority on the two chipsets whose configure fails without one.
+    public static void applySpeedHint(android.media.MediaFormat format, boolean encoder) {
+        if (Build.VERSION.SDK_INT < 25 || !Boolean.TRUE.equals(SPEED_HINT.get())) {
+            return;
+        }
+        if (encoder) {
+            format.setInteger(android.media.MediaFormat.KEY_PRIORITY, 1);
+            format.setInteger(android.media.MediaFormat.KEY_OPERATING_RATE, 1000);
+        } else {
+            if (Build.VERSION.SDK_INT >= 31 && ("s5e8835".equals(Build.SOC_MODEL) || "SA8155P".equals(Build.SOC_MODEL))) {
+                format.setInteger(android.media.MediaFormat.KEY_PRIORITY, 1);
+            }
+            format.setInteger(android.media.MediaFormat.KEY_OPERATING_RATE, 10000);
         }
     }
 
