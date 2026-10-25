@@ -49,6 +49,10 @@ public final class VideoNoteShortcut {
     private static final String SHORTCUT_ID_REAR = "video_note_rear";
     private static final String EXTRA_HASH = "hash";
     private static final String EXTRA_REAR = "rear";
+    // #camera-memo: the same recorder under a plain camera screen (CameraMemo). Its own id, so turning it on or off never
+    // touches a pinned video memo, and the same action, so LaunchActivity needs no second branch.
+    private static final String SHORTCUT_ID_CAMERA = "camera_memo";
+    private static final String EXTRA_CAMERA = "camera";
     private static final long PENDING_TTL_MS = 10_000;
 
     public static final int CAMERA_FRONT = 0;
@@ -61,12 +65,26 @@ public final class VideoNoteShortcut {
     private static long pendingDialogId;
     private static long pendingSince;
     private static boolean pendingRear;
+    static boolean pendingCamera;
 
     private VideoNoteShortcut() {
     }
 
     public static boolean isEnabled() {
         return NaConfig.INSTANCE.getVideoNoteShortcut().Bool();
+    }
+
+    public static boolean isCameraMemoEnabled() {
+        return NaConfig.INSTANCE.getCameraMemoShortcut().Bool();
+    }
+
+    /** CameraMemoCamera, with anything unknown read as front. */
+    public static boolean isCameraMemoRear() {
+        return NaConfig.INSTANCE.getCameraMemoCamera().Int() == CAMERA_REAR;
+    }
+
+    public static String getCameraMemoLabel() {
+        return com.dazewell.gram.helpers.ShortcutHelper.variantLabel(LocaleController.getString(R.string.CameraMemoShortcutLabel));
     }
 
     /** VideoNoteShortcutCamera, with anything unknown read as front. */
@@ -96,7 +114,7 @@ public final class VideoNoteShortcut {
 
     /** MediaDataController.buildShortcuts: ranks taken past the one it hands to publish, which recent chats skip. */
     public static int getExtraRanks() {
-        int count = (publishes(false) ? 1 : 0) + (publishes(true) ? 1 : 0) + (TextMemoShortcut.isEnabled() ? 2 : 0);
+        int count = (publishes(false) ? 1 : 0) + (publishes(true) ? 1 : 0) + (isCameraMemoEnabled() ? 1 : 0) + (TextMemoShortcut.isEnabled() ? 2 : 0);
         return Math.max(0, count - 1);
     }
 
@@ -107,6 +125,9 @@ public final class VideoNoteShortcut {
         }
         if (publishes(true)) {
             wantedIds.add(SHORTCUT_ID_REAR);
+        }
+        if (isCameraMemoEnabled()) {
+            wantedIds.add(SHORTCUT_ID_CAMERA);
         }
         TextMemoShortcut.addShortcutId(wantedIds);
     }
@@ -122,22 +143,42 @@ public final class VideoNoteShortcut {
         if (publishes(true)) {
             publish(true, recreate, existingIds, rank++);
         }
+        if (isCameraMemoEnabled()) {
+            publishCameraMemo(recreate, existingIds, rank++);
+        }
         // The text memo rides these hooks rather than adding its own to MediaDataController
         TextMemoShortcut.publish(recreate, existingIds, rank);
     }
 
-    // Own try so a launcher rejecting one can't abort the rest
     private static void publish(boolean rear, boolean recreate, List<String> existingIds, int rank) {
         String id = rear ? SHORTCUT_ID_REAR : SHORTCUT_ID;
-        try {
-            Intent intent = createIntent(rear);
-            ShortcutInfoCompat shortcut = new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, id)
-                    .setShortLabel(getLabel(rear, false))
-                    .setLongLabel(getLabel(rear, true))
-                    .setIcon(IconCompat.createWithBitmap(createIcon()))
+        push(id, recreate, existingIds, () -> new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, id)
+                .setShortLabel(getLabel(rear, false))
+                .setLongLabel(getLabel(rear, true))
+                .setIcon(IconCompat.createWithBitmap(createIcon()))
+                .setRank(rank)
+                .setIntent(createIntent(rear))
+                .build());
+    }
+
+    private static void publishCameraMemo(boolean recreate, List<String> existingIds, int rank) {
+        push(SHORTCUT_ID_CAMERA, recreate, existingIds, () -> {
+            Intent intent = createIntent(isCameraMemoRear());
+            intent.putExtra(EXTRA_CAMERA, true);
+            return new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, SHORTCUT_ID_CAMERA)
+                    .setShortLabel(getCameraMemoLabel())
+                    .setLongLabel(getCameraMemoLabel())
+                    .setIcon(IconCompat.createWithBitmap(createCameraMemoIcon()))
                     .setRank(rank)
                     .setIntent(intent)
                     .build();
+        });
+    }
+
+    // Own try, building included, so a launcher rejecting one can't abort the rest
+    private static void push(String id, boolean recreate, List<String> existingIds, java.util.function.Supplier<ShortcutInfoCompat> builder) {
+        try {
+            ShortcutInfoCompat shortcut = builder.get();
             if (recreate) {
                 ShortcutManagerCompat.pushDynamicShortcut(ApplicationLoader.applicationContext, shortcut);
             } else if (existingIds.contains(id)) {
@@ -164,12 +205,21 @@ public final class VideoNoteShortcut {
         return createIcon(R.drawable.input_video);
     }
 
+    // A dark disc rather than the blue one: this is the memo that doesn't look like Telegram
+    public static Bitmap createCameraMemoIcon() {
+        return createIcon(R.drawable.input_video, 0xff2b2e33);
+    }
+
     static Bitmap createIcon(int glyphRes) {
+        return createIcon(glyphRes, 0xff3390ec);
+    }
+
+    private static Bitmap createIcon(int glyphRes, int color) {
         int size = AndroidUtilities.dp(48);
         Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paint.setColor(0xff3390ec);
+        paint.setColor(color);
         canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint);
         Drawable glyph = ApplicationLoader.applicationContext.getResources().getDrawable(glyphRes, null).mutate();
         glyph.setColorFilter(new PorterDuffColorFilter(0xffffffff, PorterDuff.Mode.SRC_IN));
@@ -180,7 +230,9 @@ public final class VideoNoteShortcut {
     }
 
     private static boolean isGenuine(Intent intent) {
-        return intent != null && ACTION.equals(intent.getAction()) && isEnabled()
+        // Each kind answers to its own switch, so turning the video memo off leaves the camera memo working
+        return intent != null && ACTION.equals(intent.getAction())
+                && (intent.getBooleanExtra(EXTRA_CAMERA, false) ? isCameraMemoEnabled() : isEnabled())
                 && SharedConfig.directShareHash != null && SharedConfig.directShareHash.equals(intent.getStringExtra(EXTRA_HASH));
     }
 
@@ -191,11 +243,13 @@ public final class VideoNoteShortcut {
      */
     public static long accept(Intent intent, int account) {
         boolean genuine = isGenuine(intent);
+        boolean camera = intent.getBooleanExtra(EXTRA_CAMERA, false);
         // A copy pinned before shortcuts carried their camera has no extra, and still follows the setting
         boolean rear = intent.hasExtra(EXTRA_REAR) ? intent.getBooleanExtra(EXTRA_REAR, false) : getCameraMode() == CAMERA_REAR;
         intent.setAction(null);
         intent.removeExtra(EXTRA_HASH);
         intent.removeExtra(EXTRA_REAR);
+        intent.removeExtra(EXTRA_CAMERA);
         if (!genuine || !UserConfig.getInstance(account).isClientActivated()) {
             if (phase != IDLE) {
                 lockNow();
@@ -207,6 +261,7 @@ public final class VideoNoteShortcut {
         pendingDialogId = userId;
         pendingSince = SystemClock.elapsedRealtime();
         pendingRear = rear;
+        pendingCamera = camera;
         if (phase == STARTING) {
             phaseSince = pendingSince; // the database read above mustn't eat into the start timeout
         }
