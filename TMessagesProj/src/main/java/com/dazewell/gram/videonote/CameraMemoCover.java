@@ -53,6 +53,7 @@ final class CameraMemoCover extends FrameLayout {
     private static final long PAUSE_UNTIL_MS = 59_000; // the composer hides its pause button from here
     private static final long WARN_FROM_MS = 55_000;
     private static final long START_TIMEOUT_MS = 6_000;
+    private static final long COMMIT_SETTLE_MS = 1_500;
     private static final int VIEWFINDER_MAX_PX = 720; // its buffer's long side, not its size on screen
     private static final int GRID = 0x80ffffff;
     private static final int GRID_CROP = 0xe6ffffff; // the crop's top and bottom, a little stronger than the rest
@@ -101,6 +102,7 @@ final class CameraMemoCover extends FrameLayout {
     private long elapsed;
     private long lastTick;
     private boolean committed;
+    private long committedAt;
     private boolean failed;
     private boolean removed;
     private boolean statusBarRestored;
@@ -181,6 +183,7 @@ final class CameraMemoCover extends FrameLayout {
             ChatActivity c = chatRef.get();
             if (c != null && discardButton.isEnabled() && CameraMemo.discard(c)) {
                 committed = true;
+                committedAt = SystemClock.elapsedRealtime();
                 refresh();
             }
         });
@@ -190,6 +193,7 @@ final class CameraMemoCover extends FrameLayout {
             ChatActivity c = chatRef.get();
             if (c != null && sendButton.isEnabled() && CameraMemo.send(c)) {
                 committed = true;
+                committedAt = SystemClock.elapsedRealtime();
                 refresh();
             }
         });
@@ -381,6 +385,15 @@ final class CameraMemoCover extends FrameLayout {
         }
         readRecorder();
         updateHole();
+        // A send can land on a preview instead (confirm before sending, a declined paid-message sheet). If one is still
+        // waiting a moment later and nothing was handed off, the controls come back for it.
+        if (committed && bound && SystemClock.elapsedRealtime() - committedAt > COMMIT_SETTLE_MS) {
+            ChatActivity chat = chatRef.get();
+            InstantCameraView camera = chat != null ? chat.instantCameraView : null;
+            if (camera == null || !camera.isFileHandedOff()) {
+                committed = false;
+            }
+        }
         boolean live = !failed && !committed;
         discardButton.setEnabled(live && (recording || bound));
         sendButton.setEnabled(live && (recording && elapsed >= MIN_CLIP_MS || !recording && bound));
