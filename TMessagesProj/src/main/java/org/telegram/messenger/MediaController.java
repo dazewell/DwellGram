@@ -844,7 +844,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                     int width1 = bitmap.getWidth();
                     int height1 = bitmap.getHeight();
                     b = Bitmap.createBitmap(bitmap, 0, 0, width1, height1, matrix, true);
-                    bitmap.recycle();
+                    AndroidUtilities.recycleBitmap(bitmap);
                 } else {
                     b = bitmap;
                 }
