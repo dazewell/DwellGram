@@ -205,7 +205,7 @@ not traced.
 
 The reply panel's translation and the field's clip read `getHeight()` for that
 reason, and `onLayout` re-places the panel once a new height lands
-(`ChatActivityEnterView.java:5182`, `:18045`, `:19253`). Measure-time code still
+(`ChatActivityEnterView.java:5210`, `:18120`, `:19345-19348`). Measure-time code still
 wants the measured height; any other draw-time reader has to be traced before it
 is switched. Signature: with a reply
 open and the field growing, the reply content rides above its strip and the
@@ -2311,7 +2311,7 @@ carrying it (`ChatActivity.java:39283`, `:41444`). `encoderTeardownPending`, set
 every terminal stop and cleared by the teardown, a skipped stop (`:2401-2407`) or a
 failed prepare (`:2572`), holds a fresh `showCamera` off (`:1005`). The composer
 refuses the press up front while either the texture or that flag is up
-(`ChatActivityEnterView.java:19231`, called from `:1005`, `:5366` and `:19247`).
+(`ChatActivityEnterView.java:19509`, called from `:1007`, `:5397`, `:19528` and `:19549`).
 The window press was checked on a device.
 
 Upstream `togglePause` also unpaused the recorder before its audio thread came
@@ -2725,16 +2725,16 @@ list stayed at the bottom on a device. The Message Triggers page does this
 has the first `getExtendedPaddingTop`/`Bottom` calls return 0 and `-scrollY` (`:726-741`, armed at `:888`),
 so `TextView` never clips the top: the lines a long draft has scrolled past are drawn above the edit text.
 Nothing in the composer clips them except `ChatActivityEnterView.drawChild`'s cut at the input row's top
-(`ChatActivityEnterView.java:5185`) and `drawMessageEditText`'s layer and 14dp top fade (`:19045`). Any edge
+(`ChatActivityEnterView.java:5210`) and `drawMessageEditText`'s layer and 14dp top fade (`:19129-19130`). Any edge
 for that clip or fade has to be the input row's top, which the MD3 field is drawn from too
 (`ComposerMd3Surface.java:696`). The fade used to sit at `messageEditText.getY() + animatedTop`, and
 `animatedTop` stays wherever it was while `waitingForSendingMessageLoad` holds back its reset animator
 (`ChatActivity.java:8829`), so the fade could land across a line in the middle of the field and leave the
-real top as a hard cut. It is now anchored to the row (`ChatActivityEnterView.java:19054-19064`).
+real top as a hard cut. It is now anchored to the row (`ChatActivityEnterView.java:19128-19129`).
 
 That row top reads `animatorInputFieldHeight`, but `drawMessageEditText` runs inside the edit container's display
-list, and `onFactorChanged`'s own `invalidate()` (`:19250`) re-records only the enter view. So a height change must also invalidate
-the container (`ChatActivityEnterView.java:19224`), or the cut keeps the factor from its last recording. Expanding
+list, and `onFactorChanged`'s own `invalidate()` (`:19338`) re-records only the enter view. So a height change must also invalidate
+the container (`ChatActivityEnterView.java:19312`), or the cut keeps the factor from its last recording. Expanding
 the input showed this: with the collapsed row's top baked in, short drafts vanished and longer ones lost their top
 lines until a new line or a scroll redrew the container (traced on device, `#composer-text-clip-fix`, PR 529).
 Anything else this method reads from outside the container needs the same treatment.

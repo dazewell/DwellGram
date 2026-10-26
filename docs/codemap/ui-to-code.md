@@ -435,25 +435,26 @@ the tools row, centred on it (`ComposerInlineRest.java:111`, `ChatActivityEnterV
 toolbar's end padding reserves it (`ComposerToolbarLayout.java:845`). Both styles fold: with the field
 empty and no keyboard, panel, fullscreen input or rich draft, the field moves into the tools row between the
 leading and trailing zones and the Scrolling viewport goes INVISIBLE at width 0, its buttons untouched
-(`ComposerInlineRest.java:164`; `ComposerToolbarLayout.java:835`, `:974`). The decision rides
+(`ComposerInlineRest.java:168`; `ComposerToolbarLayout.java:835`, `:974`). The decision rides
 `checkBotMenu()`, which every text, keyboard and panel change already calls (`ChatActivityEnterView.java:5150`),
 and `applyComposerTextGeometry()` hands it the field (`:11306`). A row that would leave the field under 96dp,
 or a send-as avatar or bot pill at the head of the Scrolling zone, keeps two rows (`ComposerInlineRest.java:33`,
-`:273`; `ComposerToolbarLayout.java:170`).
+`:277`; `ComposerToolbarLayout.java:170`).
 
 The fold has no clock. The margin flip re-measures the edit container, `animatorInputFieldHeight` eases the
 island, at 450ms ease-out for a fold instead of its stock 250ms (`ComposerInlineRest.java:38`, `:119`;
 `ChatActivityEnterView.java:2871`), and the field's draw offset (`:2911`), the tools inset
 (`:19185`) and the surface's field tone (`ComposerMd3Surface.java:676`, `:696`) all read that animation's
-remaining share (`ComposerInlineRest.java:211`). The morph must not end inside that frame's height tick: the
+remaining share (`ComposerInlineRest.java:215`). The morph must not end inside that frame's height tick: the
 `#fullscreen-input` history pin reads `ComposerInlineRest.morphing()` further down the same synchronous call
 (`ChatActivity.java:13633`), and ending first let it arm on the last frame and hold history still against the
 keyboard. It ends in `settleIfDone()`, after `checkUi_IslandTotalHeight()` (`ChatActivityEnterView.java:19303-19306`;
-`ComposerInlineRest.java:232`, `:237`). Docked needs nothing of its own: the panel takes its top from the
+`ComposerInlineRest.java:236`, `:241`). Docked needs nothing of its own: the panel takes its top from the
 island's and keeps its bottom on the keyboard or screen edge (`ComposerMd3Surface.java:570`), so it folds from the
 top. A record, review or bot panel replacing the tools row is a third layout the fold does not model: the fold
 holds still while it is up, since a flip on the GONE field would move no height and only run out on the timeout
-(`ComposerInlineRest.java:164`), the enter view re-decides once when the row returns (`ChatActivityEnterView.java:12586`), and that decision snaps
+(`ComposerInlineRest.java:168`). The enter view tells it as the row goes, which lands any fold still running, and
+again as it returns, to catch up on a keyboard change made meanwhile (`ChatActivityEnterView.java:12586-12588`); the returning decision snaps
 rather than morphs, since the field was never drawn where a morph would start it,
 and the surface draws the field tone and send slot from the column geometry meanwhile
 (`ComposerMd3Surface.java:635-636`). The layout editor preview does not show the fold yet.
