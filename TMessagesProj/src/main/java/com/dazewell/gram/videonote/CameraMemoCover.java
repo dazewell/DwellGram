@@ -3,6 +3,7 @@ package com.dazewell.gram.videonote;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -16,14 +17,17 @@ import android.os.SystemClock;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.TextureView;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
+import org.telegram.messenger.Utilities;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.InstantCameraView;
@@ -35,7 +39,8 @@ import java.util.Locale;
  * #camera-memo: the plain camera screen over a camera memo's chat. Opaque black everywhere except the round camera,
  * which shows through a hole cut to its exact on-screen bounds, so the stock live circle is never scaled, dimmed or
  * covered. A touch that starts on the circle goes through to it, so the round video's own gestures work as usual.
- * The recording cue and the controls are drawn here, white on black, with no Telegram colour.
+ * Behind the circle sits the same camera image, blurred and darkened, so the black isn't a hard frame around it. The
+ * recording cue and the controls are drawn here, white on black, with no Telegram colour.
  *
  * Fixed dark in both themes on purpose: a theme colour would give the app away. Everything it shows is read from the
  * recorder: the red dot and the running clock only while it is really capturing.
@@ -49,6 +54,10 @@ final class CameraMemoCover extends FrameLayout {
     private static final long PAUSE_UNTIL_MS = 59_000; // the composer hides its pause button from here
     private static final long WARN_FROM_MS = 55_000;
     private static final long START_TIMEOUT_MS = 6_000;
+    // The background copy: a tiny frame off the circle's own texture, a few times a second while it records
+    private static final long FRAME_MS = 125;
+    private static final int FRAME_PX = 48;
+    private static final int FRAME_SCRIM = 0x8c000000;
 
     private static final int RED = 0xffff3b30;
     private static final int AMBER = 0xffffb300;
@@ -66,6 +75,10 @@ final class CameraMemoCover extends FrameLayout {
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dimTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint framePaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+    private final RectF frameRect = new RectF();
+    private Bitmap frame;
+    private boolean hasFrame;
 
     private final ControlButton discardButton;
     private final ControlButton sendButton;
@@ -88,6 +101,7 @@ final class CameraMemoCover extends FrameLayout {
     private int controlsTop = -1;
 
     private final Runnable tick = this::tick;
+    private final Runnable grab = this::grabFrame;
 
     private final ViewTreeObserver.OnPreDrawListener preDraw = () -> {
         // Same traversal as the draw, so the hole never lags the circle's open animation by a frame
@@ -189,7 +203,10 @@ final class CameraMemoCover extends FrameLayout {
         }
         removed = true;
         AndroidUtilities.cancelRunOnUIThread(tick);
+        AndroidUtilities.cancelRunOnUIThread(grab);
         restoreStatusBar();
+        frame = null;
+        hasFrame = false;
         if (getParent() instanceof android.view.ViewGroup) {
             ((android.view.ViewGroup) getParent()).removeView(this);
         }
@@ -220,6 +237,8 @@ final class CameraMemoCover extends FrameLayout {
         lastTick = SystemClock.elapsedRealtime();
         AndroidUtilities.cancelRunOnUIThread(tick);
         AndroidUtilities.runOnUIThread(tick, TICK_MS);
+        AndroidUtilities.cancelRunOnUIThread(grab);
+        AndroidUtilities.runOnUIThread(grab, FRAME_MS);
     }
 
     @Override
@@ -227,6 +246,7 @@ final class CameraMemoCover extends FrameLayout {
         super.onDetachedFromWindow();
         getViewTreeObserver().removeOnPreDrawListener(preDraw);
         AndroidUtilities.cancelRunOnUIThread(tick);
+        AndroidUtilities.cancelRunOnUIThread(grab);
         restoreStatusBar();
         CameraMemo.onCoverDetached(this);
     }
@@ -259,6 +279,31 @@ final class CameraMemoCover extends FrameLayout {
     public boolean onTouchEvent(MotionEvent event) {
         super.onTouchEvent(event);
         return true;
+    }
+
+    // A readback of a 48 px frame, on the UI thread like every TextureView.getBitmap. Only while capturing: paused, the
+    // circle plays the clip back and the last live frame stays behind it.
+    private void grabFrame() {
+        if (removed) {
+            return;
+        }
+        ChatActivity chat = chatRef.get();
+        InstantCameraView camera = chat != null ? chat.instantCameraView : null;
+        TextureView texture = camera != null ? camera.getTextureView() : null;
+        if (camera != null && camera.isRecording() && texture != null && texture.isAvailable()) {
+            try {
+                if (frame == null) {
+                    frame = Bitmap.createBitmap(FRAME_PX, FRAME_PX, Bitmap.Config.ARGB_8888);
+                }
+                texture.getBitmap(frame);
+                Utilities.stackBlurBitmap(frame, 3);
+                hasFrame = true;
+                invalidate();
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
+        }
+        AndroidUtilities.runOnUIThread(grab, FRAME_MS);
     }
 
     private void tick() {
@@ -447,6 +492,13 @@ final class CameraMemoCover extends FrameLayout {
             canvas.clipOutPath(holePath);
         }
         canvas.drawColor(0xff000000);
+        if (hasFrame && frame != null) {
+            // Square, like the circle's crop, scaled to cover the whole screen
+            float side = Math.max(getWidth(), getHeight());
+            frameRect.set((getWidth() - side) / 2f, (getHeight() - side) / 2f, (getWidth() + side) / 2f, (getHeight() + side) / 2f);
+            canvas.drawBitmap(frame, null, frameRect, framePaint);
+            canvas.drawColor(FRAME_SCRIM);
+        }
         canvas.restore();
         if (!failed) {
             drawStatus(canvas);
