@@ -344,6 +344,10 @@ public final class ComposerToolbarLayout extends FrameLayout {
         controls.setPanelVisible(visible);
     }
 
+    public boolean controlsVisible() {
+        return controls.getVisibility() == VISIBLE;
+    }
+
     // NagramX (#composer-inline-rest): the floating composer folds the field into this row at rest. The scrolling
     // zone has no room beside the field, so it goes rather than its buttons, which keeps every slot's occupancy as is.
     public void setRestCompact(boolean compact) {
@@ -925,6 +929,16 @@ public final class ComposerToolbarLayout extends FrameLayout {
                     SlidingLinearLayout.cancelSlidesIn(this);
                 }
                 setVisibility(visibility);
+                // Coming back from a record or review panel, the buttons fade in alongside the field tone easing back
+                // rather than popping in on the frame the panel lets go of the row.
+                animate().cancel();
+                if (visible) {
+                    setAlpha(0f);
+                    animate().alpha(1f).setDuration(com.dazewell.gram.composer.ComposerMd3Surface.ROW_RETURN_DURATION)
+                            .setInterpolator(CubicBezierInterpolator.EASE_OUT).start();
+                } else {
+                    setAlpha(1f);
+                }
             }
         }
 

@@ -205,7 +205,7 @@ not traced.
 
 The reply panel's translation and the field's clip read `getHeight()` for that
 reason, and `onLayout` re-places the panel once a new height lands
-(`ChatActivityEnterView.java:5182`, `:18041`, `:19249`). Measure-time code still
+(`ChatActivityEnterView.java:5211`, `:18135`, `:19360-19363`). Measure-time code still
 wants the measured height; any other draw-time reader has to be traced before it
 is switched. Signature: with a reply
 open and the field growing, the reply content rides above its strip and the
@@ -1215,13 +1215,13 @@ completion state and leave a partially held, partially sent album.
 
 `ChatActivityEnterView` builds a fresh `MessageObject.SendAnimationData` for a
 normal (non-forwarding) text send before constructing the params
-(`ChatActivityEnterView.java:9627-9629`), and `of(...)` stores it verbatim
+(`ChatActivityEnterView.java:9628-9630`), and `of(...)` stores it verbatim
 (`SendMessagesHelper.java:12537`). It is a transient UI fly-in hint — the
 composer's on-screen x/y/width/height — carrying no part of the sent message,
 but it is set on ~100% of composer sends. Any allowlist/denylist that treats an
 unrecognised non-default `SendMessageParams` field as "not an ordinary text
 send" must exclude `sendAnimationData` (and `updateStickersOrder`, a local
-recent-emoji reorder flag, `ChatActivityEnterView.java:9649`) or it rejects
+recent-emoji reorder flag, `ChatActivityEnterView.java:9650`) or it rejects
 every real message.
 
 Cost if missed: Ghost Hold's fail-closed backstop `onlyPersistedFieldsSet`
@@ -2311,19 +2311,19 @@ carrying it (`ChatActivity.java:39283`, `:41444`). `encoderTeardownPending`, set
 every terminal stop and cleared by the teardown, a skipped stop (`:2401-2407`) or a
 failed prepare (`:2572`), holds a fresh `showCamera` off (`:1005`). The composer
 refuses the press up front while either the texture or that flag is up
-(`ChatActivityEnterView.java:19227`, called from `:1005`, `:5366` and `:19243`).
+(`ChatActivityEnterView.java:19524`, called from `:1008`, `:5398`, `:19543` and `:19564`).
 The window press was checked on a device.
 
 Upstream `togglePause` also unpaused the recorder before its audio thread came
 back. That thread exits on pause without re-posting its stop, so a stop between
-resume and the first frame waited in `handleStopRecording` (`:3859`) for a
+resume and the first frame waited in `handleStopRecording` (`:3860`) for a
 re-post that never came, and the teardown never ran. The fork leaves the
-recorder paused until `prepareEncoder(true)` restarts audio (`:4168`). A stop
+recorder paused until `prepareEncoder(true)` restarts audio (`:4169`). A stop
 that reaches it in that gap takes the paused single pass and tears down; one
 whose resumed camera never drew reaches nothing, as upstream. A send there is
 dropped, and a cancel there leaves the paused recorder behind, so the next
 recording resumes into its deleted file (`initGL` keeps it, `prepareEncoder(true)`
-skips `createMuxer`, `:4201-4202`). Forwarding that stop, or pausing again on a surface loss,
+skips `createMuxer`, `:4202-4203`). Forwarding that stop, or pausing again on a surface loss,
 was tried and dropped: the first races the pause preview post that reads
 `previewFile`, the second can resume a queued start with no camera. Code-verified.
 
@@ -2521,7 +2521,7 @@ point, after it was already measured, gets nothing. Its ancestors still carry th
 pass's layout flag, so the request stops there and no new traversal is
 scheduled. The child keeps its stale measurement until something unrelated
 lays the screen out again. Post the request instead when `isLayoutRequested()`
-is already true (`ChatActivityEnterView.java:7745`).
+is already true (`ChatActivityEnterView.java:7746`).
 
 Missed once: the fullscreen input settled 136px short of the header in a chat
 with a pinned message. Its height budget grew when the pinned bar hid, but the
@@ -2725,16 +2725,16 @@ list stayed at the bottom on a device. The Message Triggers page does this
 has the first `getExtendedPaddingTop`/`Bottom` calls return 0 and `-scrollY` (`:726-741`, armed at `:888`),
 so `TextView` never clips the top: the lines a long draft has scrolled past are drawn above the edit text.
 Nothing in the composer clips them except `ChatActivityEnterView.drawChild`'s cut at the input row's top
-(`ChatActivityEnterView.java:5185`) and `drawMessageEditText`'s layer and 14dp top fade (`:19041`). Any edge
+(`ChatActivityEnterView.java:5211`) and `drawMessageEditText`'s layer and 14dp top fade (`:19144-19145`). Any edge
 for that clip or fade has to be the input row's top, which the MD3 field is drawn from too
-(`ComposerMd3Surface.java:693`). The fade used to sit at `messageEditText.getY() + animatedTop`, and
+(`ComposerMd3Surface.java:704`). The fade used to sit at `messageEditText.getY() + animatedTop`, and
 `animatedTop` stays wherever it was while `waitingForSendingMessageLoad` holds back its reset animator
 (`ChatActivity.java:8829`), so the fade could land across a line in the middle of the field and leave the
-real top as a hard cut. It is now anchored to the row (`ChatActivityEnterView.java:19050-19060`).
+real top as a hard cut. It is now anchored to the row (`ChatActivityEnterView.java:19143-19144`).
 
 That row top reads `animatorInputFieldHeight`, but `drawMessageEditText` runs inside the edit container's display
-list, and `onFactorChanged`'s own `invalidate()` (`:19246`) re-records only the enter view. So a height change must also invalidate
-the container (`ChatActivityEnterView.java:19220`), or the cut keeps the factor from its last recording. Expanding
+list, and `onFactorChanged`'s own `invalidate()` (`:19353`) re-records only the enter view. So a height change must also invalidate
+the container (`ChatActivityEnterView.java:19327`), or the cut keeps the factor from its last recording. Expanding
 the input showed this: with the collapsed row's top baked in, short drafts vanished and longer ones lost their top
 lines until a new line or a scroll redrew the container (traced on device, `#composer-text-clip-fix`, PR 529).
 Anything else this method reads from outside the container needs the same treatment.
@@ -2831,15 +2831,30 @@ through.
 ## Leaving edit mode re-runs checkSendButton, so a hand-set attach state is overwritten in the same call
 
 `setEditingMessageObject`'s exit branch restores the pre-edit draft with `setText` under `ignoreTextChange`
-(`ChatActivityEnterView.java:13162-13165`). That flag does not guard the text watcher's `checkSendButton(true)`
-(`:7496`). `editingMessageObject` is already null by then (`:12891`). So with a non-empty draft the send branch
-runs, and its `pinAttachButton(150)` (`:10588`) cancels `attachButtonAnimator` and pins the paperclip to alpha 1,
-scale 1 (`:9166-9180`). The method's last `updateRichDraftPreview()` does the same when a rich draft comes back: its
-`checkSendButton(true)` (`:14034`) runs on that flip. Any animation of the attach button on edit exit has to start
-after both. It does, at `:13180`.
+(`ChatActivityEnterView.java:13181-13184`). That flag does not guard the text watcher's `checkSendButton(true)`
+(`:7497`). `editingMessageObject` is already null by then (`:12910`). So with a non-empty draft the send branch
+runs, and its `pinAttachButton(150)` (`:10589`) cancels `attachButtonAnimator` and pins the paperclip to alpha 1,
+scale 1 (`:9167-9181`). The method's last `updateRichDraftPreview()` does the same when a rich draft comes back: its
+`checkSendButton(true)` (`:14053`) runs on that flip. Any animation of the attach button on edit exit has to start
+after both. It does, at `:13199`.
 
-The toolbar row only gives a control its slot once its alpha reaches 0.5 (`ComposerToolbarLayout.java:1819-1825`).
+The toolbar row only gives a control its slot once its alpha reaches 0.5 (`ComposerToolbarLayout.java:1833-1839`).
 Fade a returning control in on `EASE_OUT_QUINT`: it crosses 0.5 in the first frames, so the slot is claimed
 straight away. On a linear or `DEFAULT` curve the control draws into a zero-width box until it reaches half opacity.
 
 *(Established 2026-10-24, `#attach-return-fix`.)*
+
+## The record panel's exit releases the composer at its start
+
+Upstream's record exit calls `isRecordingStateChanged()` before it builds its animator set: the fast path at
+`ChatActivityEnterView.java:11926`, a cancel at `:12232`. The panel stays VISIBLE and plays the trash, timer and dot
+for up to ~850ms after that, bringing the attach and emoji buttons back only after a 700ms delay, and is hidden in
+`cancelRecordInterfaceInternal()` (`:12522`), which nulls `runningAnimationAudio` (`:12529`) and calls
+`isRecordingStateChanged()` again. Anything that brings the composer back on the first call draws it under the
+exiting panel. The one-row composer holds the row while `runningAnimationAudio` is set (`:12556`), which relies on
+every exit set keeping the end listener that reaches `cancelRecordInterfaceInternal()` (`:12495`). The exit's own
+`messageEditText.requestFocus()` (`:12493`) lands on a field still GONE, so the restore asks again (`:12595`).
+Every exit also shows the field before building its set (`:11858`), and the normal send path never calls
+`isRecordingStateChanged()` at all, so the one-row composer re-checks once the set has started (`:12507-12511`).
+
+*(Established 2026-10-26, `#record-tone-fix`, PR 554.)*

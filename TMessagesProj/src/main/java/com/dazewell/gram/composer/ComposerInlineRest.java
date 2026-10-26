@@ -41,6 +41,7 @@ public final class ComposerInlineRest {
 
     private final ComposerToolbarLayout toolbar;
     private boolean compact;
+    private boolean held;
     private boolean morphing;
     private boolean pendingFinish;
     private int foldId;
@@ -85,6 +86,14 @@ public final class ComposerInlineRest {
     /** 1 with two rows, 0 with one, eased between them while the island morphs. */
     public float progress() {
         return progress;
+    }
+
+    /**
+     * False while a record, review or bot panel has replaced the tools row's controls. Mirrors the enter view's
+     * toolbarReplacementVisible: both are written only by its isRecordingStateChanged, in the same call.
+     */
+    public boolean toolsRowShown() {
+        return toolbar.controlsVisible();
     }
 
     /** The field's start edge at rest, in px from the toolbar's start, or -1 when the leading zone is empty. */
@@ -146,14 +155,32 @@ public final class ComposerInlineRest {
     public void layoutField(View field, @Nullable View richPreview, boolean wantsRest, int openStart, int sendReserve,
                             int openBottom, float currentHeight, float currentTarget) {
         toolbar.setSendReserve(sendReserve);
-        final boolean rest = wantsRest && fits(field) && !toolbar.hasMiddleLeading();
+        // While a panel replaces the tools row the field is GONE, so a flip would change no height and only run a
+        // phantom morph on the timeout. Hold the fold; the enter view asks again once the row comes back, and that
+        // first answer snaps, since the field was never drawn where a morph would start it.
+        final boolean shown = toolsRowShown();
+        final boolean resumed = held && shown;
+        if (!shown && !held) {
+            // A fold still running when the row goes would keep easing a row nobody sees; land it now.
+            finishMorph();
+            // And a return fade still running would fight the panel's own fade of the field.
+            field.animate().cancel();
+        } else if (resumed) {
+            // The field comes back with the tools row and the tone, not a frame ahead of them.
+            field.animate().cancel();
+            field.setAlpha(0f);
+            field.animate().alpha(1f).setDuration(ComposerMd3Surface.ROW_RETURN_DURATION)
+                    .setInterpolator(CubicBezierInterpolator.EASE_OUT).start();
+        }
+        held = !shown;
+        final boolean rest = shown ? wantsRest && fits(field) && !toolbar.hasMiddleLeading() : compact;
         final ViewGroup.LayoutParams params = field.getLayoutParams();
         boolean flipped = false;
         float fromStart = 0, fromBottom = 0;
         if (rest != compact) {
             compact = rest;
             toolbar.setRestCompact(rest);
-            if (params instanceof ViewGroup.MarginLayoutParams && currentHeight > 0) {
+            if (params instanceof ViewGroup.MarginLayoutParams && currentHeight > 0 && !resumed) {
                 // Where the field is drawn right now, so a flip that reverses a running morph starts from there.
                 final ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;
                 fromStart = margins.getMarginStart() + (morphing ? startDelta * remaining : 0);
