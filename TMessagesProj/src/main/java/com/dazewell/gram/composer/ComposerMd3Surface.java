@@ -83,6 +83,9 @@ public final class ComposerMd3Surface {
     private static final int SHEET_MORPH = 48;
     // The sheet's shape morphs on its own clock, so the change stays visible however fast the keyboard moves.
     private static final long SHEET_SHAPE_DURATION = 300;
+    // The field tone easing between the recording row and the tools row as a record or review panel comes and goes,
+    // close to the stock record transition's own pace so the tone settles with the text fading back in.
+    public static final long ROW_RETURN_DURATION = 250;
     // A docked sheet starts floating once its dock factor drops below this, a few dp into the lift.
     private static final float SHEET_FLOAT_AT = 0.9f;
     // Docked, the tools row's bottom sits this far above the nav bar in place of the floating lift.
@@ -144,6 +147,8 @@ public final class ComposerMd3Surface {
     private boolean barVisible;
     private ChatInputViewsContainer host;
     private AnimatedFloat sheetShape;
+    // 1 while the tools row shows, 0 while a panel replaces it.
+    private AnimatedFloat rowShown;
     private BlurredBackgroundDrawable frost;
     private int frostAccount;
     // Read once: the chat is rebuilt when the setting changes, like the rest of Interface Style.
@@ -171,6 +176,7 @@ public final class ComposerMd3Surface {
         this.host = host;
         // The docked panel never floats, so it has no shape to morph.
         sheetShape = docked ? null : new AnimatedFloat(host, SHEET_SHAPE_DURATION, CubicBezierInterpolator.EASE_OUT);
+        rowShown = new AnimatedFloat(host, ROW_RETURN_DURATION, CubicBezierInterpolator.EASE_OUT);
         final FrameLayout island = host.getInputIslandBubbleContainer();
         island.setClipToPadding(false);
         final int childPadding = dp(docked ? DOCKED_CHILD_SIDE_PADDING : CHILD_SIDE_PADDING);
@@ -630,7 +636,10 @@ public final class ComposerMd3Surface {
         float columnLeft = pillLeft + fieldSideInset();
         float columnRight = pillRight - fieldSideInset();
         sendSlot.setEmpty();
-        final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
+        // A record or review panel takes the tools row away, and the send column drops beside the field again, so
+        // neither the fold nor the tools-row slot applies while it is up.
+        final ComposerInlineRest fold = enterView != null ? enterView.getComposerInlineRest() : null;
+        final ComposerInlineRest rest = fold != null && fold.toolsRowShown() ? fold : null;
         if (enterView != null) {
             final int primaryEndInset = enterView.getComposerPrimaryEndInset();
             if (primaryEndInset > 0) {
@@ -654,13 +663,15 @@ public final class ComposerMd3Surface {
         }
         // The field alone follows the fold: at rest it runs between the leading and trailing buttons, open it
         // takes the whole row, the send column having gone down to the tools row. The reply strip keeps its column.
+        // While a panel has the row the field takes the column instead, and eases between the two as it comes and goes.
         float fieldLeft = columnLeft;
         float fieldRight = columnRight;
-        if (rest != null) {
+        final float shown = fold == null ? 0f : rowShown != null ? rowShown.set(fold.toolsRowShown() ? 1f : 0f) : rest != null ? 1f : 0f;
+        if (shown > 0) {
             final float openLeft = pillLeft + fieldSideInset();
             final float openRight = pillRight - fieldSideInset();
-            final int restStart = rest.restFieldStart();
-            final int restEnd = rest.restFieldEnd();
+            final int restStart = fold.restFieldStart();
+            final int restEnd = fold.restFieldEnd();
             final float restLeft, restRight;
             if (LocaleController.isRTL) {
                 restLeft = enterView.getLeft() + restEnd;
@@ -669,9 +680,9 @@ public final class ComposerMd3Surface {
                 restLeft = restStart > 0 ? enterView.getLeft() + restStart : openLeft;
                 restRight = enterView.getRight() - restEnd;
             }
-            final float open = rest.progress();
-            fieldLeft = restLeft + (openLeft - restLeft) * open;
-            fieldRight = restRight + (openRight - restRight) * open;
+            final float open = fold.progress();
+            fieldLeft = columnLeft + (restLeft + (openLeft - restLeft) * open - columnLeft) * shown;
+            fieldRight = columnRight + (restRight + (openRight - restRight) * open - columnRight) * shown;
         }
 
         if (drawPill && inputFactor > 0 && topViewHeight > dp(STRIP_INSET * 2)) {

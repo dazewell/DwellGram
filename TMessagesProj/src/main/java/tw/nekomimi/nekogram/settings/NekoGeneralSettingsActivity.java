@@ -117,6 +117,7 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
             null,
             null,
             null));
+    private final AbstractConfigCell blackRoundVideoCornersRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getBlackRoundVideoCorners(), getString(R.string.BlackRoundVideoCornersInfo)));
 
     private final AbstractConfigCell dividerStorage = cellGroup.appendCell(new ConfigCellDivider());
 
@@ -213,6 +214,9 @@ public class NekoGeneralSettingsActivity extends BaseNekoXSettingsActivity {
         if (!shouldShowPersian()) {
             cellGroup.rows.remove(usePersianCalendarRow);
             cellGroup.rows.remove(displayPersianCalendarByLatinRow);
+        }
+        if (!com.dazewell.gram.videonote.RoundVideoMask.isSupported()) {
+            cellGroup.rows.remove(blackRoundVideoCornersRow);
         }
 
         checkCustomDoHRows();

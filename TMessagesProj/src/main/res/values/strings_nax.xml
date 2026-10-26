@@ -11,6 +11,8 @@
     <string name="CustomFileNamesReset">Reset</string>
     <string name="CustomFileNamesPreview">For a video, saves as %1$s</string>
     <string name="CustomFileNamesPreviewInvalid">This can save with no name for voice and round messages — add some fixed text, or reset.</string>
+    <string name="BlackRoundVideoCorners">Black Corners on Saved Round Videos</string>
+    <string name="BlackRoundVideoCornersInfo">Saved round videos are black outside the circle. Saving takes a few seconds longer.</string>
     <string name="VideoMessagesPlayAll">Play all video messages</string>
     <string name="AccDescrZoomControl">Zoom</string>
     <string name="VideoMessagesCamera2">Newer camera for video messages</string>

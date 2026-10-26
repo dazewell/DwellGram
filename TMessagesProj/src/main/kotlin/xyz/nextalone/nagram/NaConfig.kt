@@ -1028,6 +1028,12 @@ object NaConfig {
             ConfigItem.configTypeString,
             "{date}_{time}"
         )
+    val blackRoundVideoCorners =
+        addConfig(
+            "BlackRoundVideoCorners",
+            ConfigItem.configTypeBool,
+            true
+        )
     val silentMessageByDefault =
         addConfig(
             "SilentMessageByDefault",

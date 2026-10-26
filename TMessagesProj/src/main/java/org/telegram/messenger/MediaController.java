@@ -5322,7 +5322,10 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                                 FileLog.d("saving file: correcting path from " + path + " to " + (sourceFile == null ? null : sourceFile.getAbsolutePath()));
                             }
                             if (sourceFile != null && sourceFile.exists()) {
+                                // NagramX: every round-video save reaches disk here; swap in a black-cornered re-encode (the original when off or on failure) and drop the temp after the copy
+                                sourceFile = com.dazewell.gram.videonote.RoundVideoMask.prepare(sourceFile, message, () -> cancelled);
                                 saveFileInternal(isMusic ? 3 : 2, sourceFile, name, message, message);
+                                com.dazewell.gram.videonote.RoundVideoMask.release(sourceFile);
                                 copiedFiles++;
                             }
                         }

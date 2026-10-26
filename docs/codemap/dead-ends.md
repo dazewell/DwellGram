@@ -498,7 +498,7 @@ on-device log tracing is genuinely needed, a `debuggable=true` build (e.g. the
 Disproven -- it dropped the mute instead. During PR #300 review it was argued
 that the new serialisation regressed edited GIF-panel sends by losing their
 encoder bitrate, on the premise that `origin/dev` preserved it. Tracing the
-full round trip disproves the premise. `ChatActivityEnterView.java:14816-14820`
+full round trip disproves the premise. `ChatActivityEnterView.java:15609`
 force-sets `muted = true` on those sends, and such a record genuinely can carry
 a positive bitrate (the `SELECT_TYPE_GIF` editor hides the mute button and
 quality chip -- `PhotoViewer.java:15466`, `:15477` -- so `muteVideo` is false
@@ -558,7 +558,7 @@ everywhere else in Settings, with no MDC involved. See upstream-traps.md.
 
 ## "Show a sub-floor packing thumb with a dimmed unavailable region" is not reachable fork-only
 
-Tempting fix for issue #299: let the Icon spacing thumb sit at the real saved value (say 85%) even when the scale-dependent floor is higher, drawing the unreachable band below the floor dimmed, so the user sees their value is still there. It cannot be done without editing `SlideIntChooseView`/`SeekBarView`, because the dimmed band and the thumb clamp are the *same* call: `setMinValueAllowed` clamps `this.value` up to the minimum (`SlideIntChooseView.java:222-226`) and then calls `seekBarView.setMinProgress(...)`, which both draws the 50%-alpha unavailable band (`SeekBarView.java:529-536`) *and* re-clamps progress (`:229-234`), with `minThumbX()` (`:353`) pinning the thumb at the floor. There is no upstream path that draws the dimmed band while leaving the thumb below it. Skipping `setMinValueAllowed` entirely gives an honest thumb but re-opens the inert-step bug the floor was built to close — a thumb resting on a step the row cannot actually draw (`ComposerToolbarLayout.spacingIsUsable`, `ComposerToolbarLayout.java:442-446`). So the fork's answer is the footer disclosure (`spacingFooterText()`), not a custom thumb: the value is honestly saved and reported in words, and the slider keeps upstream's clamp untouched.
+Tempting fix for issue #299: let the Icon spacing thumb sit at the real saved value (say 85%) even when the scale-dependent floor is higher, drawing the unreachable band below the floor dimmed, so the user sees their value is still there. It cannot be done without editing `SlideIntChooseView`/`SeekBarView`, because the dimmed band and the thumb clamp are the *same* call: `setMinValueAllowed` clamps `this.value` up to the minimum (`SlideIntChooseView.java:222-226`) and then calls `seekBarView.setMinProgress(...)`, which both draws the 50%-alpha unavailable band (`SeekBarView.java:529-536`) *and* re-clamps progress (`:229-234`), with `minThumbX()` (`:353`) pinning the thumb at the floor. There is no upstream path that draws the dimmed band while leaving the thumb below it. Skipping `setMinValueAllowed` entirely gives an honest thumb but re-opens the inert-step bug the floor was built to close — a thumb resting on a step the row cannot actually draw (`ComposerToolbarLayout.spacingIsUsable`, since removed with the Icon spacing slider in #536). So the fork's answer is the footer disclosure (`spacingFooterText()`), not a custom thumb: the value is honestly saved and reported in words, and the slider keeps upstream's clamp untouched.
 
 *(Established 2026-09-06, #composer-spacing. Moot since Icon spacing was removed 2026-10-17, #composer-keyboard-gap; kept for any slider with a moving floor.)*
 
@@ -613,7 +613,7 @@ Ghost off→on edge) and is fine, because the thing that made the old design's
 *state* need a lock — a background-thread writer (the send path) racing a
 UI-thread writer (the settings toggle) — doesn't apply here at all. Every read
 and write happens on the UI thread: `ChatActivityEnterView`'s own `TextWatcher`
-(`ChatActivityEnterView.java:7072` is the only call site of
+(`ChatActivityEnterView.java:7073` is the only call site of
 `GhostTypingReminderHelper.onComposerTypingObserved`) is the sole entry point,
 and the `AndroidUtilities.runOnUIThread` runnable it posts
 (`GhostTypingReminderHelper.java:280-327`) is a second UI-thread access path,
@@ -637,7 +637,7 @@ thread, where the outgoing request is in hand, and captured as a primitive; the
 *send path's* access to the set happens only inside `GhostSendWarningHelper`'s
 pre-existing `runOnUIThread` block. The composer's
 own two paths are unchanged (the `TextWatcher` at
-`ChatActivityEnterView.java:7072` and the UI runnable it posts), so the full
+`ChatActivityEnterView.java:7073` and the UI runnable it posts), so the full
 inventory is now three access paths, all on the UI thread. Only one of them
 writes a dialog id into the set: the posted runnable. The `TextWatcher` path
 reads membership and posts; the send helper's path is read-only and never
@@ -1135,3 +1135,25 @@ animation, so the id is held only during the transition. Every suppression keyed
 sound/vibrate settings or a Muted/Passive notification profile instead.
 
 *(Established 2026-10-13, `#scheduled-header-status`.)*
+
+## "MediaCodecVideoConvertor can re-encode a video fast enough with a tweak or two"
+
+Not on MediaTek. The convertor queues one compressed frame per pass
+(`MediaCodecVideoConvertor.java:623`), then polls encoder and decoder output with a
+2.5 ms timeout each (`:49`, `:681`, `:759`), so a codec with a few frames of latency
+leaves the loop idle most of the time. Measured on an OPPO CPH2791
+(`c2.mtk.avc.encoder`), 54 s 400×400 29 fps note: 50.3 s plain; 43.4 s with
+media3's `KEY_PRIORITY`/`KEY_OPERATING_RATE` values set before both `configure`
+calls (`:502`, `:532`); 33.6 s with the decoder also fed ahead. Stage timers put
+about 25 s in empty polls (5,749 encoder, 4,133 decoder).
+
+Also dead, by the same timers:
+- **Restarts:** the whole-encode retries never fired.
+- **Software encoder:** the encoder was the hardware `c2.mtk` one.
+- **Frame callbacks on the main thread:** `OutputSurface` registers its listener with no handler (`OutputSurface.java:49`), so all callbacks do land on the main thread, but `awaitNewImage` cost about 0.8 ms per frame.
+
+Sends run the convertor the same way, from a plain thread
+(`MediaController.java:6822`). media3 Transformer, used by `RoundVideoMask`,
+was fast on the same phone.
+
+*(Established 2026-10-25, `#round-video-black-corners`.)*
