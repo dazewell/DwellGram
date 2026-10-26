@@ -154,6 +154,13 @@ public final class CameraMemo {
         return true;
     }
 
+    /** Unlocked: a send from the circle's own hold gesture ends the memo the same way the Send button does. */
+    static void onMediaSent(ChatActivity chat) {
+        if (isSessionChat(chat)) {
+            end();
+        }
+    }
+
     /** Close on the failure message. Locked, the phase machine's start timeout locks and leaves on its own. */
     static void close(ChatActivity chat) {
         if (isSessionChat(chat) && !VideoNoteShortcut.isLockedMemo()) {

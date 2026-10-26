@@ -645,6 +645,9 @@ public final class VideoNoteShortcut {
 
     /** ChatActivity.sendMedia, once the clip has been handed to SendMessagesHelper. Ends the memo on the launcher. */
     public static void onMediaSent(ChatActivity chat) {
+        if (phase == IDLE) {
+            CameraMemo.onMediaSent(chat);
+        }
         if (isSessionChat(chat) && (phase == RECORDING || phase == SENDING)) {
             // The round video fades first: the passcode would cover it. The lock is already saved,
             // so the wait fails closed, and any other lock cancels the pending leave (onPasscodeShown).

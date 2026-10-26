@@ -34,7 +34,8 @@ import java.util.Locale;
 /**
  * #camera-memo: the plain camera screen over a camera memo's chat. Opaque black everywhere except the round camera,
  * which shows through a hole cut to its exact on-screen bounds, so the stock live circle is never scaled, dimmed or
- * covered. The recording cue and the controls are drawn here, white on black, with no Telegram colour.
+ * covered. A touch that starts on the circle goes through to it, so the round video's own gestures work as usual.
+ * The recording cue and the controls are drawn here, white on black, with no Telegram colour.
  *
  * Fixed dark in both themes on purpose: a theme colour would give the app away. Everything it shows is read from the
  * recorder: the red dot and the running clock only while it is really capturing.
@@ -79,13 +80,11 @@ final class CameraMemoCover extends FrameLayout {
     private boolean everRecorded;
     private long elapsed;
     private long lastTick;
-    // True only while a stop the cover's own pause asked for is what stopped the clip. A cap, the onPause grace or a lock
-    // stops it too, and those can't be resumed, so any other recording -> stopped transition clears it.
-    private boolean pausedByCover;
     private boolean committed;
     private boolean failed;
     private boolean removed;
     private boolean statusBarRestored;
+    private boolean touchThrough;
     private int controlsTop = -1;
 
     private final Runnable tick = this::tick;
@@ -232,6 +231,30 @@ final class CameraMemoCover extends FrameLayout {
         CameraMemo.onCoverDetached(this);
     }
 
+    // A gesture that starts on the circle is the round video's: declining its DOWN hands the whole gesture to the camera
+    // view below, whose tap, hold and swipes then behave exactly as in a chat. Everything else stays here.
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            touchThrough = !failed && hasHole && isInHole(event.getX(), event.getY());
+        }
+        if (touchThrough) {
+            return false;
+        }
+        return super.dispatchTouchEvent(event);
+    }
+
+    private boolean isInHole(float x, float y) {
+        float rx = hole.width() / 2f;
+        float ry = hole.height() / 2f;
+        if (rx <= 0 || ry <= 0) {
+            return false;
+        }
+        float dx = (x - hole.centerX()) / rx;
+        float dy = (y - hole.centerY()) / ry;
+        return dx * dx + dy * dy <= 1f;
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         super.onTouchEvent(event);
@@ -268,8 +291,6 @@ final class CameraMemoCover extends FrameLayout {
         if (recording) {
             everRecorded = true;
             failed = false; // the recorder overrules the cover: never a failure message over a live recording
-        } else if (wasRecording) {
-            pausedByCover = false;
         }
         wasRecording = recording;
         lastTick = now;
@@ -281,11 +302,7 @@ final class CameraMemoCover extends FrameLayout {
             return;
         }
         readRecorder();
-        if (recording) {
-            chat.toggleRecordingPause();
-            pausedByCover = true;
-            wasRecording = false; // this stop is ours: the next tick must not read it as a cap or a grace finalize
-        } else if (bound && pausedByCover) {
+        if (recording || isPaused()) {
             chat.toggleRecordingPause();
         }
         refresh();
@@ -301,10 +318,10 @@ final class CameraMemoCover extends FrameLayout {
         discardButton.setEnabled(live && (recording || bound));
         sendButton.setEnabled(live && (recording && elapsed >= MIN_CLIP_MS || !recording && bound));
         boolean canPause = live && recording && elapsed >= MIN_CLIP_MS && elapsed < PAUSE_UNTIL_MS;
-        boolean canResume = live && !recording && bound && pausedByCover && elapsed < PAUSE_UNTIL_MS;
+        boolean canResume = live && isPaused();
         pauseButton.setEnabled(canPause || canResume);
-        pauseButton.setPlaying(!recording && pausedByCover);
-        pauseButton.setContentDescription(LocaleController.getString(!recording && pausedByCover ? R.string.AccActionResume : R.string.AccActionPause));
+        pauseButton.setPlaying(isPaused());
+        pauseButton.setContentDescription(LocaleController.getString(isPaused() ? R.string.AccActionResume : R.string.AccActionPause));
         int controls = failed ? GONE : VISIBLE;
         discardButton.setVisibility(controls);
         sendButton.setVisibility(controls);
@@ -313,6 +330,12 @@ final class CameraMemoCover extends FrameLayout {
         closeButton.setVisibility(failed && !VideoNoteShortcut.isLockedMemo() ? VISIBLE : GONE);
         setContentDescription(stateText());
         invalidate();
+    }
+
+    // A clip waiting in the preview, short of the cap, with the camera off. Whatever paused it (the Pause button, a tap on
+    // the circle, the onPause grace), the recorder can pick it up again from here.
+    private boolean isPaused() {
+        return !recording && bound && elapsed < PAUSE_UNTIL_MS;
     }
 
     // The circle's bounds as drawn, open animation included, in this view's coordinates. Fails open: while the recorder
@@ -441,7 +464,7 @@ final class CameraMemoCover extends FrameLayout {
         if (recording) {
             return time;
         }
-        return LocaleController.getString(pausedByCover ? R.string.CameraMemoPaused : R.string.CameraMemoStopped) + " " + time;
+        return LocaleController.getString(isPaused() ? R.string.CameraMemoPaused : R.string.CameraMemoStopped) + " " + time;
     }
 
     private static String formatTime(long ms) {
@@ -461,7 +484,8 @@ final class CameraMemoCover extends FrameLayout {
             return;
         }
         textPaint.setColor(recording && elapsed >= WARN_FROM_MS ? AMBER : 0xffffffff);
-        String word = recording ? null : LocaleController.getString(pausedByCover ? R.string.CameraMemoPaused : R.string.CameraMemoStopped);
+        boolean paused = isPaused();
+        String word = recording ? null : LocaleController.getString(paused ? R.string.CameraMemoPaused : R.string.CameraMemoStopped);
         String time = formatTime(elapsed);
         String cap = " / " + formatTime(CAP_MS);
         float glyph = AndroidUtilities.dp(12);
@@ -477,7 +501,7 @@ final class CameraMemoCover extends FrameLayout {
             }
         } else {
             fillPaint.setColor(0xffffffff);
-            if (pausedByCover) {
+            if (paused) {
                 float bar = AndroidUtilities.dp(3.5f);
                 canvas.drawRect(x + AndroidUtilities.dp(1), centerY - glyph / 2f, x + AndroidUtilities.dp(1) + bar, centerY + glyph / 2f, fillPaint);
                 canvas.drawRect(x + glyph - AndroidUtilities.dp(1) - bar, centerY - glyph / 2f, x + glyph - AndroidUtilities.dp(1), centerY + glyph / 2f, fillPaint);
