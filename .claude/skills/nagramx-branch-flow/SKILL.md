@@ -11,19 +11,22 @@ finish with subagents. No coordinator branches.
 ## Topology
 
 Remotes: `origin` is `dazewell/DwellGram`; old `dazewell/NagramX` redirects but
-is not a command target. `nagram` is `.github/sync/pins.env`'s source, now
-`DrKLO/Telegram`; `NAGRAM_*` names are legacy labels.
+is not a command target. Upstream is `DrKLO/Telegram` `master`, fetched by URL
+by `sync-upstream.yml`; no remote is needed.
 
 Branches: `dev` is trunk/build source/durable history; features and upstream
-snapshots merge forward into it. Never rebuild/delete/force-push it. `nbase` is
-append-only snapshot chain and `dev` ancestor; never force-push/delete it. `base`
-is frozen risin42 `a6c7d0ae`. Change branches are short-lived
+snapshots merge forward into it. Never rebuild/delete/force-push it. `nbase`
+points at the newest upstream snapshot (fast-forward only); never force-push or
+delete it. `base` is frozen risin42 `a6c7d0ae`. Change branches are short-lived
 `<YYYY-MM-DD>_<slug>` from `dev`, PR'd to `dev`, auto-deleted at merge, and
 recoverable via `refs/pull/<N>/head`; keep no upstream-candidate branch alive.
-Full sync: `.github/sync/README.md`.
 
 Removed: `.github/integration-branches.txt`, `register-topic.yml`, `canary.yml`,
-`release.yml`, `pr.yml`.
+`release.yml`, `pr.yml`, and the whole `.github/sync/` pin-and-guard system
+(`pins.env`, `sync-guard.ps1`, `sync-land.yml`, `sync-guard-check.yml`). It
+guarded unattended pushes to `dev` across parent changes; sync now only opens a
+PR, so review and `ci.yml` are the gate. Do not reintroduce file-count floors or
+blob pins.
 
 ## Branch names
 
@@ -237,8 +240,7 @@ condition below must hold; if any fails, hand back the PR URL and the decision.
 - **`--admin` and `--auto` are forbidden, always.** `--admin` forces past branch
   protections and you hold the token that makes it available; `--auto` merges on
   a future state you never verified.
-- **Not if the PR touches `.github/sync/**`**, which flips `sync-guard-check`
-  red on every other open branch, or if a sync is in flight.
+- **Not an upstream sync PR.** dazewell lands those himself, as a merge commit.
 
 Know the backstop's edge: ruleset `22861936` requires the
 `Every commit carries a` context with an **empty** bypass list, so not even an
@@ -300,11 +302,7 @@ Registry files (`FEATURES.md`, `strings_nax.xml`, `NaConfig.kt`,
 `NekoConfig.java`, `docs/codemap/*`) are textual risk unless the hunk changes
 behaviour; classify by hunk.
 
-Before first and each later merge: re-read blockers; confirm no
-`sync-upstream.yml` / `sync-land.yml` queued/in progress (query separately or
-filter client-side; repeated `--status` does not OR); no open pins PR; candidate
-`sync-guard-check` completed `success`; live `origin/nbase` matches that head's
-`pins.env` baseline. Missing/pending guard is not green.
+Before first and each later merge: re-read blockers.
 
 Merge back-to-back so `staging.yml`'s `staging-dev` `cancel-in-progress: true`
 best-effort collapses uploads; cancelled runs are expected. Between merges, wait
@@ -346,54 +344,45 @@ PR to `dev`, merge, delete. If user-visible, update the existing `FEATURES.md`.
 
 ## Sync from upstream
 
-For new pinned `NAGRAM_REPO` / `NAGRAM_BRANCH`, run:
-
 ```powershell
 gh workflow run sync-upstream.yml --repo dazewell/DwellGram
 ```
 
-Replacing parent is attended re-anchor in `.github/sync/README.md`, never
-`sync-land`; `-LandCheckOnly` rejects non-`ANCHOR_SRC` descendants. This no-input
-workflow snapshots pinned source, merges into `dev`, aborts on conflict, runs
-`.github/sync/sync-guard.ps1`, then atomically pushes `dev`+`nbase` only if
-clean. Failures push nothing and ping `⚠️ … blocked … Finish on the PC`. Pins
-advance only by reviewed `.github/sync/pins.env`. `SYNC_TOKEN` with **Contents:
-write + Workflows: write** is required; no `GITHUB_TOKEN` fallback. A
-`without 'workflows' permission` error means a missing/under-scoped secret.
+It fetches Telegram `master` and wraps its tree in one `dazegram-sync`-authored
+snapshot commit (`#infra`) whose parent is the previous snapshot, found in
+`dev`'s history by that author. No upstream commit, author or message enters
+`dev`. Then:
 
-If blocked, land on PC in three ordered steps. Do not collapse them; advancing
-pins before live `origin/nbase` moves guarantees red `sync-guard-check`.
+- **Up to date** — nothing happens.
+- **Clean merge** — pushes the snapshot to `nbase`, pushes
+  `<date>_upstream-<version>` with the merge, opens a PR, pings Telegram.
+- **Conflicts** — pushes the snapshot to `nbase` and pings Telegram. Finish on
+  a PC:
 
-1. PR the resolved merge into `dev`, leaving `.github/sync/pins.env` untouched.
-   `.github/sync/protected-paths.tsv` paths stay pure-ours and byte-identical to
-   `dev`, even on clean auto-merge. Verify:
+      git fetch origin dev nbase
+      git switch -c <date>_upstream-<version> origin/dev
+      git merge origin/nbase
+      # resolve, compile gate, commit, push, PR into dev
 
-       $paths = Get-Content .github\sync\protected-paths.tsv | Select-Object -Skip 1 |
-                ForEach-Object { ($_ -split "`t")[0] }
-       git diff --name-only origin/dev -- $paths
+- **An earlier sync not yet landed** (`nbase` not in `dev`) — the run refuses
+  while its `*_upstream-*` PR is open; with none open it resumes from `nbase`
+  instead of minting a new snapshot.
 
-   Or in Git Bash / WSL:
+Review the sync PR like any other: compile gate, then read the conflicted and
+fork-touched hunks. Check that `TMessagesProj/release.keystore`, the signing
+block in `TMessagesProj/build.gradle`, `google-services.json`, branding and
+`.gitmodules` kept the fork's side. Upstream often adds a call to a helper the
+fork's copy of a file lacks without a textual conflict, so trust the compile,
+not the merge.
 
-       git diff --name-only origin/dev -- $(tail -n +2 .github/sync/protected-paths.tsv | cut -f1)
+**Land it as a merge commit, never a squash.** The next sync's merge base is
+the snapshot, so it must stay in `dev`'s ancestry. Repo settings allow squash
+only, so dazewell flips `allow_merge_commit` on, runs
+`gh pr merge <n> --merge --match-head-commit <sha>`, and flips it off again.
 
-   Restore anything printed with `git checkout origin/dev -- <path>`. Never
-   repin to unblock sync; repin only for dazewell's own asset change.
-2. and 3. Dispatch:
-   ```powershell
-   gh workflow run sync-land.yml --repo dazewell/DwellGram
-   ```
-   Prefer `-f snapshot=<sha>`; zero-input reads `refs/sync/snapshot-<srcshort>`.
-   `sync-land` runs `sync-guard.ps1 -LandCheckOnly`: one parent equal to pinned
-   `OLD_NBASE`, only commit over that anchor, tree equals live upstream, upstream
-   descends from `ANCHOR_SRC`, `ANCHOR_SRC` matches old `nbase` tree, sync
-   author/committer, snapshot ancestor of `dev`. It fast-forwards
-   `origin/nbase` non-force, never pushes `dev`, then opens/reuses the pins PR
-   with `SYNC_TOKEN`; review its body evidence.
-
-`sync-land.yml` is idempotent. Between nbase fast-forward and pins PR merge,
-expect red `sync-guard-check` on old-anchor branches; do not phone-sync then.
-`sync-land`/`sync-upstream` share `concurrency: sync-refs`; `sync-land` re-leases
-`origin/nbase`. Never fast-forward `base` into `dev`.
+`SYNC_TOKEN` (fine-grained, this repo only) needs **Contents: write** and
+**Pull requests: write**; a PR opened with `GITHUB_TOKEN` would not run
+`ci.yml`.
 
 ## Propose upstream
 
@@ -438,9 +427,7 @@ optional `AI_MODEL`), trimmed for Telegram's 1024-char cap.
 
 Phone sync: GitHub mobile or bot POST to
 `/repos/dazewell/DwellGram/actions/workflows/sync-upstream.yml/dispatches` with
-fine-grained PAT (Actions read/write only). `sync-land.yml` needs `SYNC_TOKEN`
-with **Contents: write + Workflows: write** and **Pull requests: write**. Policy
-`none` rejects workflow paths; `manifest` needs workflow scope.
+fine-grained PAT (Actions read/write only).
 
 ## Keeping this current
 

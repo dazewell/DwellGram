@@ -269,31 +269,6 @@ installs; `clearDialogInteractionState` and `reconcile` clean it up.
 
 *(Established 2026-09-07, `#disguise-alerting`; rewritten 2026-10-07, `#disguise-parity`.)*
 
-## Editing `TMessagesProj/build.gradle` fails Sync guard check until its blob pin is bumped
-
-Any fork-authored PR that edits `TMessagesProj/build.gradle` — even far from
-the signing block, anywhere in the file — fails the `Sync guard check`
-workflow with `signing-config build.gradle blob changed: <blob>`, because that
-file is blob-pinned whole, not diffed at the hunk level. `Test-SignerBlobs`
-compares the candidate's git blob hash for the whole file against a single
-recorded value and fails on any mismatch (`.github/sync/sync-guard.ps1:303-308`),
-and the pin it checks against lives in `.github/sync/pins.env` as the
-`SIGNING_GRADLE_PATH`/`SIGNING_GRADLE_BLOB` pair (guard 13, signing identity).
-`GRADLE_SURFACE` in the same file documents `build.gradle` as membership-only
-for every other executable-surface file, but `pins.env`'s own comment on that
-line says `build.gradle` is the one exception, blob-pinned instead of just
-tracked — easy to miss because it reads like the opposite of a warning.
-
-The fix is a second, separate commit in the same PR: recompute the blob with
-`git rev-parse HEAD:TMessagesProj/build.gradle` at the final tree (never
-hand-copy a hash out of a CI log) and update `SIGNING_GRADLE_BLOB` in
-`pins.env` to match. There's direct precedent for this exact shape of commit:
-`da79971452` ("repin signing gradle blob for the icon-comment edit
-#dazegram-icons"), a one-line `pins.env` bump in its own commit, done after an
-unrelated `build.gradle` comment edit tripped the same guard.
-
-*(Established 2026-09-05.)*
-
 ## `NaConfig.notificationIcon` is a persisted index into an upstream-owned enumeration that has already diverged
 
 The setting and `getNotificationIconResId()` came from upstream Nagram commit
@@ -752,7 +727,7 @@ Because the merge produced no conflict at that call site (it landed inside a
 `ChatActivity` region that did conflict, but the call itself was conflict-free
 text), taking upstream's `ChatActivity` hunk without porting the helper would
 have pushed a `dev` that does not compile -- the same silent non-compile class
-`.github/sync/pins.env` records from the 12.10.1 sync. The fix was to port
+the 12.10.1 sync hit. The fix was to port
 `translateShowAlert` into `translate/Translator.kt`, adapted to the fork's
 reworked translate API (no `TranslateDb.currentTarget` cache; `AlertUtil`
 progress/copy/failure dialogs), and take the `ChatActivity` call.
@@ -1104,23 +1079,6 @@ make restore-to-the-same-id safe; the discarded design is recorded in
 *(Established 2026-09-13, #ghost-hold, from current-tree mechanics and the
 collision found during PR #363 review.)*
 
-## Sync guard check validates protected pins against the branch tree, not the PR merge ref
-
-Established 2026-09-09 (#ghost-hold). The `protected pins vs HEAD` step of the
-sync guard reads each pinned blob from the branch's own tree
-(`.github/sync/sync-guard.ps1`, `protected-paths.tsv`), so a branch cut before a
-repin lands on `dev` stays red on that check until `dev` is merged forward into
-it — merging the branch's own PR does **not** retroactively clear it. Confirmed
-from PR #325 (repinned `README.md` `d48354cf…` → `d9373e96…` on `dev`) and PR
-#324 (cut beforehand, still failing on head `330451f9de` after #325 merged). The
-natural assumption — "the merge ref has both the new pin and the new file, so
-it'll sort itself out" — is wrong, and re-deriving it costs a full CI round each
-time. This is a recurring shape here, not a one-off: `git log` already carries
-`repin signing gradle blob…` commits and a `document the build.gradle
-signing-blob pin trap` entry for the same class of problem. The fix is a
-`#tag`-exempt merge of `origin/dev` into the feature branch once its tree is
-clean.
-
 ## canEditMessageScheduleTime lacks the negative-id guard its sibling canEditMessage has
 
 Established 2026-09-10 (#ghost-hold). `MessageObject.canEditMessage(...)` bails
@@ -1292,7 +1250,7 @@ and the formatting gone, pointing at the wrong half.
 
 The no-bypass ruleset that gates merges into `dev` requires **that exact truncated string** as its one status check: ruleset `22861936` (`dev required checks (no bypass)`), `rule=required_status_checks`, context `Every commit carries a`, `strict=false`, `bypass_actors: []` — all confirmed via `gh api repos/dazewell/DwellGram/rulesets/22861936` (2026-09-10). **Quoting the job name to "fix" the YAML would rename the check context to `Every commit carries a #tag`; the required context `Every commit carries a` would then never report, and every PR into `dev` would sit forever waiting on a check that no longer runs — a hard deadlock against the live ruleset.** If the name is ever corrected, the ruleset's required context must be updated **first**, in a separate step, or in lockstep. This is why the tag job is deliberately out of scope for any "tidy the workflow YAML" change.
 
-The reason this ruleset is *separate* from the pre-existing `dev` ruleset rather than a rule added to it: ruleset `18550420` (`dev no-force no-delete`; until 2026-09-25 named `… + Copilot review` and carrying a `copilot_code_review` rule, removed so reviews are only ever requested by hand) carries `bypass_actors` including `RepositoryRole 5` (admin) at `bypass_mode: always` (plus a DeployKey and an Integration, same mode) — confirmed via `gh api repos/dazewell/DwellGram/rulesets/18550420` (2026-09-10). An agent runs under dazewell's admin token, so any required check added to `18550420` would be bypassed for exactly the actor it is meant to bind. Ruleset `22861936` has an **empty** `bypass_actors` list, which is why it is a *separate* ruleset: the required `Every commit carries a` context therefore applies to every actor, the admin token included, so no merge an agent can issue lands a commit that fails the tag check. That — tag integrity — is the **only** property this ruleset enforces. It does **not** enforce root-session identity, the named in-chat approval, gate freshness at merge time, or the `.github/sync/**` exclusion; each of those rests entirely on the agent-process prose, with no platform control behind it. So do not read `22861936` as the safety net for conditional agent merge authority as a whole — it is the safety net for exactly one property, and the rest of the authority is only as strong as the prose that describes it. (What `gh pr merge --admin` would do against an empty-`bypass_actors` ruleset has not been tested here, so this file makes no claim either way; the `--admin`/`--auto` prohibition is a rule the agent process imposes on itself, not an assertion about platform behaviour.)
+The reason this ruleset is *separate* from the pre-existing `dev` ruleset rather than a rule added to it: ruleset `18550420` (`dev no-force no-delete`; until 2026-09-25 named `… + Copilot review` and carrying a `copilot_code_review` rule, removed so reviews are only ever requested by hand) carries `bypass_actors` including `RepositoryRole 5` (admin) at `bypass_mode: always` (plus a DeployKey and an Integration, same mode) — confirmed via `gh api repos/dazewell/DwellGram/rulesets/18550420` (2026-09-10). An agent runs under dazewell's admin token, so any required check added to `18550420` would be bypassed for exactly the actor it is meant to bind. Ruleset `22861936` has an **empty** `bypass_actors` list, which is why it is a *separate* ruleset: the required `Every commit carries a` context therefore applies to every actor, the admin token included, so no merge an agent can issue lands a commit that fails the tag check. That — tag integrity — is the **only** property this ruleset enforces. It does **not** enforce root-session identity, the named in-chat approval, gate freshness at merge time, or the upstream-sync exclusion; each of those rests entirely on the agent-process prose, with no platform control behind it. So do not read `22861936` as the safety net for conditional agent merge authority as a whole — it is the safety net for exactly one property, and the rest of the authority is only as strong as the prose that describes it. (What `gh pr merge --admin` would do against an empty-`bypass_actors` ruleset has not been tested here, so this file makes no claim either way; the `--admin`/`--auto` prohibition is a rule the agent process imposes on itself, not an assertion about platform behaviour.)
 
 One live behaviour to expect around all this: GitHub computes `mergeable` and `mergeStateStatus` **asynchronously**, and they are distinct fields — `mergeable` settles to `MERGEABLE`/`CONFLICTING`, while `CLEAN` is a value of `mergeStateStatus`. After ruleset `22861936` was created, open PRs read `mergeable: UNKNOWN` (and `mergeStateStatus: UNKNOWN`) for minutes before `mergeable` settled to `MERGEABLE` and `mergeStateStatus` to `CLEAN`, and a PR that had already MERGED read `UNKNOWN` indefinitely (2026-09-10). So `mergeable: MERGEABLE` is never a freshness guarantee — it answers "does this textually merge", not "is this green" — and the instant any merge moves `dev`, every other open PR's `mergeStateStatus` drops back to `UNKNOWN` until a background job recomputes it. Gate on `mergeStateStatus == CLEAN` plus a head-pinned green head check, re-read each time by polling `mergeStateStatus` itself, never on a cached or just-observed `mergeable`.
 
@@ -1572,40 +1530,6 @@ is.)
 
 *(Established 2026-09-10, `#ghost-hold`, ghost-hold-audit branch superseding
 PR #336.)*
-
-## Parent replacement and workflow-free sources are stricter than normal sync
-
-The configured source and anchor topology is data, despite the legacy names:
-`NAGRAM_REPO` / `NAGRAM_BRANCH` point to `DrKLO/Telegram` `master`,
-`ANCHOR_SRC` names the Telegram commit, and `OLD_NBASE` names the locally
-authored snapshot carrying its tree (`.github/sync/pins.env:14-31`). Parent
-replacement is not a `sync-land` case: normal land validation requires the
-source to descend from the already-pinned anchor
-(`.github/sync/sync-guard.ps1:464-468`).
-
-A source with no workflow tree requires `WORKFLOW_POLICY=none`, an exact
-header-only manifest, and rejection of any workflow path. Treating an empty
-manifest as a relaxed `manifest` policy would remove the guard precisely when
-the source changes shape (`.github/sync/sync-guard.ps1:185-201`;
-`.github/sync/workflow-manifest.tsv:1`).
-
-The expected-red window is diagnostic, not a bypass: before the human moves
-`nbase`, candidate pins name the new snapshot while live `origin/nbase` still
-names the old one, and the live tree still contains workflows that policy
-`none` forbids. The fixture compares the live ref to candidate `OLD_NBASE`
-before constructing its real candidate
-(`.github/workflows/sync-guard-check.yml:154-157`). The attended procedure and
-its exact recovery ordering live only in `.github/sync/README.md`.
-
-Moving `nbase` starts a separate `push` run but does not rerun or associate a
-new `pull_request` check with an existing PR; the workflow has distinct `push`
-and `pull_request` events (`.github/workflows/sync-guard-check.yml:23-25`).
-Select the post-move PR verdict by event, exact head, workflow identity, and PR
-association rather than treating an unrelated push run as evidence. The exact
-guard context is `Guard self-test, wiring, and real fixture`
-(`.github/workflows/sync-guard-check.yml:32`).
-
-*(Established 2026-09-13, `#infra`; re-verify the cited lines before use.)*
 
 ## `squash_merge_commit_message: COMMIT_MESSAGES` plus an un-overridden squash message is what keeps `#slug` tags alive on `dev` — and no CI check guards either
 

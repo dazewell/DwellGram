@@ -19,10 +19,10 @@ conflict.
 - Source root: `TMessagesProj/src/main/java` (inherited Kotlin in `.../kotlin`,
   e.g. `NaConfig.kt` — its `const val`s surface as Java static fields).
   Code this fork wrote lives in `com.dazewell.gram.<feature>`; `com.radolyn`,
-  `tw.nekomimi` and `xyz.nextalone` now hold inherited code only. A new class
-  adds one to `DAZEWELL_EXACT` in `.github/sync/pins.env` (exact floor).
-- Branch `dev` is the integration branch. `base` tracks upstream. Never commit
-  to either directly.
+  `tw.nekomimi` and `xyz.nextalone` now hold inherited code only.
+- Upstream is stock **DrKLO/Telegram**. Branch `dev` is the integration branch;
+  `nbase` holds the latest upstream snapshot; `base` is frozen history. Never
+  commit to any of them directly.
 - dazewell works on **Windows**. Give shell commands in **PowerShell**.
 
 ## Hard constraints
@@ -123,9 +123,7 @@ any default attribution behaviour. Process docs may discuss the workflow
 openly; the shipped history and code may not. It bans *assistants*, not
 tooling in general — a commit or PR body may name Gradle, `adb` or logcat.
 
-The only carve-out is process/CI detection tooling (`sync-guard.ps1`,
-`process-rules.yml`), which necessarily contains the patterns it rejects. Real
-credentials never appear in any file.
+Real credentials never appear in any file.
 
 ## Where the process lives
 
@@ -157,9 +155,9 @@ irrelevant while files load on demand.
 
 - **Always-on** (`AGENTS.md` + `CLAUDE.md` + the running agent file): **≤ 40 KB**.
   Today 38 KB.
-- **Typical change** (always-on + `nagramx-workflow`): **≤ 60 KB**. Today 57 KB.
+- **Typical change** (always-on + `nagramx-workflow`): **≤ 60 KB**. Today 58 KB.
 - Each skill body stays within Anthropic's 10–20 KB guidance. `nagramx-branch-flow`
-  (21 KB) and `nagramx-process-lifecycle` (20.5 KB) sit just over and are not to
+  (20.5 KB) and `nagramx-process-lifecycle` (20.5 KB) sit just over and are not to
   grow; anything added to either buys its room by cutting.
 
 Over budget means cut, not append. Prefer a rule line over a retelling: an
