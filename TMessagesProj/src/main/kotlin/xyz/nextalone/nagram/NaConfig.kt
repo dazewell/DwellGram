@@ -1151,6 +1151,18 @@ object NaConfig {
             ConfigItem.configTypeInt,
             0 // 0: front; 1: rear; 2: both, as two shortcuts
         )
+    val cameraMemoShortcut =
+        addConfig(
+            "CameraMemoShortcut",
+            ConfigItem.configTypeBool,
+            false
+        )
+    val cameraMemoCamera =
+        addConfig(
+            "CameraMemoCamera",
+            ConfigItem.configTypeInt,
+            0 // 0: front; 1: rear
+        )
     val textMemoShortcut =
         addConfig(
             "TextMemoShortcut",

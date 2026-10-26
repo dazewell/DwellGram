@@ -49,6 +49,10 @@ public final class VideoNoteShortcut {
     private static final String SHORTCUT_ID_REAR = "video_note_rear";
     private static final String EXTRA_HASH = "hash";
     private static final String EXTRA_REAR = "rear";
+    // #camera-memo: the same recorder under a plain camera screen (CameraMemo). Its own id, so turning it on or off never
+    // touches a pinned video memo, and the same action, so LaunchActivity needs no second branch.
+    private static final String SHORTCUT_ID_CAMERA = "camera_memo";
+    private static final String EXTRA_CAMERA = "camera";
     private static final long PENDING_TTL_MS = 10_000;
 
     public static final int CAMERA_FRONT = 0;
@@ -61,12 +65,26 @@ public final class VideoNoteShortcut {
     private static long pendingDialogId;
     private static long pendingSince;
     private static boolean pendingRear;
+    static boolean pendingCamera;
 
     private VideoNoteShortcut() {
     }
 
     public static boolean isEnabled() {
         return NaConfig.INSTANCE.getVideoNoteShortcut().Bool();
+    }
+
+    public static boolean isCameraMemoEnabled() {
+        return NaConfig.INSTANCE.getCameraMemoShortcut().Bool();
+    }
+
+    /** CameraMemoCamera, with anything unknown read as front. */
+    public static boolean isCameraMemoRear() {
+        return NaConfig.INSTANCE.getCameraMemoCamera().Int() == CAMERA_REAR;
+    }
+
+    public static String getCameraMemoLabel() {
+        return com.dazewell.gram.helpers.ShortcutHelper.variantLabel(LocaleController.getString(R.string.CameraMemoShortcutLabel));
     }
 
     /** VideoNoteShortcutCamera, with anything unknown read as front. */
@@ -96,7 +114,7 @@ public final class VideoNoteShortcut {
 
     /** MediaDataController.buildShortcuts: ranks taken past the one it hands to publish, which recent chats skip. */
     public static int getExtraRanks() {
-        int count = (publishes(false) ? 1 : 0) + (publishes(true) ? 1 : 0) + (TextMemoShortcut.isEnabled() ? 2 : 0);
+        int count = (publishes(false) ? 1 : 0) + (publishes(true) ? 1 : 0) + (isCameraMemoEnabled() ? 1 : 0) + (TextMemoShortcut.isEnabled() ? 2 : 0);
         return Math.max(0, count - 1);
     }
 
@@ -107,6 +125,9 @@ public final class VideoNoteShortcut {
         }
         if (publishes(true)) {
             wantedIds.add(SHORTCUT_ID_REAR);
+        }
+        if (isCameraMemoEnabled()) {
+            wantedIds.add(SHORTCUT_ID_CAMERA);
         }
         TextMemoShortcut.addShortcutId(wantedIds);
     }
@@ -122,22 +143,42 @@ public final class VideoNoteShortcut {
         if (publishes(true)) {
             publish(true, recreate, existingIds, rank++);
         }
+        if (isCameraMemoEnabled()) {
+            publishCameraMemo(recreate, existingIds, rank++);
+        }
         // The text memo rides these hooks rather than adding its own to MediaDataController
         TextMemoShortcut.publish(recreate, existingIds, rank);
     }
 
-    // Own try so a launcher rejecting one can't abort the rest
     private static void publish(boolean rear, boolean recreate, List<String> existingIds, int rank) {
         String id = rear ? SHORTCUT_ID_REAR : SHORTCUT_ID;
-        try {
-            Intent intent = createIntent(rear);
-            ShortcutInfoCompat shortcut = new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, id)
-                    .setShortLabel(getLabel(rear, false))
-                    .setLongLabel(getLabel(rear, true))
-                    .setIcon(IconCompat.createWithBitmap(createIcon()))
+        push(id, recreate, existingIds, () -> new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, id)
+                .setShortLabel(getLabel(rear, false))
+                .setLongLabel(getLabel(rear, true))
+                .setIcon(IconCompat.createWithBitmap(createIcon()))
+                .setRank(rank)
+                .setIntent(createIntent(rear))
+                .build());
+    }
+
+    private static void publishCameraMemo(boolean recreate, List<String> existingIds, int rank) {
+        push(SHORTCUT_ID_CAMERA, recreate, existingIds, () -> {
+            Intent intent = createIntent(isCameraMemoRear());
+            intent.putExtra(EXTRA_CAMERA, true);
+            return new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, SHORTCUT_ID_CAMERA)
+                    .setShortLabel(getCameraMemoLabel())
+                    .setLongLabel(getCameraMemoLabel())
+                    .setIcon(IconCompat.createWithBitmap(createCameraMemoIcon()))
                     .setRank(rank)
                     .setIntent(intent)
                     .build();
+        });
+    }
+
+    // Own try, building included, so a launcher rejecting one can't abort the rest
+    private static void push(String id, boolean recreate, List<String> existingIds, java.util.function.Supplier<ShortcutInfoCompat> builder) {
+        try {
+            ShortcutInfoCompat shortcut = builder.get();
             if (recreate) {
                 ShortcutManagerCompat.pushDynamicShortcut(ApplicationLoader.applicationContext, shortcut);
             } else if (existingIds.contains(id)) {
@@ -164,12 +205,21 @@ public final class VideoNoteShortcut {
         return createIcon(R.drawable.input_video);
     }
 
+    // A dark disc rather than the blue one: this is the memo that doesn't look like Telegram
+    public static Bitmap createCameraMemoIcon() {
+        return createIcon(R.drawable.input_video, 0xff2b2e33);
+    }
+
     static Bitmap createIcon(int glyphRes) {
+        return createIcon(glyphRes, 0xff3390ec);
+    }
+
+    private static Bitmap createIcon(int glyphRes, int color) {
         int size = AndroidUtilities.dp(48);
         Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        paint.setColor(0xff3390ec);
+        paint.setColor(color);
         canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint);
         Drawable glyph = ApplicationLoader.applicationContext.getResources().getDrawable(glyphRes, null).mutate();
         glyph.setColorFilter(new PorterDuffColorFilter(0xffffffff, PorterDuff.Mode.SRC_IN));
@@ -180,7 +230,9 @@ public final class VideoNoteShortcut {
     }
 
     private static boolean isGenuine(Intent intent) {
-        return intent != null && ACTION.equals(intent.getAction()) && isEnabled()
+        // Each kind answers to its own switch, so turning the video memo off leaves the camera memo working
+        return intent != null && ACTION.equals(intent.getAction())
+                && (intent.getBooleanExtra(EXTRA_CAMERA, false) ? isCameraMemoEnabled() : isEnabled())
                 && SharedConfig.directShareHash != null && SharedConfig.directShareHash.equals(intent.getStringExtra(EXTRA_HASH));
     }
 
@@ -191,15 +243,25 @@ public final class VideoNoteShortcut {
      */
     public static long accept(Intent intent, int account) {
         boolean genuine = isGenuine(intent);
-        // A copy pinned before shortcuts carried their camera has no extra, and still follows the setting
-        boolean rear = intent.hasExtra(EXTRA_REAR) ? intent.getBooleanExtra(EXTRA_REAR, false) : getCameraMode() == CAMERA_REAR;
+        boolean camera = intent.getBooleanExtra(EXTRA_CAMERA, false);
+        // The camera memo has one shortcut that follows its setting, read here: a launcher that keeps an unchanged id
+        // (MediaDataController.buildShortcuts skips republishing them) would otherwise keep the lens it was pinned with.
+        // A video memo copy pinned before shortcuts carried their camera has no extra, and still follows the setting.
+        boolean rear = camera ? isCameraMemoRear()
+                : intent.hasExtra(EXTRA_REAR) ? intent.getBooleanExtra(EXTRA_REAR, false) : getCameraMode() == CAMERA_REAR;
         intent.setAction(null);
         intent.removeExtra(EXTRA_HASH);
         intent.removeExtra(EXTRA_REAR);
+        intent.removeExtra(EXTRA_CAMERA);
         if (!genuine || !UserConfig.getInstance(account).isClientActivated()) {
             if (phase != IDLE) {
                 lockNow();
             }
+            return 0;
+        }
+        if (CameraMemo.isLive()) {
+            // Another memo would close the chats under the one recording (LaunchActivity's closeChats). Returning 0
+            // just brings the app forward, back onto the live camera screen.
             return 0;
         }
         long userId = VideoNoteTarget.resolve(account, true);
@@ -207,10 +269,20 @@ public final class VideoNoteShortcut {
         pendingDialogId = userId;
         pendingSince = SystemClock.elapsedRealtime();
         pendingRear = rear;
+        pendingCamera = camera;
         if (phase == STARTING) {
             phaseSince = pendingSince; // the database read above mustn't eat into the start timeout
         }
         return userId;
+    }
+
+    /** A memo recorded under the lock is in progress, and the phase machine owns locking and leaving. */
+    static boolean isLockedMemo() {
+        return phase != IDLE;
+    }
+
+    private static boolean isPendingCameraFresh() {
+        return pendingCamera && SystemClock.elapsedRealtime() - pendingSince < PENDING_TTL_MS;
     }
 
     private static boolean isPendingChat(ChatActivity chat) {
@@ -233,9 +305,14 @@ public final class VideoNoteShortcut {
         }
         boolean fresh = SystemClock.elapsedRealtime() - pendingSince < PENDING_TTL_MS;
         boolean front = !pendingRear;
+        boolean camera = pendingCamera;
         pendingAccount = -1;
         pendingDialogId = 0;
+        pendingCamera = false;
         if (!fresh) {
+            if (camera) {
+                CameraMemo.onStart(chat, false);
+            }
             return;
         }
         boolean locked = phase == STARTING;
@@ -251,6 +328,9 @@ public final class VideoNoteShortcut {
             ChatActivityEnterView enterView = chat.getChatActivityEnterView();
             boolean started = enterView != null && !chat.isFinished && chat.getParentActivity() != null
                     && enterView.startRoundVideoFromShortcut(front, !locked);
+            if (camera) {
+                CameraMemo.onStart(chat, started);
+            }
             if (locked && !started) {
                 lockNow();
             }
@@ -327,6 +407,7 @@ public final class VideoNoteShortcut {
 
     /** First thing in LaunchActivity.showPasscodeActivity. */
     public static void onPasscodeShown() {
+        CameraMemo.end(); // the passcode ends a camera memo in either mode; its cover comes down behind the passcode
         // #video-pause-grace: onPause defers finalizing a live round video, so a lock must stop it or the unlock rebuild drops it. A shortcut session finalizes below.
         BaseFragment top = LaunchActivity.getLastFragment();
         if (phase == IDLE && top instanceof ChatActivity) {
@@ -341,6 +422,7 @@ public final class VideoNoteShortcut {
         sessionChat = null;
         pendingAccount = -1;
         pendingDialogId = 0;
+        pendingCamera = false;
         AndroidUtilities.cancelRunOnUIThread(poll);
         AndroidUtilities.cancelRunOnUIThread(leave);
         if (chat != null && !chat.finalizeRoundVideoForLock() && cameraMayBeOpening) {
@@ -437,6 +519,10 @@ public final class VideoNoteShortcut {
 
     /** ChatActivity.createView, right after the input container is added. */
     public static void onChatViewCreated(ChatActivity chat, ViewGroup contentView, View inputContainer, org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory wallpaperBlurFactory) {
+        // Locked or not. Added first, it still ends up over the shield below and everything else: it is raised by Z.
+        if (isPendingCameraFresh() && isPendingChat(chat)) {
+            CameraMemo.attach(chat, contentView);
+        }
         if (!(phase == STARTING && isPendingChat(chat)) && !isSessionChat(chat)) {
             return;
         }
@@ -474,7 +560,9 @@ public final class VideoNoteShortcut {
         // Above the input container: the round camera is drawn just before it (ChatActivity's drawChild), and its backdrop
         // would wash out anything placed below
         index = contentView.indexOfChild(inputContainer);
-        addStatusRow(chat, contentView, index < 0 ? contentView.getChildCount() : index + 1);
+        if (!CameraMemo.isSessionChat(chat)) { // the camera screen covers it, and it would name the person
+            addStatusRow(chat, contentView, index < 0 ? contentView.getChildCount() : index + 1);
+        }
     }
 
     // The real header is under the shield, so the recipient's online state and unread count go on it instead
@@ -560,6 +648,9 @@ public final class VideoNoteShortcut {
 
     /** ChatActivity.sendMedia, once the clip has been handed to SendMessagesHelper. Ends the memo on the launcher. */
     public static void onMediaSent(ChatActivity chat) {
+        if (phase == IDLE) {
+            CameraMemo.onMediaSent(chat);
+        }
         if (isSessionChat(chat) && (phase == RECORDING || phase == SENDING)) {
             // The round video fades first: the passcode would cover it. The lock is already saved,
             // so the wait fails closed, and any other lock cancels the pending leave (onPasscodeShown).
@@ -576,6 +667,9 @@ public final class VideoNoteShortcut {
 
     /** ChatActivity.onBackPressed. True means the back was taken. */
     public static boolean onBackPressed(ChatActivity chat, boolean invoked) {
+        if (phase == IDLE && CameraMemo.onBackPressed(chat, invoked)) {
+            return true;
+        }
         if (!isSessionChat(chat) && !(phase == STARTING && isPendingChat(chat))) {
             return false;
         }
@@ -591,11 +685,14 @@ public final class VideoNoteShortcut {
 
     /** ChatActivity's visible-messages read check. The shield is up, so nothing on screen has been read. */
     public static boolean hidesHistory(ChatActivity chat) {
-        return isSessionChat(chat) || phase == STARTING && isPendingChat(chat);
+        return isSessionChat(chat) || phase == STARTING && isPendingChat(chat) || CameraMemo.isSessionChat(chat);
     }
 
     /** LaunchActivity.needPresentFragment / needAddFragmentToStack. Opening anything but our own chat locks. */
     public static void onNavigation(BaseFragment fragment) {
+        if (phase == IDLE && !(isPendingCameraFresh() && isPendingChatPush(fragment))) {
+            CameraMemo.onNavigation(fragment); // locked, the lock below ends it instead
+        }
         if (phase == IDLE || phase == STARTING && isPendingChatPush(fragment)) {
             return;
         }

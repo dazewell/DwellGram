@@ -2858,3 +2858,31 @@ Every exit also shows the field before building its set (`:11858`), and the norm
 `isRecordingStateChanged()` at all, so the one-row composer re-checks once the set has started (`:12507-12511`).
 
 *(Established 2026-10-26, `#record-tone-fix`, PR 554.)*
+
+## The round camera's Camera2 stream is already square
+
+On the Camera2 path `InstantCameraView` opens the camera with `Camera2Session.create(front, roundVideoSize,
+roundVideoSize)` (`InstantCameraView.java:1124`, `:1140`, `:1713`, `:1762`), and `chooseOptimalSize`
+(`Camera2Session.java:620`) prefers an output size of exactly that aspect: a square. The camera then crops before a
+frame reaches the GL thread: with a square request the stream itself is square, and drawing the camera texture
+uncropped shows nothing beyond the circle's square. The preview's own crop is texture coordinates (`texData`,
+`InstantCameraView.java:2257`, rebuilt on flip at `:2617`), so a non-square request crops back to the same centre
+square for the preview and the encoder alike. `create` also picks the lens by aspect match
+(`Camera2Session.java:105`), so a non-square request can choose another lens on a phone with mixed sensor shapes.
+`CameraMemo.roundCameraWidth` asks for 16:9, in portrait only, for the camera memo alone.
+
+Anything drawn from `CameraGLThread` (the viewfinder hook at `InstantCameraView.java:2491`) runs on the recording's
+thread: restore the viewport and the current surface, never write the camera textures' parameters, and swap with
+interval 0, or an undrawn consumer holds the camera thread on a swap.
+
+*(Established 2026-10-26, `#camera-memo`, PR 553.)*
+
+## A notification tap closes a chat that is recording a round video
+
+`LaunchActivity.handleIntent` posts `closeChats` for notification and open-chat intents (`LaunchActivity.java:3003`,
+`:3038`, `:3086` and on), and `ChatActivity` removes itself synchronously (`ChatActivity.java:24353`, `:24363`) before
+any fork navigation hook runs. Its teardown only releases the preview (`abandonPreview`, `:3862`), so a recording in
+progress is not finalized. Keeping it needs the clip finalized and bound before the chat goes, the way `VideoNoteShortcut.lockAndClose`
+waits for `hasVideoToSend()`.
+
+*(Established 2026-10-26, `#camera-memo` review, PR 553; not fixed there.)*
