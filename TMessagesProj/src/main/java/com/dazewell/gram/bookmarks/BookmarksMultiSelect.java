@@ -68,6 +68,9 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
 
     private RecyclerListView listView;
     private ActionBarMenu actionMode;
+    /** The bar the cached mode was built on; a view rebuild replaces the ActionBar, and the
+     * old mode's menu would make showActionMode return silently on the new one. */
+    private ActionBar builtActionBar;
     private NumberTextView selectedCountView;
     private ActionBarMenuItem otherItem;
     /** Which way the current hold-and-swipe paints: every row it crosses becomes this. */
@@ -243,8 +246,10 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
         }
         // Built lazily, on first entry: this screen sets the glass action bar up at the end of
         // createView, and a mode built before that would paint its solid colour over the glass.
-        if (actionMode == null) {
+        // Rebuilt when the fragment's ActionBar was recreated, or the bar would never show.
+        if (actionMode == null || builtActionBar != actionBar) {
             buildActionMode(actionBar);
+            builtActionBar = actionBar;
         }
         actionBar.showActionMode();
         updateCount();
@@ -452,13 +457,18 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
                     if (message != null) {
                         fragment.getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of(message.toString(), did, null, null, null, true, null, null, null, true, 0, 0, null, false));
                     }
-                    fragment.getSendMessagesHelper().sendMessage(messages, did, false, false, true, 0, 0);
+                    // NagramX: #bookmarks-multiselect. The picker's notify, schedule and hide-name
+                    // choices are the delegate's params and the noForwardQuote static, not defaults
+                    // to re-pick; ChatActivity's own forward delegate honours all three.
+                    fragment.getSendMessagesHelper().sendMessage(messages, did, ChatActivity.noForwardQuote, false, notify, scheduleDate, 0);
                 }
                 fragment1.finishFragment();
             } else {
                 long did = dids.get(0).dialogId;
                 Bundle args1 = new Bundle();
                 args1.putBoolean("scrollToTopOnResume", true);
+                // NagramX: #bookmarks-multiselect. Same source for the composer's drop-attribution flag.
+                args1.putBoolean("forward_noquote", ChatActivity.noForwardQuote);
                 if (DialogObject.isEncryptedDialog(did)) {
                     args1.putInt("enc_id", DialogObject.getEncryptedChatId(did));
                 } else {
@@ -473,9 +483,15 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
                 }
                 fragment.getNotificationCenter().postNotificationName(NotificationCenter.closeChats);
                 ChatActivity chatActivity = new ChatActivity(args1);
-                ForumUtilities.applyTopic(chatActivity, dids.get(0));
+                // NagramX: #bookmarks-multiselect. On a topic pick the picker leaves the stack too, or
+                // Back from the chat lands on a picker that no longer forwards (ChatActivity's own
+                // forward does removeSelfFromStack for the same reason).
+                if (dids.get(0).topicId != 0 || topicsFragment != null) {
+                    ForumUtilities.applyTopic(chatActivity, dids.get(0));
+                    fragment1.removeSelfFromStack();
+                }
                 exitSelectionMode();
-                fragment1.presentFragment(chatActivity, true);
+                fragment.presentFragment(chatActivity, true);
                 chatActivity.showFieldPanelForForward(true, messages);
             }
             return true;

@@ -152,6 +152,11 @@ public class NekoMessageCell extends ChatMessageCell {
                 boolean hasText = editedMessage != null ? !TextUtils.isEmpty(editedMessage.text) : (getMessageObject() != null && getMessageObject().messageOwner != null && !TextUtils.isEmpty(getMessageObject().messageOwner.message));
                 if (hasText && isInMessageBubble(x, y) && !isInImageArea(x, y)) {
                     copyText();
+                } else {
+                    // NagramX: #bookmarks-multiselect. A long-press the cell consumed never reaches
+                    // the list's own listener, so the media area needs this side channel to enter
+                    // selection. The default is a no-op, which keeps the other hosts as they were.
+                    Optional.ofNullable(ayuDelegate).ifPresent(d -> d.onCellLongPress(cell, x, y));
                 }
             }
 
@@ -375,5 +380,10 @@ public class NekoMessageCell extends ChatMessageCell {
         boolean didLongPressBotButton(ChatMessageCell cell, TL_keyboard.KeyboardButtonProto button);
 
         boolean needPlayMessage(ChatMessageCell cell, MessageObject messageObject, boolean muted);
+
+        // NagramX: #bookmarks-multiselect. The cell swallowed this long-press, so the list's
+        // listener never fires; a host that wants selection routes it from here.
+        default void onCellLongPress(ChatMessageCell cell, float x, float y) {
+        }
     }
 }

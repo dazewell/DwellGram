@@ -1061,6 +1061,15 @@ public class BookmarksActivity extends NekoDelegateFragment {
 
     }
 
+    // NagramX: #bookmarks-multiselect. The cell consumed this long-press (media area), so the
+    // list's listener never fired; route it into selection like the list long-press does.
+    @Override
+    public void onCellLongPress(ChatMessageCell cell, float x, float y) {
+        if (listView != null) {
+            multiSelect.enterFromPopup(cell, listView, filteredMessages);
+        }
+    }
+
     private class ListAdapter extends RecyclerListView.SelectionAdapter {
         private final Context context;
         private final int currentAccount;
