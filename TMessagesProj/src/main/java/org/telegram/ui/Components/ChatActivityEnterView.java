@@ -12581,6 +12581,10 @@ public class ChatActivityEnterView extends FrameLayout implements
             if (composerFormattingActions != null) {
                 composerFormattingActions.refresh();
             }
+            // NagramX (#composer-inline-rest): the fold held still while the row was replaced; catch up on any keyboard change since.
+            if (composerInlineRest != null) {
+                applyComposerTextGeometry();
+            }
         }
         applyComposerReplacementGeometry();
         messageEditTextContainer.requestLayout();

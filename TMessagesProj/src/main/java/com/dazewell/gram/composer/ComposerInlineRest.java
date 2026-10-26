@@ -87,7 +87,10 @@ public final class ComposerInlineRest {
         return progress;
     }
 
-    /** False while a record, review or bot panel has replaced the tools row's controls. */
+    /**
+     * False while a record, review or bot panel has replaced the tools row's controls. Mirrors the enter view's
+     * toolbarReplacementVisible: both are written only by its isRecordingStateChanged, in the same call.
+     */
     public boolean toolsRowShown() {
         return toolbar.controlsVisible();
     }
@@ -151,7 +154,9 @@ public final class ComposerInlineRest {
     public void layoutField(View field, @Nullable View richPreview, boolean wantsRest, int openStart, int sendReserve,
                             int openBottom, float currentHeight, float currentTarget) {
         toolbar.setSendReserve(sendReserve);
-        final boolean rest = wantsRest && fits(field) && !toolbar.hasMiddleLeading();
+        // While a panel replaces the tools row the field is GONE, so a flip would change no height and only run a
+        // phantom morph on the timeout. Hold the fold; the enter view asks again once the row comes back.
+        final boolean rest = toolsRowShown() ? wantsRest && fits(field) && !toolbar.hasMiddleLeading() : compact;
         final ViewGroup.LayoutParams params = field.getLayoutParams();
         boolean flipped = false;
         float fromStart = 0, fromBottom = 0;
