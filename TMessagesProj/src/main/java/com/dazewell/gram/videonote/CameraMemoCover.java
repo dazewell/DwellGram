@@ -3,13 +3,13 @@ package com.dazewell.gram.videonote;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
+import android.graphics.SurfaceTexture;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -24,10 +24,9 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
-import org.telegram.messenger.Utilities;
+import org.telegram.messenger.SharedConfig;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.InstantCameraView;
@@ -39,8 +38,8 @@ import java.util.Locale;
  * #camera-memo: the plain camera screen over a camera memo's chat. Opaque black everywhere except the round camera,
  * which shows through a hole cut to its exact on-screen bounds, so the stock live circle is never scaled, dimmed or
  * covered. A touch that starts on the circle goes through to it, so the round video's own gestures work as usual.
- * Behind the circle sits the same camera image, blurred and darkened, so the black isn't a hard frame around it. The
- * recording cue and the controls are drawn here, white on black, with no Telegram colour.
+ * Behind it the whole camera frame, uncropped and dimmed, lines up with the circle like a viewfinder
+ * (CameraMemoBackdrop), and a thin ring marks the edge of what is sent. The recording cue and the controls are drawn here, white on black, with no Telegram colour.
  *
  * Fixed dark in both themes on purpose: a theme colour would give the app away. Everything it shows is read from the
  * recorder: the red dot and the running clock only while it is really capturing.
@@ -54,10 +53,10 @@ final class CameraMemoCover extends FrameLayout {
     private static final long PAUSE_UNTIL_MS = 59_000; // the composer hides its pause button from here
     private static final long WARN_FROM_MS = 55_000;
     private static final long START_TIMEOUT_MS = 6_000;
-    // The background copy: a tiny frame off the circle's own texture, a few times a second while it records
-    private static final long FRAME_MS = 125;
-    private static final int FRAME_PX = 48;
-    private static final int FRAME_SCRIM = 0x8c000000;
+    // The viewfinder stays visibly dimmer than the circle, so the circle still reads as the part that is sent
+    private static final float VIEWFINDER_ALPHA = 0.45f;
+    private static final int VIEWFINDER_MAX_PX = 480; // its buffer, not its size on screen: it is dimmed anyway
+    private static final int RING = 0x66ffffff;
 
     private static final int RED = 0xffff3b30;
     private static final int AMBER = 0xffffb300;
@@ -77,11 +76,12 @@ final class CameraMemoCover extends FrameLayout {
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dimTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint framePaint = new Paint(Paint.FILTER_BITMAP_FLAG);
-    private final RectF frameRect = new RectF();
-    private final Bitmap[] frames = new Bitmap[2];
-    private Bitmap frame; // the one drawn, one of frames
-    private boolean hasFrame;
+    private final Paint ringPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF ringRect = new RectF();
+    private final RectF viewfinderRect = new RectF();
+    private final TextureView viewfinder;
+    private float laidFrameWidth;
+    private float laidFrameHeight;
 
     private final ControlButton discardButton;
     private final ControlButton sendButton;
@@ -104,7 +104,6 @@ final class CameraMemoCover extends FrameLayout {
     private int controlsTop = -1;
 
     private final Runnable tick = this::tick;
-    private final Runnable grab = this::grabFrame;
 
     private final ViewTreeObserver.OnPreDrawListener preDraw = () -> {
         // Same traversal as the draw, so the hole never lags the circle's open animation by a frame
@@ -132,6 +131,36 @@ final class CameraMemoCover extends FrameLayout {
         dimTextPaint.setTypeface(medium);
         dimTextPaint.setTextSize(sp(20));
         dimTextPaint.setFontFeatureSettings("tnum");
+        ringPaint.setStyle(Paint.Style.STROKE);
+        ringPaint.setStrokeWidth(AndroidUtilities.dp(1.5f));
+        ringPaint.setColor(RING);
+
+        // First child, so everything else draws over it; clipped out of the hole in dispatchDraw
+        viewfinder = new TextureView(context);
+        viewfinder.setAlpha(VIEWFINDER_ALPHA);
+        viewfinder.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override
+            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+                handOver(surface, width, height);
+            }
+
+            @Override
+            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+                handOver(surface, width, height);
+            }
+
+            @Override
+            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+                CameraMemoBackdrop.clearTarget(surface);
+                return false; // the backdrop releases it, once no EGL surface is left on it
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+            }
+        });
+        viewfinder.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        addView(viewfinder);
 
         discardButton = new ControlButton(context, ControlButton.DISCARD);
         discardButton.setContentDescription(LocaleController.getString(R.string.Discard));
@@ -192,6 +221,14 @@ final class CameraMemoCover extends FrameLayout {
         return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, value, getResources().getDisplayMetrics());
     }
 
+    private static void handOver(SurfaceTexture surface, int width, int height) {
+        float scale = Math.min(1f, VIEWFINDER_MAX_PX / (float) Math.max(1, Math.max(width, height)));
+        int bufferWidth = Math.max(1, Math.round(width * scale));
+        int bufferHeight = Math.max(1, Math.round(height * scale));
+        surface.setDefaultBufferSize(bufferWidth, bufferHeight);
+        CameraMemoBackdrop.setTarget(surface, bufferWidth, bufferHeight);
+    }
+
     /** The camera didn't start: say so, and offer the way out. Overruled the moment the recorder is capturing. */
     void showFailed() {
         readRecorder();
@@ -206,11 +243,7 @@ final class CameraMemoCover extends FrameLayout {
         }
         removed = true;
         AndroidUtilities.cancelRunOnUIThread(tick);
-        AndroidUtilities.cancelRunOnUIThread(grab);
         restoreStatusBar();
-        frame = null;
-        frames[0] = frames[1] = null;
-        hasFrame = false;
         if (getParent() instanceof android.view.ViewGroup) {
             ((android.view.ViewGroup) getParent()).removeView(this);
         }
@@ -241,8 +274,6 @@ final class CameraMemoCover extends FrameLayout {
         lastTick = SystemClock.elapsedRealtime();
         AndroidUtilities.cancelRunOnUIThread(tick);
         AndroidUtilities.runOnUIThread(tick, TICK_MS);
-        AndroidUtilities.cancelRunOnUIThread(grab);
-        AndroidUtilities.runOnUIThread(grab, FRAME_MS);
     }
 
     @Override
@@ -250,7 +281,6 @@ final class CameraMemoCover extends FrameLayout {
         super.onDetachedFromWindow();
         getViewTreeObserver().removeOnPreDrawListener(preDraw);
         AndroidUtilities.cancelRunOnUIThread(tick);
-        AndroidUtilities.cancelRunOnUIThread(grab);
         restoreStatusBar();
         CameraMemo.onCoverDetached(this);
     }
@@ -283,35 +313,6 @@ final class CameraMemoCover extends FrameLayout {
     public boolean onTouchEvent(MotionEvent event) {
         super.onTouchEvent(event);
         return true;
-    }
-
-    // A readback of a 48 px frame, on the UI thread like every TextureView.getBitmap. Only while capturing: paused, the
-    // circle plays the clip back and the last live frame stays behind it.
-    private void grabFrame() {
-        if (removed) {
-            return;
-        }
-        ChatActivity chat = chatRef.get();
-        InstantCameraView camera = chat != null ? chat.instantCameraView : null;
-        TextureView texture = camera != null ? camera.getTextureView() : null;
-        if (camera != null && camera.isRecording() && texture != null && texture.isAvailable()) {
-            try {
-                // Two bitmaps taking turns: the blur writes pixels natively, which the renderer may not notice on a
-                // bitmap it has already uploaded, so each frame is drawn from the one not shown last
-                int slot = frame == frames[0] && frame != null ? 1 : 0;
-                if (frames[slot] == null) {
-                    frames[slot] = Bitmap.createBitmap(FRAME_PX, FRAME_PX, Bitmap.Config.ARGB_8888);
-                }
-                texture.getBitmap(frames[slot]);
-                Utilities.stackBlurBitmap(frames[slot], 3);
-                frame = frames[slot];
-                hasFrame = true;
-                invalidate();
-            } catch (Throwable e) {
-                FileLog.e(e);
-            }
-        }
-        AndroidUtilities.runOnUIThread(grab, FRAME_MS);
     }
 
     private void tick() {
@@ -382,6 +383,9 @@ final class CameraMemoCover extends FrameLayout {
         failedText.setVisibility(failed ? VISIBLE : GONE);
         closeButton.setVisibility(failed && !VideoNoteShortcut.isLockedMemo() ? VISIBLE : GONE);
         setContentDescription(stateText());
+        if (CameraMemoBackdrop.frameWidth != laidFrameWidth || CameraMemoBackdrop.frameHeight != laidFrameHeight) {
+            requestLayout(); // the first camera frame says what shape the viewfinder is
+        }
         invalidate();
     }
 
@@ -434,9 +438,7 @@ final class CameraMemoCover extends FrameLayout {
             if (valid) {
                 holePath.addOval(hole, Path.Direction.CW);
             }
-            if (computeControlsTop() != controlsTop) {
-                requestLayout();
-            }
+            requestLayout(); // the controls and the viewfinder follow the circle
             invalidate();
         }
     }
@@ -453,6 +455,26 @@ final class CameraMemoCover extends FrameLayout {
         return Math.max(0, Math.min(top, lowest));
     }
 
+    // The full frame at the circle's own scale, centred on it, so the circle is exactly its centre crop. Until the first
+    // camera frame says otherwise, the shape the round camera asks for: the circle spans the frame's shorter side.
+    private boolean computeViewfinder() {
+        if (!hasHole || !hasFlatHole) {
+            return false;
+        }
+        laidFrameWidth = CameraMemoBackdrop.frameWidth;
+        laidFrameHeight = CameraMemoBackdrop.frameHeight;
+        float frameWidth = laidFrameWidth;
+        float frameHeight = laidFrameHeight;
+        if (!(frameWidth >= 1f && frameWidth <= 4f && frameHeight >= 1f && frameHeight <= 4f)) {
+            frameWidth = 1f;
+            frameHeight = SharedConfig.roundCamera16to9 ? 16f / 9f : 4f / 3f;
+        }
+        float side = Math.min(flatHole.width(), flatHole.height());
+        viewfinderRect.set(flatHole.centerX() - side * frameWidth / 2f, flatHole.centerY() - side * frameHeight / 2f,
+                flatHole.centerX() + side * frameWidth / 2f, flatHole.centerY() + side * frameHeight / 2f);
+        return true;
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int width = MeasureSpec.getSize(widthMeasureSpec);
@@ -467,6 +489,9 @@ final class CameraMemoCover extends FrameLayout {
                 MeasureSpec.makeMeasureSpec(height, MeasureSpec.AT_MOST));
         closeButton.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST),
                 MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(48), MeasureSpec.EXACTLY));
+        boolean shown = computeViewfinder();
+        viewfinder.measure(MeasureSpec.makeMeasureSpec(shown ? Math.round(viewfinderRect.width()) : 0, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(shown ? Math.round(viewfinderRect.height()) : 0, MeasureSpec.EXACTLY));
     }
 
     @Override
@@ -483,6 +508,18 @@ final class CameraMemoCover extends FrameLayout {
         }
         int width = getWidth();
         int height = getHeight();
+        if (computeViewfinder()) {
+            int vw = Math.round(viewfinderRect.width());
+            int vh = Math.round(viewfinderRect.height());
+            if (viewfinder.getMeasuredWidth() != vw || viewfinder.getMeasuredHeight() != vh) {
+                viewfinder.measure(MeasureSpec.makeMeasureSpec(vw, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(vh, MeasureSpec.EXACTLY));
+            }
+            int vl = Math.round(viewfinderRect.left);
+            int vt = Math.round(viewfinderRect.top);
+            viewfinder.layout(vl, vt, vl + vw, vt + vh);
+        } else {
+            viewfinder.layout(0, 0, 0, 0);
+        }
         controlsTop = computeControlsTop();
         int centerY = controlsTop + AndroidUtilities.dp(36);
         int centerX = width / 2;
@@ -514,14 +551,25 @@ final class CameraMemoCover extends FrameLayout {
             canvas.clipOutPath(holePath);
         }
         canvas.drawColor(0xff000000);
-        if (hasFrame && frame != null) {
-            // Square, like the circle's crop, scaled to cover the whole screen
-            float side = Math.max(getWidth(), getHeight());
-            frameRect.set((getWidth() - side) / 2f, (getHeight() - side) / 2f, (getWidth() + side) / 2f, (getHeight() + side) / 2f);
-            canvas.drawBitmap(frame, null, frameRect, framePaint);
-            canvas.drawColor(FRAME_SCRIM);
-        }
         canvas.restore();
+    }
+
+    // Children, the viewfinder first, never draw into the hole: that is the real circle's. The ring and the status go
+    // last, over the viewfinder.
+    @Override
+    protected void dispatchDraw(Canvas canvas) {
+        canvas.save();
+        if (hasHole) {
+            canvas.clipOutPath(holePath);
+        }
+        super.dispatchDraw(canvas);
+        canvas.restore();
+        if (hasHole && viewfinder.getWidth() > 0) {
+            float half = ringPaint.getStrokeWidth() / 2f;
+            ringRect.set(hole);
+            ringRect.inset(-half, -half); // wholly outside the circle
+            canvas.drawOval(ringRect, ringPaint);
+        }
         if (!failed) {
             drawStatus(canvas);
         }

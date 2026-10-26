@@ -2359,6 +2359,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                     GLES20.glDeleteTextures(1, cameraTexture, 1);
                     cameraTexture[1] = Integer.MIN_VALUE;
                 }
+                com.dazewell.gram.videonote.CameraMemoBackdrop.onGlShutdown(egl10, eglDisplay, eglContext); // NagramX (#camera-memo): its surface and program go while this context is still current
             }
             if (eglSurface != null) {
                 egl10.eglMakeCurrent(eglDisplay, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_CONTEXT);
@@ -2487,6 +2488,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             GLES20.glUseProgram(0);
 
             egl10.eglSwapBuffers(eglDisplay, eglSurface);
+            com.dazewell.gram.videonote.CameraMemoBackdrop.onFrame(egl10, eglDisplay, eglContext, eglSurface, cameraTexture[surfaceIndex], mSTMatrix, mMVPMatrix, textureBuffer); // NagramX (#camera-memo): the uncropped frame for the camera memo's viewfinder; a no-op for every other round video
 
             if (captureFirstFrameThumb) {
                 AndroidUtilities.runOnUIThread(() -> {
