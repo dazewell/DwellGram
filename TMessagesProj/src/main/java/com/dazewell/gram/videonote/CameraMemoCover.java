@@ -85,6 +85,7 @@ final class CameraMemoCover extends FrameLayout {
     private boolean committed;
     private boolean failed;
     private boolean removed;
+    private boolean statusBarRestored;
     private int controlsTop = -1;
 
     private final Runnable tick = this::tick;
@@ -120,9 +121,8 @@ final class CameraMemoCover extends FrameLayout {
         discardButton.setContentDescription(LocaleController.getString(R.string.Discard));
         discardButton.setOnClickListener(v -> {
             ChatActivity c = chatRef.get();
-            if (c != null && discardButton.isEnabled()) {
+            if (c != null && discardButton.isEnabled() && CameraMemo.discard(c)) {
                 committed = true;
-                CameraMemo.discard(c);
                 refresh();
             }
         });
@@ -130,9 +130,8 @@ final class CameraMemoCover extends FrameLayout {
         sendButton.setContentDescription(LocaleController.getString(R.string.Send));
         sendButton.setOnClickListener(v -> {
             ChatActivity c = chatRef.get();
-            if (c != null && sendButton.isEnabled()) {
+            if (c != null && sendButton.isEnabled() && CameraMemo.send(c)) {
                 committed = true;
-                CameraMemo.send(c);
                 refresh();
             }
         });
@@ -177,9 +176,10 @@ final class CameraMemoCover extends FrameLayout {
         return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, value, getResources().getDisplayMetrics());
     }
 
-    /** The camera didn't start: say so, and offer the way out. Nothing is recording. */
+    /** The camera didn't start: say so, and offer the way out. Overruled the moment the recorder is capturing. */
     void showFailed() {
-        failed = true;
+        readRecorder();
+        failed = !recording;
         refresh();
     }
 
@@ -190,13 +190,22 @@ final class CameraMemoCover extends FrameLayout {
         }
         removed = true;
         AndroidUtilities.cancelRunOnUIThread(tick);
+        restoreStatusBar();
+        if (getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) getParent()).removeView(this);
+        }
+    }
+
+    // Here and on detach: the chat can also be torn down under the cover, without remove()
+    private void restoreStatusBar() {
+        if (statusBarRestored) {
+            return;
+        }
+        statusBarRestored = true;
         ChatActivity chat = chatRef.get();
         Activity activity = chat != null ? chat.getParentActivity() : null;
         if (activity != null && chat.isLastFragment()) {
             AndroidUtilities.setLightStatusBar(activity.getWindow(), chat.isLightStatusBar());
-        }
-        if (getParent() instanceof android.view.ViewGroup) {
-            ((android.view.ViewGroup) getParent()).removeView(this);
         }
     }
 
@@ -219,6 +228,7 @@ final class CameraMemoCover extends FrameLayout {
         super.onDetachedFromWindow();
         getViewTreeObserver().removeOnPreDrawListener(preDraw);
         AndroidUtilities.cancelRunOnUIThread(tick);
+        restoreStatusBar();
         CameraMemo.onCoverDetached(this);
     }
 
@@ -257,6 +267,7 @@ final class CameraMemoCover extends FrameLayout {
         }
         if (recording) {
             everRecorded = true;
+            failed = false; // the recorder overrules the cover: never a failure message over a live recording
         } else if (wasRecording) {
             pausedByCover = false;
         }

@@ -278,6 +278,10 @@ public final class VideoNoteShortcut {
         return phase != IDLE;
     }
 
+    private static boolean isPendingCameraFresh() {
+        return pendingCamera && SystemClock.elapsedRealtime() - pendingSince < PENDING_TTL_MS;
+    }
+
     private static boolean isPendingChat(ChatActivity chat) {
         return pendingAccount == chat.getCurrentAccount() && pendingDialogId == chat.getDialogId() && chat.getChatMode() == 0;
     }
@@ -513,7 +517,7 @@ public final class VideoNoteShortcut {
     /** ChatActivity.createView, right after the input container is added. */
     public static void onChatViewCreated(ChatActivity chat, ViewGroup contentView, View inputContainer, org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory wallpaperBlurFactory) {
         // Locked or not. Added first, it still ends up over the shield below and everything else: it is raised by Z.
-        if (pendingCamera && isPendingChat(chat) && SystemClock.elapsedRealtime() - pendingSince < PENDING_TTL_MS) {
+        if (isPendingCameraFresh() && isPendingChat(chat)) {
             CameraMemo.attach(chat, contentView);
         }
         if (!(phase == STARTING && isPendingChat(chat)) && !isSessionChat(chat)) {
@@ -680,7 +684,7 @@ public final class VideoNoteShortcut {
 
     /** LaunchActivity.needPresentFragment / needAddFragmentToStack. Opening anything but our own chat locks. */
     public static void onNavigation(BaseFragment fragment) {
-        if (phase == IDLE && !(pendingCamera && isPendingChatPush(fragment))) {
+        if (phase == IDLE && !(isPendingCameraFresh() && isPendingChatPush(fragment))) {
             CameraMemo.onNavigation(fragment); // locked, the lock below ends it instead
         }
         if (phase == IDLE || phase == STARTING && isPendingChatPush(fragment)) {

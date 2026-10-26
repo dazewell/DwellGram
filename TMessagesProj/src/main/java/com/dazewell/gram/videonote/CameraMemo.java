@@ -109,37 +109,49 @@ public final class CameraMemo {
 
     // --- The cover's controls ---
 
-    static void send(ChatActivity chat) {
+    // Both recorder sends are silent no-ops when they can't act, so their own preconditions decide whether the tap took.
+    // True when it did: the cover then goes inert, and unlocked it comes down.
+    static boolean send(ChatActivity chat) {
         if (!isSessionChat(chat)) {
-            return;
+            return false;
         }
         if (chat.instantCameraView != null && chat.instantCameraView.isRecording()) {
+            if (!chat.isRecordLocked()) {
+                return false;
+            }
             chat.sendLockedRecording();
         } else {
+            if (!chat.canSendVideoPreview()) {
+                return false;
+            }
             chat.sendVideoPreview();
         }
         // Locked, the phase machine leaves once the clip is handed off and the passcode takes the cover down
         if (!VideoNoteShortcut.isLockedMemo()) {
             end();
         }
+        return true;
     }
 
-    static void discard(ChatActivity chat) {
+    static boolean discard(ChatActivity chat) {
         if (!isSessionChat(chat)) {
-            return;
+            return false;
         }
         ChatActivityEnterView enterView = chat.getChatActivityEnterView();
         if (enterView == null) {
-            return;
+            return false;
         }
         if (chat.instantCameraView != null && chat.instantCameraView.isRecording()) {
             enterView.cancelRecordingAudioVideo();
-        } else {
+        } else if (enterView.hasVideoToSend()) {
             enterView.discardVideoPreview();
+        } else {
+            return false;
         }
         if (!VideoNoteShortcut.isLockedMemo()) {
             end();
         }
+        return true;
     }
 
     /** Close on the failure message. Locked, the phase machine's start timeout locks and leaves on its own. */
