@@ -208,8 +208,15 @@ public final class RoundVideoMask {
 
             long deadline = SystemClock.elapsedRealtime() + timeoutMs;
             boolean done = false;
+            boolean interrupted = false;
             while (!done) {
-                done = finished.await(POLL_MS, TimeUnit.MILLISECONDS);
+                try {
+                    done = finished.await(POLL_MS, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException e) {
+                    // Skipping the cancel would leave the export writing into a folder about to be deleted.
+                    interrupted = true;
+                    break;
+                }
                 if (!done && ((cancel != null && cancel.isCancelled()) || SystemClock.elapsedRealtime() > deadline)) {
                     break;
                 }
@@ -232,7 +239,14 @@ public final class RoundVideoMask {
                     cancelled.countDown();
                 }
             });
-            terminal = cancelled.await(CANCEL_WAIT_MS, TimeUnit.MILLISECONDS);
+            try {
+                terminal = cancelled.await(CANCEL_WAIT_MS, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                interrupted = true;
+            }
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
             return terminal ? EXPORT_CANCELLED : EXPORT_ABANDONED;
         } finally {
             thread.quitSafely();
