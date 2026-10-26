@@ -244,8 +244,11 @@ public final class VideoNoteShortcut {
     public static long accept(Intent intent, int account) {
         boolean genuine = isGenuine(intent);
         boolean camera = intent.getBooleanExtra(EXTRA_CAMERA, false);
-        // A copy pinned before shortcuts carried their camera has no extra, and still follows the setting
-        boolean rear = intent.hasExtra(EXTRA_REAR) ? intent.getBooleanExtra(EXTRA_REAR, false) : getCameraMode() == CAMERA_REAR;
+        // The camera memo has one shortcut that follows its setting, read here: a launcher that keeps an unchanged id
+        // (MediaDataController.buildShortcuts skips republishing them) would otherwise keep the lens it was pinned with.
+        // A video memo copy pinned before shortcuts carried their camera has no extra, and still follows the setting.
+        boolean rear = camera ? isCameraMemoRear()
+                : intent.hasExtra(EXTRA_REAR) ? intent.getBooleanExtra(EXTRA_REAR, false) : getCameraMode() == CAMERA_REAR;
         intent.setAction(null);
         intent.removeExtra(EXTRA_HASH);
         intent.removeExtra(EXTRA_REAR);
