@@ -929,6 +929,16 @@ public final class ComposerToolbarLayout extends FrameLayout {
                     SlidingLinearLayout.cancelSlidesIn(this);
                 }
                 setVisibility(visibility);
+                // Coming back from a record or review panel, the buttons fade in alongside the field tone easing back
+                // rather than popping in on the frame the panel lets go of the row.
+                animate().cancel();
+                if (visible) {
+                    setAlpha(0f);
+                    animate().alpha(1f).setDuration(com.dazewell.gram.composer.ComposerMd3Surface.ROW_RETURN_DURATION)
+                            .setInterpolator(CubicBezierInterpolator.EASE_OUT).start();
+                } else {
+                    setAlpha(1f);
+                }
             }
         }
 
