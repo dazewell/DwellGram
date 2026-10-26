@@ -41,6 +41,7 @@ public final class ComposerInlineRest {
 
     private final ComposerToolbarLayout toolbar;
     private boolean compact;
+    private boolean held;
     private boolean morphing;
     private boolean pendingFinish;
     private int foldId;
@@ -155,15 +156,19 @@ public final class ComposerInlineRest {
                             int openBottom, float currentHeight, float currentTarget) {
         toolbar.setSendReserve(sendReserve);
         // While a panel replaces the tools row the field is GONE, so a flip would change no height and only run a
-        // phantom morph on the timeout. Hold the fold; the enter view asks again once the row comes back.
-        final boolean rest = toolsRowShown() ? wantsRest && fits(field) && !toolbar.hasMiddleLeading() : compact;
+        // phantom morph on the timeout. Hold the fold; the enter view asks again once the row comes back, and that
+        // first answer snaps, since the field was never drawn where a morph would start it.
+        final boolean shown = toolsRowShown();
+        final boolean resumed = held && shown;
+        held = !shown;
+        final boolean rest = shown ? wantsRest && fits(field) && !toolbar.hasMiddleLeading() : compact;
         final ViewGroup.LayoutParams params = field.getLayoutParams();
         boolean flipped = false;
         float fromStart = 0, fromBottom = 0;
         if (rest != compact) {
             compact = rest;
             toolbar.setRestCompact(rest);
-            if (params instanceof ViewGroup.MarginLayoutParams && currentHeight > 0) {
+            if (params instanceof ViewGroup.MarginLayoutParams && currentHeight > 0 && !resumed) {
                 // Where the field is drawn right now, so a flip that reverses a running morph starts from there.
                 final ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;
                 fromStart = margins.getMarginStart() + (morphing ? startDelta * remaining : 0);
