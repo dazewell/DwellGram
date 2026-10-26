@@ -856,9 +856,9 @@ public class ConnectionsManager extends BaseController {
             buff.setDataSourceType(TLDataSourceType.NETWORK);
             buff.reused = true;
             int constructor = buff.readInt32(true);
-            final TLObject message = TLClassStore.Instance().TLdeserialize(buff, constructor, true);
-            //FileLog.dumpUnparsedMessage(message, messageId, currentAccount);
-            if (message instanceof TLRPC.Updates) {
+            final TLRPC.Updates message = TLRPC.Updates.TLdeserialize(buff, constructor, true);
+            FileLog.dumpUnparsedMessage(message, messageId, currentAccount);
+            if (message != null) {
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d("java received " + message);
                 }
