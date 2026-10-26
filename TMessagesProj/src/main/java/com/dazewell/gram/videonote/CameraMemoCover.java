@@ -78,6 +78,7 @@ final class CameraMemoCover extends FrameLayout {
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint gridCropPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint blackPaint = new Paint();
     // Stamped by the viewfinder's own TextureView each time a camera frame actually reaches it, on the UI thread
     private long viewfinderFrameAt;
     private boolean viewfinderCovers;
@@ -590,6 +591,17 @@ final class CameraMemoCover extends FrameLayout {
         if (!failed) {
             drawStatus(canvas);
         }
+    }
+
+    // A viewfinder that isn't live would leave its last frame frozen around the live circle, so it is painted over. Still
+    // drawn underneath, never hidden: a TextureView that isn't drawn gets no new frame, and couldn't come back.
+    @Override
+    protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
+        boolean more = super.drawChild(canvas, child, drawingTime);
+        if (child == viewfinder && !viewfinderCovers) {
+            canvas.drawRect(child.getLeft(), child.getTop(), child.getRight(), child.getBottom(), blackPaint);
+        }
+        return more;
     }
 
     // Square cells a third of the crop wide. The crop spans the viewfinder's width, so its three columns are the frame's,
