@@ -179,7 +179,7 @@ public final class RoundVideoMask {
                             // On by default on API 35+, and this is private chat media.
                             .setUsePlatformDiagnostics(false)
                             // H.265 keeps more detail per byte; without an HEVC encoder Transformer falls
-                            // back to a supported type (DefaultEncoderFactory enables fallback by default).
+                            // back to H.264 when it picks the output type.
                             .setVideoMimeType(MimeTypes.VIDEO_H265)
                             .setEncoderFactory(new DefaultEncoderFactory.Builder(context)
                                     .setRequestedVideoEncoderSettings(new VideoEncoderSettings.Builder().setBitrate(bitrate).build())
