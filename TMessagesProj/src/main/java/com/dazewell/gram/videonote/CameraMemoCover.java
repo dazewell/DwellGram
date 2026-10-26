@@ -34,13 +34,12 @@ import java.lang.ref.WeakReference;
 import java.util.Locale;
 
 /**
- * #camera-memo: the plain camera screen over a camera memo's chat. Opaque black everywhere except the round camera,
- * which shows through a hole cut to its exact on-screen bounds, so the stock live circle is never scaled, dimmed or
- * covered. A touch that starts on the circle goes through to it, so the round video's own gestures work as usual.
- * Behind it the whole camera frame, uncropped, lines up with the circle like a viewfinder (CameraMemoBackdrop), so the
- * circle blends into it. What is sent is marked by a golden-spiral guide instead of a ring: its largest square is the
- * crop, which reads as an ordinary camera's composition guide rather than a round video recorder. The recording cue and the controls are drawn here, white on black, with
- * no Telegram colour.
+ * #camera-memo: the plain camera screen over a camera memo's chat. Opaque black, with the whole camera frame, uncropped,
+ * as a viewfinder (CameraMemoBackdrop) and a grid of square cells whose middle three rows are exactly the crop the round
+ * clip sends. While the viewfinder is live it covers the round camera too, so nothing on screen reads as a round video
+ * recorder. The moment it isn't (no fresh frame, switched off, paused), a hole opens over the stock circle, so a live
+ * picture is always on screen. A touch that starts on the crop goes through to the camera, so the round video's own
+ * gestures work as usual. The recording cue and the controls are drawn here, white on black, with no Telegram colour.
  *
  * Fixed dark in both themes on purpose: a theme colour would give the app away. Everything it shows is read from the
  * recorder: the red dot and the running clock only while it is really capturing.
@@ -55,9 +54,9 @@ final class CameraMemoCover extends FrameLayout {
     private static final long WARN_FROM_MS = 55_000;
     private static final long START_TIMEOUT_MS = 6_000;
     private static final int VIEWFINDER_MAX_PX = 720; // its buffer's long side, not its size on screen
-    private static final int GUIDE = 0xb3ffffff;
-    private static final float PHI = 1.618034f;
-    private static final int GUIDE_SQUARES = 9;
+    private static final int GRID = 0x80ffffff;
+    private static final int GRID_CROP = 0xe6ffffff; // the crop's top and bottom, a little stronger than the rest
+    private static final long VIEWFINDER_STALE_MS = 500;
 
     private static final int RED = 0xffff3b30;
     private static final int AMBER = 0xffffb300;
@@ -77,10 +76,11 @@ final class CameraMemoCover extends FrameLayout {
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dimTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint guidePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Path guidePath = new Path();
-    private final Path spiralPath = new Path();
-    private final RectF guideOval = new RectF();
+    private final Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint gridCropPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    // Stamped by the viewfinder's own TextureView each time a camera frame actually reaches it, on the UI thread
+    private long viewfinderFrameAt;
+    private boolean viewfinderCovers;
     private final RectF viewfinderRect = new RectF();
     private final TextureView viewfinder;
     private float laidFrameWidth;
@@ -137,9 +137,12 @@ final class CameraMemoCover extends FrameLayout {
         // The status sits over the live viewfinder, which can be as bright as the text
         textPaint.setShadowLayer(AndroidUtilities.dp(3), 0, 0, 0x99000000);
         dimTextPaint.setShadowLayer(AndroidUtilities.dp(3), 0, 0, 0x99000000);
-        guidePaint.setStyle(Paint.Style.STROKE);
-        guidePaint.setStrokeWidth(AndroidUtilities.dp(1.5f));
-        guidePaint.setColor(GUIDE);
+        gridPaint.setStyle(Paint.Style.STROKE);
+        gridPaint.setStrokeWidth(AndroidUtilities.dp(1));
+        gridPaint.setColor(GRID);
+        gridCropPaint.setStyle(Paint.Style.STROKE);
+        gridCropPaint.setStrokeWidth(AndroidUtilities.dp(2));
+        gridCropPaint.setColor(GRID_CROP);
 
         // First child, so everything else draws over it; clipped out of the hole in dispatchDraw
         viewfinder = new TextureView(context);
@@ -162,6 +165,10 @@ final class CameraMemoCover extends FrameLayout {
 
             @Override
             public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+                viewfinderFrameAt = SystemClock.elapsedRealtime();
+                if (!viewfinderCovers) {
+                    invalidate(); // close the hole over the circle now that the viewfinder shows it
+                }
             }
         });
         viewfinder.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
@@ -333,7 +340,7 @@ final class CameraMemoCover extends FrameLayout {
                 && SystemClock.elapsedRealtime() - attachedAt > START_TIMEOUT_MS) {
             failed = true; // locked, the phase machine's own start timeout locks instead
         }
-        refresh();
+        refresh(); // refresh invalidates, so a viewfinder gone stale opens the hole on this tick
         AndroidUtilities.runOnUIThread(tick, TICK_MS);
     }
 
@@ -549,93 +556,74 @@ final class CameraMemoCover extends FrameLayout {
         view.layout(centerX - w / 2, centerY - h / 2, centerX + w / 2, centerY + h / 2);
     }
 
+    // The viewfinder may stand in for the circle only while it is demonstrably showing the camera: a frame reached its
+    // TextureView recently. A stalled, switched-off or paused viewfinder opens the hole again within VIEWFINDER_STALE_MS.
+    private boolean isViewfinderLive() {
+        return hasFlatHole && viewfinder.getWidth() > 0 && viewfinder.isAvailable()
+                && SystemClock.elapsedRealtime() - viewfinderFrameAt < VIEWFINDER_STALE_MS;
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
+        viewfinderCovers = isViewfinderLive();
         canvas.save();
-        if (hasHole) {
+        if (hasHole && !viewfinderCovers) {
             canvas.clipOutPath(holePath);
         }
         canvas.drawColor(0xff000000);
         canvas.restore();
     }
 
-    // Children, the viewfinder first, never draw into the hole: that is the real circle's. The guide and the status go
-    // last, over both: thin lines, like any camera's grid, which hide nothing of the picture.
+    // Children, the viewfinder first. Unless the viewfinder covers the circle, none of them draws into the hole: that is
+    // the real circle's. The grid and the status go last, over everything: thin lines, like any camera's grid.
     @Override
     protected void dispatchDraw(Canvas canvas) {
         canvas.save();
-        if (hasHole) {
+        if (hasHole && !viewfinderCovers) {
             canvas.clipOutPath(holePath);
         }
         super.dispatchDraw(canvas);
         canvas.restore();
         if (hasHole && hasFlatHole && viewfinder.getWidth() > 0) {
-            drawGuide(canvas);
+            drawGrid(canvas);
         }
         if (!failed) {
             drawStatus(canvas);
         }
     }
 
-    // A golden rectangle whose largest square is the crop, the circle's square, with the rest above it: its edges are the
-    // crop's top and bottom, the frame's width is its sides, and the spiral's widest quarter spans it corner to corner.
-    // Squares go bottom, right, top, left, each arc turning about the corner the next square starts from.
-    private void drawGuide(Canvas canvas) {
+    // Square cells a third of the crop wide. The crop spans the viewfinder's width, so its three columns are the frame's,
+    // and its three rows sit between the two stronger lines; the rows repeat outward until the frame ends.
+    private void drawGrid(Canvas canvas) {
         float side = Math.min(flatHole.width(), flatHole.height());
-        float l = flatHole.centerX() - side / 2f;
-        float r = l + side;
-        float b = flatHole.centerY() + side / 2f;
-        float t = b - side - side / PHI;
-        guidePath.reset();
-        spiralPath.reset();
-        guidePath.addRect(l, t, r, b, Path.Direction.CW);
-        boolean first = true;
-        for (int i = 0; i < GUIDE_SQUARES; i++) {
-            float s = Math.min(r - l, b - t);
-            if (s < AndroidUtilities.dp(2)) {
-                break;
-            }
-            float cx, cy, start;
-            switch (i % 4) {
-                case 0: // bottom
-                    guidePath.moveTo(l, b - s);
-                    guidePath.lineTo(r, b - s);
-                    cx = l;
-                    cy = b - s;
-                    start = 90;
-                    b -= s;
-                    break;
-                case 1: // right
-                    guidePath.moveTo(r - s, t);
-                    guidePath.lineTo(r - s, b);
-                    cx = r - s;
-                    cy = b;
-                    start = 0;
-                    r -= s;
-                    break;
-                case 2: // top
-                    guidePath.moveTo(l, t + s);
-                    guidePath.lineTo(r, t + s);
-                    cx = r;
-                    cy = t + s;
-                    start = -90;
-                    t += s;
-                    break;
-                default: // left
-                    guidePath.moveTo(l + s, t);
-                    guidePath.lineTo(l + s, b);
-                    cx = l + s;
-                    cy = t;
-                    start = 180;
-                    l += s;
-                    break;
-            }
-            guideOval.set(cx - s, cy - s, cx + s, cy + s);
-            spiralPath.arcTo(guideOval, start, -90, first); // each arc starts where the last ended
-            first = false;
+        float cell = side / 3f;
+        if (cell < AndroidUtilities.dp(4)) {
+            return;
         }
-        canvas.drawPath(guidePath, guidePaint);
-        canvas.drawPath(spiralPath, guidePaint);
+        float left = viewfinder.getLeft();
+        float right = viewfinder.getRight();
+        float top = viewfinder.getTop();
+        float bottom = viewfinder.getBottom();
+        float cropTop = flatHole.centerY() - side / 2f;
+        float cropBottom = cropTop + side;
+        canvas.save();
+        canvas.clipRect(left, top, right, bottom);
+        for (int i = 1; i < 3; i++) {
+            float x = flatHole.centerX() - side / 2f + cell * i;
+            canvas.drawLine(x, top, x, bottom, gridPaint);
+        }
+        for (float y = cropTop + cell; y < cropBottom - 1f; y += cell) {
+            canvas.drawLine(left, y, right, y, gridPaint);
+        }
+        for (float y = cropTop - cell; y > top; y -= cell) {
+            canvas.drawLine(left, y, right, y, gridPaint);
+        }
+        for (float y = cropBottom + cell; y < bottom; y += cell) {
+            canvas.drawLine(left, y, right, y, gridPaint);
+        }
+        canvas.drawLine(left, cropTop, right, cropTop, gridCropPaint);
+        canvas.drawLine(left, cropBottom, right, cropBottom, gridCropPaint);
+        canvas.restore();
     }
 
     private String stateText() {
