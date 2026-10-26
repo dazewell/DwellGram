@@ -160,6 +160,9 @@ public final class CameraMemo {
             enterView.cancelRecordingAudioVideo();
         } else if (enterView.hasVideoToSend()) {
             enterView.discardVideoPreview();
+            if (enterView.hasVideoToSend()) {
+                return false; // the delete button ignores taps while its panel animates in: still there, try again
+            }
         } else {
             return false;
         }
