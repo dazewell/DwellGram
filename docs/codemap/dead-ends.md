@@ -1135,3 +1135,25 @@ animation, so the id is held only during the transition. Every suppression keyed
 sound/vibrate settings or a Muted/Passive notification profile instead.
 
 *(Established 2026-10-13, `#scheduled-header-status`.)*
+
+## "MediaCodecVideoConvertor can re-encode a video fast enough with a tweak or two"
+
+Not on MediaTek. The convertor queues one compressed frame per pass
+(`MediaCodecVideoConvertor.java:623`), then polls encoder and decoder output with a
+2.5 ms timeout each (`:49`, `:681`, `:759`), so a codec with a few frames of latency
+leaves the loop idle most of the time. Measured on an OPPO CPH2791
+(`c2.mtk.avc.encoder`), 54 s 400×400 29 fps note: 50.3 s plain; 43.4 s with
+media3's `KEY_PRIORITY`/`KEY_OPERATING_RATE` values set before both `configure`
+calls (`:502`, `:532`); 33.6 s with the decoder also fed ahead. Stage timers put
+about 25 s in empty polls (5,749 encoder, 4,133 decoder).
+
+Also dead, by the same timers:
+- **Restarts:** the whole-encode retries never fired.
+- **Software encoder:** the encoder was the hardware `c2.mtk` one.
+- **Frame callbacks on the main thread:** `OutputSurface` registers its listener with no handler (`OutputSurface.java:49`), so all callbacks do land on the main thread, but `awaitNewImage` cost about 0.8 ms per frame.
+
+Sends run the convertor the same way, from a plain thread
+(`MediaController.java:6822`). media3 Transformer, used by `RoundVideoMask`,
+was fast on the same phone.
+
+*(Established 2026-10-25, `#round-video-black-corners`.)*
