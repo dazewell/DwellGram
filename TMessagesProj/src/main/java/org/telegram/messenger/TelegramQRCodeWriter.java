@@ -81,6 +81,9 @@ public final class TelegramQRCodeWriter {
         @Override public void setColorFilter(android.graphics.ColorFilter colorFilter) {}
         @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
       };
+    } else {
+      // without an icon these QR codes carry the fork's launcher icon, not Telegram's logo
+      centerDrawable = ApplicationLoader.applicationContext.getResources().getDrawable(R.mipmap.ic_launcher_nagram_blue);
     }
     return encode(contents, width, height, hints, bitmap);
   }
