@@ -1,25 +1,49 @@
 package com.dazewell.gram.videonote;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
+import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.SystemClock;
 import android.util.Log;
+
+import androidx.annotation.OptIn;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.MimeTypes;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.effect.BitmapOverlay;
+import androidx.media3.effect.OverlayEffect;
+import androidx.media3.transformer.Composition;
+import androidx.media3.transformer.DefaultEncoderFactory;
+import androidx.media3.transformer.EditedMediaItem;
+import androidx.media3.transformer.Effects;
+import androidx.media3.transformer.ExportException;
+import androidx.media3.transformer.ExportResult;
+import androidx.media3.transformer.Transformer;
+import androidx.media3.transformer.VideoEncoderSettings;
+
+import com.google.common.collect.ImmutableList;
 
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MessageObject;
-import org.telegram.messenger.VideoEditedInfo;
-import org.telegram.messenger.video.MediaCodecVideoConvertor;
 import org.telegram.ui.Components.AnimatedFileNative;
 import org.telegram.ui.Components.voip.AnimatedFileInfo;
 
 import java.io.File;
-import java.io.FileOutputStream;
+import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import xyz.nextalone.nagram.NaConfig;
 
@@ -27,6 +51,11 @@ import xyz.nextalone.nagram.NaConfig;
 // whatever the sender's client baked into the square frame's corners. Telegram's cached copy is
 // never touched: the masked file is a temp in cache/round_mask/<uuid>/ and release() deletes it
 // once the save has copied it. Any failure hands back the original, so a save is never empty.
+//
+// media3 Transformer rather than MediaCodecVideoConvertor: the convertor's one-frame-at-a-time loop
+// idles in dequeue timeouts on MediaTek codecs and encoded at about real time; Transformer keeps the
+// codecs busy and needs no hook in upstream's video files.
+@OptIn(markerClass = UnstableApi.class)
 public final class RoundVideoMask {
 
     private static final String TAG = "RoundVideoMask";
@@ -35,54 +64,10 @@ public final class RoundVideoMask {
     // left over from a save that threw between prepare() and release().
     private static final long STALE_MS = 60 * 60 * 1000L;
     private static final int FALLBACK_BITRATE = 1_500_000;
-    private static final int FALLBACK_FRAMERATE = 30;
-
-    // MediaCodecVideoConvertor configures its codecs on the thread that calls convertVideo, so this marks
-    // "the encode running on this thread is a round-video save" without adding a field to upstream's params.
-    private static final ThreadLocal<Boolean> SPEED_HINT = new ThreadLocal<>();
-
-    // NAX_SMOKE probe state, one save at a time (MediaLoader saves serially). Stages: 0 awaitNewImage,
-    // 1 drawImage, 2 swapBuffers, 3 encoder dequeueOutput, 4 decoder dequeueOutput, 5 decoder input.
-    // Counts: 0 frames drawn, 1 encoder try-again, 2 decoder try-again, 3 frame callbacks on main, 4 frame callbacks.
-    private static volatile boolean probeActive;
-    private static final long[] PROBE_NS = new long[6];
-    private static final int[] PROBE_N = new int[5];
-
-    public static long probeT() {
-        return probeActive ? System.nanoTime() : 0;
-    }
-
-    public static void probeAdd(int stage, long t0) {
-        if (t0 != 0) {
-            PROBE_NS[stage] += System.nanoTime() - t0;
-        }
-    }
-
-    public static void probeCount(int k) {
-        if (probeActive) {
-            PROBE_N[k]++;
-        }
-    }
-
-    public static void probeFrameCallback() {
-        if (probeActive) {
-            PROBE_N[4]++;
-            if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
-                PROBE_N[3]++;
-            }
-        }
-    }
-
-    private static String probeDump() {
-        StringBuilder sb = new StringBuilder();
-        String[] names = {"awaitMs", "drawMs", "swapMs", "encDeqMs", "decDeqMs", "decInMs"};
-        for (int i = 0; i < PROBE_NS.length; i++) {
-            sb.append(' ').append(names[i]).append('=').append(PROBE_NS[i] / 1_000_000);
-        }
-        sb.append(" frames=").append(PROBE_N[0]).append(" encTryAgain=").append(PROBE_N[1]).append(" decTryAgain=").append(PROBE_N[2])
-                .append(" cbOnMain=").append(PROBE_N[3]).append(" cbTotal=").append(PROBE_N[4]);
-        return sb.toString();
-    }
+    // Transformer's own watchdog catches a stalled export; this only bounds one that crawls.
+    private static final long MIN_TIMEOUT_MS = 60_000L;
+    private static final long CANCEL_WAIT_MS = 30_000L;
+    private static final long POLL_MS = 200L;
 
     public interface Cancel {
         boolean isCancelled();
@@ -111,20 +96,19 @@ public final class RoundVideoMask {
         try {
             File baseDir = new File(ApplicationLoader.applicationContext.getCacheDir(), DIR);
             sweep(baseDir);
-            final long probeStart = android.os.SystemClock.elapsedRealtime();
+            final long probeStart = SystemClock.elapsedRealtime();
             String path = source.getAbsolutePath();
             int[] params = new int[AnimatedFileInfo.PARAM_NUM_COUNT];
             AnimatedFileNative.getVideoInfo(path, params, 0);
             int width = params[AnimatedFileInfo.PARAM_NUM_WIDTH];
             int height = params[AnimatedFileInfo.PARAM_NUM_HEIGHT];
-            long durationUs = params[AnimatedFileInfo.PARAM_NUM_DURATION] * 1000L;
-            if (params[AnimatedFileInfo.PARAM_NUM_SUPPORTED_VIDEO_CODEC] == 0 || width <= 0 || height <= 0 || durationUs <= 0) {
+            long durationMs = params[AnimatedFileInfo.PARAM_NUM_DURATION];
+            if (params[AnimatedFileInfo.PARAM_NUM_SUPPORTED_VIDEO_CODEC] == 0 || width <= 0 || height <= 0 || durationMs <= 0) {
                 Log.w(TAG, "unsupported source, saving unmasked");
                 return source;
             }
             int rotation = params[AnimatedFileInfo.PARAM_NUM_ROTATION];
-            // Same as MediaController.convertVideo: the decoder surface applies the rotation, so the
-            // output is the rotated size and the muxer writes rotation 0.
+            // Transformer hands effects the frame in display orientation, so the mask is the rotated size.
             int outWidth = width;
             int outHeight = height;
             if (rotation == 90 || rotation == 270) {
@@ -138,98 +122,35 @@ public final class RoundVideoMask {
             if (bitrate <= 0) {
                 bitrate = FALLBACK_BITRATE;
             }
-            int framerate = params[AnimatedFileInfo.PARAM_NUM_FRAMERATE];
-            if (framerate <= 0) {
-                framerate = FALLBACK_FRAMERATE;
-            }
 
             workDir = new File(baseDir, UUID.randomUUID().toString());
             if (!workDir.mkdirs()) {
                 Log.w(TAG, "cannot create temp dir, saving unmasked");
                 return source;
             }
-            final long probeInfoMs = android.os.SystemClock.elapsedRealtime() - probeStart;
-            File mask = new File(workDir, "mask.png");
-            writeMask(mask, outWidth, outHeight);
-            final long probeMaskMs = android.os.SystemClock.elapsedRealtime() - probeStart - probeInfoMs;
-            String probeEncoder = "?";
-            try {
-                android.media.MediaCodec probeCodec = android.media.MediaCodec.createEncoderByType("video/avc");
-                probeEncoder = probeCodec.getName();
-                probeCodec.release();
-            } catch (Throwable ignore) {
-            }
-            Log.i(TAG, "NAX_SMOKE_round-video-black-corners INFO " + width + "x" + height + " rot=" + rotation + " fps=" + framerate + " bitrate=" + bitrate
-                    + " durMs=" + (durationUs / 1000) + " srcBytes=" + source.length() + " hasAudio=" + params[AnimatedFileInfo.PARAM_NUM_HAS_AUDIO]
-                    + " aacAudio=" + params[AnimatedFileInfo.PARAM_NUM_SUPPORTED_AUDIO_CODEC] + " encoder=" + probeEncoder + " infoMs=" + probeInfoMs + " maskMs=" + probeMaskMs);
-            final int[] probeRestarts = new int[1];
-            final float[] probeLastProgress = new float[1];
-            final long[] probeFirstWriteMs = {-1};
             // Same file name as the source so nothing downstream that reads it can tell the difference.
             File output = new File(workDir, source.getName());
+            Log.i(TAG, "NAX_SMOKE_round-video-black-corners INFO " + width + "x" + height + " rot=" + rotation + " bitrate=" + bitrate
+                    + " durMs=" + durationMs + " srcBytes=" + source.length() + " hasAudio=" + params[AnimatedFileInfo.PARAM_NUM_HAS_AUDIO]
+                    + " aacAudio=" + params[AnimatedFileInfo.PARAM_NUM_SUPPORTED_AUDIO_CODEC]);
 
-            VideoEditedInfo info = new VideoEditedInfo();
-            info.paintPath = mask.getAbsolutePath();
-            MediaController.VideoConvertorListener listener = new MediaController.VideoConvertorListener() {
-                @Override
-                public boolean checkConversionCanceled() {
-                    return cancel != null && cancel.isCancelled();
+            long timeoutMs = Math.max(MIN_TIMEOUT_MS, durationMs * 3);
+            final long probeConvertStart = SystemClock.elapsedRealtime();
+            int result = export(source, output, createMask(outWidth, outHeight), bitrate, timeoutMs, cancel);
+            final long probeConvertMs = SystemClock.elapsedRealtime() - probeConvertStart;
+            boolean playable = result == EXPORT_DONE && output.exists() && output.length() > 0 && isPlayable(output);
+            Log.i(TAG, "NAX_SMOKE_round-video-black-corners CONVERT result=" + result + " convertMs=" + probeConvertMs
+                    + " outBytes=" + output.length() + " playable=" + playable);
+            if (!playable) {
+                Log.w(TAG, "export did not finish (result=" + result + "), saving unmasked");
+                // An export whose cancel never returned may still be writing here; the sweep gets it later.
+                if (result != EXPORT_ABANDONED) {
+                    deleteRecursive(workDir);
                 }
-
-                @Override
-                public void didWriteData(long availableSize, float progress) {
-                    if (probeFirstWriteMs[0] < 0) {
-                        probeFirstWriteMs[0] = android.os.SystemClock.elapsedRealtime() - probeStart;
-                    }
-                    // A drop back toward zero means the convertor started the whole encode again.
-                    if (progress + 0.3f < probeLastProgress[0]) {
-                        probeRestarts[0]++;
-                    }
-                    probeLastProgress[0] = progress;
-                }
-            };
-            final long probeConvertStart = android.os.SystemClock.elapsedRealtime();
-            // needCompress must be true: false sends an AVC source down readAndWriteTracks, which copies
-            // the stream without drawing the paint layer and still reports success.
-            MediaCodecVideoConvertor.ConvertVideoParams convertParams = MediaCodecVideoConvertor.ConvertVideoParams.of(
-                    path, output, 0,
-                    rotation, false,
-                    width, height,
-                    outWidth, outHeight,
-                    framerate, bitrate, bitrate,
-                    -1, -1, -1,
-                    true, durationUs,
-                    listener,
-                    info
-            );
-            boolean error;
-            SPEED_HINT.set(Boolean.TRUE);
-            java.util.Arrays.fill(PROBE_NS, 0);
-            java.util.Arrays.fill(PROBE_N, 0);
-            probeActive = true;
-            try {
-                error = new MediaCodecVideoConvertor().convertVideo(convertParams);
-            } finally {
-                probeActive = false;
-                SPEED_HINT.remove();
-            }
-            Log.i(TAG, "NAX_SMOKE_round-video-black-corners STAGES" + probeDump());
-            final long probeConvertMs = android.os.SystemClock.elapsedRealtime() - probeConvertStart;
-            final long probeCheckStart = android.os.SystemClock.elapsedRealtime();
-            final boolean probePlayable = output.exists() && output.length() > 0 && isPlayable(output);
-            Log.i(TAG, "NAX_SMOKE_round-video-black-corners CONVERT error=" + error + " convertMs=" + probeConvertMs + " firstWriteMs=" + probeFirstWriteMs[0]
-                    + " restarts=" + probeRestarts[0] + " lastProgress=" + probeLastProgress[0] + " outBytes=" + output.length()
-                    + " playable=" + probePlayable + " checkMs=" + (android.os.SystemClock.elapsedRealtime() - probeCheckStart));
-            // The convertor logs a finishMovie() failure without reporting an error, which can leave a
-            // non-empty file nothing can play, so the output has to parse as a video before it replaces the original.
-            if (error || listener.checkConversionCanceled() || !output.exists() || output.length() == 0 || !isPlayable(output)) {
-                Log.w(TAG, "encode did not finish (error=" + error + "), saving unmasked");
                 Log.i(TAG, "NAX_SMOKE_round-video-black-corners END fallback");
-                deleteRecursive(workDir);
                 return source;
             }
-            mask.delete();
-            Log.i(TAG, "NAX_SMOKE_round-video-black-corners END masked totalMs=" + (android.os.SystemClock.elapsedRealtime() - probeStart));
+            Log.i(TAG, "NAX_SMOKE_round-video-black-corners END masked totalMs=" + (SystemClock.elapsedRealtime() - probeStart));
             return output;
         } catch (Throwable t) {
             Log.e(TAG, "mask failed, saving unmasked", t);
@@ -240,47 +161,96 @@ public final class RoundVideoMask {
         }
     }
 
-    // Without these the codecs default to real-time priority and, on MediaTek at least, encode at
-    // playback speed. Values are media3 Transformer's (DefaultEncoderFactory / DefaultDecoderFactory):
-    // 1000 instead of Integer.MAX_VALUE because some chipsets throw near the overflow limit, and the
-    // decoder only gets a priority on the two chipsets whose configure fails without one.
-    public static void applySpeedHint(android.media.MediaFormat format, boolean encoder) {
-        if (Build.VERSION.SDK_INT < 25 || !Boolean.TRUE.equals(SPEED_HINT.get())) {
-            return;
-        }
-        if (encoder) {
-            format.setInteger(android.media.MediaFormat.KEY_PRIORITY, 1);
-            format.setInteger(android.media.MediaFormat.KEY_OPERATING_RATE, 1000);
-        } else {
-            if (Build.VERSION.SDK_INT >= 31 && ("s5e8835".equals(Build.SOC_MODEL) || "SA8155P".equals(Build.SOC_MODEL))) {
-                format.setInteger(android.media.MediaFormat.KEY_PRIORITY, 1);
-            }
-            format.setInteger(android.media.MediaFormat.KEY_OPERATING_RATE, 10000);
-        }
-    }
+    private static final int EXPORT_DONE = 0;
+    private static final int EXPORT_FAILED = 1;
+    private static final int EXPORT_CANCELLED = 2;
+    // Cancel was posted but did not return in time, so the export may still be running.
+    private static final int EXPORT_ABANDONED = 3;
 
-    // The convertor queues one compressed frame per pass and then waits up to 2.5 ms each for encoder and
-    // decoder output, so a codec with a few frames of latency sits idle most of the time. During a
-    // round-video save this keeps filling whatever decoder input slots are free while the next sample is
-    // video. End of stream is left to the convertor: getSampleTrackIndex() is -1 there, so this stops first.
-    public static void feedAhead(android.media.MediaCodec decoder, android.media.MediaExtractor extractor, int videoIndex) {
-        if (!Boolean.TRUE.equals(SPEED_HINT.get())) {
-            return;
-        }
-        while (extractor.getSampleTrackIndex() == videoIndex) {
-            int index = decoder.dequeueInputBuffer(0);
-            if (index < 0) {
-                return;
+    // Transformer must be built, started and cancelled on its own looper and reports there, so it gets
+    // a HandlerThread and the save thread waits on latches. Teardown only happens once a terminal state
+    // is confirmed: a listener callback, or a cancel() that returned (cancel fires no callback).
+    private static int export(File source, File output, Bitmap mask, int bitrate, long timeoutMs, Cancel cancel) throws InterruptedException {
+        Context context = ApplicationLoader.applicationContext;
+        HandlerThread thread = new HandlerThread("RoundVideoMask");
+        thread.start();
+        Handler handler = new Handler(thread.getLooper());
+        CountDownLatch finished = new CountDownLatch(1);
+        AtomicBoolean completed = new AtomicBoolean();
+        AtomicReference<Transformer> transformerRef = new AtomicReference<>();
+        boolean terminal = false;
+        try {
+            handler.post(() -> {
+                try {
+                    Transformer transformer = new Transformer.Builder(context)
+                            .setLooper(thread.getLooper())
+                            // On by default on API 35+, and this is private chat media.
+                            .setUsePlatformDiagnostics(false)
+                            .setVideoMimeType(MimeTypes.VIDEO_H264)
+                            .setEncoderFactory(new DefaultEncoderFactory.Builder(context)
+                                    .setRequestedVideoEncoderSettings(new VideoEncoderSettings.Builder().setBitrate(bitrate).build())
+                                    .build())
+                            .addListener(new Transformer.Listener() {
+                                @Override
+                                public void onCompleted(Composition composition, ExportResult exportResult) {
+                                    completed.set(true);
+                                    finished.countDown();
+                                }
+
+                                @Override
+                                public void onError(Composition composition, ExportResult exportResult, ExportException exportException) {
+                                    Log.e(TAG, "export error", exportException);
+                                    finished.countDown();
+                                }
+                            })
+                            .build();
+                    transformerRef.set(transformer);
+                    EditedMediaItem item = new EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(source)))
+                            .setEffects(new Effects(Collections.emptyList(), ImmutableList.of(
+                                    new OverlayEffect(ImmutableList.of(BitmapOverlay.createStaticBitmapOverlay(mask))))))
+                            .build();
+                    transformer.start(item, output.getAbsolutePath());
+                } catch (Throwable t) {
+                    // An uncaught throw on this thread would take the app down with it.
+                    Log.e(TAG, "export start failed", t);
+                    finished.countDown();
+                }
+            });
+
+            long deadline = SystemClock.elapsedRealtime() + timeoutMs;
+            boolean done = false;
+            while (!done) {
+                done = finished.await(POLL_MS, TimeUnit.MILLISECONDS);
+                if (!done && ((cancel != null && cancel.isCancelled()) || SystemClock.elapsedRealtime() > deadline)) {
+                    break;
+                }
             }
-            java.nio.ByteBuffer buffer = decoder.getInputBuffer(index);
-            int size = buffer == null ? -1 : extractor.readSampleData(buffer, 0);
-            if (size < 0) {
-                // Hand the slot back empty rather than leak it; the convertor's own pass sees the end.
-                decoder.queueInputBuffer(index, 0, 0, extractor.getSampleTime(), 0);
-                return;
+            if (done) {
+                terminal = true;
+                return completed.get() ? EXPORT_DONE : EXPORT_FAILED;
             }
-            decoder.queueInputBuffer(index, 0, size, extractor.getSampleTime(), 0);
-            extractor.advance();
+
+            CountDownLatch cancelled = new CountDownLatch(1);
+            handler.post(() -> {
+                try {
+                    Transformer transformer = transformerRef.get();
+                    if (transformer != null) {
+                        transformer.cancel();
+                    }
+                } catch (Throwable t) {
+                    Log.e(TAG, "export cancel failed", t);
+                } finally {
+                    cancelled.countDown();
+                }
+            });
+            terminal = cancelled.await(CANCEL_WAIT_MS, TimeUnit.MILLISECONDS);
+            return terminal ? EXPORT_CANCELLED : EXPORT_ABANDONED;
+        } finally {
+            thread.quitSafely();
+            // A still-running export may be reading the mask on its GL thread; leave that one to the GC.
+            if (terminal) {
+                mask.recycle();
+            }
         }
     }
 
@@ -302,28 +272,20 @@ public final class RoundVideoMask {
         }
     }
 
-    // Opaque black with a transparent, antialiased inscribed circle. TextureRenderer draws it over
-    // every frame with premultiplied alpha, so the circle shows the video and the rest turns black.
-    private static void writeMask(File target, int width, int height) throws Exception {
+    // Opaque black with a transparent, antialiased inscribed circle. OverlayEffect blends it as
+    // overlay * alpha + video * (1 - alpha), so the circle shows the video and the rest turns black.
+    private static Bitmap createMask(int width, int height) {
         Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        try {
-            Canvas canvas = new Canvas(bitmap);
-            canvas.drawColor(Color.BLACK);
-            Paint clear = new Paint(Paint.ANTI_ALIAS_FLAG);
-            clear.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-            canvas.drawCircle(width / 2f, height / 2f, Math.min(width, height) / 2f, clear);
-            try (FileOutputStream out = new FileOutputStream(target)) {
-                // TextureRenderer skips a paint layer it can't decode and still encodes, so a bad PNG
-                // has to fail here or the save ships an unmasked re-encode.
-                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) {
-                    throw new IllegalStateException("mask png not written");
-                }
-            }
-        } finally {
-            bitmap.recycle();
-        }
+        Canvas canvas = new Canvas(bitmap);
+        canvas.drawColor(Color.BLACK);
+        Paint clear = new Paint(Paint.ANTI_ALIAS_FLAG);
+        clear.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+        canvas.drawCircle(width / 2f, height / 2f, Math.min(width, height) / 2f, clear);
+        return bitmap;
     }
 
+    // A finished export can still leave a file nothing can play, so the output has to parse as a
+    // video before it replaces the original.
     private static boolean isPlayable(File file) {
         int[] params = new int[AnimatedFileInfo.PARAM_NUM_COUNT];
         AnimatedFileNative.getVideoInfo(file.getAbsolutePath(), params, 0);

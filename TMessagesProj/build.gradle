@@ -324,6 +324,8 @@ dependencies {
     api project(":TMessagesProj_Modules:media3:media-lib-exoplayer-hls")
     api project(":TMessagesProj_Modules:media3:media-lib-decoder-ffmpeg")
     api project(":TMessagesProj_Modules:media3:media-lib-session")
+    // NagramX: re-encodes saved round videos with black corners (com.dazewell.gram.videonote.RoundVideoMask)
+    implementation project(":TMessagesProj_Modules:media3:media-lib-transformer")
     // payment
     implementation('com.stripe:stripe-android:2.0.2') {
         exclude group: 'com.android.support', module: 'support-annotations'
