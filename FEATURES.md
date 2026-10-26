@@ -351,6 +351,10 @@ A text memo shows *online* next to its label, and an unread badge, when your *Re
 
 Turn on *Custom File Names* (N-Settings → General → Storage) to save videos, voice, and round messages under the message's send date and time — `20260101_173812.mp4` by default — instead of Telegram's generic `video.mp4`. The setting's dialog lets you customize the pattern with `{date}`, `{time}`, and `{name}` (the sender's original filename), with a live preview as you type. Saved photos are unaffected.
 
+### Black corners on saved round videos <!-- #round-video-black-corners -->
+
+Round videos you save to disk (select them, then *Save to downloads*) come out pure black outside the circle, instead of whatever corners the sender's app baked in. The saved copy is re-encoded; the one in Telegram stays as it was. N-Settings → General → Storage → *Black Corners on Saved Round Videos*, on by default, Android 10 and up.
+
 ### Send a muted gallery video as a real video <!-- #silent-video -->
 
 Muting a video in the gallery editor before you send it used to force it into a low-quality looping GIF. Now the quality button stays live after you mute — tap it once and the clip becomes an ordinary silent video instead, sent at a quality you pick from the usual SD/HD sheet, with a real duration and scrubber. Unmute and mute again to go back to GIF.
