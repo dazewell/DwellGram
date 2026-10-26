@@ -95,8 +95,6 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
         if (msg == null) {
             return false;
         }
-        // NagramX: temporary smoke probe, comes back out (#bookmarks-multiselect).
-        android.util.Log.i("NAX_SMOKE_bookmarks-multiselect", "long-press entry id=" + msg.getId());
         this.listView = listView;
         this.currentMessages = messages;
         ActionBar actionBar = fragment.getActionBar();
@@ -538,8 +536,6 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
 
     @Override
     public void onSelectionChanged(int position, boolean selected, float x, float y) {
-        // NagramX: temporary smoke probe, comes back out (#bookmarks-multiselect).
-        android.util.Log.i("NAX_SMOKE_bookmarks-multiselect", "drag select=" + selected + " pos=" + position);
         MessageObject msg = messageAt(position);
         if (msg == null) {
             return;
