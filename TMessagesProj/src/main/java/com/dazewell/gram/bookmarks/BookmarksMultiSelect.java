@@ -470,6 +470,27 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
         args.putBoolean("onlySelect", true);
         args.putBoolean("canSelectTopics", true);
         args.putInt("dialogsType", DialogsActivity.DIALOGS_TYPE_FORWARD);
+        // NagramX: #bookmarks-multiselect. The picker validates slow mode, prices paid messages
+        // and restricts poll/invoice destinations from these three; without them a multi-row
+        // payload reads as zero ordinary messages (chat's forward fills them the same way).
+        int hasPoll = 0;
+        boolean hasInvoice = false;
+        for (int i = 0; i < messages.size(); i++) {
+            MessageObject messageObject = messages.get(i);
+            if (messageObject.isTodo()) {
+                hasPoll = 3;
+            } else if (messageObject.isPoll()) {
+                hasPoll = messageObject.isPublicPoll() ? 2 : 1;
+                if (hasPoll == 2) {
+                    break;
+                }
+            } else if (messageObject.isInvoice()) {
+                hasInvoice = true;
+            }
+        }
+        args.putInt("messagesCount", messages.size());
+        args.putInt("hasPoll", hasPoll);
+        args.putBoolean("hasInvoice", hasInvoice);
         DialogsActivity dialogsFragment = new DialogsActivity(args);
         dialogsFragment.setDelegate((fragment1, dids, message, param, notify, scheduleDate, scheduleRepeatPeriod, topicsFragment) -> {
             if (dids.size() > 1 || dids.get(0).dialogId == fragment.getUserConfig().getClientUserId() || message != null) {

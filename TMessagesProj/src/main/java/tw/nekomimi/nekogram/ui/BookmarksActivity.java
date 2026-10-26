@@ -1077,6 +1077,15 @@ public class BookmarksActivity extends NekoDelegateFragment {
         multiSelect.onItemClick(cell);
     }
 
+    // NagramX: #bookmarks-multiselect. TalkBack's Enter selection mode action routes here: the
+    // drag-free entry, because an accessibility activation carries no gesture to arm.
+    @Override
+    public void onCellAccessibilityLongClick(ChatMessageCell cell) {
+        if (listView != null) {
+            multiSelect.enterFromPopup(cell, listView, filteredMessages);
+        }
+    }
+
     private class ListAdapter extends RecyclerListView.SelectionAdapter {
         private final Context context;
         private final int currentAccount;

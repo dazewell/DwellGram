@@ -77,11 +77,24 @@ public class NekoMessageCell extends ChatMessageCell {
                     Optional.ofNullable(ayuDelegate).ifPresent(d -> d.onCellAccessibilityClick(NekoMessageCell.this));
                     return true;
                 }
+                // NagramX: #bookmarks-multiselect. The cell advertises an Enter selection mode
+                // action, but only the list's touch gesture enters selection; an accessibility
+                // long-click has no gesture to arm, so it routes to the host's drag-free entry.
+                if (action == AccessibilityNodeInfo.ACTION_LONG_CLICK && ayuDelegate != null) {
+                    ayuDelegate.onCellAccessibilityLongClick(NekoMessageCell.this);
+                    return true;
+                }
                 return false;
             }
 
             @Override
             public void didPressUrl(ChatMessageCell cell, CharacterStyle urlSpan, boolean longPress) {
+                // NagramX: #bookmarks-multiselect. Virtual-node activation calls straight through
+                // here, past every canPerformActions gate; while inert, toggle the row instead.
+                if (!naxActionsEnabled && !longPress) {
+                    Optional.ofNullable(ayuDelegate).ifPresent(d -> d.onCellAccessibilityClick(NekoMessageCell.this));
+                    return;
+                }
                 if (longPress) {
                     urlLongPressHandled = true;
                     if (longPressRunnable != null) {
@@ -129,6 +142,11 @@ public class NekoMessageCell extends ChatMessageCell {
 
             @Override
             public void didPressUserAvatar(ChatMessageCell cell, TLRPC.User user, float touchX, float touchY, boolean asForward) {
+                // NagramX: #bookmarks-multiselect. Same virtual-node bypass as links: no profile mid-selection.
+                if (!naxActionsEnabled) {
+                    Optional.ofNullable(ayuDelegate).ifPresent(d -> d.onCellAccessibilityClick(NekoMessageCell.this));
+                    return;
+                }
                 if (user != null) {
                     Optional.ofNullable(ayuDelegate).ifPresent(d -> d.onAvatarPressed(cell, user.id));
                 }
@@ -141,6 +159,11 @@ public class NekoMessageCell extends ChatMessageCell {
 
             @Override
             public void didPressBotButton(ChatMessageCell cell, TL_keyboard.KeyboardButtonProto button) {
+                // NagramX: #bookmarks-multiselect. Same virtual-node bypass as links: no bot reply mid-selection.
+                if (!naxActionsEnabled) {
+                    Optional.ofNullable(ayuDelegate).ifPresent(d -> d.onCellAccessibilityClick(NekoMessageCell.this));
+                    return;
+                }
                 Optional.ofNullable(ayuDelegate).ifPresent(d -> d.didPressBotButton(cell, button));
             }
 
@@ -403,6 +426,11 @@ public class NekoMessageCell extends ChatMessageCell {
         // NagramX: #bookmarks-multiselect. Accessibility click while the row is inert: a host
         // with a selection mode toggles the row, replacing the default media open.
         default void onCellAccessibilityClick(ChatMessageCell cell) {
+        }
+
+        // NagramX: #bookmarks-multiselect. TalkBack's Enter selection mode action: the list's
+        // touch gesture never runs for it, so a host with a selection mode routes it from here.
+        default void onCellAccessibilityLongClick(ChatMessageCell cell) {
         }
     }
 }
