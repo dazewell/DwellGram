@@ -2886,3 +2886,21 @@ progress is not finalized. Keeping it needs the clip finalized and bound before 
 waits for `hasVideoToSend()`.
 
 *(Established 2026-10-26, `#camera-memo` review, PR 553; not fixed there.)*
+
+## A message list only long-presses where the cell's own onTouchEvent returns false
+
+`RecyclerListView` probes the child under the finger with a synthesized `ACTION_DOWN` before running its own gesture detector (`RecyclerListView.java:1257-1261`). When the cell consumes it, `interceptedByChild` is set and the gesture detector never sees the event (`:1265-1271`) — so item click and long-click never fire for that touch. A plain bubble press on a `ChatMessageCell` returns false (`ChatMessageCell.onTouchEvent` returns `result`, set only for avatar/PSA/forwarded-name/via/link/emoji/code-copy hits), which is why chat's long-press works. Any screen whose cells consume more of the surface (or a subclass that intercepts earlier, like `NekoMessageCell.onTouchEvent`'s avatar branch at `NekoMessageCell.java:233-237`) silently loses list-level long-press there. Verified on device for the bookmarks list: long-press on a bubble raises the selection bar.
+
+*(Established 2026-10-25, `#bookmarks-multiselect`, PR 555.)*
+
+## Hold-and-swipe range select on a message list runs through startMultiselect, and the paddings it is fed are load-bearing
+
+`RecyclerListView.startMultiselect(position, useRelativePositions, listener)` (`RecyclerListView.java:2911-2923`) is the drag-range mechanism `ChatActivity` uses (`ChatActivity.java:1945-2051`); the list runs the drag, the edge auto-scroll (`:2943-2946`, scroller `:3042-3059`) and the y-clamp itself. Three non-obvious details: `useRelativePositions` must be `false` — with `true` the child loop in `chekMultiselect` is empty (`:2967-2969`), so nothing is ever selected; `getPaddings` is re-read on every drag step (`:2942`, `:2966`) and clamps the finger y (`:2963`), so it must return the list's live `getPaddingTop()/getPaddingBottom()` or the upward auto-scroll band sits below the top rows; and `onSelectionChanged`'s `selected` means "entered the band", not "selected" — an unselect-drag must invert it before acting (`ChatActivity.java:1965-1969` does).
+
+*(Established 2026-10-25, `#bookmarks-multiselect`, PR 555.)*
+
+## An action mode built before setupGlass paints a solid bar over the glass
+
+`ActionBar.createActionMode` sets the themed solid `actionModeColor` background when the bar is not yet in glass mode (`ActionBar.java:872-874`, written through `:824-831`). `ActionBar.setupGlass` only retro-fits an existing mode with `setTranslationX` and `setGlassMode(true)` (`ActionBar.java:276-279`) — it never clears that colour. So on a glass screen any mode created during `createView` before the glass setup call comes up solid. `ChatActivity` builds its mode lazily on first selection instead (`createActionMode()` at `ChatActivity.java:11548`, reached from the selection path), which is the pattern to copy. The reverse trap also holds: `hideActionMode` leaves the mode view around, so creating once and showing/hiding is fine.
+
+*(Established 2026-10-25, `#bookmarks-multiselect`, PR 555.)*
