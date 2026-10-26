@@ -160,6 +160,10 @@ public final class ComposerInlineRest {
         // first answer snaps, since the field was never drawn where a morph would start it.
         final boolean shown = toolsRowShown();
         final boolean resumed = held && shown;
+        if (!shown && !held) {
+            // A fold still running when the row goes would keep easing a row nobody sees; land it now.
+            finishMorph();
+        }
         held = !shown;
         final boolean rest = shown ? wantsRest && fits(field) && !toolbar.hasMiddleLeading() : compact;
         final ViewGroup.LayoutParams params = field.getLayoutParams();
