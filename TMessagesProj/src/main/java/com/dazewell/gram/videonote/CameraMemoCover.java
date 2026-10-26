@@ -551,13 +551,20 @@ final class CameraMemoCover extends FrameLayout {
             frameWidth = 1f;
             frameHeight = 16f / 9f;
         }
+        float viewfinderWidth = width;
         float viewfinderHeight = width * frameHeight / frameWidth;
         float roomBottom = height - AndroidUtilities.navigationBarHeight - AndroidUtilities.dp(72 + 2 * 12);
+        if (viewfinderHeight > roomBottom && roomBottom > 0) {
+            // Too short for it even from the top (split screen, a tablet): narrower, so the whole frame still shows
+            viewfinderHeight = roomBottom;
+            viewfinderWidth = viewfinderHeight * frameWidth / frameHeight;
+        }
         float top = AndroidUtilities.statusBarHeight;
         if (top + viewfinderHeight > roomBottom) {
             top = Math.max(0, roomBottom - viewfinderHeight);
         }
-        viewfinderRect.set(0, top, width, top + viewfinderHeight);
+        float left = (width - viewfinderWidth) / 2f;
+        viewfinderRect.set(left, top, left + viewfinderWidth, top + viewfinderHeight);
         float side = Math.min(viewfinderRect.width(), viewfinderRect.height());
         cropRect.set(viewfinderRect.centerX() - side / 2f, viewfinderRect.centerY() - side / 2f,
                 viewfinderRect.centerX() + side / 2f, viewfinderRect.centerY() + side / 2f);
