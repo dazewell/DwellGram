@@ -120,6 +120,9 @@ public final class RoundVideoMask {
             if (bitrate <= 0) {
                 bitrate = FALLBACK_BITRATE;
             }
+            // Headroom for a second generation of lossy encoding, so the re-encode doesn't visibly soften
+            // the note. The encoder factory clamps this to what the picked encoder supports.
+            bitrate = (int) Math.min(Integer.MAX_VALUE, bitrate * 3L / 2);
 
             workDir = new File(baseDir, UUID.randomUUID().toString());
             if (!workDir.mkdirs()) {
@@ -175,7 +178,9 @@ public final class RoundVideoMask {
                             .setLooper(thread.getLooper())
                             // On by default on API 35+, and this is private chat media.
                             .setUsePlatformDiagnostics(false)
-                            .setVideoMimeType(MimeTypes.VIDEO_H264)
+                            // H.265 keeps more detail per byte; without an HEVC encoder Transformer falls
+                            // back to a supported type (DefaultEncoderFactory enables fallback by default).
+                            .setVideoMimeType(MimeTypes.VIDEO_H265)
                             .setEncoderFactory(new DefaultEncoderFactory.Builder(context)
                                     .setRequestedVideoEncoderSettings(new VideoEncoderSettings.Builder().setBitrate(bitrate).build())
                                     .build())
