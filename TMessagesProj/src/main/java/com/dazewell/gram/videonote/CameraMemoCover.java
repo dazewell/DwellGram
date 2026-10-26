@@ -69,6 +69,8 @@ final class CameraMemoCover extends FrameLayout {
     private final Path holePath = new Path();
     private final RectF hole = new RectF();
     private boolean hasHole;
+    private final RectF flatHole = new RectF(); // the last bounds with no flip turn on the circle
+    private boolean hasFlatHole;
     private final int[] location = new int[2];
     private final int[] ownLocation = new int[2];
 
@@ -392,7 +394,17 @@ final class CameraMemoCover extends FrameLayout {
         boolean valid = container != null && camera.isAttachedToWindow() && camera.getVisibility() == VISIBLE
                 && container.isAttachedToWindow() && container.getWidth() > 0 && container.getHeight() > 0;
         float left = 0, top = 0, right = 0, bottom = 0;
-        if (valid) {
+        float rotation = valid ? container.getRotationY() % 360f : 0f;
+        if (valid && rotation != 0f && hasFlatHole) {
+            // The flip turns the circle about its vertical axis without moving it. Its location in window maps through
+            // that rotation, so narrow the last flat oval instead, or the chat would show at its sides mid-turn. Edge-on
+            // it is a valid zero-width hole, not a missing one.
+            float half = flatHole.width() / 2f * Math.abs((float) Math.cos(Math.toRadians(rotation)));
+            left = flatHole.centerX() - half;
+            right = flatHole.centerX() + half;
+            top = flatHole.top;
+            bottom = flatHole.bottom;
+        } else if (valid) {
             container.getLocationInWindow(location);
             getLocationInWindow(ownLocation);
             float scaleX = container.getScaleX() * camera.getScaleX();
@@ -402,6 +414,10 @@ final class CameraMemoCover extends FrameLayout {
             right = left + container.getWidth() * scaleX;
             bottom = top + container.getHeight() * scaleY;
             valid = right > left && bottom > top;
+            if (valid && rotation == 0f) {
+                flatHole.set(left, top, right, bottom);
+                hasFlatHole = true;
+            }
         }
         boolean isRecording = camera != null && camera.isRecording();
         setVisibility(isRecording && !valid ? INVISIBLE : VISIBLE);
