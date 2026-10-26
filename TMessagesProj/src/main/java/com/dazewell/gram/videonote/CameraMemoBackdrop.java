@@ -79,7 +79,9 @@ public final class CameraMemoBackdrop {
     private static int textureHandle;
     private static int vertexMatrixHandle;
     private static int textureMatrixHandle;
+    // The kill switch, scoped to the target it failed on: a later camera memo, with a new TextureView, tries again
     private static boolean disabled;
+    private static SurfaceTexture disabledFor;
     private static FloatBuffer vertexBuffer;
     private static FloatBuffer fullTextureBuffer;
     private static final int[] viewport = new int[4];
@@ -128,6 +130,10 @@ public final class CameraMemoBackdrop {
         try {
             publishFrameShape(cropTexCoords, mvpMatrix);
             SurfaceTexture want = target;
+            if (disabled && want != disabledFor) {
+                disabled = false;
+                disabledFor = null;
+            }
             if (windowTarget != null && windowTarget != want) {
                 dropWindowSurface(egl, display);
             }
@@ -152,7 +158,7 @@ public final class CameraMemoBackdrop {
                 }
                 windowSurface = createWindowSurface(egl, display, context, want);
                 if (windowSurface == null) {
-                    disabled = true;
+                    fail();
                     unclaim(want);
                     return;
                 }
@@ -162,7 +168,7 @@ public final class CameraMemoBackdrop {
             draw(egl, display, context, cameraSurface, cameraTexture, stMatrix, mvpMatrix);
         } catch (Throwable e) {
             FileLog.e(e);
-            disabled = true;
+            fail();
             try {
                 dropWindowSurface(egl, display);
             } catch (Throwable ignore) {
@@ -186,11 +192,17 @@ public final class CameraMemoBackdrop {
         program = 0;
         programContext = null;
         disabled = false;
+        disabledFor = null;
         synchronized (LOCK) {
             // A target still wanted is left alone: the next GL thread (a resume) claims it again
             claimed = null;
             owner = null;
         }
+    }
+
+    private static void fail() {
+        disabled = true;
+        disabledFor = windowTarget != null ? windowTarget : target;
     }
 
     private static void dropWindowSurface(EGL10 egl, EGLDisplay display) {
@@ -259,20 +271,20 @@ public final class CameraMemoBackdrop {
         boolean switched = false;
         try {
             if (!egl.eglMakeCurrent(display, windowSurface, windowSurface, context)) {
-                disabled = true;
+                fail();
                 return;
             }
             switched = true;
             if (!swapIntervalSet) {
                 // A viewfinder nobody draws (the cover hidden or going away) must never hold the camera thread on a swap
                 if (!EGL14.eglSwapInterval(EGL14.eglGetCurrentDisplay(), 0)) {
-                    disabled = true;
+                    fail();
                     return;
                 }
                 swapIntervalSet = true;
             }
             if (!ensureProgram(context)) {
-                disabled = true;
+                fail();
                 return;
             }
             int width = targetWidth;
@@ -296,7 +308,7 @@ public final class CameraMemoBackdrop {
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0);
             GLES20.glUseProgram(0);
             if (!egl.eglSwapBuffers(display, windowSurface)) {
-                disabled = true;
+                fail();
             }
         } finally {
             if (switched) {
