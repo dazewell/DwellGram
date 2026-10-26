@@ -150,8 +150,8 @@ public final class CameraMemoBackdrop {
             }
             if (windowTarget == null) {
                 synchronized (LOCK) {
-                    if (target != want) {
-                        return;
+                    if (target != want || owner != null && owner != context) {
+                        return; // gone already, or another GL thread got there first
                     }
                     claimed = want; // before any EGL call on it, so the UI never releases it under the surface
                     owner = context;
@@ -259,6 +259,10 @@ public final class CameraMemoBackdrop {
         EGLConfig[] configs = new EGLConfig[1];
         int[] count = new int[1];
         if (!egl.eglChooseConfig(display, new int[]{EGL10.EGL_CONFIG_ID, value[0], EGL10.EGL_NONE}, configs, 1, count) || count[0] < 1) {
+            return null;
+        }
+        // eglSwapInterval clamps to this, and a swap that waits on an undrawn viewfinder would hold the camera thread
+        if (!egl.eglGetConfigAttrib(display, configs[0], EGL14.EGL_MIN_SWAP_INTERVAL, value) || value[0] > 0) {
             return null;
         }
         EGLSurface created = egl.eglCreateWindowSurface(display, configs[0], surface, null);
