@@ -104,8 +104,10 @@ final class CameraMemoCover extends FrameLayout {
     private boolean bound;
     private boolean wasRecording;
     private boolean everRecorded;
-    // A stop while the app was in the background is the onPause grace's finalize, which ends the encoder for good
+    // A stop after the app went to the background mid-recording is the onPause grace's finalize, which ends the encoder
+    // for good. Latched from the recording side, since a frozen background looper may only see the stop after resume.
     private boolean terminalStop;
+    private boolean backgroundedWhileRecording;
     private long elapsed;
     private long lastTick;
     private boolean committed;
@@ -405,8 +407,10 @@ final class CameraMemoCover extends FrameLayout {
             everRecorded = true;
             failed = false; // the recorder overrules the cover: never a failure message over a live recording
             terminalStop = false;
-        } else if (wasRecording && org.telegram.messenger.ApplicationLoader.mainInterfacePaused) {
-            terminalStop = true;
+            // Back in the foreground while still capturing means the grace was cancelled (a short pause, Android Auto)
+            backgroundedWhileRecording = org.telegram.messenger.ApplicationLoader.mainInterfacePaused;
+        } else if (wasRecording) {
+            terminalStop = backgroundedWhileRecording || org.telegram.messenger.ApplicationLoader.mainInterfacePaused;
         }
         wasRecording = recording;
         lastTick = now;
