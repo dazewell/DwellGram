@@ -12505,6 +12505,11 @@ public class ChatActivityEnterView extends FrameLayout implements
                 }
             });
             runningAnimationAudio.start();
+            // NagramX (#record-tone-fix): the exit showed the field above and the send path never re-checks, so the
+            // one-row composer's hold would let it fade in under the panel, then fade it in again when the row returns.
+            if (composerInlineRest != null) {
+                isRecordingStateChanged();
+            }
             if (recordTimerView != null) {
                 recordTimerView.stop();
             }

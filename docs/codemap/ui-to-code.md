@@ -351,7 +351,7 @@ Floating, MD3 adds 2dp to the stock 9dp lift, so the island clears the
 keyboard and emoji panel by the same 9dp as the screen sides; in the Floating style's resting sheet,
 `liftAboveStock()` eases the tools row down to 4dp above the nav bar (`ComposerMd3Surface.java:107-109`,
 `:355-364`, `:369-371`; `ChatInputViewsContainer.java:272-275`;
-`ChatActivityEnterView.java:19210-19220`). The island reaches `topOverhang()`
+`ChatActivityEnterView.java:19215-19225`). The island reaches `topOverhang()`
 above the pill (`ComposerMd3Surface.java:374-376`), so `getInputBubbleHeight()`
 adds it and everything laid out against the composer, including the message
 list padding, clears it (`ChatInputViewsContainer.java:284-291`;
@@ -395,7 +395,7 @@ trash is a Lottie whose stripes are recoloured by layer name to `key_chat_messag
 to fake holes, and its resting stripes share those names, so stock it rests as a hollow can.
 A frosted field has no single colour to match, so on the field they read as bars; under MD3 the
 chat's own enter view paints stripes and can in one composer icon tint, a plain striped glyph
-(`ChatActivityEnterView.java:13516-13517`; `ComposerMd3Surface.java:789-803`;
+(`ChatActivityEnterView.java:13521-13522`; `ComposerMd3Surface.java:789-803`;
 `res/raw/chat_audio_record_delete_2.json`, precomp `Box Grey`). The reply strip shares its column, is centred
 on the upstream close button and carries its accent as a separate rounded bar
 (`:686-697`); under MD3 the close button draws without its glass disc
@@ -407,7 +407,7 @@ called from `ChannelAdminLogActivity.java:1511`. Dropping the island glass
 without painting that run is what blanked channel chats in #409. The reply strip
 stops short of the send column using the existing `getComposerPrimaryEndInset()`, on
 the left under `LocaleController.isRTL` (`ComposerMd3Surface.java:636-652`;
-`ChatActivityEnterView.java:19226`). The field no longer does: under both MD3 styles the
+`ChatActivityEnterView.java:19231`). The field no longer does: under both MD3 styles the
 send column sits at the end of the tools row (next section). The reply strip reads `getTopViewHeight()`
 and `getTopViewEnterProgress()` (`ComposerMd3Surface.java:433-434`), while the
 reply content is placed against the enter view's laid-out height; see
@@ -444,21 +444,21 @@ or a send-as avatar or bot pill at the head of the Scrolling zone, keeps two row
 The fold has no clock. The margin flip re-measures the edit container, `animatorInputFieldHeight` eases the
 island, at 450ms ease-out for a fold instead of its stock 250ms (`ComposerInlineRest.java:38`, `:119`;
 `ChatActivityEnterView.java:2872`), and the field's draw offset (`:2912`), the tools inset
-(`:19195`) and the surface's field tone (`ComposerMd3Surface.java:684`, `:704`) all read that animation's
+(`:19200`) and the surface's field tone (`ComposerMd3Surface.java:684`, `:704`) all read that animation's
 remaining share (`ComposerInlineRest.java:223`). The morph must not end inside that frame's height tick: the
 `#fullscreen-input` history pin reads `ComposerInlineRest.morphing()` further down the same synchronous call
 (`ChatActivity.java:13633`), and ending first let it arm on the last frame and hold history still against the
-keyboard. It ends in `settleIfDone()`, after `checkUi_IslandTotalHeight()` (`ChatActivityEnterView.java:19313-19316`;
+keyboard. It ends in `settleIfDone()`, after `checkUi_IslandTotalHeight()` (`ChatActivityEnterView.java:19318-19321`;
 `ComposerInlineRest.java:244`, `:249`). Docked needs nothing of its own: the panel takes its top from the
 island's and keeps its bottom on the keyboard or screen edge (`ComposerMd3Surface.java:576`), so it folds from the
 top. A record, review or bot panel replacing the tools row is a third layout the fold does not model: the fold
 holds still while it is up, since a flip on the GONE field would move no height and only run out on the timeout
 (`ComposerInlineRest.java:176`). The enter view tells it as the row goes, which lands any fold still running, and
-again as it returns, to catch up on a keyboard change made meanwhile (`ChatActivityEnterView.java:12596-12598`); the returning decision snaps
+again as it returns, to catch up on a keyboard change made meanwhile (`ChatActivityEnterView.java:12601-12603`); the returning decision snaps
 rather than morphs, since the field was never drawn where a morph would start it,
 and the surface draws the field tone and send slot from the column geometry meanwhile
 (`ComposerMd3Surface.java:641-642`). A record panel's exit keeps the row until it ends, not from when it starts
-(`ChatActivityEnterView.java:12551`; upstream-traps, "The record panel's exit releases the composer at its start"),
+(`ChatActivityEnterView.java:12556`; upstream-traps, "The record panel's exit releases the composer at its start"),
 and the return then eases over 250ms: the tone between the column and the fold (`ComposerMd3Surface.java:669`),
 the field (`ComposerInlineRest.java:168-173`) and the tools row's buttons (`ComposerToolbarLayout.java:937`).
 The layout editor preview does not show the fold yet.
@@ -606,7 +606,7 @@ menu (built from `ItemOptions.makeOptions` at `:6197`) and the cached
 `sendPopupLayout` popup — while the three per-action rows
 (schedule/send-when-online/silent) now arm in both branches too, per the
 section above. The two branches do **not** share one master-row implementation: the
-`ItemOptions` branch calls `createRememberMasterRow` (`:19351`), a helper built
+`ItemOptions` branch calls `createRememberMasterRow` (`:19356`), a helper built
 around `ItemOptions`/`MessageSendPreview` dismissal; the cached popup builds its
 own row directly off `createPopupSwitchRow` (`:5807`) and wires its own
 click/long-click handlers inline, because dismissing that popup is a plain
@@ -706,7 +706,7 @@ a stale offset can never leak into an unrelated `setFieldText` call
 edit-fill call sites -- the inline call and the 200ms-delayed field-refresh runnable
 -- route through the edit-only `setFieldTextForEdit(...)` entry point, which carries
 the pre-transform rendered text and offset alongside the field text
-(`org/telegram/ui/Components/ChatActivityEnterView.java:12389-12427`, `:12892-12894`).
+(`org/telegram/ui/Components/ChatActivityEnterView.java:12389-12427`, `:12897-12899`).
 That entry point validates the offset against the field before applying it -- the
 selection is rejected and falls back to end-of-text if the rendered text no longer
 matches what the field contains after `restoreFormatedDateEntities(...)`, or if the
