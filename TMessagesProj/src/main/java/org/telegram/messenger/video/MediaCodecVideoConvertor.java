@@ -499,8 +499,6 @@ public class MediaCodecVideoConvertor {
                             selectedEncoderName = encoder.getName();
                             canBeBrokenEncoder = "c2.qti.avc.encoder".equalsIgnoreCase(selectedEncoderName);
                             FileLog.d("selected encoder " + selectedEncoderName);
-                            // NagramX: no-op unless a round-video save is encoding on this thread; without it the codecs run at real-time priority and a save takes as long as the note
-                            com.dazewell.gram.videonote.RoundVideoMask.applySpeedHint(outputFormat, true);
                             encoder.configure(outputFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
                             inputSurface = new InputSurface(encoder.createInputSurface());
                             inputSurface.makeCurrent();
@@ -531,8 +529,6 @@ public class MediaCodecVideoConvertor {
                                 );
                             }
                             decoder = getDecoderByFormat(videoFormat);
-                            // NagramX: same speed hint for the decoder side of a round-video save
-                            com.dazewell.gram.videonote.RoundVideoMask.applySpeedHint(videoFormat, false);
                             decoder.configure(videoFormat, outputSurface.getSurface(), null, 0);
                             decoder.start();
 
@@ -624,7 +620,6 @@ public class MediaCodecVideoConvertor {
                                     boolean eof = false;
                                     int index = extractor.getSampleTrackIndex();
                                     if (index == videoIndex) {
-                                        long naxT5 = com.dazewell.gram.videonote.RoundVideoMask.probeT(); // NAX_SMOKE_round-video-black-corners
                                         int inputBufIndex = decoder.dequeueInputBuffer(MEDIACODEC_TIMEOUT_DEFAULT);
                                         if (inputBufIndex >= 0) {
                                             ByteBuffer inputBuf;
@@ -636,11 +631,8 @@ public class MediaCodecVideoConvertor {
                                             } else {
                                                 decoder.queueInputBuffer(inputBufIndex, 0, chunkSize, extractor.getSampleTime(), 0);
                                                 extractor.advance();
-                                                // NagramX: no-op unless a round-video save is encoding; keeps the decoder several frames ahead instead of one
-                                                com.dazewell.gram.videonote.RoundVideoMask.feedAhead(decoder, extractor, videoIndex);
                                             }
                                         }
-                                        com.dazewell.gram.videonote.RoundVideoMask.probeAdd(5, naxT5); // NAX_SMOKE_round-video-black-corners
                                     } else if (copyAudioBuffer && audioIndex != -1 && index == audioIndex) {
                                         if (Build.VERSION.SDK_INT >= 28) {
                                             long size = extractor.getSampleSize();
@@ -686,11 +678,8 @@ public class MediaCodecVideoConvertor {
                                 boolean encoderOutputAvailable = true;
                                 while (decoderOutputAvailable || encoderOutputAvailable) {
                                     checkConversionCanceled();
-                                    long naxT3 = com.dazewell.gram.videonote.RoundVideoMask.probeT(); // NAX_SMOKE_round-video-black-corners
                                     int encoderStatus = encoder.dequeueOutputBuffer(info, increaseTimeout ? MEDIACODEC_TIMEOUT_INCREASED : MEDIACODEC_TIMEOUT_DEFAULT);
-                                    com.dazewell.gram.videonote.RoundVideoMask.probeAdd(3, naxT3); // NAX_SMOKE_round-video-black-corners
                                     if (encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                                        com.dazewell.gram.videonote.RoundVideoMask.probeCount(1); // NAX_SMOKE_round-video-black-corners
                                         encoderOutputAvailable = false;
                                     } else if (encoderStatus == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                                     } else if (encoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
@@ -767,11 +756,8 @@ public class MediaCodecVideoConvertor {
                                     }
 
                                     if (!decoderDone) {
-                                        long naxT4 = com.dazewell.gram.videonote.RoundVideoMask.probeT(); // NAX_SMOKE_round-video-black-corners
                                         int decoderStatus = decoder.dequeueOutputBuffer(info, MEDIACODEC_TIMEOUT_DEFAULT);
-                                        com.dazewell.gram.videonote.RoundVideoMask.probeAdd(4, naxT4); // NAX_SMOKE_round-video-black-corners
                                         if (decoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                                            com.dazewell.gram.videonote.RoundVideoMask.probeCount(2); // NAX_SMOKE_round-video-black-corners
                                             decoderOutputAvailable = false;
                                         } else if (decoderStatus == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
 
@@ -840,23 +826,16 @@ public class MediaCodecVideoConvertor {
                                                     minPresentationTime = Math.max(minPresentationTime, info.presentationTimeUs);
                                                 }
                                                 boolean errorWait = false;
-                                                long naxT0 = com.dazewell.gram.videonote.RoundVideoMask.probeT(); // NAX_SMOKE_round-video-black-corners
                                                 try {
                                                     outputSurface.awaitNewImage();
                                                 } catch (Exception e) {
                                                     errorWait = true;
                                                     FileLog.e(e);
                                                 }
-                                                com.dazewell.gram.videonote.RoundVideoMask.probeAdd(0, naxT0); // NAX_SMOKE_round-video-black-corners
                                                 if (!errorWait) {
-                                                    long naxT1 = com.dazewell.gram.videonote.RoundVideoMask.probeT(); // NAX_SMOKE_round-video-black-corners
                                                     outputSurface.drawImage(info.presentationTimeUs * 1000);
-                                                    com.dazewell.gram.videonote.RoundVideoMask.probeAdd(1, naxT1); // NAX_SMOKE_round-video-black-corners
                                                     inputSurface.setPresentationTime(info.presentationTimeUs * 1000);
-                                                    long naxT2 = com.dazewell.gram.videonote.RoundVideoMask.probeT(); // NAX_SMOKE_round-video-black-corners
                                                     inputSurface.swapBuffers();
-                                                    com.dazewell.gram.videonote.RoundVideoMask.probeAdd(2, naxT2); // NAX_SMOKE_round-video-black-corners
-                                                    com.dazewell.gram.videonote.RoundVideoMask.probeCount(0); // NAX_SMOKE_round-video-black-corners
                                                 }
                                             }
                                             if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
