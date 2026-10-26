@@ -85,7 +85,6 @@ public final class RoundVideoMask {
     // Runs on the save thread and blocks for the length of the encode. Returns the masked temp,
     // or source unchanged when the feature is off, this isn't a round video, or anything fails.
     public static File prepare(File source, MessageObject message, Cancel cancel) {
-        Log.i(TAG, "NAX_SMOKE_round-video-black-corners BEGIN build=" + org.telegram.messenger.BuildVars.BUILD_VERSION_STRING + " app=" + ApplicationLoader.applicationContext.getPackageName() + " round=" + (message != null && message.isRoundVideo()));
         if (!isSupported()
                 || !NaConfig.INSTANCE.getBlackRoundVideoCorners().Bool()
                 || message == null || !message.isRoundVideo()
@@ -96,7 +95,6 @@ public final class RoundVideoMask {
         try {
             File baseDir = new File(ApplicationLoader.applicationContext.getCacheDir(), DIR);
             sweep(baseDir);
-            final long probeStart = SystemClock.elapsedRealtime();
             String path = source.getAbsolutePath();
             int[] params = new int[AnimatedFileInfo.PARAM_NUM_COUNT];
             AnimatedFileNative.getVideoInfo(path, params, 0);
@@ -130,27 +128,18 @@ public final class RoundVideoMask {
             }
             // Same file name as the source so nothing downstream that reads it can tell the difference.
             File output = new File(workDir, source.getName());
-            Log.i(TAG, "NAX_SMOKE_round-video-black-corners INFO " + width + "x" + height + " rot=" + rotation + " bitrate=" + bitrate
-                    + " durMs=" + durationMs + " srcBytes=" + source.length() + " hasAudio=" + params[AnimatedFileInfo.PARAM_NUM_HAS_AUDIO]
-                    + " aacAudio=" + params[AnimatedFileInfo.PARAM_NUM_SUPPORTED_AUDIO_CODEC]);
 
             long timeoutMs = Math.max(MIN_TIMEOUT_MS, durationMs * 3);
-            final long probeConvertStart = SystemClock.elapsedRealtime();
             int result = export(source, output, createMask(outWidth, outHeight), bitrate, timeoutMs, cancel);
-            final long probeConvertMs = SystemClock.elapsedRealtime() - probeConvertStart;
             boolean playable = result == EXPORT_DONE && output.exists() && output.length() > 0 && isPlayable(output);
-            Log.i(TAG, "NAX_SMOKE_round-video-black-corners CONVERT result=" + result + " convertMs=" + probeConvertMs
-                    + " outBytes=" + output.length() + " playable=" + playable);
             if (!playable) {
                 Log.w(TAG, "export did not finish (result=" + result + "), saving unmasked");
                 // An export whose cancel never returned may still be writing here; the sweep gets it later.
                 if (result != EXPORT_ABANDONED) {
                     deleteRecursive(workDir);
                 }
-                Log.i(TAG, "NAX_SMOKE_round-video-black-corners END fallback");
                 return source;
             }
-            Log.i(TAG, "NAX_SMOKE_round-video-black-corners END masked totalMs=" + (SystemClock.elapsedRealtime() - probeStart));
             return output;
         } catch (Throwable t) {
             Log.e(TAG, "mask failed, saving unmasked", t);
