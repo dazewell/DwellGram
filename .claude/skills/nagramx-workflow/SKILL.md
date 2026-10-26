@@ -107,7 +107,7 @@ of opening a chat funnels through `ChatActivity.onFragmentCreate()` →
 **Design as hooks.** New logic goes in self-contained feature classes, typically
 under `com.dazewell.gram.<feature>` (e.g. `hidelastmessage`, `chatlock`; shared
 helpers in `com.dazewell.gram.helpers`), with `tw.nekomimi` and `xyz.nextalone`
-holding inherited code only. A new class bumps `DAZEWELL_EXACT`. The base file
+holding inherited code only. The base file
 gets a few injected lines, usually **fully qualified so no import is added**,
 each marked `// NagramX:` explaining the non-obvious *why*. Mirror an existing
 feature when adding a similar one; `hidelastmessage` (with its `ChatActivity` /

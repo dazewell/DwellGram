@@ -1,578 +1,135 @@
 name: Sync upstream
 
-# Snapshot-mediated nbase sync onto dev.
+# Proposes the next DrKLO/Telegram release as a pull request into dev. It never
+# pushes dev: the PR review and ci.yml are the gate.
 #
-# The old mechanism merged the archived risin42 base fork directly. Current
-# source provenance and re-anchor history are owned by .github/sync/README.md.
-# We never merge source history into dev: that would import upstream commits,
-# authors and messages. Instead:
+# Telegram history is never merged directly (it would import upstream authors
+# and untagged commits). Instead its tree is wrapped in one locally-authored
+# snapshot commit whose parent is the previous snapshot, found in dev's own
+# history by the sync identity. dev already contains that snapshot, so the
+# 3-way merge applies exactly the upstream delta.
 #
-#   1. take the configured source's TREE at a resolved SHA,
-#   2. wrap it in one locally-authored snapshot commit whose only parent is the
-#      current nbase (this is the new nbase),
-#   3. 3-way merge that snapshot into dev.
+# - Up to date: nothing happens.
+# - Clean merge: pushes <date>_upstream-<version> and opens a PR.
+# - Conflicts: pushes the snapshot to nbase and the run says how to finish on a PC.
 #
-# Because nbase is an ancestor of dev (the anchor commit made it one), the merge
-# base is the previous snapshot and dev gets exactly the source delta and
-# nothing else. A locally-authored snapshot imports no upstream message/author.
-#
-# Nothing is pushed until sync-guard.ps1 — run from the trusted dev checkout, not
-# from the incoming candidate — classifies every tree delta and passes. Any new
-# path, protected-blob change, signing/workflow/schema/layer change or ANY
-# unclassified delta blocks the run: there is no dev, nbase or src push (a blocked
-# run may still publish the snapshot to a scratch refs/sync/* ref, never a branch)
-# and it pings Telegram so the reconciliation is finished on the PC. There is
-# deliberately no branch input and no bypass input.
-#
-# The verification run is a no-op while the resolved source tree matches the
-# pinned nbase tree. A different source tree takes the full guarded path.
+# The sync PR must land as a merge commit, not a squash, or the next sync loses
+# its merge base. See the branch-flow skill.
 
 on:
   workflow_dispatch: {}
 
-# The job token stays read-only. All writing is done by SYNC_TOKEN, which is the
-# only credential allowed to push .github/workflows and to trigger staging.yml.
 permissions:
   contents: read
 
 concurrency:
-  group: sync-refs
+  group: sync-upstream
   cancel-in-progress: false
+
+env:
+  UPSTREAM: https://github.com/DrKLO/Telegram.git
+  UPSTREAM_BRANCH: master
+  SYNC_NAME: dazegram-sync
+  SYNC_EMAIL: sync@dazegram.local
 
 jobs:
   sync:
-    name: Snapshot-merge configured source onto dev
     runs-on: ubuntu-latest
-
     steps:
-      - name: Require SYNC_TOKEN (no GITHUB_TOKEN fallback)
+      - name: Require SYNC_TOKEN
         env:
           SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
-          if [ -z "$SYNC_TOKEN" ]; then
-            echo "::error::SYNC_TOKEN is unset. This sync must not fall back to GITHUB_TOKEN:"
-            echo "::error::the default token cannot push .github/workflows/ and its push would"
-            echo "::error::skip the staging trigger, producing a sync that silently bypasses the"
-            echo "::error::build signal. Set SYNC_TOKEN (a fine-grained PAT with Contents: write + Workflows: write)."
-            exit 1
-          fi
+          # A PR opened with GITHUB_TOKEN would not trigger ci.yml.
+          [ -n "$SYNC_TOKEN" ] || { echo "::error::SYNC_TOKEN secret is not set"; exit 1; }
 
-      - name: Checkout dev (the trusted PRE)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: dev
           fetch-depth: 0
-          persist-credentials: true
+          submodules: false
           token: ${{ secrets.SYNC_TOKEN }}
 
-      - name: Configure local git identity
-        run: |
-          git config user.name  "dazegram-sync"
-          git config user.email "sync@dazegram.local"
-
-      - name: Verify SYNC_TOKEN can push dev (safe controlled probe)
-        id: tokentest
-        run: |
-          set -e
-          PRE=$(git rev-parse HEAD)
-          # A no-op dry-run push to dev exercises auth + push permission without
-          # writing anything. The full workflow-file push permission is only
-          # provable by the real atomic push below, which fails explicitly (not
-          # silently) if the token lacks Workflows: write.
-          if ! git push --dry-run origin "$PRE:refs/heads/dev"; then
-            echo "::error::SYNC_TOKEN cannot push dev. It needs Contents: write + Workflows: write."
-            exit 1
-          fi
-          echo "ok=1" >> "$GITHUB_OUTPUT"
-
-      - name: Prune stale refs/sync/* scratch refs (start of run only)
-        run: |
-          set -e
-          # Pruned at the START of the run, never the end: pruning after this run's
-          # own publish step (below) could delete the very ref a PC is mid-
-          # reconciliation on. Fetching mirrors every refs/sync/* ref into the local
-          # namespace so each one's commit date is inspectable without one API call
-          # per ref; a fetch failure here (e.g. no refs/sync/* exist yet) is not fatal.
-          git fetch origin '+refs/sync/*:refs/sync/*' || true
-          CUTOFF=$(( $(date -u +%s) - 30*24*3600 ))
-          git for-each-ref --format='%(refname) %(committerdate:unix)' refs/sync/ | \
-          while read -r ref ts; do
-            [ -z "$ref" ] && continue
-            if [ -n "$ts" ] && [ "$ts" -lt "$CUTOFF" ]; then
-              echo "pruning stale scratch ref: $ref (committed $(date -u -d "@$ts" +%FT%TZ 2>/dev/null || echo "@$ts"))"
-              git push origin --delete "$ref" || echo "::warning::failed to delete $ref (already gone?)"
-            fi
-          done
-
-      - name: Load pins from the trusted PRE
-        id: pins
-        run: |
-          set -e
-          P=.github/sync/pins.env
-          # Fail hard on a missing/empty key: assigning the command substitution to
-          # a plain variable propagates the `return 1` exit status, so `set -e`
-          # aborts here rather than letting the job proceed on an empty ref/pin.
-          need() {
-            local v
-            v=$(grep -E "^$1=" "$P" | head -n1 | cut -d= -f2-)
-            [ -n "$v" ] || { echo "::error::pins.env missing/empty key: $1" >&2; return 1; }
-            printf '%s' "$v"
-          }
-          ANCHOR_SRC=$(need ANCHOR_SRC)
-          NAGRAM_REPO=$(need NAGRAM_REPO)
-          NAGRAM_BRANCH=$(need NAGRAM_BRANCH)
-          KEYSTORE_PATH=$(need KEYSTORE_PATH)
-          CERT_SHA=$(need KEYSTORE_CERT_SHA256)
-          SUBJECT_CN=$(need KEYSTORE_SUBJECT_CN)
-          {
-            echo "anchor_src=$ANCHOR_SRC"
-            echo "nagram_repo=$NAGRAM_REPO"
-            echo "nagram_branch=$NAGRAM_BRANCH"
-            echo "keystore_path=$KEYSTORE_PATH"
-            echo "cert_sha=$CERT_SHA"
-            echo "subject_cn=$SUBJECT_CN"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: nbase must exist (deletion protection; no auto-bootstrap)
-        run: |
-          set -e
-          if ! git ls-remote --exit-code --heads origin nbase >/dev/null 2>&1; then
-            echo "::error::origin/nbase is absent. This is the steady-state path and it"
-            echo "::error::refuses to bootstrap automatically — a missing nbase is a protected"
-            echo "::error::deletion incident, not a routine sync. Restore nbase on the PC."
-            exit 1
-          fi
-          git fetch origin nbase
-
-      - name: Fetch configured source (pinned repo + branch)
-        run: |
-          set -e
-          git remote add nagram "${{ steps.pins.outputs.nagram_repo }}" \
-            || git remote set-url nagram "${{ steps.pins.outputs.nagram_repo }}"
-          git fetch --no-tags nagram "${{ steps.pins.outputs.nagram_branch }}"
-
-      - name: Resolve and record source + refs
-        id: refs
-        run: |
-          set -e
-          PRE=$(git rev-parse origin/dev)
-          OLD_NBASE=$(git rev-parse origin/nbase)
-          NEW_SRC=$(git rev-parse nagram/${{ steps.pins.outputs.nagram_branch }})
-          SRC_TREE=$(git rev-parse "${NEW_SRC}^{tree}")
-          echo "PRE=$PRE"
-          echo "OLD_NBASE=$OLD_NBASE"
-          echo "NEW_SRC=$NEW_SRC  SRC_TREE=$SRC_TREE"
-          {
-            echo "pre=$PRE"
-            echo "old_nbase=$OLD_NBASE"
-            echo "new_src=$NEW_SRC"
-            echo "src_tree=$SRC_TREE"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: No-op fast path (skip a redundant snapshot when nothing to import)
-        id: fastpath
-        shell: pwsh
-        run: |
-          # dev is checked out, so this is the PRE copy of the guard, reading the
-          # trusted PRE pins. It compares the resolved source tree against the live
-          # origin/nbase tree BEFORE any snapshot is built. Exit codes: 0 = proceed
-          # (a delta may exist), 3 = already up to date (skip snapshot + push), 1 =
-          # blocked (equal tree but a stale pin — a human must repin). See
-          # sync-guard.ps1 Test-SyncFastPath for why an equal tree with a stale pin
-          # blocks rather than falling through.
-          ./.github/sync/sync-guard.ps1 -FastPathOnly `
-            -PreRef   '${{ steps.refs.outputs.pre }}' `
-            -OldNbase '${{ steps.refs.outputs.old_nbase }}' `
-            -NewSrc   '${{ steps.refs.outputs.new_src }}'
-          $code = $LASTEXITCODE
-          if ($code -eq 3) {
-            "uptodate=1" >> $env:GITHUB_OUTPUT
-            Write-Host 'Nothing to import: the snapshot, merge, guard, signer, push and verify steps are skipped and this run ends successfully.'
-            exit 0
-          }
-          if ($code -eq 0) {
-            "uptodate=0" >> $env:GITHUB_OUTPUT
-            exit 0
-          }
-          # 1 = stale-pin block, 2 = a real error resolving refs/pins. Either way the
-          # run fails and the failure notifier fires; nothing was pushed.
-          Write-Host "::error::fast-path gate failed (exit $code). Pushing nothing."
-          exit 1
-
-      - name: Build synthetic snapshot (local author, no upstream import)
-        id: snapshot
-        if: steps.fastpath.outputs.uptodate != '1'
+      - name: Snapshot and merge
+        id: sync
         env:
-          GIT_AUTHOR_NAME: dazegram-sync
-          GIT_AUTHOR_EMAIL: sync@dazegram.local
-          GIT_COMMITTER_NAME: dazegram-sync
-          GIT_COMMITTER_EMAIL: sync@dazegram.local
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
-          set -e
-          SHORT=$(git rev-parse --short "${{ steps.refs.outputs.new_src }}")
-          NEW_SNAP=$(git commit-tree "${{ steps.refs.outputs.src_tree }}" \
-            -p "${{ steps.refs.outputs.old_nbase }}" \
-            -m "snapshot source ${SHORT} as nbase anchor #infra")
-          echo "new_snap=$NEW_SNAP" >> "$GITHUB_OUTPUT"
-          echo "snapshot=$NEW_SNAP"
+          set -euo pipefail
+          git config user.name "$SYNC_NAME"
+          git config user.email "$SYNC_EMAIL"
+          export GIT_AUTHOR_NAME="$SYNC_NAME" GIT_AUTHOR_EMAIL="$SYNC_EMAIL"
+          export GIT_COMMITTER_NAME="$SYNC_NAME" GIT_COMMITTER_EMAIL="$SYNC_EMAIL"
 
-      - name: Build merge candidate (conflict-guarded, never auto-resolved)
-        id: merge
-        if: steps.fastpath.outputs.uptodate != '1'
-        run: |
-          set -e
-          git switch -c _sync_candidate "${{ steps.refs.outputs.pre }}"
-          if ! git merge --no-edit --no-ff "${{ steps.snapshot.outputs.new_snap }}"; then
-            # Capture the conflict detail BEFORE the abort: once `git merge --abort`
-            # runs the conflicted index is gone, so a later `if: failure()` step has
-            # nothing left to read. diff --diff-filter=U lists only unmerged paths.
-            CONFLICT_FILES=$(git diff --name-only --diff-filter=U || true)
-            CONFLICT_COUNT=$(printf '%s\n' "$CONFLICT_FILES" | grep -c . || true)
+          git fetch --no-tags "$UPSTREAM" "$UPSTREAM_BRANCH"
+          SRC=$(git rev-parse FETCH_HEAD)
+          SRC_TREE=$(git rev-parse "FETCH_HEAD^{tree}")
+          VERSION=$(git show "$SRC:gradle.properties" | sed -n 's/^APP_VERSION_NAME=//p' | tr -d '\r')
+          PREV=$(git log -1 --format=%H --author="$SYNC_EMAIL" origin/dev)
+          echo "source $SRC ($VERSION), previous snapshot $PREV" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$(git rev-parse "$PREV^{tree}")" = "$SRC_TREE" ]; then
+            echo "Up to date with Telegram $VERSION." >> "$GITHUB_STEP_SUMMARY"
+            echo "result=uptodate" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # nbase points at the newest snapshot. If it is not in dev yet, an
+          # earlier sync is still waiting to land; finish that one first.
+          if git rev-parse -q --verify origin/nbase >/dev/null \
+             && ! git merge-base --is-ancestor origin/nbase origin/dev; then
+            echo "::error::origin/nbase is not merged into dev yet; an earlier sync is still open."
+            echo "result=inflight" >> "$GITHUB_OUTPUT"; exit 1
+          fi
+
+          SNAP=$(git commit-tree "$SRC_TREE" -p "$PREV" \
+            -m "snapshot Telegram $VERSION source $(git rev-parse --short=10 "$SRC") #infra")
+          git push origin "$SNAP:refs/heads/nbase"
+
+          BRANCH="$(date -u +%F)_upstream-${VERSION//./-}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          git switch -c "$BRANCH" origin/dev
+          if git merge --no-ff --no-edit -m "merge Telegram $VERSION into dev #infra" "$SNAP"; then
+            git push origin "$BRANCH"
+            gh pr create --base dev --head "$BRANCH" \
+              --title "merge Telegram $VERSION" \
+              --body "Merges Telegram $VERSION (source \`$SRC\`, snapshot \`$SNAP\`). The merge was conflict-free; ci.yml is the compile gate. Land it as a merge commit, not a squash."
+            echo "result=pr" >> "$GITHUB_OUTPUT"
+          else
             {
-              echo "### Merge conflict (${CONFLICT_COUNT} file(s))"
-              echo ""
-              echo "| file | conflict hunks |"
-              echo "| --- | --- |"
+              echo "### Merge conflicts"
+              git diff --name-only --diff-filter=U | sed 's/^/- /'
+              echo
+              echo "Finish on a PC:"
+              echo '```'
+              echo "git fetch origin dev nbase"
+              echo "git switch -c $BRANCH origin/dev"
+              echo "git merge origin/nbase"
+              echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            while IFS= read -r f; do
-              [ -z "$f" ] && continue
-              HUNKS=$(grep -c '^<<<<<<<' "$f" 2>/dev/null || echo 0)
-              echo "| \`$f\` | $HUNKS |" >> "$GITHUB_STEP_SUMMARY"
-            done <<< "$CONFLICT_FILES"
-            {
-              echo "conflict=1"
-              echo "conflict_count=$CONFLICT_COUNT"
-              echo "conflict_files<<CONFLICT_EOF"
-              printf '%s\n' "$CONFLICT_FILES"
-              echo "CONFLICT_EOF"
-            } >> "$GITHUB_OUTPUT"
-            git merge --abort || true
-            git switch dev
-            echo "::error::3-way merge of the snapshot into dev conflicts. Never auto-resolved."
-            exit 1
+            echo "conflicts=$(git diff --name-only --diff-filter=U | wc -l)" >> "$GITHUB_OUTPUT"
+            echo "result=conflict" >> "$GITHUB_OUTPUT"
+            git merge --abort
           fi
-          NEW_DEV=$(git rev-parse HEAD)
-          git switch dev
-          echo "new_dev=$NEW_DEV" >> "$GITHUB_OUTPUT"
-          echo "candidate=$NEW_DEV"
 
-      - name: Run the guard (from the trusted PRE checkout)
-        id: guard
-        if: steps.fastpath.outputs.uptodate != '1'
-        shell: pwsh
-        run: |
-          # dev is checked out here, so .github/sync/sync-guard.ps1 is the PRE copy.
-          # Tee the guard's own Write-Host reporting to a log file — this step
-          # declares no outputs upstream of this change, so the violation list
-          # otherwise exists only in the raw run log. Piping through Tee-Object
-          # does not clear $LASTEXITCODE from the script's own `exit N` (the same
-          # pattern sync-guard-check.yml already relies on for its fixture runs).
-          $log = Join-Path $env:RUNNER_TEMP 'guard-output.log'
-          ./.github/sync/sync-guard.ps1 `
-            -PreRef      '${{ steps.refs.outputs.pre }}' `
-            -OldNbase    '${{ steps.refs.outputs.old_nbase }}' `
-            -NewSnapshot '${{ steps.snapshot.outputs.new_snap }}' `
-            -NewSrc      '${{ steps.refs.outputs.new_src }}' `
-            -NewDev      '${{ steps.merge.outputs.new_dev }}' `
-            *>&1 | Tee-Object -FilePath $log
-          $code = $LASTEXITCODE
-          if ($code -ne 0) {
-            # Extract only the bullets under the guard's own "BLOCKED — N guard
-            # violation(s):" header, not any bullet in the log — sync-guard.ps1
-            # prints the same "  - <reason>" shape for unrelated failures too
-            # (PINS INCOMPLETE, PROTECTED PINS STALE), and those are not guard
-            # violations against the candidate; grabbing every bullet would
-            # misreport those reasons as classified violations here and in the
-            # Telegram ping. Scan for the violation header, then take bullets
-            # until the guard's blank line after the block ends it.
-            $violations = @()
-            $inViolationBlock = $false
-            foreach ($line in (Get-Content $log)) {
-              if ($line -match 'guard violation\(s\):\s*$') { $inViolationBlock = $true; continue }
-              if ($inViolationBlock) {
-                if ($line -match '^\s*-\s+\S') { $violations += $line.Trim().TrimStart('-').Trim() }
-                else { $inViolationBlock = $false }
-              }
-            }
-            # @(...), not a bare {...} script block: a script block is not invoked
-            # by redirection alone (it would print its literal text), while an
-            # array expression evaluates and flattens each statement's output.
-            @(
-              "### Guard blocked the candidate"
-              ""
-              "$($violations.Count) classified violation(s):"
-              ""
-              $violations | ForEach-Object { "- $_" }
-            ) >> $env:GITHUB_STEP_SUMMARY
-            "violations<<GUARD_EOF" >> $env:GITHUB_OUTPUT
-            if ($violations.Count -gt 0) { $violations >> $env:GITHUB_OUTPUT }
-            "GUARD_EOF" >> $env:GITHUB_OUTPUT
-            "violation_count=$($violations.Count)" >> $env:GITHUB_OUTPUT
-            Write-Host "::error::guard blocked the candidate (exit $code). dev/nbase not pushed."
-            exit $code
-          }
-
-      - name: Prove signer certificate identity (guard 13, in-memory password)
-        if: steps.fastpath.outputs.uptodate != '1'
-        shell: pwsh
-        env:
-          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if (-not $env:LOCAL_PROPERTIES) { Write-Host '::error::LOCAL_PROPERTIES unset'; exit 1 }
-          # Decode the properties in memory; never write them to disk or the log.
-          $props = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:LOCAL_PROPERTIES))
-          $kv = @{}
-          foreach ($l in ($props -split "`n")) { if ($l -match '^\s*([^#=]+?)\s*=\s*(.*?)\s*$') { $kv[$Matches[1]] = $Matches[2] } }
-          $alias = $kv['ALIAS_NAME']
-          # Guard failures, not tooling errors: an empty alias or store password means
-          # we cannot prove the signing identity, so we refuse to push rather than
-          # letting keytool fail ambiguously later.
-          if (-not $alias) { Write-Host '::error::guard: ALIAS_NAME is empty — cannot select the signing key to prove its identity. Refusing to push.'; exit 1 }
-          if (-not $kv['KEYSTORE_PASS']) { Write-Host '::error::guard: KEYSTORE_PASS is empty — cannot open the keystore to prove the signer. Refusing to push.'; exit 1 }
-          # Keystore and DER live under RUNNER_TEMP and are removed in finally, so
-          # nothing signing-related is left in the workspace on any exit path.
-          $ks  = Join-Path $env:RUNNER_TEMP 'candidate.keystore'
-          $der = Join-Path $env:RUNNER_TEMP 'cert.der'
-          try {
-            # Extract the pinned keystore blob as raw bytes. A pwsh `>` redirect
-            # re-encodes as text and would corrupt the binary, so shell out to bash
-            # for a byte-accurate redirect, and check git's exit code explicitly
-            # (pwsh does not throw on a native-command failure).
-            $spec = "${{ steps.merge.outputs.new_dev }}:${{ steps.pins.outputs.keystore_path }}"
-            bash -c "git cat-file blob '$spec' > '$ks'"
-            if ($LASTEXITCODE -ne 0) { Write-Host '::error::git cat-file of the keystore failed'; exit 1 }
-            # Pass the store password via a child-process env var — never on the
-            # command line, never via GITHUB_ENV, no set -x. keytool reads it from env.
-            $env:KS_STOREPASS = $kv['KEYSTORE_PASS']
-            # Force keytool to English so the "Entry type:" / "Owner:" labels are
-            # deterministic — a localised runner would otherwise never match them,
-            # a parse that can never match is a check that can never fail. Set via
-            # JAVA_TOOL_OPTIONS (the -J flag mangles under pwsh arg parsing).
-            $env:JAVA_TOOL_OPTIONS = '-Duser.language=en -Duser.country=US'
-            # The alias must resolve to a signing-capable key, not merely a
-            # certificate. A trustedCertEntry holds the pinned cert with NO private
-            # key: exportcert + SHA-256 + CN would all pass, yet it cannot sign.
-            # Require the entry type to be PrivateKeyEntry. Match the "Entry type:"
-            # line strictly (a substring search of the whole blob could match a
-            # future format change vacuously), and NEVER print the -list output —
-            # it carries "Alias name: <alias>", which must not be disclosed.
-            $listOut = (& keytool -list -v -keystore $ks -alias $alias -storepass:env KS_STOREPASS 2>&1 | Out-String -Width 8192)
-            if ($LASTEXITCODE -ne 0) { Write-Host '::error::keytool -list of the signing alias failed'; exit 1 }
-            $entryType = ''
-            foreach ($ln in ($listOut -split "`n")) { if ($ln -match '^\s*Entry type:\s*(\S+)') { $entryType = $Matches[1]; break } }
-            if ($entryType -ne 'PrivateKeyEntry') {
-              Write-Host "::error::signer alias entry type is '$entryType', not PrivateKeyEntry — a certificate-only entry passes exportcert but has no private key and cannot sign. Push nothing."
-              exit 1
-            }
-            & keytool -exportcert -keystore $ks -alias $alias -storepass:env KS_STOREPASS -file $der
-            if ($LASTEXITCODE -ne 0) { Write-Host '::error::keytool exportcert failed'; exit 1 }
-            $hash = (Get-FileHash -Algorithm SHA256 $der).Hash.ToLowerInvariant()
-            $pin = '${{ steps.pins.outputs.cert_sha }}'
-            if ($hash -ne $pin) {
-              Write-Host "::error::signer cert SHA-256 $hash != pinned $pin — wrong signing key. Push nothing."
-              exit 1
-            }
-            # Identity, not just bytes: the exported cert must carry the pinned
-            # subject CN. -printcert prints "Owner: CN=..., ..." — public metadata,
-            # no secret.
-            $owner = (& keytool -printcert -file $der | Select-String -Pattern '^Owner:') -join ' '
-            $cn = '${{ steps.pins.outputs.subject_cn }}'
-            if ($owner -notmatch [regex]::Escape("CN=$cn")) {
-              Write-Host "::error::signer subject '$owner' does not carry CN=$cn — wrong signer. Push nothing."
-              exit 1
-            }
-            Write-Host "signer identity confirmed (PrivateKeyEntry + SHA-256 + CN=$cn)."
-          } finally {
-            $env:KS_STOREPASS = $null
-            $env:JAVA_TOOL_OPTIONS = $null
-            Remove-Item -LiteralPath $ks, $der -ErrorAction SilentlyContinue
-          }
-
-      - name: Atomic append-only push of dev + nbase
-        id: push
-        if: steps.fastpath.outputs.uptodate != '1'
-        run: |
-          set -e
-          PRE=${{ steps.refs.outputs.pre }}
-          OLD_NBASE=${{ steps.refs.outputs.old_nbase }}
-          NEW_DEV=${{ steps.merge.outputs.new_dev }}
-          NEW_SNAP=${{ steps.snapshot.outputs.new_snap }}
-
-          # Re-read both remote refs and re-assert the leases + append-only shape
-          # immediately before pushing (guard 15).
-          git fetch origin dev nbase
-          [ "$(git rev-parse origin/dev)"   = "$PRE" ]       || { echo "::error::dev moved under us"; exit 1; }
-          [ "$(git rev-parse origin/nbase)" = "$OLD_NBASE" ] || { echo "::error::nbase moved under us"; exit 1; }
-          git merge-base --is-ancestor "$PRE" "$NEW_DEV"        || { echo "::error::new dev is not a descendant of PRE (not append-only)"; exit 1; }
-          git merge-base --is-ancestor "$OLD_NBASE" "$NEW_SNAP" || { echo "::error::new nbase is not a descendant of old nbase"; exit 1; }
-
-          # Both refs move together or neither does. There is no sequential
-          # fallback: a partial update would leave the tree without its anchor.
-          git push --atomic \
-            --force-with-lease=refs/heads/dev:"$PRE" \
-            --force-with-lease=refs/heads/nbase:"$OLD_NBASE" \
-            origin "$NEW_DEV:refs/heads/dev" "$NEW_SNAP:refs/heads/nbase"
-
-          # Record that the push actually completed. A failure in a LATER step must
-          # not tell the operator "nothing pushed" — the refs have already moved.
-          echo "pushed=1" >> "$GITHUB_OUTPUT"
-          echo "pushed atomically: dev -> $NEW_DEV, nbase -> $NEW_SNAP"
-
-      - name: Verify remote refs landed (the push to dev triggers staging)
-        if: steps.fastpath.outputs.uptodate != '1'
-        run: |
-          set -e
-          git fetch origin dev nbase
-          [ "$(git rev-parse origin/dev)"   = "${{ steps.merge.outputs.new_dev }}" ]     || { echo "::error::dev did not land"; exit 1; }
-          [ "$(git rev-parse origin/nbase)" = "${{ steps.snapshot.outputs.new_snap }}" ] || { echo "::error::nbase did not land"; exit 1; }
-          echo "dev and nbase updated atomically. The push to dev triggers staging.yml (dual APK + Telegram upload); this step confirms the refs, not the downstream run."
-
-      - name: Publish blocked snapshot to a scratch ref (never a branch)
-        id: publish
-        if: always() && steps.snapshot.outputs.new_snap != '' && steps.push.outputs.pushed != '1'
-        run: |
-          set -e
-          NEW_SNAP="${{ steps.snapshot.outputs.new_snap }}"
-          SHORT="$(git rev-parse --short "${{ steps.refs.outputs.new_src }}")"
-          SNAP_REF="refs/sync/snapshot-${SHORT}"
-          # refs/sync/* is a non-branch, non-tag namespace: GitHub's `push` event
-          # only fires for refs/heads/* and refs/tags/*, so this can never trigger
-          # sync-guard-check.yml (which would hard-fail with no
-          # .github/sync/sync-guard.ps1 checked out on the source tree) or
-          # staging.yml's or ci.yml's pull_request trigger. It also never appears in
-          # the branch list, branch picker, or any PR head/base dropdown.
-          # Publish the SNAPSHOT only, never the merge candidate: the candidate is
-          # the guard-rejected shape dev would take, the one object here a tired
-          # human could push straight to dev and bypass every gate. The snapshot
-          # cannot do that, and re-merging it reproduces the same conflicts
-          # deterministically, so the candidate is trivially re-derivable and buys
-          # nothing extra.
-          # --force: a retriggered run on the same still-blocked source names the
-          # same SNAP_REF (it derives only from the source SHA) but mints a new
-          # snapshot commit each time (commit-tree stamps the current committer
-          # date), so the two are siblings, not ancestor/descendant — a plain push
-          # would be rejected as non-fast-forward. This ref is scratch-only, has no
-          # append-only guarantee, and this workflow's own concurrency group
-          # already serializes runs, so there is no concurrent writer to race.
-          git push --force origin "${NEW_SNAP}:${SNAP_REF}"
-          {
-            echo "### Blocked snapshot published"
-            echo ""
-            echo "Snapshot commit \`${NEW_SNAP}\` pushed to \`${SNAP_REF}\` so the PC does not"
-            echo "have to reconstruct it by hand with \`git commit-tree\`. Finish the"
-            echo "reconciliation with:"
-            echo ""
-            echo '```'
-            echo "git fetch origin '+refs/sync/*:refs/sync/*'"
-            echo "git merge ${SNAP_REF}"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          echo "snapshot_ref=$SNAP_REF" >> "$GITHUB_OUTPUT"
-
-      - name: Notify on any failure
-        if: failure()
+      - name: Notify
+        if: always() && steps.sync.outputs.result != 'uptodate'
         env:
           HELPER_BOT_TOKEN: ${{ secrets.HELPER_BOT_TOKEN }}
           HELPER_BOT_TARGET: ${{ secrets.HELPER_BOT_TARGET }}
+          RESULT: ${{ steps.sync.outputs.result }}
+          VERSION: ${{ steps.sync.outputs.version }}
+          BRANCH: ${{ steps.sync.outputs.branch }}
+          CONFLICTS: ${{ steps.sync.outputs.conflicts }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          PRE: ${{ steps.refs.outputs.pre }}
-          ANCHOR: ${{ steps.pins.outputs.anchor_src }}
-          NEW_SRC: ${{ steps.refs.outputs.new_src }}
-          NEW_DEV: ${{ steps.merge.outputs.new_dev }}
-          NEW_SNAP: ${{ steps.snapshot.outputs.new_snap }}
-          CONFLICT: ${{ steps.merge.outputs.conflict }}
-          CONFLICT_COUNT: ${{ steps.merge.outputs.conflict_count }}
-          CONFLICT_FILES: ${{ steps.merge.outputs.conflict_files }}
-          GUARD_VIOLATIONS: ${{ steps.guard.outputs.violations }}
-          GUARD_VIOLATION_COUNT: ${{ steps.guard.outputs.violation_count }}
-          SNAPSHOT_REF: ${{ steps.publish.outputs.snapshot_ref }}
-          PUSHED: ${{ steps.push.outputs.pushed }}
         run: |
-          if [ -z "$HELPER_BOT_TOKEN" ] || [ -z "$HELPER_BOT_TARGET" ]; then
-            echo "Telegram secrets unset; skipping notification."; exit 0
-          fi
-          if [ "$PUSHED" = "1" ]; then
-            # The atomic push already succeeded; this failure is post-push (e.g. the
-            # verify step). Never say "nothing pushed" — the refs have moved.
-            TEXT="⚠️ DwellGram sync: the atomic push SUCCEEDED but a post-push step failed. The refs have ALREADY advanced — do NOT re-run as if nothing happened.
-          dev  is now: ${NEW_DEV:-unknown}
-          nbase is now: ${NEW_SNAP:-unknown}
-          Verify with: git fetch origin dev nbase && git rev-parse origin/dev origin/nbase
-          run: ${RUN_URL}"
-          else
-            REASON="guard/topology/token/atomic-push"
-            [ -n "$CONFLICT" ] && REASON="merge conflict"
-            if [ -n "$GUARD_VIOLATION_COUNT" ] && [ "$GUARD_VIOLATION_COUNT" != "0" ]; then
-              REASON="guard blocked (${GUARD_VIOLATION_COUNT} violation(s))"
-            fi
-
-            # Cap each list to ~10 entries + "+N more" — the full lists always live
-            # in the job summary behind RUN_URL. Echo the guard's own classified
-            # list, never a raw step log.
-            DETAIL=""
-            if [ -n "$CONFLICT_FILES" ]; then
-              MORE=$(( ${CONFLICT_COUNT:-0} - 10 ))
-              DETAIL="${DETAIL}
-          conflicting files (${CONFLICT_COUNT:-0}):
-          $(printf '%s\n' "$CONFLICT_FILES" | head -n 10)"
-              [ "$MORE" -gt 0 ] && DETAIL="${DETAIL}
-          ...+${MORE} more (see job summary)"
-            fi
-            if [ -n "$GUARD_VIOLATIONS" ]; then
-              GMORE=$(( ${GUARD_VIOLATION_COUNT:-0} - 10 ))
-              DETAIL="${DETAIL}
-          guard violations (${GUARD_VIOLATION_COUNT:-0}):
-          $(printf '%s\n' "$GUARD_VIOLATIONS" | head -n 10)"
-              [ "$GMORE" -gt 0 ] && DETAIL="${DETAIL}
-          ...+${GMORE} more (see job summary)"
-            fi
-
-            SNAP_DETAIL=""
-            if [ -n "$SNAPSHOT_REF" ]; then
-              SNAP_DETAIL="
-          snapshot published: ${SNAPSHOT_REF}
-          PC: git fetch origin '+refs/sync/*:refs/sync/*' && git merge ${SNAPSHOT_REF}"
-            fi
-
-            # HEAD and TAIL carry the two pieces that make this message actionable —
-            # the published snapshot ref (in SNAP_DETAIL) and the run URL — so they
-            # must never be cut. Only DETAIL (the conflict/violation lists, each
-            # already capped to ~10 entries but not to a character count) is
-            # truncated, to whatever budget is left under Telegram's 4096-char
-            # sendMessage limit.
-            HEAD="⚠️ DwellGram sync blocked (${REASON}). dev/nbase not pushed.
-          PRE: ${PRE:-unknown}
-          anchor: ${ANCHOR:-unknown}
-          source: ${NEW_SRC:-unresolved}${SNAP_DETAIL}"
-            TAIL="
-          run: ${RUN_URL}
-          Finish the reconciliation on the PC."
-            TRUNC_MARKER="
-          ...(truncated — full detail in the job summary)"
-            BUDGET=$(( 4096 - ${#HEAD} - ${#TAIL} - ${#TRUNC_MARKER} ))
-            [ "$BUDGET" -lt 0 ] && BUDGET=0
-            if [ "${#DETAIL}" -gt "$BUDGET" ]; then
-              DETAIL="${DETAIL:0:$BUDGET}${TRUNC_MARKER}"
-            fi
-
-            TEXT="${HEAD}${DETAIL}${TAIL}"
-          fi
-          # --fail so an HTTP error (expired token, wrong chat_id, oversized text)
-          # surfaces instead of silently vanishing behind curl's own exit 0. A failed
-          # send is reported as a warning, not a step failure — the job is already
-          # red for the sync failure above; a notification-delivery problem must not
-          # additionally flip that conclusion (or hide it behind a second, unrelated
-          # red for the wrong reason).
-          if ! curl -sS --fail "https://api.telegram.org/bot${HELPER_BOT_TOKEN}/sendMessage" \
+          [ -n "$HELPER_BOT_TOKEN" ] && [ -n "$HELPER_BOT_TARGET" ] || exit 0
+          case "$RESULT" in
+            pr)       TEXT="DwellGram sync: Telegram $VERSION merged cleanly, PR opened from $BRANCH." ;;
+            conflict) TEXT="DwellGram sync: Telegram $VERSION has $CONFLICTS conflicting files. Snapshot is on nbase; finish on the PC." ;;
+            *)        TEXT="DwellGram sync failed." ;;
+          esac
+          curl -sS --fail "https://api.telegram.org/bot${HELPER_BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${HELPER_BOT_TARGET}" \
-            --data-urlencode "text=${TEXT}" >/dev/null; then
-            echo "::warning::Telegram notification failed to send — check for an expired HELPER_BOT_TOKEN or a wrong HELPER_BOT_TARGET. The run is red for the sync failure above, not for this."
-            {
-              echo ""
-              echo "### Telegram notification failed to send"
-              echo ""
-              echo "curl exited non-zero contacting the Telegram API. This does not change why the run is red."
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-          exit 0
+            --data-urlencode "text=${TEXT}
+          ${RUN_URL}" >/dev/null || echo "::warning::Telegram notification failed"
