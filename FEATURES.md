@@ -55,7 +55,7 @@ A launcher shortcut (long-press the app icon, or pin it to your home screen) tha
 
 ### Unofficial shortcut names <!-- #shortcut-variant-prefix -->
 
-DwellGramX puts an X in front of its own launcher shortcut names (*X Ayu Mode*, *X Video memo*, *X Text memo*), including the entries in shortcut pickers, so both builds can sit on one phone. DwellGram keeps the plain names.
+DwellGramX puts an X in front of its own launcher shortcut names (*X Ayu Mode*, *X Video memo*, *X Text memo*, *X Camera memo*), including the entries in shortcut pickers, so both builds can sit on one phone. DwellGram keeps the plain names.
 
 ### New conversation shortcut switch <!-- #new-conversation-shortcut -->
 
@@ -346,6 +346,10 @@ Turn on *Video memo shortcut* or *Text memo shortcut* under N-Settings → Gener
 ### Memo recipient status <!-- #memo-recipient-status -->
 
 A text memo shows *online* next to its label, and an unread badge, when your *Recipient* is online or has messages you haven't read. A video memo recorded while the app is locked shows both at the top of the screen. Always on.
+
+### Camera memo shortcut <!-- #camera-memo -->
+
+Turn on *Camera memo shortcut* under N-Settings → General → Launcher shortcuts (off by default) and long-pressing the icon offers *Camera memo*, a hands-free round video to Saved Messages or your *Recipient*, recorded on a live viewfinder with a grid, a red dot and a timer. *Camera memo lens* picks front or rear, front by default.
 
 ### Custom file names for saved media <!-- #custom-file-names -->
 

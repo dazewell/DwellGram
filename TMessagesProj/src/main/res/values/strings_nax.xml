@@ -468,6 +468,14 @@
     <string name="VideoNoteShortcutLabelRearLong">Video memo · rear</string>
     <string name="VideoNoteShortcutTarget">Recipient</string>
     <string name="VideoNoteShortcutTargetUnsupported">Video memos can only go to a person.</string>
+    <string name="CameraMemoShortcut">Camera memo shortcut</string>
+    <string name="CameraMemoShortcutNotice">Adds a launcher shortcut that records the same video message on a plain camera screen, without the chat around it. The live camera and a recording timer always show.</string>
+    <string name="CameraMemoShortcutLabel">Camera memo</string>
+    <string name="CameraMemoCamera">Camera memo lens</string>
+    <string name="CameraMemoStarting">Starting camera</string>
+    <string name="CameraMemoPaused">Paused</string>
+    <string name="CameraMemoStopped">Stopped</string>
+    <string name="CameraMemoFailed">Couldn\'t start the camera. Check camera and microphone access, then open Camera memo again.</string>
     <string name="MemoShortcutsHeader">Memos</string>
     <string name="TextMemoShortcut">Text memo shortcut</string>
     <string name="TextMemoShortcutNotice">Adds two launcher shortcuts for typing a message to Saved Messages or a person you pick, even while the app is locked: one opens full screen, the other floats over what you were doing.</string>
