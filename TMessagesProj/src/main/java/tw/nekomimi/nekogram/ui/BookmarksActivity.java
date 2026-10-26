@@ -452,7 +452,23 @@ public class BookmarksActivity extends NekoDelegateFragment {
         });
         int actionBarOffset = getGlassActionBarOffset();
 
-        listView = new RecyclerListView(context);
+        listView = new RecyclerListView(context) {
+            @Override
+            protected void dispatchDraw(Canvas canvas) {
+                // NagramX: #bookmarks-multiselect. The selected-row wash paints behind the rows in a
+                // list-level pass; a plain RecyclerListView shows neither it nor the checkbox.
+                BookmarksMultiSelect.drawSelectionBackground(BookmarksActivity.this, this, canvas);
+                super.dispatchDraw(canvas);
+            }
+
+            @Override
+            public boolean drawChild(Canvas canvas, View child, long drawingTime) {
+                boolean result = super.drawChild(canvas, child, drawingTime);
+                // NagramX: #bookmarks-multiselect. ChatMessageCell's checkbox is list-drawn, after the row.
+                BookmarksMultiSelect.drawCheckBox(canvas, child);
+                return result;
+            }
+        };
         listView.setLayoutAnimation(null);
 
         LinearLayoutManager layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false);

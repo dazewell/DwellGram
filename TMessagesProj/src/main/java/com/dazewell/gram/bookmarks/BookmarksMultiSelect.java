@@ -1,5 +1,7 @@
 package com.dazewell.gram.bookmarks;
 
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -19,10 +21,12 @@ import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Cells.ChatMessageCell;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.Forum.ForumUtilities;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.MessageBackgroundDrawable;
 import org.telegram.ui.Components.NumberTextView;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.ShareAlert;
@@ -305,6 +309,60 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
             if (child instanceof NekoMessageCell) {
                 applyTo((NekoMessageCell) child);
             }
+        }
+    }
+
+    /**
+     * The selected-row wash, drawn behind the rows. ChatMessageCell never paints it itself:
+     * ChatActivity's chatListView draws it in its own dispatch-draw pass (the ungrouped branch
+     * of its selection block), so a plain RecyclerListView shows no highlight whatever
+     * setDrawSelectionBackground was fed. The drawable's own draw advances the select ripple
+     * and the fade-out, and invalidates the row through its parent view.
+     */
+    public static void drawSelectionBackground(BaseFragment fragment, RecyclerListView listView, Canvas canvas) {
+        int count = listView.getChildCount();
+        for (int i = 0; i < count; i++) {
+            View child = listView.getChildAt(i);
+            if (!(child instanceof ChatMessageCell)) {
+                continue;
+            }
+            ChatMessageCell cell = (ChatMessageCell) child;
+            MessageBackgroundDrawable drawable = cell.getBackgroundDrawable();
+            if (!(drawable.isAnimationInProgress() || cell.isDrawingSelectionBackground())) {
+                continue;
+            }
+            canvas.save();
+            int y = (int) cell.getY();
+            int height = cell.getMeasuredHeight();
+            canvas.clipRect(0, y, listView.getMeasuredWidth(), y + height);
+            Paint selectedBackgroundPaint = fragment.getThemedPaint(Theme.key_paint_chatMessageBackgroundSelected);
+            if (selectedBackgroundPaint != null) {
+                drawable.setCustomPaint(selectedBackgroundPaint);
+            } else {
+                drawable.setCustomPaint(null);
+                drawable.setColor(fragment.getThemedColor(Theme.key_chat_selectedBackground));
+            }
+            drawable.setBounds(0, y, listView.getMeasuredWidth(), y + height);
+            drawable.draw(canvas);
+            canvas.restore();
+        }
+    }
+
+    /**
+     * The row's checkbox, drawn over the row after it. Same story as the wash: the cell only
+     * exposes drawCheckBox, the list paints it (ChatActivity's chatListView drawChild).
+     */
+    public static void drawCheckBox(Canvas canvas, View child) {
+        if (!(child instanceof ChatMessageCell)) {
+            return;
+        }
+        if (child.getTranslationY() != 0) {
+            canvas.save();
+            canvas.translate(0, child.getTranslationY());
+        }
+        ((ChatMessageCell) child).drawCheckBox(canvas);
+        if (child.getTranslationY() != 0) {
+            canvas.restore();
         }
     }
 
