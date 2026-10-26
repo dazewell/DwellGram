@@ -26,7 +26,6 @@ import android.widget.TextView;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
-import org.telegram.messenger.SharedConfig;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.InstantCameraView;
@@ -467,7 +466,7 @@ final class CameraMemoCover extends FrameLayout {
         float frameHeight = laidFrameHeight;
         if (!(frameWidth >= 1f && frameWidth <= 4f && frameHeight >= 1f && frameHeight <= 4f)) {
             frameWidth = 1f;
-            frameHeight = SharedConfig.roundCamera16to9 ? 16f / 9f : 4f / 3f;
+            frameHeight = 4f / 3f; // what CameraMemo.roundCameraWidth asks for
         }
         float side = Math.min(flatHole.width(), flatHole.height());
         viewfinderRect.set(flatHole.centerX() - side * frameWidth / 2f, flatHole.centerY() - side * frameHeight / 2f,

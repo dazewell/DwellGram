@@ -41,16 +41,17 @@ public final class CameraMemo {
 
     /**
      * InstantCameraView's Camera2 opens ask for a square stream, so the camera crops before the frame ever reaches the
-     * viewfinder. The camera memo's chat asks for the round camera's own 4:3 (or 16:9) shape instead: the circle and the
-     * clip stay the stream's centre square, cropped by texture coordinates the way the Camera1 path always is. Only in
-     * portrait, since that crop takes the upright frame to be portrait and would squash a landscape one.
+     * viewfinder. The camera memo's chat asks for 4:3 instead: the circle and the clip stay the stream's centre square,
+     * cropped by texture coordinates the way the Camera1 path always is. Only in portrait, since that crop takes the
+     * upright frame to be portrait and would squash a landscape one, and never 16:9, which can make Camera2Session's
+     * aspect match pick another lens.
      */
     public static int roundCameraWidth(Object delegate, int size) {
         if (!(delegate instanceof ChatActivity) || !isSessionChat((ChatActivity) delegate)
                 || AndroidUtilities.displaySize.x > AndroidUtilities.displaySize.y) {
             return size;
         }
-        return org.telegram.messenger.SharedConfig.roundCamera16to9 ? size * 16 / 9 : size * 4 / 3;
+        return size * 4 / 3;
     }
 
     /** VideoNoteShortcut.onChatViewCreated, for the chat a camera memo shortcut is opening. Up from the push's first frame. */
