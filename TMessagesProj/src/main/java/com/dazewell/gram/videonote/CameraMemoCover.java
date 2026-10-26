@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PorterDuff;
@@ -35,11 +36,11 @@ import java.util.Locale;
 
 /**
  * #camera-memo: the plain camera screen over a camera memo's chat. Opaque black, with the whole camera frame, uncropped,
- * as a viewfinder (CameraMemoBackdrop) and a grid of square cells whose three rows are exactly the crop the round
- * clip sends. While the viewfinder is live it covers the round camera too, so nothing on screen reads as a round video
- * recorder. The moment it isn't (no fresh frame, switched off, paused), a hole opens over the stock circle, so a live
- * picture is always on screen. A touch that starts on the crop goes through to the camera, so the round video's own
- * gestures work as usual. The recording cue and the controls are drawn here, white on black, with no Telegram colour.
+ * as a viewfinder (CameraMemoBackdrop) edge to edge under the status bar, the controls below it, and a grid of square
+ * cells whose three rows are exactly the crop the round clip sends. While the viewfinder is live it covers the round
+ * camera too, so nothing on screen reads as a round video recorder. The moment it isn't (no fresh frame, switched off,
+ * paused), a hole opens over the stock circle, so a live picture is always on screen. A gesture that starts on the crop
+ * is handed to the camera view, mapped onto its circle, so the round video's own gestures work as usual. The recording cue and the controls are drawn here, white on black, with no Telegram colour.
  *
  * Fixed dark in both themes on purpose: a theme colour would give the app away. Everything it shows is read from the
  * recorder: the red dot and the running clock only while it is really capturing.
@@ -84,6 +85,10 @@ final class CameraMemoCover extends FrameLayout {
     private long viewfinderFrameAt;
     private boolean viewfinderCovers;
     private final RectF viewfinderRect = new RectF();
+    private final RectF cropRect = new RectF(); // the viewfinder's centre square: what the round clip sends
+    private final Matrix forwardMatrix = new Matrix();
+    private InstantCameraView forwardTarget;
+    private boolean forwarding;
     private final TextureView viewfinder;
     private float laidFrameWidth;
     private float laidFrameHeight;
@@ -304,17 +309,52 @@ final class CameraMemoCover extends FrameLayout {
         CameraMemo.onCoverDetached(this);
     }
 
-    // A gesture that starts on the circle is the round video's: declining its DOWN hands the whole gesture to the camera
-    // view below, whose tap, hold and swipes then behave exactly as in a chat. Everything else stays here.
+    // A gesture that starts on what is sent is the round video's, so its tap, hold and swipes behave exactly as in a chat.
+    // While the viewfinder covers the circle that is the crop, and the gesture is handed to the camera view mapped from
+    // the crop onto the circle; while the real circle shows, declining the DOWN lets the whole gesture fall through to it.
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
-        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            touchThrough = !failed && hasHole && isInHole(event.getX(), event.getY());
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            touchThrough = false;
+            forwarding = false;
+            if (!failed && hasHole) {
+                if (viewfinderCovers && hasFlatHole && cropRect.contains(event.getX(), event.getY())) {
+                    startForwarding();
+                } else if (!viewfinderCovers) {
+                    touchThrough = isInHole(event.getX(), event.getY());
+                }
+            }
         }
         if (touchThrough) {
             return false;
         }
+        if (forwarding) {
+            MotionEvent mapped = MotionEvent.obtain(event);
+            mapped.transform(forwardMatrix);
+            forwardTarget.dispatchTouchEvent(mapped);
+            mapped.recycle();
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                forwarding = false;
+                forwardTarget = null;
+            }
+            return true;
+        }
         return super.dispatchTouchEvent(event);
+    }
+
+    // Crop to circle, in this view's coordinates, then into the camera view's: a sibling under the same parent, which
+    // this view fills from its origin
+    private void startForwarding() {
+        ChatActivity chat = chatRef.get();
+        InstantCameraView camera = chat != null ? chat.instantCameraView : null;
+        if (camera == null || cropRect.isEmpty()) {
+            return;
+        }
+        forwardMatrix.setRectToRect(cropRect, flatHole, Matrix.ScaleToFit.FILL);
+        forwardMatrix.postTranslate(-camera.getX(), -camera.getY());
+        forwardTarget = camera;
+        forwarding = true;
     }
 
     private boolean isInHole(float x, float y) {
@@ -469,27 +509,34 @@ final class CameraMemoCover extends FrameLayout {
             if (valid) {
                 holePath.addOval(hole, Path.Direction.CW);
             }
-            requestLayout(); // the controls and the viewfinder follow the circle
+            requestLayout(); // without a viewfinder the controls follow the circle
             invalidate();
         }
     }
 
-    // Below the circle where there's room, never past the navigation bar
-    private int computeControlsTop() {
+    // Centred in the space under the viewfinder; where there isn't room for the row, at the bottom over its edge.
+    // Without a viewfinder, below the circle where there's room. Never past the navigation bar.
+    private int computeControlsTop(boolean withViewfinder) {
         int height = getHeight();
         int rowHeight = AndroidUtilities.dp(72);
-        int lowest = height - AndroidUtilities.navigationBarHeight - AndroidUtilities.dp(32) - rowHeight;
-        int top = lowest - AndroidUtilities.dp(40);
-        if (hasHole && top < hole.bottom + AndroidUtilities.dp(24)) {
-            top = (int) hole.bottom + AndroidUtilities.dp(24);
+        int lowest = height - AndroidUtilities.navigationBarHeight - AndroidUtilities.dp(16) - rowHeight;
+        int top;
+        if (withViewfinder) {
+            top = Math.round((viewfinderRect.bottom + height - AndroidUtilities.navigationBarHeight - rowHeight) / 2f);
+        } else {
+            top = lowest - AndroidUtilities.dp(40);
+            if (hasHole && top < hole.bottom + AndroidUtilities.dp(24)) {
+                top = (int) hole.bottom + AndroidUtilities.dp(24);
+            }
         }
         return Math.max(0, Math.min(top, lowest));
     }
 
-    // The full frame at the circle's own scale, centred on it, so the circle is exactly its centre crop. Until the first
-    // camera frame says otherwise, the shape the round camera asks for: the circle spans the frame's shorter side.
-    private boolean computeViewfinder() {
-        if (!hasHole || !hasFlatHole) {
+    // The full frame edge to edge, from under the status bar, raised only as far as the control row needs below it. The
+    // crop is its centre square, the frame's shorter side. Until the first camera frame says otherwise, the shape
+    // CameraMemo.roundCameraWidth asks for.
+    private boolean computeViewfinder(int width, int height) {
+        if (width <= 0 || height <= 0) {
             return false;
         }
         laidFrameWidth = CameraMemoBackdrop.frameWidth;
@@ -498,11 +545,18 @@ final class CameraMemoCover extends FrameLayout {
         float frameHeight = laidFrameHeight;
         if (!(frameWidth >= 1f && frameWidth <= 4f && frameHeight >= 1f && frameHeight <= 4f)) {
             frameWidth = 1f;
-            frameHeight = 16f / 9f; // what CameraMemo.roundCameraWidth asks for
+            frameHeight = 16f / 9f;
         }
-        float side = Math.min(flatHole.width(), flatHole.height());
-        viewfinderRect.set(flatHole.centerX() - side * frameWidth / 2f, flatHole.centerY() - side * frameHeight / 2f,
-                flatHole.centerX() + side * frameWidth / 2f, flatHole.centerY() + side * frameHeight / 2f);
+        float viewfinderHeight = width * frameHeight / frameWidth;
+        float roomBottom = height - AndroidUtilities.navigationBarHeight - AndroidUtilities.dp(72 + 2 * 12);
+        float top = AndroidUtilities.statusBarHeight;
+        if (top + viewfinderHeight > roomBottom) {
+            top = Math.max(0, roomBottom - viewfinderHeight);
+        }
+        viewfinderRect.set(0, top, width, top + viewfinderHeight);
+        float side = Math.min(viewfinderRect.width(), viewfinderRect.height());
+        cropRect.set(viewfinderRect.centerX() - side / 2f, viewfinderRect.centerY() - side / 2f,
+                viewfinderRect.centerX() + side / 2f, viewfinderRect.centerY() + side / 2f);
         return true;
     }
 
@@ -520,7 +574,8 @@ final class CameraMemoCover extends FrameLayout {
                 MeasureSpec.makeMeasureSpec(height, MeasureSpec.AT_MOST));
         closeButton.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST),
                 MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(48), MeasureSpec.EXACTLY));
-        boolean shown = computeViewfinder();
+        View parent = (View) getParent();
+        boolean shown = computeViewfinder(width, parent != null && parent.getHeight() > 0 ? parent.getHeight() : height);
         viewfinder.measure(MeasureSpec.makeMeasureSpec(shown ? Math.round(viewfinderRect.width()) : 0, MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(shown ? Math.round(viewfinderRect.height()) : 0, MeasureSpec.EXACTLY));
     }
@@ -539,7 +594,8 @@ final class CameraMemoCover extends FrameLayout {
         }
         int width = getWidth();
         int height = getHeight();
-        if (computeViewfinder()) {
+        boolean shown = computeViewfinder(width, height);
+        if (shown) {
             int vw = Math.round(viewfinderRect.width());
             int vh = Math.round(viewfinderRect.height());
             if (viewfinder.getMeasuredWidth() != vw || viewfinder.getMeasuredHeight() != vh) {
@@ -550,8 +606,9 @@ final class CameraMemoCover extends FrameLayout {
             viewfinder.layout(vl, vt, vl + vw, vt + vh);
         } else {
             viewfinder.layout(0, 0, 0, 0);
+            cropRect.setEmpty();
         }
-        controlsTop = computeControlsTop();
+        controlsTop = computeControlsTop(shown);
         int centerY = controlsTop + AndroidUtilities.dp(36);
         int centerX = width / 2;
         int offset = AndroidUtilities.dp(104);
@@ -603,7 +660,7 @@ final class CameraMemoCover extends FrameLayout {
         }
         super.dispatchDraw(canvas);
         canvas.restore();
-        if (hasHole && hasFlatHole && viewfinder.getWidth() > 0) {
+        if (!failed && viewfinder.getWidth() > 0 && !cropRect.isEmpty()) {
             canvas.save();
             if (!viewfinderCovers) {
                 canvas.clipOutPath(holePath); // the real circle shows: keep the lines off it
@@ -630,8 +687,7 @@ final class CameraMemoCover extends FrameLayout {
     // Square cells a third of the crop wide. The crop spans the viewfinder's width, so its three columns are the frame's,
     // and its three rows sit between the two stronger lines. Outside the crop only the two columns carry on.
     private void drawGrid(Canvas canvas) {
-        float side = Math.min(flatHole.width(), flatHole.height());
-        float cell = side / 3f;
+        float cell = cropRect.width() / 3f;
         if (cell < AndroidUtilities.dp(4)) {
             return;
         }
@@ -639,12 +695,12 @@ final class CameraMemoCover extends FrameLayout {
         float right = viewfinder.getRight();
         float top = viewfinder.getTop();
         float bottom = viewfinder.getBottom();
-        float cropTop = flatHole.centerY() - side / 2f;
-        float cropBottom = cropTop + side;
+        float cropTop = cropRect.top;
+        float cropBottom = cropRect.bottom;
         canvas.save();
         canvas.clipRect(left, top, right, bottom);
         for (int i = 1; i < 3; i++) {
-            float x = flatHole.centerX() - side / 2f + cell * i;
+            float x = cropRect.left + cell * i;
             canvas.drawLine(x, top, x, bottom, gridPaint);
         }
         for (float y = cropTop + cell; y < cropBottom - 1f; y += cell) {
@@ -677,7 +733,9 @@ final class CameraMemoCover extends FrameLayout {
     // Top centre: a blinking red dot and the clock while capturing, a pause or stop glyph and its word otherwise
     private void drawStatus(Canvas canvas) {
         float baseline = Math.max(AndroidUtilities.statusBarHeight + AndroidUtilities.dp(44), AndroidUtilities.dp(56));
-        if (hasHole && baseline > hole.top - AndroidUtilities.dp(16)) {
+        if (viewfinder.getWidth() > 0) {
+            baseline = Math.max(viewfinder.getTop(), AndroidUtilities.statusBarHeight) + AndroidUtilities.dp(36);
+        } else if (hasHole && baseline > hole.top - AndroidUtilities.dp(16)) {
             baseline = Math.max(AndroidUtilities.statusBarHeight + AndroidUtilities.dp(24), hole.top - AndroidUtilities.dp(16));
         }
         if (!everRecorded) {
