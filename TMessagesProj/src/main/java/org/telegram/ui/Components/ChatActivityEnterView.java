@@ -718,6 +718,7 @@ public class ChatActivityEnterView extends FrameLayout implements
     private com.dazewell.gram.composer.ComposerInlineRest composerInlineRest;
     private com.dazewell.gram.composer.ComposerFormattingActions composerFormattingActions;
     private boolean toolbarReplacementVisible;
+    private boolean composerExitHeld;
     private boolean inputPrimarySuppressed;
     private int inputPrimaryVisibility;
     private int doneButtonVisibility;
@@ -12545,6 +12546,10 @@ public class ChatActivityEnterView extends FrameLayout implements
         boolean replacementVisible = botWebViewButton != null && botWebViewButton.getVisibility() == VISIBLE;
         boolean recordingVisible = recordingAudioVideo || recordInterfaceState != 0
                 || recordedAudioPanel != null && recordedAudioPanel.getVisibility() == VISIBLE;
+        // NagramX (#record-tone-fix): the one-row composer shares its row with the record panel's exit (the trash, timer
+        // and dot), so it keeps the row until that transition ends in cancelRecordInterfaceInternal, then eases back.
+        boolean exitHeld = !recordingVisible && composerInlineRest != null && runningAnimationAudio != null;
+        recordingVisible |= exitHeld;
         boolean replaceInput = replacementVisible || recordingVisible;
         composerToolbar.setControlsVisible(!replaceInput);
         // NagramX (#composer-toolbar): the record and review panels are shorter than the toolbar, so an empty
@@ -12581,7 +12586,12 @@ public class ChatActivityEnterView extends FrameLayout implements
             if (composerFormattingActions != null) {
                 composerFormattingActions.refresh();
             }
+            // NagramX (#record-tone-fix): the exit's end asked the field for focus while the hold still had it GONE.
+            if (composerExitHeld && messageEditText != null && !AndroidUtilities.isAccessibilityScreenReaderEnabled()) {
+                messageEditText.requestFocus();
+            }
         }
+        composerExitHeld = exitHeld;
         // NagramX (#composer-inline-rest): the fold holds still while the row is replaced; tell it on both edges.
         if (composerInlineRest != null && wasReplacementVisible != toolbarReplacementVisible) {
             applyComposerTextGeometry();

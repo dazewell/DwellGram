@@ -163,6 +163,14 @@ public final class ComposerInlineRest {
         if (!shown && !held) {
             // A fold still running when the row goes would keep easing a row nobody sees; land it now.
             finishMorph();
+            // And a return fade still running would fight the panel's own fade of the field.
+            field.animate().cancel();
+        } else if (resumed) {
+            // The field comes back with the tools row and the tone, not a frame ahead of them.
+            field.animate().cancel();
+            field.setAlpha(0f);
+            field.animate().alpha(1f).setDuration(ComposerMd3Surface.ROW_RETURN_DURATION)
+                    .setInterpolator(CubicBezierInterpolator.EASE_OUT).start();
         }
         held = !shown;
         final boolean rest = shown ? wantsRest && fits(field) && !toolbar.hasMiddleLeading() : compact;
