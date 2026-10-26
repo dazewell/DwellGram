@@ -41,17 +41,17 @@ public final class CameraMemo {
 
     /**
      * InstantCameraView's Camera2 opens ask for a square stream, so the camera crops before the frame ever reaches the
-     * viewfinder. The camera memo's chat asks for 4:3 instead: the circle and the clip stay the stream's centre square,
-     * cropped by texture coordinates the way the Camera1 path always is. Only in portrait, since that crop takes the
-     * upright frame to be portrait and would squash a landscape one, and never 16:9, which can make Camera2Session's
-     * aspect match pick another lens.
+     * viewfinder. The camera memo's chat asks for 16:9 instead, so the viewfinder fills most of a portrait screen: the
+     * circle and the clip stay the stream's centre square, cropped by texture coordinates the way the Camera1 path always
+     * is. Only in portrait, since that crop takes the upright frame to be portrait and would squash a landscape one.
+     * Camera2Session.create also matches lenses by aspect, so on a phone with mixed sensor shapes this can pick another.
      */
     public static int roundCameraWidth(Object delegate, int size) {
         if (!(delegate instanceof ChatActivity) || !isSessionChat((ChatActivity) delegate)
                 || AndroidUtilities.displaySize.x > AndroidUtilities.displaySize.y) {
             return size;
         }
-        return size * 4 / 3;
+        return size * 16 / 9;
     }
 
     /** VideoNoteShortcut.onChatViewCreated, for the chat a camera memo shortcut is opening. Up from the push's first frame. */
