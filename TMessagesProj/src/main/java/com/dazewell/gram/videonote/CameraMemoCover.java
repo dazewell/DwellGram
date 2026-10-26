@@ -79,7 +79,8 @@ final class CameraMemoCover extends FrameLayout {
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint framePaint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final RectF frameRect = new RectF();
-    private Bitmap frame;
+    private final Bitmap[] frames = new Bitmap[2];
+    private Bitmap frame; // the one drawn, one of frames
     private boolean hasFrame;
 
     private final ControlButton discardButton;
@@ -208,6 +209,7 @@ final class CameraMemoCover extends FrameLayout {
         AndroidUtilities.cancelRunOnUIThread(grab);
         restoreStatusBar();
         frame = null;
+        frames[0] = frames[1] = null;
         hasFrame = false;
         if (getParent() instanceof android.view.ViewGroup) {
             ((android.view.ViewGroup) getParent()).removeView(this);
@@ -294,11 +296,15 @@ final class CameraMemoCover extends FrameLayout {
         TextureView texture = camera != null ? camera.getTextureView() : null;
         if (camera != null && camera.isRecording() && texture != null && texture.isAvailable()) {
             try {
-                if (frame == null) {
-                    frame = Bitmap.createBitmap(FRAME_PX, FRAME_PX, Bitmap.Config.ARGB_8888);
+                // Two bitmaps taking turns: the blur writes pixels natively, which the renderer may not notice on a
+                // bitmap it has already uploaded, so each frame is drawn from the one not shown last
+                int slot = frame == frames[0] && frame != null ? 1 : 0;
+                if (frames[slot] == null) {
+                    frames[slot] = Bitmap.createBitmap(FRAME_PX, FRAME_PX, Bitmap.Config.ARGB_8888);
                 }
-                texture.getBitmap(frame);
-                Utilities.stackBlurBitmap(frame, 3);
+                texture.getBitmap(frames[slot]);
+                Utilities.stackBlurBitmap(frames[slot], 3);
+                frame = frames[slot];
                 hasFrame = true;
                 invalidate();
             } catch (Throwable e) {
