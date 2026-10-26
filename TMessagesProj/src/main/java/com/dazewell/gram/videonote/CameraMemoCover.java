@@ -37,8 +37,9 @@ import java.util.Locale;
  * #camera-memo: the plain camera screen over a camera memo's chat. Opaque black everywhere except the round camera,
  * which shows through a hole cut to its exact on-screen bounds, so the stock live circle is never scaled, dimmed or
  * covered. A touch that starts on the circle goes through to it, so the round video's own gestures work as usual.
- * Behind it the whole camera frame, uncropped, lines up with the circle like a viewfinder (CameraMemoBackdrop), and a
- * white ring marks the edge of what is sent. The recording cue and the controls are drawn here, white on black, with
+ * Behind it the whole camera frame, uncropped, lines up with the circle like a viewfinder (CameraMemoBackdrop), so the
+ * circle blends into it. What is sent is marked by a golden-spiral guide instead of a ring: its largest square is the
+ * crop, which reads as an ordinary camera's composition guide rather than a round video recorder. The recording cue and the controls are drawn here, white on black, with
  * no Telegram colour.
  *
  * Fixed dark in both themes on purpose: a theme colour would give the app away. Everything it shows is read from the
@@ -54,8 +55,9 @@ final class CameraMemoCover extends FrameLayout {
     private static final long WARN_FROM_MS = 55_000;
     private static final long START_TIMEOUT_MS = 6_000;
     private static final int VIEWFINDER_MAX_PX = 720; // its buffer's long side, not its size on screen
-    // Solid, since the viewfinder around it is as bright as the circle: the ring alone says which part is sent
-    private static final int RING = 0xffffffff;
+    private static final int GUIDE = 0xb3ffffff;
+    private static final float PHI = 1.618034f;
+    private static final int GUIDE_SQUARES = 9;
 
     private static final int RED = 0xffff3b30;
     private static final int AMBER = 0xffffb300;
@@ -75,8 +77,10 @@ final class CameraMemoCover extends FrameLayout {
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint dimTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint ringPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final RectF ringRect = new RectF();
+    private final Paint guidePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path guidePath = new Path();
+    private final Path spiralPath = new Path();
+    private final RectF guideOval = new RectF();
     private final RectF viewfinderRect = new RectF();
     private final TextureView viewfinder;
     private float laidFrameWidth;
@@ -133,9 +137,9 @@ final class CameraMemoCover extends FrameLayout {
         // The status sits over the live viewfinder, which can be as bright as the text
         textPaint.setShadowLayer(AndroidUtilities.dp(3), 0, 0, 0x99000000);
         dimTextPaint.setShadowLayer(AndroidUtilities.dp(3), 0, 0, 0x99000000);
-        ringPaint.setStyle(Paint.Style.STROKE);
-        ringPaint.setStrokeWidth(AndroidUtilities.dp(2));
-        ringPaint.setColor(RING);
+        guidePaint.setStyle(Paint.Style.STROKE);
+        guidePaint.setStrokeWidth(AndroidUtilities.dp(1.5f));
+        guidePaint.setColor(GUIDE);
 
         // First child, so everything else draws over it; clipped out of the hole in dispatchDraw
         viewfinder = new TextureView(context);
@@ -555,8 +559,8 @@ final class CameraMemoCover extends FrameLayout {
         canvas.restore();
     }
 
-    // Children, the viewfinder first, never draw into the hole: that is the real circle's. The ring and the status go
-    // last, over the viewfinder.
+    // Children, the viewfinder first, never draw into the hole: that is the real circle's. The guide and the status go
+    // last, over both: thin lines, like any camera's grid, which hide nothing of the picture.
     @Override
     protected void dispatchDraw(Canvas canvas) {
         canvas.save();
@@ -565,15 +569,73 @@ final class CameraMemoCover extends FrameLayout {
         }
         super.dispatchDraw(canvas);
         canvas.restore();
-        if (hasHole && viewfinder.getWidth() > 0) {
-            float half = ringPaint.getStrokeWidth() / 2f;
-            ringRect.set(hole);
-            ringRect.inset(-half, -half); // wholly outside the circle
-            canvas.drawOval(ringRect, ringPaint);
+        if (hasHole && hasFlatHole && viewfinder.getWidth() > 0) {
+            drawGuide(canvas);
         }
         if (!failed) {
             drawStatus(canvas);
         }
+    }
+
+    // A golden rectangle whose largest square is the crop, the circle's square, with the rest above it: its edges are the
+    // crop's top and bottom, the frame's width is its sides, and the spiral's widest quarter spans it corner to corner.
+    // Squares go bottom, right, top, left, each arc turning about the corner the next square starts from.
+    private void drawGuide(Canvas canvas) {
+        float side = Math.min(flatHole.width(), flatHole.height());
+        float l = flatHole.centerX() - side / 2f;
+        float r = l + side;
+        float b = flatHole.centerY() + side / 2f;
+        float t = b - side - side / PHI;
+        guidePath.reset();
+        spiralPath.reset();
+        guidePath.addRect(l, t, r, b, Path.Direction.CW);
+        boolean first = true;
+        for (int i = 0; i < GUIDE_SQUARES; i++) {
+            float s = Math.min(r - l, b - t);
+            if (s < AndroidUtilities.dp(2)) {
+                break;
+            }
+            float cx, cy, start;
+            switch (i % 4) {
+                case 0: // bottom
+                    guidePath.moveTo(l, b - s);
+                    guidePath.lineTo(r, b - s);
+                    cx = l;
+                    cy = b - s;
+                    start = 90;
+                    b -= s;
+                    break;
+                case 1: // right
+                    guidePath.moveTo(r - s, t);
+                    guidePath.lineTo(r - s, b);
+                    cx = r - s;
+                    cy = b;
+                    start = 0;
+                    r -= s;
+                    break;
+                case 2: // top
+                    guidePath.moveTo(l, t + s);
+                    guidePath.lineTo(r, t + s);
+                    cx = r;
+                    cy = t + s;
+                    start = -90;
+                    t += s;
+                    break;
+                default: // left
+                    guidePath.moveTo(l + s, t);
+                    guidePath.lineTo(l + s, b);
+                    cx = l + s;
+                    cy = t;
+                    start = 180;
+                    l += s;
+                    break;
+            }
+            guideOval.set(cx - s, cy - s, cx + s, cy + s);
+            spiralPath.arcTo(guideOval, start, -90, first); // each arc starts where the last ended
+            first = false;
+        }
+        canvas.drawPath(guidePath, guidePaint);
+        canvas.drawPath(spiralPath, guidePaint);
     }
 
     private String stateText() {
