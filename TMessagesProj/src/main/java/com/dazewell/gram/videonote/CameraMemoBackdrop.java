@@ -18,7 +18,7 @@ import javax.microedition.khronos.egl.EGLDisplay;
 import javax.microedition.khronos.egl.EGLSurface;
 
 /**
- * #camera-memo: the whole camera frame, uncropped, for the viewfinder behind a camera memo's circle. The round preview
+ * #camera-memo: the whole camera frame, uncropped, for the viewfinder that stands in for a camera memo's circle. The round preview
  * only crops by texture coordinates (InstantCameraView's texData), so this draws the same camera texture with the full
  * 0..1 range into the cover's own TextureView, from InstantCameraView's CameraGLThread right after each preview frame.
  *

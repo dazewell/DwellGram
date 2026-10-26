@@ -145,7 +145,7 @@ final class CameraMemoCover extends FrameLayout {
         gridCropPaint.setStrokeWidth(AndroidUtilities.dp(2));
         gridCropPaint.setColor(GRID_CROP);
 
-        // First child, so everything else draws over it; clipped out of the hole in dispatchDraw
+        // First child, so everything else draws over it; clipped out of the hole while it is not live (dispatchDraw)
         viewfinder = new TextureView(context);
         viewfinder.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
