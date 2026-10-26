@@ -37,8 +37,9 @@ import java.util.Locale;
  * #camera-memo: the plain camera screen over a camera memo's chat. Opaque black everywhere except the round camera,
  * which shows through a hole cut to its exact on-screen bounds, so the stock live circle is never scaled, dimmed or
  * covered. A touch that starts on the circle goes through to it, so the round video's own gestures work as usual.
- * Behind it the whole camera frame, uncropped and dimmed, lines up with the circle like a viewfinder
- * (CameraMemoBackdrop), and a thin ring marks the edge of what is sent. The recording cue and the controls are drawn here, white on black, with no Telegram colour.
+ * Behind it the whole camera frame, uncropped, lines up with the circle like a viewfinder (CameraMemoBackdrop), and a
+ * white ring marks the edge of what is sent. The recording cue and the controls are drawn here, white on black, with
+ * no Telegram colour.
  *
  * Fixed dark in both themes on purpose: a theme colour would give the app away. Everything it shows is read from the
  * recorder: the red dot and the running clock only while it is really capturing.
@@ -52,10 +53,9 @@ final class CameraMemoCover extends FrameLayout {
     private static final long PAUSE_UNTIL_MS = 59_000; // the composer hides its pause button from here
     private static final long WARN_FROM_MS = 55_000;
     private static final long START_TIMEOUT_MS = 6_000;
-    // The viewfinder stays visibly dimmer than the circle, so the circle still reads as the part that is sent
-    private static final float VIEWFINDER_ALPHA = 0.45f;
-    private static final int VIEWFINDER_MAX_PX = 480; // its buffer, not its size on screen: it is dimmed anyway
-    private static final int RING = 0x66ffffff;
+    private static final int VIEWFINDER_MAX_PX = 720; // its buffer's long side, not its size on screen
+    // Solid, since the viewfinder around it is as bright as the circle: the ring alone says which part is sent
+    private static final int RING = 0xffffffff;
 
     private static final int RED = 0xffff3b30;
     private static final int AMBER = 0xffffb300;
@@ -130,13 +130,15 @@ final class CameraMemoCover extends FrameLayout {
         dimTextPaint.setTypeface(medium);
         dimTextPaint.setTextSize(sp(20));
         dimTextPaint.setFontFeatureSettings("tnum");
+        // The status sits over the live viewfinder, which can be as bright as the text
+        textPaint.setShadowLayer(AndroidUtilities.dp(3), 0, 0, 0x99000000);
+        dimTextPaint.setShadowLayer(AndroidUtilities.dp(3), 0, 0, 0x99000000);
         ringPaint.setStyle(Paint.Style.STROKE);
-        ringPaint.setStrokeWidth(AndroidUtilities.dp(1.5f));
+        ringPaint.setStrokeWidth(AndroidUtilities.dp(2));
         ringPaint.setColor(RING);
 
         // First child, so everything else draws over it; clipped out of the hole in dispatchDraw
         viewfinder = new TextureView(context);
-        viewfinder.setAlpha(VIEWFINDER_ALPHA);
         viewfinder.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
