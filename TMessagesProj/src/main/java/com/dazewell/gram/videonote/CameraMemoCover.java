@@ -99,6 +99,8 @@ final class CameraMemoCover extends FrameLayout {
     private boolean bound;
     private boolean wasRecording;
     private boolean everRecorded;
+    // A stop while the app was in the background is the onPause grace's finalize, which ends the encoder for good
+    private boolean terminalStop;
     private long elapsed;
     private long lastTick;
     private boolean committed;
@@ -362,6 +364,9 @@ final class CameraMemoCover extends FrameLayout {
         if (recording) {
             everRecorded = true;
             failed = false; // the recorder overrules the cover: never a failure message over a live recording
+            terminalStop = false;
+        } else if (wasRecording && org.telegram.messenger.ApplicationLoader.mainInterfacePaused) {
+            terminalStop = true;
         }
         wasRecording = recording;
         lastTick = now;
@@ -415,10 +420,10 @@ final class CameraMemoCover extends FrameLayout {
         invalidate();
     }
 
-    // A clip waiting in the preview, short of the cap, with the camera off. Whatever paused it (the Pause button, a tap on
-    // the circle, the onPause grace), the recorder can pick it up again from here.
+    // A clip waiting in the preview, short of the cap, with the camera off, that the recorder can pick up again: paused
+    // by the Pause button or a tap on the circle. One the onPause grace finalized, or the cap stopped, reads Stopped.
     private boolean isPaused() {
-        return !recording && bound && elapsed < PAUSE_UNTIL_MS;
+        return !recording && bound && !terminalStop && elapsed < PAUSE_UNTIL_MS;
     }
 
     // The circle's bounds as drawn, open animation included, in this view's coordinates. Fails open: while the recorder
