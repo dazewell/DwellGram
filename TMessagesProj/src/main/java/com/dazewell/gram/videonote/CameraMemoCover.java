@@ -35,7 +35,7 @@ import java.util.Locale;
 
 /**
  * #camera-memo: the plain camera screen over a camera memo's chat. Opaque black, with the whole camera frame, uncropped,
- * as a viewfinder (CameraMemoBackdrop) and a grid of square cells whose middle three rows are exactly the crop the round
+ * as a viewfinder (CameraMemoBackdrop) and a grid of square cells whose three rows are exactly the crop the round
  * clip sends. While the viewfinder is live it covers the round camera too, so nothing on screen reads as a round video
  * recorder. The moment it isn't (no fresh frame, switched off, paused), a hole opens over the stock circle, so a live
  * picture is always on screen. A touch that starts on the crop goes through to the camera, so the round video's own
@@ -610,7 +610,7 @@ final class CameraMemoCover extends FrameLayout {
     }
 
     // Square cells a third of the crop wide. The crop spans the viewfinder's width, so its three columns are the frame's,
-    // and its three rows sit between the two stronger lines; the rows repeat outward until the frame ends.
+    // and its three rows sit between the two stronger lines. Outside the crop only the two columns carry on.
     private void drawGrid(Canvas canvas) {
         float side = Math.min(flatHole.width(), flatHole.height());
         float cell = side / 3f;
@@ -630,12 +630,6 @@ final class CameraMemoCover extends FrameLayout {
             canvas.drawLine(x, top, x, bottom, gridPaint);
         }
         for (float y = cropTop + cell; y < cropBottom - 1f; y += cell) {
-            canvas.drawLine(left, y, right, y, gridPaint);
-        }
-        for (float y = cropTop - cell; y > top; y -= cell) {
-            canvas.drawLine(left, y, right, y, gridPaint);
-        }
-        for (float y = cropBottom + cell; y < bottom; y += cell) {
             canvas.drawLine(left, y, right, y, gridPaint);
         }
         canvas.drawLine(left, cropTop, right, cropTop, gridCropPaint);
