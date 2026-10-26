@@ -6945,7 +6945,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                     contactButton = buttonsCount++;
                 }
                 musicButton = buttonsCount++;
-                if (todoEnabled) {
+                if (todoEnabled && UserConfig.getInstance(currentAccount).isPremium()) {
                     todoButton = buttonsCount++;
                 }
                 if (baseFragment instanceof ChatActivity && ((ChatActivity) baseFragment).getChatMode() == 0 && user != null && !paidUser && !user.bot && QuickRepliesController.getInstance(currentAccount).hasReplies()) {
