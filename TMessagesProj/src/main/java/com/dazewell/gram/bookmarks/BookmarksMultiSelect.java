@@ -246,7 +246,9 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
         selectedCountView.setTypeface(AndroidUtilities.bold());
         selectedCountView.setTextColor(Theme.getColor(Theme.key_actionBarActionModeDefaultIcon));
         selectedCountView.setOnTouchListener((v, event) -> true);
-        actionMode.addView(selectedCountView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 72, 0, 0, 0));
+        // NagramX: #bookmarks-multiselect. 85 left / 5 right keeps the counter off the glass
+        // panel's rounded edge and clear of the forward button, as in the chat bar.
+        actionMode.addView(selectedCountView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 85, 0, 5, 0));
         actionMode.addItemWithWidth(action_forward, R.drawable.msg_forward_noquote, AndroidUtilities.dp(54), LocaleController.getString(R.string.Forward));
         actionMode.addItemWithWidth(action_copy, R.drawable.msg_copy, AndroidUtilities.dp(54), LocaleController.getString(R.string.Copy));
         actionMode.addItemWithWidth(action_remove_bookmark, R.drawable.msg_unfave, AndroidUtilities.dp(54), LocaleController.getString(R.string.RemoveBookmark));
