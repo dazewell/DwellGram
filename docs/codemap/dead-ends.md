@@ -498,7 +498,7 @@ on-device log tracing is genuinely needed, a `debuggable=true` build (e.g. the
 Disproven -- it dropped the mute instead. During PR #300 review it was argued
 that the new serialisation regressed edited GIF-panel sends by losing their
 encoder bitrate, on the premise that `origin/dev` preserved it. Tracing the
-full round trip disproves the premise. `ChatActivityEnterView.java:14820-14824`
+full round trip disproves the premise. `ChatActivityEnterView.java:14830-14834`
 force-sets `muted = true` on those sends, and such a record genuinely can carry
 a positive bitrate (the `SELECT_TYPE_GIF` editor hides the mute button and
 quality chip -- `PhotoViewer.java:15466`, `:15477` -- so `muteVideo` is false
@@ -613,7 +613,7 @@ Ghost off→on edge) and is fine, because the thing that made the old design's
 *state* need a lock — a background-thread writer (the send path) racing a
 UI-thread writer (the settings toggle) — doesn't apply here at all. Every read
 and write happens on the UI thread: `ChatActivityEnterView`'s own `TextWatcher`
-(`ChatActivityEnterView.java:7072` is the only call site of
+(`ChatActivityEnterView.java:7073` is the only call site of
 `GhostTypingReminderHelper.onComposerTypingObserved`) is the sole entry point,
 and the `AndroidUtilities.runOnUIThread` runnable it posts
 (`GhostTypingReminderHelper.java:280-327`) is a second UI-thread access path,
@@ -637,7 +637,7 @@ thread, where the outgoing request is in hand, and captured as a primitive; the
 *send path's* access to the set happens only inside `GhostSendWarningHelper`'s
 pre-existing `runOnUIThread` block. The composer's
 own two paths are unchanged (the `TextWatcher` at
-`ChatActivityEnterView.java:7072` and the UI runnable it posts), so the full
+`ChatActivityEnterView.java:7073` and the UI runnable it posts), so the full
 inventory is now three access paths, all on the UI thread. Only one of them
 writes a dialog id into the set: the posted runnable. The `TextWatcher` path
 reads membership and posts; the send helper's path is read-only and never
