@@ -606,7 +606,7 @@ menu (built from `ItemOptions.makeOptions` at `:6197`) and the cached
 `sendPopupLayout` popup — while the three per-action rows
 (schedule/send-when-online/silent) now arm in both branches too, per the
 section above. The two branches do **not** share one master-row implementation: the
-`ItemOptions` branch calls `createRememberMasterRow` (`:19356`), a helper built
+`ItemOptions` branch calls `createRememberMasterRow` (`:6273`, defined at `:19741`), a helper built
 around `ItemOptions`/`MessageSendPreview` dismissal; the cached popup builds its
 own row directly off `createPopupSwitchRow` (`:5807`) and wires its own
 click/long-click handlers inline, because dismissing that popup is a plain
@@ -706,7 +706,7 @@ a stale offset can never leak into an unrelated `setFieldText` call
 edit-fill call sites -- the inline call and the 200ms-delayed field-refresh runnable
 -- route through the edit-only `setFieldTextForEdit(...)` entry point, which carries
 the pre-transform rendered text and offset alongside the field text
-(`org/telegram/ui/Components/ChatActivityEnterView.java:12389-12427`, `:12897-12899`).
+(`org/telegram/ui/Components/ChatActivityEnterView.java:13557`, called at `:13035` and `:13045`).
 That entry point validates the offset against the field before applying it -- the
 selection is rejected and falls back to end-of-text if the rendered text no longer
 matches what the field contains after `restoreFormatedDateEntities(...)`, or if the

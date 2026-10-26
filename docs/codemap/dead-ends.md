@@ -498,7 +498,7 @@ on-device log tracing is genuinely needed, a `debuggable=true` build (e.g. the
 Disproven -- it dropped the mute instead. During PR #300 review it was argued
 that the new serialisation regressed edited GIF-panel sends by losing their
 encoder bitrate, on the premise that `origin/dev` preserved it. Tracing the
-full round trip disproves the premise. `ChatActivityEnterView.java:14835-14839`
+full round trip disproves the premise. `ChatActivityEnterView.java:15609`
 force-sets `muted = true` on those sends, and such a record genuinely can carry
 a positive bitrate (the `SELECT_TYPE_GIF` editor hides the mute button and
 quality chip -- `PhotoViewer.java:15466`, `:15477` -- so `muteVideo` is false
