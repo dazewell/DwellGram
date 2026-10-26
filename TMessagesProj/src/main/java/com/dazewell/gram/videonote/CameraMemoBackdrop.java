@@ -126,7 +126,7 @@ public final class CameraMemoBackdrop {
             return;
         }
         try {
-            publishFrameShape(cropTexCoords, stMatrix, mvpMatrix);
+            publishFrameShape(cropTexCoords, mvpMatrix);
             SurfaceTexture want = target;
             if (windowTarget != null && windowTarget != want) {
                 dropWindowSurface(egl, display);
@@ -217,9 +217,10 @@ public final class CameraMemoBackdrop {
         }
     }
 
-    // The preview's crop is in texture space, which the SurfaceTexture matrix may turn by 90 degrees, and its quad may be
-    // turned again by the world angle. Either turn swaps which crop axis lies along the screen's width.
-    private static void publishFrameShape(FloatBuffer crop, float[] stMatrix, float[] mvpMatrix) {
+    // The crop is applied to the texture coordinates before the SurfaceTexture matrix, so that matrix only picks which
+    // texels are sampled, never how far the s and t ranges reach on screen. Only the quad's own turn (the world angle in
+    // the vertex matrix) swaps which of them lies along the screen's width.
+    private static void publishFrameShape(FloatBuffer crop, float[] mvpMatrix) {
         if (crop == null || crop.capacity() < 2) {
             return;
         }
@@ -228,7 +229,7 @@ public final class CameraMemoBackdrop {
         if (!(fx > 0f && fx <= 1f && fy > 0f && fy <= 1f)) {
             return;
         }
-        boolean turned = (Math.abs(stMatrix[0]) < 0.5f) != (Math.abs(mvpMatrix[0]) < 0.5f);
+        boolean turned = Math.abs(mvpMatrix[0]) < 0.5f;
         float width = 1f / (turned ? fy : fx);
         float height = 1f / (turned ? fx : fy);
         if (frameWidth != width || frameHeight != height) {
