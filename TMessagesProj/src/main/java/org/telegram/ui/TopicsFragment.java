@@ -632,7 +632,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
         actionBar.setAddToContainer(false);
         actionBar.setCastShadows(false);
         actionBar.setClipContent(true);
-        actionBar.setOccupyStatusBar(!AndroidUtilities.isTablet() && !inPreviewMode);
+        actionBar.setOccupyStatusBar((!AndroidUtilities.isTablet() || parentLayout != null && parentLayout.isSheet()) && !inPreviewMode);
         if (inPreviewMode) {
             actionBar.setBackgroundColor(Color.TRANSPARENT);
             actionBar.setInterceptTouches(false);
@@ -882,7 +882,7 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
         // NagramX: slid in beside the chat list this bar is transparent over the chat list's solid surface, so the title takes that surface's colours.
         avatarContainer = new ChatAvatarContainer(context, this, false, com.dazewell.gram.helpers.InterfaceStyleSolidHeader.wrapTopicsOverChatList(resourceProvider, isRightFragment()));
         avatarContainer.getAvatarImageView().setRoundRadius(AndroidUtilities.dp(16));
-        avatarContainer.setOccupyStatusBar(!AndroidUtilities.isTablet() && !inPreviewMode);
+        avatarContainer.setOccupyStatusBar((!AndroidUtilities.isTablet() || parentLayout != null && parentLayout.isSheet()) && !inPreviewMode);
         avatarContainer.allowDrawStories = getDialogId() < 0;
         avatarContainer.setClipChildren(false);
         actionBar.addView(avatarContainer, 0, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, 56, 0, 86, 0));
