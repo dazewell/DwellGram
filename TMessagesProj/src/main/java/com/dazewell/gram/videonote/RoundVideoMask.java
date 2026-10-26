@@ -227,12 +227,15 @@ public final class RoundVideoMask {
             }
 
             CountDownLatch cancelled = new CountDownLatch(1);
+            // Only a cancel() that returned proves the export stopped; one that threw is treated as abandoned.
+            AtomicBoolean cancelReturned = new AtomicBoolean();
             handler.post(() -> {
                 try {
                     Transformer transformer = transformerRef.get();
                     if (transformer != null) {
                         transformer.cancel();
                     }
+                    cancelReturned.set(true);
                 } catch (Throwable t) {
                     Log.e(TAG, "export cancel failed", t);
                 } finally {
@@ -240,7 +243,7 @@ public final class RoundVideoMask {
                 }
             });
             try {
-                terminal = cancelled.await(CANCEL_WAIT_MS, TimeUnit.MILLISECONDS);
+                terminal = cancelled.await(CANCEL_WAIT_MS, TimeUnit.MILLISECONDS) && cancelReturned.get();
             } catch (InterruptedException e) {
                 interrupted = true;
             }
