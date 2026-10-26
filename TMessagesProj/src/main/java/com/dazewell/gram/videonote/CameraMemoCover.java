@@ -664,13 +664,8 @@ final class CameraMemoCover extends FrameLayout {
         }
         super.dispatchDraw(canvas);
         canvas.restore();
-        if (!failed && viewfinder.getWidth() > 0 && !cropRect.isEmpty()) {
-            canvas.save();
-            if (!viewfinderCovers) {
-                canvas.clipOutPath(holePath); // the real circle shows: keep the lines off it
-            }
-            drawGrid(canvas);
-            canvas.restore();
+        if (!failed && viewfinderCovers && !cropRect.isEmpty()) {
+            drawGrid(canvas); // only over a live viewfinder: with the real circle showing, it would mark the wrong place
         }
         if (!failed) {
             drawStatus(canvas);
