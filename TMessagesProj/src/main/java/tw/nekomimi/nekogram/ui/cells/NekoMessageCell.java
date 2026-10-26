@@ -5,6 +5,7 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
@@ -14,6 +15,7 @@ import android.text.style.URLSpan;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
 import android.view.ViewParent;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
@@ -64,6 +66,18 @@ public class NekoMessageCell extends ChatMessageCell {
                 // NagramX: #bookmarks-multiselect. False makes ChatMessageCell.onTouchEvent skip
                 // links, reactions and its own avatar handling while selection is active.
                 return naxActionsEnabled;
+            }
+
+            @Override
+            public boolean onAccessibilityAction(int action, Bundle arguments) {
+                // NagramX: #bookmarks-multiselect. Accessibility activation skips onTouchEvent, so
+                // the inert flag alone lets TalkBack open media mid-selection; route the click to
+                // the host (Bookmarks toggles the row) and suppress the default media action.
+                if (!naxActionsEnabled && action == AccessibilityNodeInfo.ACTION_CLICK) {
+                    Optional.ofNullable(ayuDelegate).ifPresent(d -> d.onCellAccessibilityClick(NekoMessageCell.this));
+                    return true;
+                }
+                return false;
             }
 
             @Override
@@ -384,6 +398,11 @@ public class NekoMessageCell extends ChatMessageCell {
         // NagramX: #bookmarks-multiselect. The cell swallowed this long-press, so the list's
         // listener never fires; a host that wants selection routes it from here.
         default void onCellLongPress(ChatMessageCell cell, float x, float y) {
+        }
+
+        // NagramX: #bookmarks-multiselect. Accessibility click while the row is inert: a host
+        // with a selection mode toggles the row, replacing the default media open.
+        default void onCellAccessibilityClick(ChatMessageCell cell) {
         }
     }
 }

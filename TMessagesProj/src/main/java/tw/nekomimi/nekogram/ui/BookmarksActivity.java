@@ -1066,8 +1066,15 @@ public class BookmarksActivity extends NekoDelegateFragment {
     @Override
     public void onCellLongPress(ChatMessageCell cell, float x, float y) {
         if (listView != null) {
-            multiSelect.enterFromPopup(cell, listView, filteredMessages);
+            multiSelect.onCellLongPress(listView, cell, filteredMessages);
         }
+    }
+
+    // NagramX: #bookmarks-multiselect. TalkBack-activating a row while the bar is up toggles it,
+    // instead of the media open the inert flag cannot suppress (accessibility skips onTouchEvent).
+    @Override
+    public void onCellAccessibilityClick(ChatMessageCell cell) {
+        multiSelect.onItemClick(cell);
     }
 
     private class ListAdapter extends RecyclerListView.SelectionAdapter {
@@ -1110,8 +1117,9 @@ public class BookmarksActivity extends NekoDelegateFragment {
                 msg.forceAvatar = true;
                 cell.setAyuDelegate(BookmarksActivity.this);
                 cell.setMessageObject(msg, null, false, false, false);
-                // NagramX: #bookmarks-multiselect. Bind is the funnel every row passes through, so selection visuals ride it.
-                multiSelect.applyTo(cell);
+                // NagramX: #bookmarks-multiselect. Bind is the funnel every row passes through, so
+                // selection visuals ride it — unanimated, or a recycled tick fades over the row.
+                multiSelect.applyTo(cell, false);
                 cell.setAlpha(1f);
                 cell.setId(position);
             }

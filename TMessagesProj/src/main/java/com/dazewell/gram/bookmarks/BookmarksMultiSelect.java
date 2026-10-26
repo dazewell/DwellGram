@@ -23,6 +23,7 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
 import org.telegram.ui.ChatActivity;
+import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.Forum.ForumUtilities;
 import org.telegram.ui.Components.LayoutHelper;
@@ -97,7 +98,18 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
      * arms the bar and hands the drag to the list. The position is re-derived from the
      * message itself because the collapse may have moved the row.
      */
-    public boolean onItemLongClick(RecyclerListView listView, View view, ArrayList<MessageObject> messages) {
+    /**
+     * Entry from a long-press the cell consumed (its media area): same as the list-level
+     * long-press, including the drag, because the list intercepts the move stream once
+     * multiselect is armed (this is how chat drag-selects over photo cells). The position
+     * is derived from the message, not the gesture.
+     */
+    public boolean onCellLongPress(RecyclerListView listView, View cell, ArrayList<MessageObject> messages) {
+        return armSelectionWithDrag(listView, cell, messages);
+    }
+
+    /** Shared long-press entry: closes search, shows the bar, ticks this row and arms the drag. */
+    private boolean armSelectionWithDrag(RecyclerListView listView, View view, ArrayList<MessageObject> messages) {
         MessageObject msg = view instanceof NekoMessageCell ? ((NekoMessageCell) view).getMessageObject() : null;
         if (msg == null) {
             return false;
@@ -125,6 +137,10 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
         dragActive = true;
         listView.startMultiselect(dragPosition, false, this);
         return true;
+    }
+
+    public boolean onItemLongClick(RecyclerListView listView, View view, ArrayList<MessageObject> messages) {
+        return armSelectionWithDrag(listView, view, messages);
     }
 
     /** Entry from the tap popup's Select item. No gesture is in flight, so no drag is armed. */
@@ -194,9 +210,11 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
 
     /**
      * Bind is the one path every row funnels through, so selection visuals and the inert
-     * flag ride it; recycled cells can otherwise carry stale checked state.
+     * flag ride it; recycled cells can otherwise carry stale checked state. Bind passes
+     * animated=false so a recycled cell never fades an old tick out over a fresh row
+     * (ChatActivity keeps the same distinction on its bind path).
      */
-    public void applyTo(NekoMessageCell cell) {
+    public void applyTo(NekoMessageCell cell, boolean animated) {
         MessageObject msg = cell.getMessageObject();
         boolean active = isActive();
         boolean selected = active && msg != null && selectedIds.contains(msg.getId());
@@ -204,18 +222,18 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
         // on top of the drag. The other NekoMessageCell hosts never set this, so they are unchanged.
         cell.setNaxActionsEnabled(!active);
         if (active) {
-            cell.setCheckBoxVisible(true, true);
+            cell.setCheckBoxVisible(true, animated);
             if (selected) {
                 cell.setDrawSelectionBackground(true);
-                cell.setChecked(true, true, true);
+                cell.setChecked(true, true, animated);
             } else {
                 cell.setDrawSelectionBackground(false);
-                cell.setChecked(false, false, true);
+                cell.setChecked(false, false, animated);
             }
         } else {
             cell.setDrawSelectionBackground(false);
-            cell.setChecked(false, false, true);
-            cell.setCheckBoxVisible(false, true);
+            cell.setChecked(false, false, animated);
+            cell.setCheckBoxVisible(false, animated);
         }
     }
 
@@ -246,8 +264,12 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
         }
         // Built lazily, on first entry: this screen sets the glass action bar up at the end of
         // createView, and a mode built before that would paint its solid colour over the glass.
-        // Rebuilt when the fragment's ActionBar was recreated, or the bar would never show.
+        // Rebuilt when the fragment's ActionBar was recreated, or the bar would never show; a
+        // rebuilt bar starts hidden, so any selection still in the set outlived its bar and
+        // must not silently rejoin the next one.
         if (actionMode == null || builtActionBar != actionBar) {
+            selectedIds.clear();
+            dragActive = false;
             buildActionMode(actionBar);
             builtActionBar = actionBar;
         }
@@ -330,7 +352,7 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
         for (int i = 0; i < listView.getChildCount(); i++) {
             View child = listView.getChildAt(i);
             if (child instanceof NekoMessageCell) {
-                applyTo((NekoMessageCell) child);
+                applyTo((NekoMessageCell) child, true);
             }
         }
     }
@@ -460,7 +482,11 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
                     // NagramX: #bookmarks-multiselect. The picker's notify, schedule and hide-name
                     // choices are the delegate's params and the noForwardQuote static, not defaults
                     // to re-pick; ChatActivity's own forward delegate honours all three.
-                    fragment.getSendMessagesHelper().sendMessage(messages, did, ChatActivity.noForwardQuote, false, notify, scheduleDate, 0);
+                    int result = fragment.getSendMessagesHelper().sendMessage(messages, did, ChatActivity.noForwardQuote, false, notify, scheduleDate, 0);
+                    // NagramX: #bookmarks-multiselect. A nonzero result means the send was refused
+                    // (e.g. a voice message to a user who forbids them); say so instead of closing
+                    // silently (chat's forward does the same at its send site).
+                    AlertsCreator.showSendMediaAlert(result, fragment, fragment.getResourceProvider());
                 }
                 fragment1.finishFragment();
             } else {
@@ -613,7 +639,7 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
         }
         RecyclerView.ViewHolder holder = listView == null ? null : listView.findViewHolderForAdapterPosition(position);
         if (holder != null && holder.itemView instanceof NekoMessageCell) {
-            applyTo((NekoMessageCell) holder.itemView);
+            applyTo((NekoMessageCell) holder.itemView, true);
         }
         updateCount();
     }
