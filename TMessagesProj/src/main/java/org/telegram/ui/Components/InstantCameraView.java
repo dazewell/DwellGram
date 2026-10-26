@@ -1121,7 +1121,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             if (bothCameras) {
                 for (int a = 0; a < 2; ++a) {
                     if (camera2Sessions[a] == null) {
-                        camera2Sessions[a] = Camera2Session.create(a == (isFrontface ? 0 : 1), MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize);
+                        camera2Sessions[a] = Camera2Session.create(a == (isFrontface ? 0 : 1), com.dazewell.gram.videonote.CameraMemo.roundCameraWidth(delegate, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize), MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize); // NagramX (#camera-memo): a camera memo asks for the full frame for its viewfinder
                         if (camera2Sessions[a] != null) {
                             camera2Sessions[a].setRecordingVideo(true);
                             camera2Sessions[a].setRoundVideo(); // NagramX: per session, so the idle one of a dual pair matches
@@ -1137,7 +1137,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 }
                 if (camera2SessionCurrent == null) return;
             } else {
-                camera2SessionCurrent = camera2Sessions[isFrontface ? 0 : 1] = Camera2Session.create(isFrontface, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize);
+                camera2SessionCurrent = camera2Sessions[isFrontface ? 0 : 1] = Camera2Session.create(isFrontface, com.dazewell.gram.videonote.CameraMemo.roundCameraWidth(delegate, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize), MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize); // NagramX (#camera-memo): a camera memo asks for the full frame for its viewfinder
                 if (camera2SessionCurrent == null) return;
                 camera2SessionCurrent.setRecordingVideo(true);
                 camera2SessionCurrent.setRoundVideo(); // NagramX
@@ -1710,7 +1710,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                     camera2SessionCurrent = null;
                     camera2Sessions[isFrontface ? 1 : 0] = null;
                 }
-                camera2SessionCurrent = camera2Sessions[isFrontface ? 0 : 1] = Camera2Session.create(isFrontface, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize);
+                camera2SessionCurrent = camera2Sessions[isFrontface ? 0 : 1] = Camera2Session.create(isFrontface, com.dazewell.gram.videonote.CameraMemo.roundCameraWidth(delegate, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize), MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize); // NagramX (#camera-memo): a camera memo asks for the full frame for its viewfinder
                 if (camera2SessionCurrent == null) return;
                 camera2SessionCurrent.setRecordingVideo(true);
                 camera2SessionCurrent.setRoundVideo(); // NagramX
@@ -1759,7 +1759,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
         if (!keep) {
             // both old cameras are closed first, so the replacement is the only one open
-            Camera2Session session = Camera2Session.create(isFrontface, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize);
+            Camera2Session session = Camera2Session.create(isFrontface, com.dazewell.gram.videonote.CameraMemo.roundCameraWidth(delegate, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize), MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize); // NagramX (#camera-memo): a camera memo asks for the full frame for its viewfinder
             if (session == null) {
                 return;
             }
