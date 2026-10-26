@@ -55,6 +55,8 @@ final class CameraMemoCover extends FrameLayout {
     private static final long WARN_FROM_MS = 55_000;
     private static final long START_TIMEOUT_MS = 6_000;
     private static final long COMMIT_SETTLE_MS = 1_500;
+    private static final long PAUSE_INTENT_MS = 600;
+    private static final long TAP_MS = 250; // VideoHoldToSend.ARM_MS: shorter is a tap, which pauses; longer is a hold, which sends
     private static final int VIEWFINDER_MAX_PX = 720; // its buffer's long side, not its size on screen
     private static final int GRID = 0x80ffffff;
     private static final int GRID_CROP = 0xe6ffffff; // the crop's top and bottom, a little stronger than the rest
@@ -104,10 +106,13 @@ final class CameraMemoCover extends FrameLayout {
     private boolean bound;
     private boolean wasRecording;
     private boolean everRecorded;
-    // A stop after the app went to the background mid-recording is the onPause grace's finalize, which ends the encoder
-    // for good. Latched from the recording side, since a frozen background looper may only see the stop after resume.
-    private boolean terminalStop;
-    private boolean backgroundedWhileRecording;
+    // Whether the last stop can be resumed. The recorder has no lasting answer (togglePause only refuses while the file is
+    // handed off or the encoder is tearing down), so the cause decides: a stop that follows a pause asked for here (the
+    // Pause button, a tap on the crop) is a pause. Anything else, a send landing on a preview, the cap, the onPause
+    // grace's finalize or a lock, ended the encoder for good.
+    private boolean resumableStop;
+    private long pauseIntentAt;
+    private long forwardDownAt;
     private long elapsed;
     private long lastTick;
     private boolean committed;
@@ -323,6 +328,7 @@ final class CameraMemoCover extends FrameLayout {
             if (!failed && hasHole) {
                 if (viewfinderCovers && hasFlatHole && cropRect.contains(event.getX(), event.getY())) {
                     startForwarding();
+                    forwardDownAt = event.getEventTime();
                 } else if (!viewfinderCovers) {
                     touchThrough = isInHole(event.getX(), event.getY());
                 }
@@ -336,6 +342,9 @@ final class CameraMemoCover extends FrameLayout {
             mapped.transform(forwardMatrix);
             forwardTarget.dispatchTouchEvent(mapped);
             mapped.recycle();
+            if (action == MotionEvent.ACTION_UP && event.getEventTime() - forwardDownAt < TAP_MS) {
+                pauseIntentAt = SystemClock.elapsedRealtime(); // a tap on the crop pauses or resumes, as on the circle
+            }
             if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
                 forwarding = false;
                 forwardTarget = null;
@@ -406,11 +415,9 @@ final class CameraMemoCover extends FrameLayout {
         if (recording) {
             everRecorded = true;
             failed = false; // the recorder overrules the cover: never a failure message over a live recording
-            terminalStop = false;
-            // Back in the foreground while still capturing means the grace was cancelled (a short pause, Android Auto)
-            backgroundedWhileRecording = org.telegram.messenger.ApplicationLoader.mainInterfacePaused;
+            resumableStop = false;
         } else if (wasRecording) {
-            terminalStop = backgroundedWhileRecording || org.telegram.messenger.ApplicationLoader.mainInterfacePaused;
+            resumableStop = now - pauseIntentAt < PAUSE_INTENT_MS;
         }
         wasRecording = recording;
         lastTick = now;
@@ -423,6 +430,7 @@ final class CameraMemoCover extends FrameLayout {
         }
         readRecorder();
         if (recording || isPaused()) {
+            pauseIntentAt = SystemClock.elapsedRealtime();
             chat.toggleRecordingPause();
         }
         refresh();
@@ -465,9 +473,9 @@ final class CameraMemoCover extends FrameLayout {
     }
 
     // A clip waiting in the preview, short of the cap, with the camera off, that the recorder can pick up again: paused
-    // by the Pause button or a tap on the circle. One the onPause grace finalized, or the cap stopped, reads Stopped.
+    // by the Pause button or a tap on the crop. Any other stop reads Stopped (resumableStop).
     private boolean isPaused() {
-        return !recording && bound && !terminalStop && elapsed < PAUSE_UNTIL_MS;
+        return !recording && bound && resumableStop && elapsed < PAUSE_UNTIL_MS;
     }
 
     // The circle's bounds as drawn, open animation included, in this view's coordinates. Fails open: while the recorder
