@@ -65,35 +65,45 @@ jobs:
           SRC=$(git rev-parse FETCH_HEAD)
           SRC_TREE=$(git rev-parse "FETCH_HEAD^{tree}")
           VERSION=$(git show "$SRC:gradle.properties" | sed -n 's/^APP_VERSION_NAME=//p' | tr -d '\r')
-          PREV=$(git log -1 --format=%H --author="$SYNC_EMAIL" origin/dev)
+          # --no-merges: the sync's own merge commit carries the same identity,
+          # and taking it as the base would make the next merge revert the fork.
+          PREV=$(git log -1 --no-merges --format=%H --author="$SYNC_EMAIL" origin/dev)
           echo "source $SRC ($VERSION), previous snapshot $PREV" >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$(git rev-parse "$PREV^{tree}")" = "$SRC_TREE" ]; then
-            echo "Up to date with Telegram $VERSION." >> "$GITHUB_STEP_SUMMARY"
-            echo "result=uptodate" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-
-          # nbase points at the newest snapshot. If it is not in dev yet, an
-          # earlier sync is still waiting to land; finish that one first.
           if git rev-parse -q --verify origin/nbase >/dev/null \
              && ! git merge-base --is-ancestor origin/nbase origin/dev; then
-            echo "::error::origin/nbase is not merged into dev yet; an earlier sync is still open."
-            echo "result=inflight" >> "$GITHUB_OUTPUT"; exit 1
+            # nbase holds a snapshot that has not landed. While its PR is open,
+            # refuse; otherwise an earlier run stopped after publishing it, so
+            # resume from it rather than minting a second one.
+            OPEN=$(gh pr list --base dev --state open --limit 200 --json number,headRefName \
+              --jq '[.[] | select(.headRefName | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}[-_]upstream-")) | .number] | join(" ")')
+            if [ -n "$OPEN" ]; then
+              echo "::error::sync PR $OPEN is still open; land or close it first."
+              echo "result=inflight" >> "$GITHUB_OUTPUT"; exit 1
+            fi
+            SNAP=$(git rev-parse origin/nbase)
+            VERSION=$(git show "$SNAP:gradle.properties" | sed -n 's/^APP_VERSION_NAME=//p' | tr -d '\r')
+            echo "Resuming unlanded snapshot $SNAP ($VERSION)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            if [ "$(git rev-parse "$PREV^{tree}")" = "$SRC_TREE" ]; then
+              echo "Up to date with Telegram $VERSION." >> "$GITHUB_STEP_SUMMARY"
+              echo "result=uptodate" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            SNAP=$(git commit-tree "$SRC_TREE" -p "$PREV" \
+              -m "snapshot Telegram $VERSION source $(git rev-parse --short=10 "$SRC") #infra")
+            git push origin "$SNAP:refs/heads/nbase"
           fi
-
-          SNAP=$(git commit-tree "$SRC_TREE" -p "$PREV" \
-            -m "snapshot Telegram $VERSION source $(git rev-parse --short=10 "$SRC") #infra")
-          git push origin "$SNAP:refs/heads/nbase"
 
           BRANCH="$(date -u +%F)_upstream-${VERSION//./-}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           git switch -c "$BRANCH" origin/dev
           if git merge --no-ff --no-edit -m "merge Telegram $VERSION into dev #infra" "$SNAP"; then
-            git push origin "$BRANCH"
+            # A same-day retry finds the branch already pushed; reuse it.
+            git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null || git push origin "$BRANCH"
             gh pr create --base dev --head "$BRANCH" \
               --title "merge Telegram $VERSION" \
-              --body "Merges Telegram $VERSION (source \`$SRC\`, snapshot \`$SNAP\`). The merge was conflict-free; ci.yml is the compile gate. Land it as a merge commit, not a squash."
+              --body "Merges Telegram $VERSION (snapshot \`$SNAP\`). The merge was conflict-free; ci.yml is the compile gate. Land it as a merge commit, not a squash."
             echo "result=pr" >> "$GITHUB_OUTPUT"
           else
             {

@@ -364,8 +364,9 @@ snapshot commit (`#infra`) whose parent is the previous snapshot, found in
       git merge origin/nbase
       # resolve, compile gate, commit, push, PR into dev
 
-- **An earlier sync not yet landed** (`nbase` not in `dev`) — the run refuses.
-  Land or abandon that one first.
+- **An earlier sync not yet landed** (`nbase` not in `dev`) — the run refuses
+  while its `*_upstream-*` PR is open; with none open it resumes from `nbase`
+  instead of minting a new snapshot.
 
 Review the sync PR like any other: compile gate, then read the conflicted and
 fork-touched hunks. Check that `TMessagesProj/release.keystore`, the signing
