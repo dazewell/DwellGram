@@ -35,6 +35,8 @@ import com.radolyn.ayugram.database.entities.DeletedMessageFull;
 import com.radolyn.ayugram.messages.AyuMessagesController;
 import com.radolyn.ayugram.proprietary.AyuMessageUtils;
 
+import com.dazewell.gram.bookmarks.BookmarksMultiSelect;
+
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
@@ -71,6 +73,8 @@ import org.telegram.ui.Components.inset.WindowInsetsStateHolder;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
 
 import kotlin.Unit;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
@@ -90,6 +94,7 @@ public class BookmarksActivity extends NekoDelegateFragment {
     private static final int OPTION_SAVE_TO_GALLERY = 7;
     private static final int OPTION_SAVE_TO_DOWNLOADS = 8;
     private static final int OPTION_TRANSLATE = 9;
+    private static final int OPTION_SELECT = 10;
 
     private final long dialogId;
     private final ArrayList<MessageObject> bookmarkedMessages = new ArrayList<>();
@@ -109,9 +114,17 @@ public class BookmarksActivity extends NekoDelegateFragment {
     private boolean scrollingFloatingDate;
     private final Runnable updateFloatingDateRunnable = this::updateFloatingDateView;
     private final WindowInsetsStateHolder windowInsetsStateHolder = new WindowInsetsStateHolder(this::checkInsets);
+    // NagramX: #bookmarks-multiselect. The selection model, bar and bulk actions live in the
+    // feature class; this screen only passes its own reload funnel. Built after dialogId is
+    // assigned, so not a field initializer.
+    private final BookmarksMultiSelect multiSelect;
+    // NagramX: #bookmarks-multiselect. Ids whose messages are gone from storage; bulk Forward,
+    // Share and Save skip them. Installed on the UI thread with the rows from the same load.
+    private final Set<Integer> placeholderIds = new HashSet<>();
 
     public BookmarksActivity(long dialogId) {
         this.dialogId = dialogId;
+        this.multiSelect = new BookmarksMultiSelect(this, dialogId, () -> updateBookmarks());
     }
 
     private void checkInsets() {
@@ -207,6 +220,8 @@ public class BookmarksActivity extends NekoDelegateFragment {
         Utilities.globalQueue.postRunnable(() -> {
             int[] messageIds = BookmarksHelper.getBookmarkedMessageIds(accountId, dialogId);
             ArrayList<MessageObject> loaded = new ArrayList<>(messageIds.length);
+            // NagramX: #bookmarks-multiselect. Placeholder ids ride the same UI handoff as the rows, so the set is never read interleaved.
+            ArrayList<Integer> placeholders = new ArrayList<>();
 
             for (int messageId : messageIds) {
                 TLRPC.Message message = MessagesStorage.getInstance(accountId).getMessage(dialogId, messageId);
@@ -229,6 +244,10 @@ public class BookmarksActivity extends NekoDelegateFragment {
                 }
                 if (messageObject == null) {
                     messageObject = createMissingMessagePlaceholder(accountId, userId, messageId);
+                    // NagramX: #bookmarks-multiselect. Records which rows are synthetic, so bulk Forward, Share and Save can skip them.
+                    if (messageObject != null) {
+                        placeholders.add(messageId);
+                    }
                 }
                 if (messageObject != null) {
                     messageObject.forceAvatar = true;
@@ -239,6 +258,9 @@ public class BookmarksActivity extends NekoDelegateFragment {
             loaded.sort(Comparator.comparingInt(MessageObject::getId));
 
             AndroidUtilities.runOnUIThread(() -> {
+                // NagramX: #bookmarks-multiselect. Installed here with the rows; loads are serialised but the set only changes hands on the UI thread.
+                placeholderIds.clear();
+                placeholderIds.addAll(placeholders);
                 bookmarkedMessages.clear();
                 bookmarkedMessages.addAll(loaded);
                 applySearchFilter();
@@ -360,7 +382,13 @@ public class BookmarksActivity extends NekoDelegateFragment {
             @Override
             public void onItemClick(int id) {
                 if (id == -1) {
-                    finishFragment();
+                    // NagramX: #bookmarks-multiselect. The header arrow leaves selection first; it only closes the screen when no bar is up.
+                    if (!multiSelect.onBackPressed()) {
+                        finishFragment();
+                    }
+                } else if (multiSelect.isActionId(id)) {
+                    // NagramX: #bookmarks-multiselect. Action-mode items and their overflow route to the selection controller.
+                    multiSelect.onActionBarItemClick(id);
                 }
             }
         });
@@ -440,10 +468,15 @@ public class BookmarksActivity extends NekoDelegateFragment {
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));
 
         listView.setOnItemClickListener((view, position, x, y) -> {
-            if (view instanceof NekoMessageCell) {
-                createMenu(view, x, y, position);
+            // NagramX: #bookmarks-multiselect. A tap toggles selection while the bar is up; the per-message popup stays otherwise.
+            if (!multiSelect.onItemClick(view)) {
+                if (view instanceof NekoMessageCell) {
+                    createMenu(view, x, y, position);
+                }
             }
         });
+        // NagramX: #bookmarks-multiselect. Long-press enters selection and hands hold-and-swipe to the list; the list runs the drag.
+        listView.setOnItemLongClickListener((view, position) -> multiSelect.onItemLongClick(listView, view, filteredMessages));
         listView.addOnScrollListener(listScrollListener);
 
         floatingDateView = new ChatActionCell(context) {
@@ -534,8 +567,23 @@ public class BookmarksActivity extends NekoDelegateFragment {
     }
 
     @Override
+    public boolean onBackPressed(boolean invoked) {
+        // NagramX: #bookmarks-multiselect. System back leaves selection first; returning false keeps the screen open, like the header arrow.
+        if (multiSelect.isActive()) {
+            if (invoked) {
+                multiSelect.onBackPressed();
+            }
+            return false;
+        }
+        return super.onBackPressed(invoked);
+    }
+
+    @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+
+        // NagramX: #bookmarks-multiselect. Selection is transient UI state; it never outlives the screen.
+        multiSelect.clear();
 
         if (scrimPopupWindow != null) {
             scrimPopupWindow.dismiss();
@@ -579,6 +627,11 @@ public class BookmarksActivity extends NekoDelegateFragment {
         items.add(getString(R.string.ShowInChat));
         icons.add(R.drawable.msg_openin);
         options.add(OPTION_SHOW_IN_CHAT);
+
+        // NagramX: #bookmarks-multiselect. Second way into selection, from the tap popup.
+        items.add(getString(R.string.Select));
+        icons.add(R.drawable.msg_select);
+        options.add(OPTION_SELECT);
 
         items.add(getString(R.string.RemoveBookmark));
         icons.add(R.drawable.msg_unfave);
@@ -661,6 +714,9 @@ public class BookmarksActivity extends NekoDelegateFragment {
                     args.putInt("message_id", msg.getId());
                     NotificationCenter.getInstance(getCurrentAccount()).postNotificationName(NotificationCenter.closeChats);
                     presentFragment(new ChatActivity(args), false, false);
+                } else if (option == OPTION_SELECT) {
+                    // NagramX: #bookmarks-multiselect. Enters selection with this row ticked.
+                    multiSelect.enterFromPopup(v, listView, filteredMessages);
                 } else if (option == OPTION_DELETE_BOOKMARK) {
                     BookmarksHelper.removeBookmark(getCurrentAccount(), dialogId, msg.getId());
                     if (position >= 0 && position < filteredMessages.size()) {
@@ -961,6 +1017,8 @@ public class BookmarksActivity extends NekoDelegateFragment {
             }
         }
         rowCount = filteredMessages.size();
+        // NagramX: #bookmarks-multiselect. Loads here have no request id; this is where the new list is installed, so selection prunes here.
+        multiSelect.pruneTo(filteredMessages, placeholderIds);
         notifyAdapterDataChanged();
         updateActionBarCount();
         updateEmptyView();
@@ -1027,6 +1085,8 @@ public class BookmarksActivity extends NekoDelegateFragment {
                 msg.forceAvatar = true;
                 cell.setAyuDelegate(BookmarksActivity.this);
                 cell.setMessageObject(msg, null, false, false, false);
+                // NagramX: #bookmarks-multiselect. Bind is the funnel every row passes through, so selection visuals ride it.
+                multiSelect.applyTo(cell);
                 cell.setAlpha(1f);
                 cell.setId(position);
             }

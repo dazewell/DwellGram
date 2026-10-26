@@ -37,7 +37,7 @@ Private chats now show a reply glyph and count next to a message's timestamp, br
 
 <img height="150" alt="private chat message bubble showing a reply glyph and count next to its timestamp" src="docs/images/features/reply-threads.png" />
 
-### Message bookmarks <!-- #bookmarks-300 -->
+### Message bookmarks <!-- #bookmarks-300 --> <!-- #bookmarks-multiselect -->
 
 Bookmarks come from NagramX; this fork raises the per-chat cap from 30 to 300. Saving from the message menu, per-account storage, and inclusion in settings backup and restore all work as they did.
 

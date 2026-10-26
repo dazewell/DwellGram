@@ -45,6 +45,9 @@ public class NekoMessageCell extends ChatMessageCell {
     private boolean urlLongPressHandled;
     private boolean avatarPressedDown;
     private boolean showAyuDeletedMark = true;
+    // NagramX: #bookmarks-multiselect. Bookmarks' selection mode needs rows to be inert while
+    // the action bar is up; default true keeps the other two hosts bit-identical.
+    private boolean naxActionsEnabled = true;
     @Nullable
     private NekoMessageCellDelegate ayuDelegate;
 
@@ -58,7 +61,9 @@ public class NekoMessageCell extends ChatMessageCell {
         setDelegate(new ChatMessageCell.ChatMessageCellDelegate() {
             @Override
             public boolean canPerformActions() {
-                return true;
+                // NagramX: #bookmarks-multiselect. False makes ChatMessageCell.onTouchEvent skip
+                // links, reactions and its own avatar handling while selection is active.
+                return naxActionsEnabled;
             }
 
             @Override
@@ -186,6 +191,11 @@ public class NekoMessageCell extends ChatMessageCell {
         showAyuDeletedMark = show;
     }
 
+    // NagramX: #bookmarks-multiselect. Only BookmarksActivity sets this false, while its selection bar is up.
+    public void setNaxActionsEnabled(boolean enabled) {
+        naxActionsEnabled = enabled;
+    }
+
     public void setAyuDelegate(@Nullable NekoMessageCellDelegate ayuDelegate) {
         this.ayuDelegate = ayuDelegate;
     }
@@ -230,7 +240,9 @@ public class NekoMessageCell extends ChatMessageCell {
                 urlLongPressHandled = false;
                 downX = event.getX();
                 downY = event.getY();
-                if (isInAvatarArea(downX, downY)) {
+                // NagramX: #bookmarks-multiselect. This branch runs before the delegate check in
+                // ChatMessageCell, so it needs its own gate or the avatar still opens mid-selection.
+                if (naxActionsEnabled && isInAvatarArea(downX, downY)) {
                     avatarPressedDown = true;
                     return true;
                 }
