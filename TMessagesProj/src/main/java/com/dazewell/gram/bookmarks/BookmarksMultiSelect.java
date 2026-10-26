@@ -72,6 +72,10 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
     private ActionBarMenuItem otherItem;
     /** Which way the current hold-and-swipe paints: every row it crosses becomes this. */
     private boolean dragSelects;
+    /** Selected ids as they were when the drag began; the drag may only touch rows matching its direction. */
+    private final Set<Integer> dragSnapshot = new LinkedHashSet<>();
+    /** False once selection exits: the list's drag callbacks after that must not repopulate anything. */
+    private boolean dragActive;
 
     public BookmarksMultiSelect(BaseFragment fragment, long dialogId, Runnable reloadCallback) {
         this.fragment = fragment;
@@ -108,8 +112,14 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
         if (!isActive()) {
             enterSelectionMode();
         }
+        // NagramX: #bookmarks-multiselect. Snapshot before the start row toggles: the drag may
+        // only add rows that were unselected, or drop rows that were selected (ChatActivity's
+        // alreadySelectedMessagesIds), so retreating never strips a pre-existing selection.
+        dragSnapshot.clear();
+        dragSnapshot.addAll(selectedIds);
         dragSelects = !selectedIds.contains(msg.getId());
         toggleSelected(msg.getId());
+        dragActive = true;
         listView.startMultiselect(dragPosition, false, this);
         return true;
     }
@@ -176,6 +186,7 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
     /** Selection is transient; it never outlives the screen. */
     public void clear() {
         selectedIds.clear();
+        dragActive = false;
     }
 
     /**
@@ -260,6 +271,9 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
 
     private void exitSelectionMode() {
         selectedIds.clear();
+        // NagramX: #bookmarks-multiselect. The list only ends its multiselect gesture on UP/CANCEL,
+        // so a drag still in flight here must not write back into the empty set.
+        dragActive = false;
         ActionBar actionBar = fragment.getActionBar();
         if (actionBar != null && actionBar.isActionModeShowed()) {
             actionBar.hideActionMode();
@@ -282,6 +296,7 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
         if (actionMode != null) {
             boolean hasText = false;
             boolean hasForwardable = false;
+            boolean hasSavable = false;
             ArrayList<MessageObject> messages = selectedMessages(false);
             for (int i = 0; i < messages.size(); i++) {
                 MessageObject msg = messages.get(i);
@@ -291,11 +306,14 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
                 if (isForwardable(msg)) {
                     hasForwardable = true;
                 }
+                if (isSavable(msg)) {
+                    hasSavable = true;
+                }
             }
             actionMode.setItemVisibility(action_forward, hasForwardable && NaConfig.INSTANCE.getActionBarButtonForward().Bool() ? View.VISIBLE : View.GONE);
             actionMode.setItemVisibility(action_copy, hasText && NaConfig.INSTANCE.getActionBarButtonCopy().Bool() ? View.VISIBLE : View.GONE);
             otherItem.setSubItemVisibility(sub_share, hasForwardable);
-            otherItem.setSubItemVisibility(sub_save, hasForwardable);
+            otherItem.setSubItemVisibility(sub_save, hasSavable);
             otherItem.setSubItemVisibility(sub_select_between, NaConfig.INSTANCE.getActionBarButtonSelectBetween().Bool() && selectedIds.size() >= 2);
         }
     }
@@ -374,7 +392,21 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
     }
 
     private boolean isForwardable(MessageObject msg) {
-        return !msg.isAyuDeleted() && (placeholderIds == null || !placeholderIds.contains(msg.getId()));
+        if (msg.isAyuDeleted() || placeholderIds != null && placeholderIds.contains(msg.getId())) {
+            return false;
+        }
+        // NagramX: #bookmarks-multiselect. noforwards lands on each row of the dialog, and
+        // canForwardMessage also drops secret-media and live-location rows the bar would
+        // otherwise hand to SendMessagesHelper.
+        return !fragment.getMessagesController().isPeerNoForwards(dialogId) && msg.canForwardMessage();
+    }
+
+    // NagramX: #bookmarks-multiselect. A row with no document parks MediaLoader's worker
+    // forever: addMessageToLoad returns on a null document, so the latch it awaits is never
+    // counted down (MediaController). Document rows are what Save means here anyway, matching
+    // the per-row popup's own Save gate.
+    private boolean isSavable(MessageObject msg) {
+        return !msg.isAyuDeleted() && (placeholderIds == null || !placeholderIds.contains(msg.getId())) && msg.getDocument() != null;
     }
 
     /** The selected rows in list order; forwardableOnly drops placeholder and Ayu-deleted rows. */
@@ -499,7 +531,17 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
     }
 
     private void saveSelected() {
-        ArrayList<MessageObject> messages = selectedMessages(true);
+        // NagramX: #bookmarks-multiselect. Document rows only: a text or photo row parks
+        // MediaLoader's worker on a latch nothing counts down (see isSavable).
+        ArrayList<MessageObject> messages = new ArrayList<>();
+        if (currentMessages != null) {
+            for (int i = 0; i < currentMessages.size(); i++) {
+                MessageObject msg = currentMessages.get(i);
+                if (selectedIds.contains(msg.getId()) && isSavable(msg)) {
+                    messages.add(msg);
+                }
+            }
+        }
         if (messages.isEmpty()) {
             return;
         }
@@ -538,13 +580,17 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
 
     @Override
     public void onSelectionChanged(int position, boolean selected, float x, float y) {
-        MessageObject msg = messageAt(position);
-        if (msg == null) {
+        if (!dragActive) {
             return;
         }
-        // selected says whether the row entered or left the band between the drag start and
-        // the finger; the drag direction decides what entering the band means.
-        if (selected == dragSelects) {
+        MessageObject msg = messageAt(position);
+        if (msg == null || !canSelect(position)) {
+            return;
+        }
+        // selected says whether the row entered or left the band between the drag start and the
+        // finger; an unselect-drag inverts that (ChatActivity does the same before acting).
+        boolean shouldSelect = dragSelects ? selected : !selected;
+        if (shouldSelect) {
             selectedIds.add(msg.getId());
         } else {
             selectedIds.remove(msg.getId());
@@ -558,7 +604,16 @@ public class BookmarksMultiSelect implements RecyclerListView.onMultiSelectionCh
 
     @Override
     public boolean canSelect(int position) {
-        return messageAt(position) != null;
+        if (!dragActive) {
+            return false;
+        }
+        MessageObject msg = messageAt(position);
+        if (msg == null) {
+            return false;
+        }
+        // A select-drag only ever adds freshly-selected rows, an unselect-drag only ever drops
+        // rows the snapshot already held; retreating across the opposite kind changes nothing.
+        return dragSelects != dragSnapshot.contains(msg.getId());
     }
 
     @Override
