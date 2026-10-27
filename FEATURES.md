@@ -343,7 +343,7 @@ A round video message you've recorded but haven't sent survives backing out of t
 
 Turn on *Video memo shortcut* or *Text memo shortcut* under N-Settings → General → Launcher shortcuts (off by default) and long-pressing the icon offers *Video memo*, a hands-free round video on the chosen *Camera*, or *Text memo*, a message box with photos and videos up to 1 GB that keeps unsent text as the chat's draft. Both go to Saved Messages or your *Recipient*, even locked. Shortcut Maker-style apps list them too.
 
-### Memo recipient status <!-- #memo-recipient-status -->
+### Memo recipient status <!-- #memo-recipient-status --> <!-- #camera-memo-status -->
 
 A text memo shows *online* next to its label, and an unread badge, when your *Recipient* is online or has messages you haven't read. A video memo recorded while the app is locked shows both at the top of the screen. Always on.
 
