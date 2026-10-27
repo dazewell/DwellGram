@@ -119,33 +119,52 @@ public final class VideoNoteShortcut {
         return rear ? SHORTCUT_ID_REAR : SHORTCUT_ID;
     }
 
-    // A negative rank leaves it unset, which updateShortcuts reads as keep the one it has
     private static ShortcutInfoCompat build(boolean rear, int rank) {
-        ShortcutInfoCompat.Builder builder = new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, getShortcutId(rear))
+        return new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, getShortcutId(rear))
                 .setShortLabel(getLabel(rear, false))
                 .setLongLabel(getLabel(rear, true))
                 .setIcon(IconCompat.createWithBitmap(isCameraScreen() ? createCameraMemoIcon() : createIcon()))
-                .setIntent(createIntent(rear));
-        if (rank >= 0) {
-            builder.setRank(rank);
-        }
-        return builder.build();
+                .setRank(rank)
+                .setIntent(createIntent(rear))
+                .build();
     }
 
     /**
-     * The screen setting changed. The ids don't, so buildShortcuts may skip them (below API 30 it returns early on an
-     * unchanged set), and a pinned copy of a lens that isn't published now would keep its old look either way.
-     * updateShortcuts rewrites only the ids that exist, dynamic or pinned, and never adds one.
+     * The screen setting changed, and every video memo copy now opens the other screen, so each gets the matching label
+     * and icon. buildShortcuts can't do it: below API 30 it returns early on an unchanged id set, and it never touches a
+     * pinned copy it doesn't publish, such as the other lens or the old "video_note" and "camera_memo" ids. So every
+     * shortcut of ours carrying the memo action is rewritten under its own id, keeping its intent and rank. Queued after
+     * the rebuild buildShortcuts posts to the same queue.
      */
     public static void refreshScreen() {
         org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
-            if (SharedConfig.directShareHash == null) {
-                return;
-            }
+            List<ShortcutInfoCompat> existing;
             try {
-                ShortcutManagerCompat.updateShortcuts(ApplicationLoader.applicationContext, java.util.Arrays.asList(build(false, -1), build(true, -1)));
+                existing = ShortcutManagerCompat.getShortcuts(ApplicationLoader.applicationContext,
+                        ShortcutManagerCompat.FLAG_MATCH_PINNED | ShortcutManagerCompat.FLAG_MATCH_DYNAMIC);
             } catch (Throwable e) {
                 FileLog.e(e);
+                return;
+            }
+            for (ShortcutInfoCompat info : existing) {
+                Intent intent = info.getIntent();
+                if (intent == null || !ACTION.equals(intent.getAction())) {
+                    continue;
+                }
+                boolean rear = intent.hasExtra(EXTRA_REAR) ? intent.getBooleanExtra(EXTRA_REAR, false) : getCameraMode() == CAMERA_REAR;
+                // Own try, so one the launcher rejects can't stop the rest
+                try {
+                    ShortcutManagerCompat.updateShortcuts(ApplicationLoader.applicationContext, Collections.singletonList(
+                            new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, info.getId())
+                                    .setShortLabel(getLabel(rear, false))
+                                    .setLongLabel(getLabel(rear, true))
+                                    .setIcon(IconCompat.createWithBitmap(isCameraScreen() ? createCameraMemoIcon() : createIcon()))
+                                    .setIntents(info.getIntents())
+                                    .setRank(info.getRank())
+                                    .build()));
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
             }
         });
     }
