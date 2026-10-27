@@ -88,6 +88,10 @@ public final class PinnedSettings {
             if (!isValidPart(entry.prefix) || !isValidPart(entry.key) || seen.contains(entry.token())) {
                 continue;
             }
+            // A pin that can no longer be shown can't be unpinned either, so it must not hold one of the MAX slots
+            if (title(entry.key) == null || screenTitle(entry.prefix) == null) {
+                continue;
+            }
             seen.add(entry.token());
             list.add(entry);
             if (list.size() >= MAX) {
@@ -168,7 +172,7 @@ public final class PinnedSettings {
 
     /** Long-press menu item on an N-Settings row: pin it, or unpin it if it already is. */
     public static void addOptions(BaseFragment fragment, ItemOptions options, String prefix, String key) {
-        if (!isValidPart(prefix) || !isValidPart(key) || title(key) == null) {
+        if (!isValidPart(prefix) || !isValidPart(key) || title(key) == null || screenTitle(prefix) == null) {
             return;
         }
         if (indexOf(read(), prefix, key) >= 0) {
