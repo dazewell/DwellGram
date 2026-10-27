@@ -13936,7 +13936,8 @@ public class MessagesStorage extends BaseController {
                     state.dispose();
                 }
             }
-        } else if (_oldId > 0) {            TL_update.TL_updateDeleteScheduledMessages update = new TL_update.TL_updateDeleteScheduledMessages();
+        } else if (_oldId > 0) {
+            TL_update.TL_updateDeleteScheduledMessages update = new TL_update.TL_updateDeleteScheduledMessages();
             update.messages.add(oldMessageId);
             if (DialogObject.isChatDialog(dialogId)) {
                 update.peer = new TLRPC.TL_peerChannel();
