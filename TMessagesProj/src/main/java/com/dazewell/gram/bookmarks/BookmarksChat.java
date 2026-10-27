@@ -237,7 +237,6 @@ public final class BookmarksChat {
                 objects.put(id, new MessageObject(load.account, message, false, false));
             }
             int unavailable = load.total - ids.size();
-            android.util.Log.i("NAX_SMOKE_bookmarks-chat", "resolved total=" + load.total + " shown=" + ids.size() + " unavailable=" + unavailable + " fetchedRounds=" + load.fetchGeneration + " encrypted=" + DialogObject.isEncryptedDialog(load.dialogId));
             AndroidUtilities.runOnUIThread(() -> present(from, load, ids, objects, unavailable));
         });
     }
@@ -313,7 +312,6 @@ public final class BookmarksChat {
         int index = stack.indexOf(list);
         BaseFragment under = index > 0 ? stack.get(index - 1) : null;
         if (under instanceof ChatActivity chat && chat.getCurrentAccount() == load.account && chat.getDialogId() == load.dialogId && chat.getChatMode() == 0 && chat.getTopicId() == 0) {
-            android.util.Log.i("NAX_SMOKE_bookmarks-chat", "openTarget scroll-under hashtag=" + (hashtag != null));
             if (hashtag != null) {
                 chat.openHashtagSearch(hashtag);
             } else {
@@ -321,7 +319,6 @@ public final class BookmarksChat {
             }
             return;
         }
-        android.util.Log.i("NAX_SMOKE_bookmarks-chat", "openTarget replace hashtag=" + (hashtag != null) + " under=" + (under == null ? "none" : under.getClass().getSimpleName()));
         Bundle args = dialogArgs(load.dialogId);
         if (hashtag == null && messageId != 0) {
             args.putInt("message_id", messageId);
