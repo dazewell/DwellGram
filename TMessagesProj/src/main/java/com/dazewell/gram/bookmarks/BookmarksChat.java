@@ -236,7 +236,11 @@ public final class BookmarksChat {
                 }
             }
             ArrayList<Integer> ids = new ArrayList<>(load.found.keySet());
-            Collections.sort(ids, (a, b) -> Integer.compare(b, a));
+            // Newest first, as the pinned list. By date: secret-chat ids are negative and count down.
+            Collections.sort(ids, (a, b) -> {
+                int byDate = Integer.compare(load.found.get(b).date, load.found.get(a).date);
+                return byDate != 0 ? byDate : Integer.compare(b, a);
+            });
             HashMap<Integer, MessageObject> objects = new HashMap<>();
             for (Integer id : ids) {
                 TLRPC.Message message = load.found.get(id);
