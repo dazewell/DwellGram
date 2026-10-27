@@ -15616,7 +15616,7 @@ public class ChatActivity extends BaseFragment implements
     }
 
     public ChatActivityEnterView getChatActivityEnterViewForStickers() {
-        return bottomChannelButtonsLayout.getVisibility() != View.VISIBLE && (currentChat == null || ChatObject.canSendStickers(currentChat)) ? chatActivityEnterView : null;
+        return !nkBookmarks && bottomChannelButtonsLayout.getVisibility() != View.VISIBLE && (currentChat == null || ChatObject.canSendStickers(currentChat)) ? chatActivityEnterView : null; // NagramX: #bookmarks-chat. No sticker sends into the real chat from the list
     }
 
     public ChatActivityEnterView getChatActivityEnterView() {
@@ -39295,11 +39295,11 @@ public class ChatActivity extends BaseFragment implements
         if (getMessagesController().getSendPaidMessagesStars(getDialogId()) > 0) {
             return false;
         }
-        return currentEncryptedChat == null && (bottomChannelButtonsLayout == null || bottomChannelButtonsLayout.getVisibility() != View.VISIBLE) && (!isThreadChat() || isTopic);
+        return !nkBookmarks && currentEncryptedChat == null && (bottomChannelButtonsLayout == null || bottomChannelButtonsLayout.getVisibility() != View.VISIBLE) && (!isThreadChat() || isTopic); // NagramX: #bookmarks-chat
     }
 
     public boolean canSendMessage() {
-        return currentEncryptedChat == null && (bottomChannelButtonsLayout == null || bottomChannelButtonsLayout.getVisibility() != View.VISIBLE);
+        return !nkBookmarks && currentEncryptedChat == null && (bottomChannelButtonsLayout == null || bottomChannelButtonsLayout.getVisibility() != View.VISIBLE); // NagramX: #bookmarks-chat. Its bar is hidden, not absent
     }
 
     // NagramX: physical keyboard hotkeys (com.dazewell.gram.hotkeys.HotkeyController)
