@@ -417,7 +417,6 @@ import tw.nekomimi.nekogram.parts.RichMessageTransHelper;
 import tw.nekomimi.nekogram.helpers.SettingsBackupHelper;
 import tw.nekomimi.nekogram.translate.Translator;
 import tw.nekomimi.nekogram.translate.TranslatorKt;
-import tw.nekomimi.nekogram.ui.BookmarksActivity;
 import tw.nekomimi.nekogram.ui.BottomBuilder;
 import tw.nekomimi.nekogram.ui.MessageDetailsActivity;
 import tw.nekomimi.nekogram.ui.components.GroupedIconsView;
@@ -507,6 +506,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int nkheaderbtn_notif_profile = 2105; // NagramX: chat menu "Alerts: <profile>" item
     private final static int nkheaderbtn_notif_bell = 2106; // NagramX: header bell that cycles the profile
     private final static int nkbtn_stash = 2107; // NagramX: #stash message menu / selection item
+    private final static int nkbtn_bookmarks_remove = 2108; // NagramX: #bookmarks-chat selection item
 
     public int shareAlertDebugMode = DEBUG_SHARE_ALERT_MODE_NORMAL;
     public boolean shareAlertDebugTopicsSlowMotion;
@@ -11741,6 +11741,7 @@ public class ChatActivity extends BaseFragment implements
         actionModeOtherItem.addSubItem(nkbtn_hide, R.drawable.msg_disable, LocaleController.getString(R.string.Hide));
         actionModeOtherItem.addSubItem(nkbtn_report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
         actionModeOtherItem.addSubItem(nkbtn_detail,R.drawable.msg_info,LocaleController.getString(R.string.MessageDetails));
+        if (nkBookmarks) actionModeOtherItem.addSubItem(nkbtn_bookmarks_remove, R.drawable.msg_unfave, LocaleController.getString(R.string.RemoveBookmark)); // NagramX: #bookmarks-chat
         if (scheduledActionBar) {
             // NagramX: copy + forward relocated here off the scheduled top row (forward honours the same config toggle as the top-row button)
             actionModeOtherItem.addSubItem(copy, R.drawable.msg_copy, LocaleController.getString(R.string.Copy));
@@ -13294,6 +13295,41 @@ public class ChatActivity extends BaseFragment implements
         if (button != null) {
             button.setTextColor(getThemedColor(Theme.key_text_RedBold));
         }
+    }
+
+    // NagramX: #bookmarks-chat. Bookmarks open as the pinned list fed with bookmarked messages; the feed and
+    // the delegate are private, so the fork launcher (com.dazewell.gram.bookmarks.BookmarksChat) comes through here.
+    public boolean nkBookmarks;
+
+    public static ChatActivity nkBookmarksList(Bundle args, ArrayList<Integer> ids, HashMap<Integer, MessageObject> objects, Utilities.Callback3<ChatActivity, Integer, String> open) {
+        args.putInt("chatMode", MODE_PINNED);
+        ChatActivity fragment = new ChatActivity(args);
+        fragment.nkBookmarks = true;
+        fragment.pinnedMessageIds = ids;
+        fragment.pinnedMessageObjects = objects;
+        fragment.loadedPinnedMessagesCount = fragment.totalPinnedMessagesCount = ids.size();
+        fragment.pinnedEndReached = true;
+        fragment.chatActivityDelegate = new ChatActivityDelegate() {
+            @Override
+            public void openReplyMessage(int mid) {
+                open.run(fragment, mid, null);
+            }
+
+            @Override
+            public void openHashtagSearch(String hashtag) {
+                open.run(fragment, 0, hashtag);
+            }
+        };
+        return fragment;
+    }
+
+    // NagramX: #bookmarks-chat. processDeletedMessages wants the positive channel id; upstream's own pinned-list
+    // unpin passes dialog_id, which makes it a no-op in channels. The last row closes the list.
+    private void nkRemoveBookmarkRows(int[] ids) {
+        ArrayList<Integer> list = new ArrayList<>(ids.length);
+        for (int id : ids) list.add(id);
+        processDeletedMessages(list, ChatObject.isChannel(currentChat) ? -dialog_id : 0, false);
+        if (pinnedMessageIds.isEmpty()) finishFragment();
     }
 
     private void openPinnedMessagesList(boolean preview) {
@@ -21983,7 +22019,7 @@ public class ChatActivity extends BaseFragment implements
                 avatarContainer.setTitle(LocaleController.getString(R.string.ScheduledMessages));
             }
         } else if (chatMode == MODE_PINNED) {
-            avatarContainer.setTitle(LocaleController.formatPluralString("PinnedMessagesCount", getPinnedMessagesCount()));
+            avatarContainer.setTitle(LocaleController.formatPluralString(nkBookmarks ? "NaxBookmarkedMessagesCount" : "PinnedMessagesCount", getPinnedMessagesCount())); // NagramX: #bookmarks-chat
         } else if (currentChat != null) {
             avatarContainer.setTitle(AndroidUtilities.removeRTL(AndroidUtilities.removeDiacritics(currentChat.title)), currentChat.scam, currentChat.fake, currentChat.verified, false, currentChat.emoji_status, animated);
         } else if (currentUser != null) {
@@ -26098,7 +26134,8 @@ public class ChatActivity extends BaseFragment implements
             updateReplyMessageHeader(true);
         } else if (id == NotificationCenter.didLoadPinnedMessages) {
             long did = (Long) args[0];
-            if (did == dialog_id) {
+            // NagramX: #bookmarks-chat. The bookmarks list rides MODE_PINNED, so live pin traffic must not add or remove its rows.
+            if (did == dialog_id && !nkBookmarks) {
                 ArrayList<Integer> ids = (ArrayList<Integer>) args[1];
                 boolean pin = (Boolean) args[2];
                 ArrayList<MessageObject> arrayList = (ArrayList<MessageObject>) args[3];
@@ -26594,7 +26631,8 @@ public class ChatActivity extends BaseFragment implements
             }
         } else if (id == NotificationCenter.pinnedInfoDidLoad) {
             long did = (Long) args[0];
-            if (did == dialog_id) {
+            // NagramX: #bookmarks-chat. Same reason: the real pin list would replace the bookmarks feed.
+            if (did == dialog_id && !nkBookmarks) {
                 ArrayList<Integer> pinnedMessages = (ArrayList<Integer>) args[1];
                 if (chatMode == MODE_PINNED) {
                     pinnedMessageIds = new ArrayList<>(pinnedMessages);
@@ -29373,7 +29411,7 @@ public class ChatActivity extends BaseFragment implements
         if (updated) {
             if (chatMode == MODE_PINNED) {
                 if (avatarContainer != null) {
-                    avatarContainer.setTitle(LocaleController.formatPluralString("PinnedMessagesCount", getPinnedMessagesCount()));
+                    avatarContainer.setTitle(LocaleController.formatPluralString(nkBookmarks ? "NaxBookmarkedMessagesCount" : "PinnedMessagesCount", getPinnedMessagesCount())); // NagramX: #bookmarks-chat
                 }
             }
             if (chatAdapter != null && !chatAdapter.isFrozen) {
@@ -30954,7 +30992,7 @@ public class ChatActivity extends BaseFragment implements
                     chatActivityEnterView.setFieldFocused();
                     AndroidUtilities.runOnUIThread(() -> chatActivityEnterView.openKeyboard(), 100);
                 } else {
-                    bottomChannelButtonsLayout.setVisibility(View.VISIBLE);
+                    bottomChannelButtonsLayout.setVisibility(nkBookmarks ? View.GONE : View.VISIBLE); // NagramX: #bookmarks-chat. No Unpin all / Hide pinned under bookmarks
                     // AndroidUtilities.updateViewShow(bottomChannelButtonsLayout, true, false, true);
                     chatActivityEnterView.setFieldFocused(false);
                     chatActivityEnterView.setVisibility(View.INVISIBLE);
@@ -33934,7 +33972,7 @@ public class ChatActivity extends BaseFragment implements
         } else {
             allowPin = false;
         }
-        if (UserObject.isReplyUser(dialog_id) || dialog_id == UserObject.VERIFY) {
+        if (UserObject.isReplyUser(dialog_id) || dialog_id == UserObject.VERIFY || nkBookmarks) { // NagramX: #bookmarks-chat. Every bookmark sits in pinnedMessageObjects, which would offer Unpin on each
             allowPin = false;
         }
         allowPin = allowPin && message.getId() > 0 && (message.messageOwner.action == null || message.messageOwner.action instanceof TLRPC.TL_messageActionEmpty) && !message.isExpiredStory() && message.type != MessageObject.TYPE_STORY_MENTION;
@@ -48956,7 +48994,7 @@ public class ChatActivity extends BaseFragment implements
         } else if (id == nkheaderbtn_header_bg) {
             com.dazewell.gram.headerbg.HeaderBgSheet.show(ChatActivity.this);
         } else if (id == nkbtn_bookmarks_manager) {
-            presentFragment(new BookmarksActivity(dialog_id));
+            com.dazewell.gram.bookmarks.BookmarksChat.open(this, dialog_id);
         } else if (id == nkheaderbtn_upgrade) {
             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
             builder.setMessage(getString(R.string.ConvertGroupAlert));
@@ -49001,6 +49039,10 @@ public class ChatActivity extends BaseFragment implements
             ArrayList<MessageObject> stashed = getSelectedMessages1();
             clearSelectionMode();
             naxStashMessages(stashed);
+        } else if (id == nkbtn_bookmarks_remove) { // NagramX: #bookmarks-chat
+            int[] removed = com.dazewell.gram.bookmarks.BookmarksChat.removeSelected(currentAccount, dialog_id, getSelectedMessages1());
+            clearSelectionMode();
+            nkRemoveBookmarkRows(removed);
         } else if (id == nkheaderbtn_hide_title) {
             if (avatarContainer != null) {
                 avatarContainer.setTitle("");
@@ -49312,6 +49354,10 @@ public class ChatActivity extends BaseFragment implements
                     BulletinFactory.of(this).createSimpleBulletin(R.raw.error, formatString(R.string.BookmarksLimitReached, BookmarksHelper.MAX_PER_CHAT)).show();
                 } else {
                     boolean added = result == ToggleResult.ADDED;
+                    if (nkBookmarks && !added) { // NagramX: #bookmarks-chat. Inside the list the row just goes; no bulletin linking back to it
+                        nkRemoveBookmarkRows(messageIds);
+                        break;
+                    }
                     Drawable drawable = ContextCompat.getDrawable(getParentActivity(), added ? R.drawable.msg_fave : R.drawable.msg_unfave);
                     if (drawable != null) {
                         drawable = drawable.mutate();
@@ -49320,7 +49366,7 @@ public class ChatActivity extends BaseFragment implements
                     long dialogIdForBookmarks = selectedObject.getDialogId();
                     CharSequence text = AndroidUtilities.replaceSingleTag(
                             getString(result == ToggleResult.ADDED ? R.string.BookmarkAdded : R.string.BookmarkRemoved),
-                            () -> presentFragment(new BookmarksActivity(dialogIdForBookmarks))
+                            () -> com.dazewell.gram.bookmarks.BookmarksChat.open(this, dialogIdForBookmarks)
                     );
                     BulletinFactory.of(this).createSimpleBulletin(drawable, text).show();
                     updateVisibleRows();
@@ -51600,7 +51646,7 @@ public class ChatActivity extends BaseFragment implements
         } else {
             allowPin = false;
         }
-        if (UserObject.isReplyUser(dialog_id) || dialog_id == UserObject.VERIFY) {
+        if (UserObject.isReplyUser(dialog_id) || dialog_id == UserObject.VERIFY || nkBookmarks) { // NagramX: #bookmarks-chat. Every bookmark sits in pinnedMessageObjects, which would offer Unpin on each
             allowPin = false;
         }
         allowPin = allowPin && message.getId() > 0 && (message.messageOwner.action == null || message.messageOwner.action instanceof TLRPC.TL_messageActionEmpty) && !message.isExpiredStory() && message.type != MessageObject.TYPE_STORY_MENTION;

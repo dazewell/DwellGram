@@ -441,6 +441,11 @@
     <string name="BookmarksLimitReached">You can save up to %d messages per chat.</string>
     <string name="BookmarksFilterUsers">Users</string>
     <string name="NoBookmarks">No bookmarks</string>
+    <string name="NaxBookmarkedMessagesCount_one">Bookmarked Message</string>
+    <string name="NaxBookmarkedMessagesCount_other">%1$d Bookmarked Messages</string>
+    <string name="BookmarksUnavailable_one">%1$d bookmarked message couldn\'t be loaded</string>
+    <string name="BookmarksUnavailable_other">%1$d bookmarked messages couldn\'t be loaded</string>
+    <string name="BookmarksNotInThisChat">Bookmarks can\'t be opened in this chat</string>
     <string name="ClearAllBookmarks">Clear All Bookmarks</string>
     <string name="ClearAllBookmarksNotification">All bookmarks cleared.</string>
     <string name="SortByUnread">Sort by Unread</string>
