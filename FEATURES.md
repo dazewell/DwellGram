@@ -345,7 +345,7 @@ Turn on *Video memo shortcut* or *Text memo shortcut* under N-Settings → Gener
 
 ### Memo recipient status <!-- #memo-recipient-status --> <!-- #camera-memo-status -->
 
-A text memo shows *online* next to its label, and an unread badge, when your *Recipient* is online or has messages you haven't read. A video memo recorded while the app is locked shows both at the top of the screen. Always on.
+A text memo shows *online* next to its label, and an unread badge, when your *Recipient* is online or has messages you haven't read. A video memo recorded while the app is locked shows both at the top of the screen; the camera memo screen shows a green dot and an unread count in its top-right corner, with no words. Always on.
 
 ### Camera memo screen <!-- #camera-memo --> <!-- #video-memo-screen -->
 
