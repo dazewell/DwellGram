@@ -87,18 +87,18 @@ the `reply_to` header rather than requiring a loaded `replyMessageObject`
 *scheduled* still went out as a real forward, losing its reply, until the
 single-slot door was opened (`ChatActivity.java:16096-16103`).
 
-`SendMessagesHelper.java:5152-5181` qualifies a cross-chat reply with
+`SendMessagesHelper.java:5327-5356` qualifies a cross-chat reply with
 `reply_to_peer_id`; copying only a message id would address the destination's
 own unrelated message. That same code redirects a **loaded forwarded** target to
-its channel origin (`:5156-5162`), which is why the copy helper hands it a
+its channel origin (`:5331-5337`), which is why the copy helper hands it a
 detached reference carrying no forward header. A destination forum still needs
-its own topic anchor (`:5173-5174`), dereferenced there unconditionally.
+its own topic anchor (`:5348-5349`), dereferenced there unconditionally.
 
 Note what the reconstructed peer does *not* buy. Every send builds its request
 from the local header, `createReplyInput((TL_messageReplyHeader) newMsg.reply_to)`
-(`SendMessagesHelper.java:5385,5444,5541`), and that header's `reply_to_peer_id`
+(`SendMessagesHelper.java:5563,5622,5719`), and that header's `reply_to_peer_id`
 is `peer2`, which upstream re-derives itself with
-`getMessagesController().getPeer(replyToMsg.getDialogId())` (`:5154`).
+`getMessagesController().getPeer(replyToMsg.getDialogId())` (`:5329`).
 `getPeer` picks channel over chat only when the chat is in cache
 (`MessagesController.java:6100-6110`), so an uncached channel degrades to
 `TL_peerChat` on the wire whatever peer the reference holds. Upstream's own
@@ -334,7 +334,7 @@ pattern sets, causing both wrong queue sharing and wrong UI grouping.
 
 `TL_messages_forwardMessages` carries a single `schedule_date` field for the
 **entire request**, set once on the request object
-(`SendMessagesHelper.java:2628-2642`). Forwarding several messages at once
+(`SendMessagesHelper.java:2812-2826`). Forwarding several messages at once
 therefore lands every one of them on an identical scheduled timestamp — this
 is the stock Telegram API request shape, not a fork defect. It is the root
 cause of "I rescheduled one message and several others moved": the scheduled
@@ -368,11 +368,11 @@ for existing preview behavior.
 
 The forward path assigns the new local placeholder's media straight from the
 source message rather than copying it —
-`newMsg.media = msgObj.messageOwner.media` (`SendMessagesHelper.java:2398`).
+`newMsg.media = msgObj.messageOwner.media` (`SendMessagesHelper.java:2580`).
 `updateMediaPaths`, which reconciles the placeholder once the server confirms
 the send, then mutates that same `TLRPC.MessageMedia` object in place — see
-the photo-size and live-photo writes at `SendMessagesHelper.java:8767-8768`
-and `:8788-8790`. Because of the alias, those writes land on the **original
+the photo-size and live-photo writes at `SendMessagesHelper.java:8978-8979`
+and `:8999-9001`. Because of the alias, those writes land on the **original
 forwarded message's media too**, not just the copy's.
 
 This is upstream code, not a fork addition. Filed as
@@ -386,14 +386,15 @@ avoids it because it builds fresh media from a local path instead of aliasing
 
 `SendMessagesHelper.prepareSendingMedia`'s "send as documents" flush declares
 one `extension` variable outside its per-item loop
-(`SendMessagesHelper.java:10988`), reassigns it per item as each document is
-queued (e.g. `:11542-11560`), and then passes its **final leftover value**
+(`SendMessagesHelper.java:11269`), reassigns it per item as each document is
+queued (e.g. `:11835-11853`), and then passes its **final leftover value**
 as the `mime` argument to every `prepareSendingDocumentInternal` call for the
-whole batch (`SendMessagesHelper.java:11726`). A batch of documents with
+whole batch (`SendMessagesHelper.java:12019`). A batch of documents with
 different extensions therefore gets the wrong MIME type on most of its
 members — and since audio-attribute extraction inside
-`prepareSendingDocumentInternal` branches on the mime it's handed
-(`SendMessagesHelper.java:9385-9404`), a mixed-extension album can also lose
+`prepareSendingDocumentInternal` takes its extension from the mime it's handed
+when the item has only a uri (`SendMessagesHelper.java:9608-9627`, branching at
+`:9642-9667`), a mixed-extension album can also lose
 audio attributes it should have kept.
 
 *(Established 2026-09-02.)*
@@ -403,7 +404,7 @@ audio attributes it should have kept.
 `prepareSendingDocumentInternal` partitions a `groupId` by media type: when
 the current item's derived `docType` differs from the previous item's, it
 calls `finishGroup` and rotates to a fresh `groupId`
-(`SendMessagesHelper.java:9654-9658`, types assigned at `:9639-9653`). That's
+(`SendMessagesHelper.java:9876-9880`, types assigned at `:9861-9875`). That's
 correct behaviour for an arbitrary multi-file share where the caller wants
 photos and non-previewable files kept in separate groups. It's **wrong** for
 a captured source album being resent as documents, where group membership
@@ -829,7 +830,7 @@ rename of the key must touch the settings screen too, not just the helper.
 
 The `ve` string is not just a draft/restore mechanism -- the full
 serialise/parse cycle runs on the ordinary send path:
-`SendMessagesHelper.java:4824` -> `:4969` -> `:5269` -> `MessageObject.java:4473`
+`SendMessagesHelper.java:5025` -> `:5170` -> `:5472` -> `MessageObject.java:4473`
 -> `MediaController.java:6846`. Crucially `parseString` derives `muted` from the
 legacy bitrate slot (`VideoEditedInfo.java:590-599`) rather than storing it, so
 any field added to the format is subject to that inference on every send, not
@@ -837,7 +838,7 @@ only on restore. Miss this and a change that sets `muted` in memory while also
 writing a real bitrate will have the mute silently discarded at parse time,
 because a non-`-1` bitrate re-derives `muted = false`. Conversion runs off the
 parsed object (`scheduleVideoConvert(message.obj)`,
-`SendMessagesHelper.java:6628` -> `MediaController.java:6592`), so the
+`SendMessagesHelper.java:6831` -> `MediaController.java:6592`), so the
 in-memory value never reaches the transcoder. This is why the silent-video
 feature forces the legacy slot to `-1` whenever muted and carries the real
 bitrate in a separate version-12 extension block.
@@ -867,8 +868,8 @@ bitrate; that is false, and only a direct read of the early return settled it.
 when `bitrate == -2` (the "Original" quality selection, set in
 `PhotoViewer.updateWidthHeightBitrateForCompression` around `:22055-22058`).
 When it returns false, `prepareSendingMedia` leaves `path` pointing at the
-original file (`SendMessagesHelper.java:11463-11468`) and no conversion is
-scheduled (`:6620-6628`). The transcoder is the only thing that strips the
+original file (`SendMessagesHelper.java:11699-11705`) and no conversion is
+scheduled (`:6823-6831`). The transcoder is the only thing that strips the
 audio track, so a muted clip that reaches the send path carrying `-2` uploads
 the untouched source with its sound intact. Treat "muted" and
 "`bitrate == -2`" as a combination that must never be serialised together. It
@@ -981,11 +982,11 @@ on that 4-lock cap, or handle the vacuous-true case itself.
 
 Established 2026-09-09 (#ghost-hold). `MessagesStorage.getUnsentMessages` runs a
 second cursor over `scheduled_messages_v2` selecting `mid < 0 AND send_state = 1`
-(`MessagesStorage.java:8726`), so local unsent scheduled rows are pulled into the
+(`MessagesStorage.java:8727`), so local unsent scheduled rows are pulled into the
 resend path alongside `messages_v2` rows, and `processUnsentMessages` feeds them
-to its scheduled retry loop (`SendMessagesHelper.java:9134`+). This runs not just
+to its scheduled retry loop (`SendMessagesHelper.java:9325`+). This runs not just
 at startup: `checkUnsentMessages()` is called from `ApplicationLoader.java:308`
-**and** from inside `processSentMessage` (`SendMessagesHelper.java:1811`), i.e.
+**and** from inside `processSentMessage` (`SendMessagesHelper.java:1841`), i.e.
 every time the unsent queue drains during normal use. The current fork-store
 design does NOT park held rows here — held rows live in the fork-owned
 `ghosthold_<account>.db` and are injected as display-only objects, so a
@@ -994,8 +995,8 @@ negative-id row in scheduled_messages_v2 renders in the Scheduled list" entry;
 the pre-rebuild design that persisted held rows as negative-id
 `scheduled_messages_v2` rows was discarded as unsafe). The `scheduled_messages_v2`
 drain guards that remain — `processUnsentMessages` skips held rows
-(`SendMessagesHelper.java:9155`) and `retrySendMessage` refuses them
-(`SendMessagesHelper.java:1766`) — survive for exactly one window: a legacy-upgrade
+(`SendMessagesHelper.java:9337`) and `retrySendMessage` refuses them
+(`SendMessagesHelper.java:1780`) — survive for exactly one window: a legacy-upgrade
 launch where `checkUnsentMessages()` runs the auto-resend loop before
 `checkOnProcessStart()` has migrated the old marked rows out of the stock tables.
 In that window a still-marked legacy row could otherwise auto-send while Ghost is
@@ -1035,13 +1036,13 @@ PR #363 was closed unmerged.)*
 ## Local photo upload re-resolves the largest PhotoSize; attachPath is not its byte identity
 
 Local photo preparation creates a small size and then a full-size entry
-(`SendMessagesHelper.java:9373-9402`). The outgoing placeholder records an
-`attachPath` from the last size's location (`SendMessagesHelper.java:4749-4753`),
+(`SendMessagesHelper.java:9555-9584`). The outgoing placeholder records an
+`attachPath` from the last size's location (`SendMessagesHelper.java:4923-4927`),
 but the delayed upload keeps the last `PhotoSize` separately
-(`SendMessagesHelper.java:5623-5628`). When upload runs, it resolves that
+(`SendMessagesHelper.java:5801-5806`). When upload runs, it resolves that
 `PhotoSize` again through `FileLoader.getPathToAttach(...)` and passes the
 resulting path to `uploadFile(...)`; it does not read `Message.attachPath` or
-verify the file's bytes first (`SendMessagesHelper.java:6624-6642`).
+verify the file's bytes first (`SendMessagesHelper.java:6799-6820`).
 `FileLoader` keys and constructs the upload operation from that path string
 alone (`FileLoader.java:401-427`, `FileUploadOperation.java:98-104`).
 
@@ -1070,7 +1071,7 @@ volume/local pair and opens that path for output
 If that name still represents a held photo retry, ordinary stock photo
 generation can replace its bytes. The retry later follows the shared
 `PhotoSize` name to `uploadFile(...)` without a byte-identity check
-(`SendMessagesHelper.java:6624-6642`, `FileLoader.java:401-427`,
+(`SendMessagesHelper.java:6799-6820`, `FileLoader.java:401-427`,
 `FileUploadOperation.java:98-104`), so it can upload an unrelated photo.
 Refusing to overwrite an existing target avoids that direction but does not
 make restore-to-the-same-id safe; the discarded design is recorded in
@@ -1140,8 +1141,8 @@ facts together:
   `messages_v2`, `messages_topics`, `media_v4`, `media_topics` and
   `dialogs.last_mid`, but **not** `randoms_v2`.
 - Post-confirmation `putMessages` cannot backfill it either: an incoming server
-  message carries `random_id == 0` (`MessagesStorage.java:12248`), and the
-  `randoms_v2` insert is gated on a non-zero random id (`:12825`), so the insert
+  message carries `random_id == 0` (a local-only `//custom` field, `TLRPC.java:58775`), and the
+  `randoms_v2` insert is gated on a non-zero random id (`MessagesStorage.java:12825`), so the insert
   is skipped.
 
 Cost if missed: any design that keys a held/pending message off `randoms_v2`
@@ -1177,10 +1178,10 @@ scheduled messages from the local list and hides the Scheduled button.
 ## Grouped media carries `groupId` before every sibling reaches the send funnel
 
 The grouped-media preparation paths mint or retain a group id before dispatching
-any sibling (`SendMessagesHelper.java:11078-11084`). Each supported grouped branch
+any sibling (`SendMessagesHelper.java:11274-11280`). Each supported grouped branch
 then writes that id into the sibling's params before its UI-thread
-`sendMessage(SendMessageParams)` call: documents at `:9694-9728`, search media at
-`:11252-11272`, videos at `:11529-11573`, and photos at `:11756-11788`. By the
+`sendMessage(SendMessageParams)` call: documents at `:9876-9910`, search media at
+`:11448-11468`, videos at `:11725-11769`, and photos at `:11952-11984`. By the
 time the single Ghost Hold hook runs, every sibling is already identifiable as
 grouped; `GhostHoldController.isHoldableSend` refuses a non-zero `groupId` at
 `GhostHoldController.java:236-240`, so it cannot admit only part of an album.
@@ -1195,7 +1196,7 @@ completion state and leave a partially held, partially sent album.
 `ChatActivityEnterView` builds a fresh `MessageObject.SendAnimationData` for a
 normal (non-forwarding) text send before constructing the params
 (`ChatActivityEnterView.java:9628-9630`), and `of(...)` stores it verbatim
-(`SendMessagesHelper.java:12545`). It is a transient UI fly-in hint — the
+(`SendMessagesHelper.java:12740`). It is a transient UI fly-in hint — the
 composer's on-screen x/y/width/height — carrying no part of the sent message,
 but it is set on ~100% of composer sends. Any allowlist/denylist that treats an
 unrecognised non-default `SendMessageParams` field as "not an ordinary text
@@ -1236,19 +1237,19 @@ request pulls its two formatting-bearing fields from two different places, and
 only one of them is the stored message:
 
 - **Reply header rides on the stored message.** `sendMessage` sets
-  `newMsg = retryMessageObject.messageOwner` (`SendMessagesHelper.java:4547`) and
+  `newMsg = retryMessageObject.messageOwner` (`SendMessagesHelper.java:4721`) and
   builds `reqSend.reply_to` from `newMsg.reply_to`
-  (`SendMessagesHelper.java:5443-5444` via
-  `createReplyInput(TL_messageReplyHeader)` at `:227-240`, which also reads
+  (`SendMessagesHelper.java:5621-5622` via
+  `createReplyInput(TL_messageReplyHeader)` at `:233-248`, which also reads
   `reply_to_peer_id` when `flags & 1` is set). So whatever reply header is on the
   stored row is what gets sent -- `of(MessageObject)` passing `replyToMsg = null`
-  (`SendMessagesHelper.java:12461`) does not lose it.
+  (`SendMessagesHelper.java:12657`) does not lose it.
 - **Entities ride on the params, which `of()` nulls.** The local `entities` used
   to build `reqSend.entities` comes from `sendMessageParams.entities`
-  (`SendMessagesHelper.java:4399`, then `reqSend.entities = entities` at `:5462`),
+  (`SendMessagesHelper.java:4573`, then `reqSend.entities = entities` at `:5640`),
   and `of(MessageObject)` passes `entities = null`
-  (`SendMessagesHelper.java:12461`). `newMsg.entities` is never read back into the
-  request on this path (the Pangu block at `:5243-5256` only ever re-derives from
+  (`SendMessagesHelper.java:12657`). `newMsg.entities` is never read back into the
+  request on this path (the Pangu block at `:5417-5432` only ever re-derives from
   the already-null local, and its `newMsg.entities = entities` write is guarded on
   the local being non-empty, so it does not restore anything either). So a
   re-drive built purely from `of(mo)` ships with **no entities** -- bold, links,
@@ -1377,7 +1378,7 @@ second branch, and
 `FileRefController.java:161-163` shows it routinely carrying paid media and
 polls. The ephemeral receiver itself is resolved for every send including
 media, from the caption where there is one
-(`SendMessagesHelper.java:4439-4450`).
+(`SendMessagesHelper.java:4638-4649`).
 
 Cost of missing it: any code classifying outgoing requests by TL class that
 files this class under "text" will silently mis-handle ephemeral photo, video,
@@ -1387,7 +1388,7 @@ discriminator is `media == null`, which is what the two branches above
 establish; but prefer not to classify user intent by request type at all,
 since the reverse case bites equally -- a typed message with a resolved link
 preview leaves as `TL_messages_sendMedia` carrying `TL_inputMediaWebPage`
-(`SendMessagesHelper.java:5363-5380`), not as `TL_messages_sendMessage`.
+(`SendMessagesHelper.java:5541-5558`), not as `TL_messages_sendMessage`.
 
 This is a warning for a future classifier, not a description of existing code.
 The fork's nearest thing to one, the Ghost Mode send warning
@@ -1485,7 +1486,7 @@ part of it, so a row shown on a later launch came back as `NONE`. `isSending()`
 was then false, `getMessageType` classified it invalid, and the single-row
 cancel/delete affordance was never populated -- so a held message could not be
 deleted after an app restart until flush. Stock restores `send_state` from its own
-column on the scheduled read (`MessagesStorage.java:9012-9014`); the render
+column on the scheduled read (`MessagesStorage.java:9013-9015`); the render
 injection now does the equivalent on the decoded display object before building
 the `MessageObject`. Durable membership stays governed by `STATE_HELD`, never by
 `send_state`.
@@ -2218,7 +2219,7 @@ looks like.
 A round message is bound without a camera whenever the 3-second fallback
 (`ChatActivity.java:39082-39086`) closes the camera before the message is
 inserted, which a slow `prepareSendingVideo` can cause (it blocks on
-`MessagesStorage.getSentFile`, `MessagesStorage.java:10103-10109`). The fork adds
+`MessagesStorage.getSentFile`, `MessagesStorage.java:10104-10110`). The fork adds
 a deterministic source: sending a restored `#video-draft-guard` draft goes
 through `send(4)` with no texture view by design (`InstantCameraView.java:1330`).
 Its fallback timer, like a scheduled send's, can also hit a recording opened
@@ -2413,7 +2414,7 @@ obvious choice but keeps bots.
 Search is looser. `DialogsSearchAdapter.filter` only sorts users from bots,
 groups and channels by the `allow*` flags (`DialogsSearchAdapter.java:287-300`),
 so deleted accounts pass, and local search offers Saved Messages in this picker
-(`MessagesStorage.java:18384-18390`). The recent-contacts strip above the list
+(`MessagesStorage.java:18385-18391`). The recent-contacts strip above the list
 shows whenever `allowUsers` is set (`DialogsSearchAdapter.java:1709-1711`) and
 skips `filter()` entirely. Service accounts (777000 and friends) pass even the
 list filter. So the delegate must validate every pick, and return `false` to
