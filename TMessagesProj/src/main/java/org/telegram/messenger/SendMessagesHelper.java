@@ -8592,7 +8592,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                                 getNotificationCenter().postNotificationName(NotificationCenter.didUpdateMessagesViews, null, null, channelReplies, true);
                             }
                             if (message != null) {
-                                // NagramX: this handler remaps the id itself below. Left in, our updateMessageID reaches
+                                // NagramX: this handler handles the id itself below. Left in, our updateMessageID reaches
                                 // processMessageIDUpdate, which can read the remapped scheduled id back from randoms_v2 and
                                 // delete the scheduled message it just sent. Stripped only once we own the message.
                                 for (int i = updatesArr.size() - 1; i >= 0; i--) {
