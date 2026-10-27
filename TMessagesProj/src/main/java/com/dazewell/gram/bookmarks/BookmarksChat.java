@@ -288,7 +288,14 @@ public final class BookmarksChat {
         }
         ChatActivity list = ChatActivity.nkBookmarksList(dialogArgs(load.dialogId), ids, objects, (self, messageId, hashtag) -> openTarget(self, load, messageId, hashtag));
         list.setCurrentAccount(load.account);
-        if (from.presentFragment(list) && unavailable > 0) {
+        if (!from.presentFragment(list)) {
+            return;
+        }
+        // LaunchActivity saves the top fragment's arguments and restores them with a bare new ChatActivity(args),
+        // which has no feed. chatMode is read once, in onFragmentCreate (already run by presentFragment), so
+        // dropping it here makes a process-death restore reopen the plain chat instead.
+        list.getArguments().remove("chatMode");
+        if (unavailable > 0) {
             BulletinFactory.of(list).createSimpleBulletin(R.raw.error, LocaleController.formatPluralString("BookmarksUnavailable", unavailable)).show();
         }
     }
