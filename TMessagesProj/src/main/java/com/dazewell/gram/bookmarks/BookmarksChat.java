@@ -337,7 +337,7 @@ public final class BookmarksChat {
         List<BaseFragment> stack = list.getParentLayout().getFragmentStack();
         int index = stack.indexOf(list);
         BaseFragment under = index > 0 ? stack.get(index - 1) : null;
-        if (under instanceof ChatActivity chat && chat.getCurrentAccount() == load.account && chat.getDialogId() == load.dialogId && chat.getChatMode() == 0 && chat.getTopicId() == 0) {
+        if (under instanceof ChatActivity chat && chat.getCurrentAccount() == load.account && chat.getDialogId() == load.dialogId && chat.getChatMode() == 0 && chat.getTopicId() == 0 && !chat.isThreadChat()) {
             if (hashtag != null) {
                 chat.openHashtagSearch(hashtag);
             } else {
