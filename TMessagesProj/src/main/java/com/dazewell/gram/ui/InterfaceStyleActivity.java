@@ -278,6 +278,7 @@ public class InterfaceStyleActivity extends BaseNekoXSettingsActivity {
             AndroidUtilities.addToClipboard(String.format(Locale.getDefault(), "https://%s/nasettings/%s?r=%s", getMessagesController().linkPrefix, SETTINGS_KEY, key));
             BulletinFactory.of(this).createCopyLinkBulletin().show();
         });
+        com.dazewell.gram.pinnedsettings.PinnedSettings.addOptions(this, options, SETTINGS_KEY, key);
         showLongClickOptions(view, options);
         return true;
     }

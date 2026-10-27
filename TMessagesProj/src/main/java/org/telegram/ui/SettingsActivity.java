@@ -245,6 +245,8 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         super.onResume();
         if (listView.adapter != null) {
             listView.adapter.notifyDataSetChanged();
+            // NagramX: notifyDataSetChanged does not rerun fillItems, so a pin made in N-Settings would stay hidden
+            com.dazewell.gram.pinnedsettings.PinnedSettings.onResume(listView.adapter);
         }
         Bulletin.Delegate delegate = new Bulletin.Delegate() {
             @Override
@@ -747,6 +749,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         }
 
         items.add(SettingCell.Factory.of(100, 0xFF3CCFFF, 0xFF007AFF, R.drawable.filled_profile_settings, getString(R.string.NekoSettings)));
+        com.dazewell.gram.pinnedsettings.PinnedSettings.fillItems(items, adapter); // NagramX: pinned N-Settings rows share the N-Settings card
         items.add(UItem.asShadow(null));
         final boolean walletAbove = getConnectionsManager().getCurrentTime() - 1791538462 < 4 * 7 * 24 * 60 * 60;
         if (walletAbove && getMessagesController().config.walletAvailable.get()) {
@@ -850,6 +853,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
     }
 
     private void onClick(UItem item, View view, int position, float x, float y) {
+        if (com.dazewell.gram.pinnedsettings.PinnedSettings.onClick(this, listView, item)) return; // NagramX: pinned rows carry ids outside the switch below
         if (item.object instanceof TLRPC.TL_attachMenuBot) {
             TLRPC.TL_attachMenuBot attachMenuBot = (TLRPC.TL_attachMenuBot) item.object;
             if (attachMenuBot.inactive || attachMenuBot.side_menu_disclaimer_needed) {
@@ -983,6 +987,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
     }
 
     private boolean onLongClick(UItem item, View view, int position, float x, float y) {
+        if (com.dazewell.gram.pinnedsettings.PinnedSettings.onLongClick(this, listView, item, view)) return true; // NagramX: unpin from here
         if (item.object instanceof TLRPC.TL_attachMenuBot) {
             TLRPC.TL_attachMenuBot attachMenuBot = (TLRPC.TL_attachMenuBot) item.object;
             BotWebViewSheet.deleteBot(currentAccount, attachMenuBot.bot_id, () -> listView.adapter.update(true));
