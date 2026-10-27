@@ -278,7 +278,8 @@ public final class BookmarksChat {
     }
 
     private static void present(BaseFragment from, Load load, ArrayList<Integer> ids, HashMap<Integer, MessageObject> objects, int unavailable) {
-        if (from.isFinished || from.getParentActivity() == null || from.getParentLayout() == null) {
+        // The fetch can take seconds; if the user has moved on, don't push the list over whatever they opened.
+        if (from.isFinished || from.getParentActivity() == null || from.getParentLayout() == null || from.getParentLayout().getLastFragment() != from) {
             return;
         }
         if (ids.isEmpty()) {
