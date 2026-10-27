@@ -591,7 +591,7 @@ public final class VideoNoteShortcut {
         // Above the input container: the round camera is drawn just before it (ChatActivity's drawChild), and its backdrop
         // would wash out anything placed below
         index = contentView.indexOfChild(inputContainer);
-        if (!CameraMemo.isSessionChat(chat)) { // the camera screen covers it, and it would name the person
+        if (!CameraMemo.isSessionChat(chat)) { // the camera screen covers it and draws its own wordless indicators instead
             addStatusRow(chat, contentView, index < 0 ? contentView.getChildCount() : index + 1);
         }
     }
