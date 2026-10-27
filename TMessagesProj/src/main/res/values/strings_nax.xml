@@ -976,4 +976,10 @@
     <string name="ScheduleCountdownJoin3">%1$s, %2$s and %3$s</string>
     <string name="RescheduleAppliedCountdown_one">%1$d message rescheduled. Sends in %2$s</string>
     <string name="RescheduleAppliedCountdown_other">%1$d messages rescheduled. The first sends in %2$s</string>
+    <string name="PinnedSettings">Pinned settings</string>
+    <string name="PinnedSettingsPin">Pin to Settings</string>
+    <string name="PinnedSettingsUnpin">Unpin from Settings</string>
+    <string name="PinnedSettingsPinned">Pinned to Settings</string>
+    <string name="PinnedSettingsUnpinned">Unpinned from Settings</string>
+    <string name="PinnedSettingsFull">Settings is full. Unpin one first.</string>
 </resources>

@@ -1960,6 +1960,18 @@ object NaConfig {
             ConfigItem.configTypeFloat,
             1f
         )
+    val pinnedSettings =
+        addConfig(
+            "PinnedSettings",
+            ConfigItem.configTypeString,
+            "" // "screen:rowKey,..." in pin order, read by PinnedSettings
+        )
+    val pinnedSettingsCollapsed =
+        addConfig(
+            "PinnedSettingsCollapsed",
+            ConfigItem.configTypeBool,
+            false
+        )
 
     val preferredTranslateTargetLangList = ArrayList<String>()
     fun updatePreferredTranslateTargetLangList() {

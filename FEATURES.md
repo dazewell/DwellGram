@@ -422,6 +422,8 @@ A chat can show its photo behind the Material Design 3 chat header and pinned ba
 
 Another bulletin that appears while the Stash bar or the scheduling countdown is up sits above it instead of replacing it, and each bar can be swiped away on its own. Always on.
 
+### Pinned settings <!-- #pinned-settings -->
+
 <!-- Retired entries, plus sync-reconciliation and superseded feature slugs that have no catalog entry of their own.
      The behaviour still ships; it is documented in README instead of here.
      Slugs kept so old commits stay greppable and the catalog check keeps passing. -->

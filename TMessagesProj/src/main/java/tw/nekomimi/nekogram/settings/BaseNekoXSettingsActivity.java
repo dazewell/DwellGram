@@ -247,6 +247,7 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
             AndroidUtilities.addToClipboard(String.format(Locale.getDefault(), "https://%s/nasettings/%s?r=%s&v=%s", getMessagesController().linkPrefix, prefix, key, value));
             BulletinFactory.of(this).createCopyLinkBulletin().show();
         });
+        com.dazewell.gram.pinnedsettings.PinnedSettings.addOptions(this, options, prefix, key);
     }
 
     protected void showDefaultLongClickOptions(View view, String prefix, int position) {
