@@ -151,13 +151,16 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
 
     private void onShortcutSettingChanged(String key) {
         boolean memo = key.equals(NaConfig.INSTANCE.getVideoNoteShortcut().getKey()) || key.equals(NaConfig.INSTANCE.getTextMemoShortcut().getKey());
-        // The camera decides how many video memo shortcuts there are, the screen which ids, and both what they are called
+        // The camera decides how many video memo shortcuts there are, and with the screen what they are called
         boolean camera = key.equals(NaConfig.INSTANCE.getVideoNoteShortcutCamera().getKey()) || key.equals(NaConfig.INSTANCE.getVideoNoteShortcutScreen().getKey());
         if (!memo && !camera && !key.equals(NaConfig.INSTANCE.getGhostModeShortcut().getKey())
                 && !key.equals(NaConfig.INSTANCE.getNewConversationShortcut().getKey())) {
             return;
         }
         MediaDataController.getInstance(currentAccount).buildShortcuts();
+        if (key.equals(NaConfig.INSTANCE.getVideoNoteShortcutScreen().getKey())) {
+            VideoNoteShortcut.refreshScreen(); // queued after the rebuild, and reaches pinned copies it doesn't
+        }
         if (memo) {
             updateMemoRows(true);
         }

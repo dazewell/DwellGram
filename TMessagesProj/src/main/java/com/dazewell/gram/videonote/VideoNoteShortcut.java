@@ -50,11 +50,9 @@ public final class VideoNoteShortcut {
     private static final String EXTRA_HASH = "hash";
     private static final String EXTRA_REAR = "rear";
     // #camera-memo #video-memo-screen: the same recorder under a plain camera screen (CameraMemo), picked as the video
-    // memo's screen. Its own ids, so switching the screen changes the set buildShortcuts compares and the launcher gets
-    // the new label and icon, and a pinned copy keeps the screen it was pinned with. Not the old single "camera_memo",
-    // whose pinned copies carry the lens they were pinned with. Same action, so LaunchActivity needs no second branch.
-    private static final String SHORTCUT_ID_CAMERA = "camera_memo_front";
-    private static final String SHORTCUT_ID_CAMERA_REAR = "camera_memo_rear";
+    // memo's screen. The screen is read on tap, not carried, so every copy, pinned ones included, follows the setting;
+    // refreshScreen gives them the matching label and icon. The extra only marks a copy of the old separate "camera_memo"
+    // shortcut, which accept strips.
     private static final String EXTRA_CAMERA = "camera";
     private static final long PENDING_TTL_MS = 10_000;
 
@@ -118,10 +116,38 @@ public final class VideoNoteShortcut {
     }
 
     private static String getShortcutId(boolean rear) {
-        if (isCameraScreen()) {
-            return rear ? SHORTCUT_ID_CAMERA_REAR : SHORTCUT_ID_CAMERA;
-        }
         return rear ? SHORTCUT_ID_REAR : SHORTCUT_ID;
+    }
+
+    // A negative rank leaves it unset, which updateShortcuts reads as keep the one it has
+    private static ShortcutInfoCompat build(boolean rear, int rank) {
+        ShortcutInfoCompat.Builder builder = new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, getShortcutId(rear))
+                .setShortLabel(getLabel(rear, false))
+                .setLongLabel(getLabel(rear, true))
+                .setIcon(IconCompat.createWithBitmap(isCameraScreen() ? createCameraMemoIcon() : createIcon()))
+                .setIntent(createIntent(rear));
+        if (rank >= 0) {
+            builder.setRank(rank);
+        }
+        return builder.build();
+    }
+
+    /**
+     * The screen setting changed. The ids don't, so buildShortcuts may skip them (below API 30 it returns early on an
+     * unchanged set), and a pinned copy of a lens that isn't published now would keep its old look either way.
+     * updateShortcuts rewrites only the ids that exist, dynamic or pinned, and never adds one.
+     */
+    public static void refreshScreen() {
+        org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+            if (SharedConfig.directShareHash == null) {
+                return;
+            }
+            try {
+                ShortcutManagerCompat.updateShortcuts(ApplicationLoader.applicationContext, java.util.Arrays.asList(build(false, -1), build(true, -1)));
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
+        });
     }
 
     private static boolean publishes(boolean rear) {
@@ -161,14 +187,7 @@ public final class VideoNoteShortcut {
     }
 
     private static void publish(boolean rear, boolean recreate, List<String> existingIds, int rank) {
-        String id = getShortcutId(rear);
-        push(id, recreate, existingIds, () -> new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, id)
-                .setShortLabel(getLabel(rear, false))
-                .setLongLabel(getLabel(rear, true))
-                .setIcon(IconCompat.createWithBitmap(isCameraScreen() ? createCameraMemoIcon() : createIcon()))
-                .setRank(rank)
-                .setIntent(createIntent(rear))
-                .build());
+        push(getShortcutId(rear), recreate, existingIds, () -> build(rear, rank));
     }
 
     // Own try, building included, so a launcher rejecting one can't abort the rest
@@ -187,15 +206,12 @@ public final class VideoNoteShortcut {
         }
     }
 
-    /** The intent a launcher shortcut or MemoPickerActivity starts, carrying the current hash and screen. */
+    /** The intent a launcher shortcut or MemoPickerActivity starts, carrying the current hash. */
     static Intent createIntent(boolean rear) {
         Intent intent = new Intent(ApplicationLoader.applicationContext, LaunchActivity.class);
         intent.setAction(ACTION);
         intent.putExtra(EXTRA_HASH, SharedConfig.directShareHash);
         intent.putExtra(EXTRA_REAR, rear);
-        if (isCameraScreen()) {
-            intent.putExtra(EXTRA_CAMERA, true);
-        }
         return intent;
     }
 
@@ -241,9 +257,9 @@ public final class VideoNoteShortcut {
      */
     public static long accept(Intent intent, int account) {
         boolean genuine = isGenuine(intent);
-        boolean camera = intent.getBooleanExtra(EXTRA_CAMERA, false);
-        // Screen and lens both come from the shortcut, so a pinned copy keeps what it was pinned with. A video memo copy
-        // pinned before shortcuts carried their camera has no extra, and still follows the setting.
+        // The screen follows the setting, for every copy. The lens comes from the shortcut, so a pinned copy keeps its
+        // camera; one pinned before shortcuts carried their camera has no extra, and follows the setting too.
+        boolean camera = isCameraScreen();
         boolean rear = intent.hasExtra(EXTRA_REAR) ? intent.getBooleanExtra(EXTRA_REAR, false) : getCameraMode() == CAMERA_REAR;
         intent.setAction(null);
         intent.removeExtra(EXTRA_HASH);
