@@ -8597,9 +8597,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                                 // delete the scheduled message it just sent. Stripped only once we own the message.
                                 for (int i = updatesArr.size() - 1; i >= 0; i--) {
                                     if (updatesArr.get(i) instanceof TL_update.TL_updateMessageID && ((TL_update.TL_updateMessageID) updatesArr.get(i)).random_id == newMsgObj.random_id) {
-                                        updatesArr.remove(i);
-                                        android.util.Log.w("NAX_SMOKE_scheduled-send-fix", "stripped own updateMessageID oldId=" + oldId + " newId=" + message.id + " scheduled=" + scheduled + " current=" + currentSchedule);
-                                    }
+                                        updatesArr.remove(i);                                    }
                                 }
                                 MessageObject.getDialogId(message);
                                 if (scheduledOnline && message.date != 0x7FFFFFFE) {
