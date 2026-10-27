@@ -70,6 +70,7 @@ final class CameraMemoCover extends FrameLayout {
     private static final int RED = 0xffff3b30;
     private static final int AMBER = 0xffffb300;
     private static final int TONAL = 0xff2b2e33;
+    private static final int ONLINE = 0xff34c759; // a fixed green, not the theme's online colour, which would give the app away
 
     private final WeakReference<ChatActivity> chatRef;
     private final long attachedAt = SystemClock.elapsedRealtime();
@@ -132,6 +133,10 @@ final class CameraMemoCover extends FrameLayout {
     private int controlsTop = -1;
 
     private final Runnable tick = this::tick;
+    // The recipient's online state and unread count, top right, as a camera's own indicators. Null where nothing applies.
+    private final MemoRecipientStatus recipient;
+    private final RectF pillRect = new RectF();
+    private final Paint pillTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private final ViewTreeObserver.OnPreDrawListener preDraw = () -> {
         // Same traversal as the draw, so the hole never lags the circle's open animation by a frame
@@ -143,6 +148,9 @@ final class CameraMemoCover extends FrameLayout {
         super(context);
         chatRef = new WeakReference<>(chat);
         setWillNotDraw(false);
+        int account = chat.getCurrentAccount();
+        long recipientId = chat.getDialogId();
+        recipient = MemoRecipientStatus.applies(account, recipientId) ? new MemoRecipientStatus(account, recipientId, this::invalidate) : null;
         // Drawn and hit-tested above every later child of the chat's view (its hints and tag bar are added after this),
         // with no shadow
         setOutlineProvider(null);
@@ -162,6 +170,10 @@ final class CameraMemoCover extends FrameLayout {
         // The status sits over the live viewfinder, which can be as bright as the text
         textPaint.setShadowLayer(AndroidUtilities.dp(3), 0, 0, 0x99000000);
         dimTextPaint.setShadowLayer(AndroidUtilities.dp(3), 0, 0, 0x99000000);
+        pillTextPaint.setColor(0xffffffff);
+        pillTextPaint.setTypeface(medium);
+        pillTextPaint.setTextSize(sp(13));
+        pillTextPaint.setFontFeatureSettings("tnum");
         gridPaint.setStyle(Paint.Style.STROKE);
         gridPaint.setStrokeWidth(AndroidUtilities.dp(1));
         gridPaint.setColor(GRID);
@@ -282,6 +294,9 @@ final class CameraMemoCover extends FrameLayout {
         }
         removed = true;
         AndroidUtilities.cancelRunOnUIThread(tick);
+        if (recipient != null) {
+            recipient.stop();
+        }
         restoreStatusBar();
         if (getParent() instanceof android.view.ViewGroup) {
             ((android.view.ViewGroup) getParent()).removeView(this);
@@ -313,6 +328,9 @@ final class CameraMemoCover extends FrameLayout {
         lastTick = SystemClock.elapsedRealtime();
         AndroidUtilities.cancelRunOnUIThread(tick);
         AndroidUtilities.runOnUIThread(tick, TICK_MS);
+        if (recipient != null && !removed) {
+            recipient.start();
+        }
     }
 
     @Override
@@ -320,6 +338,9 @@ final class CameraMemoCover extends FrameLayout {
         super.onDetachedFromWindow();
         getViewTreeObserver().removeOnPreDrawListener(preDraw);
         AndroidUtilities.cancelRunOnUIThread(tick);
+        if (recipient != null) {
+            recipient.stop();
+        }
         restoreStatusBar();
         CameraMemo.onCoverDetached(this);
     }
@@ -707,6 +728,7 @@ final class CameraMemoCover extends FrameLayout {
         }
         if (!failed) {
             drawStatus(canvas);
+            drawRecipient(canvas);
         }
     }
 
@@ -767,8 +789,7 @@ final class CameraMemoCover extends FrameLayout {
         return String.format(Locale.US, "%d:%02d", seconds / 60, seconds % 60);
     }
 
-    // Top centre: a blinking red dot and the clock while capturing, a pause or stop glyph and its word otherwise
-    private void drawStatus(Canvas canvas) {
+    private float statusBaseline() {
         float baseline = Math.max(AndroidUtilities.statusBarHeight + AndroidUtilities.dp(44), AndroidUtilities.dp(56));
         if (viewfinder.getWidth() > 0) {
             baseline = Math.max(viewfinder.getTop(), AndroidUtilities.statusBarHeight) + AndroidUtilities.dp(36);
@@ -776,6 +797,58 @@ final class CameraMemoCover extends FrameLayout {
         if (holeOpen && baseline > hole.top - AndroidUtilities.dp(16)) { // never over the real circle
             baseline = Math.max(AndroidUtilities.statusBarHeight + AndroidUtilities.dp(24), hole.top - AndroidUtilities.dp(16));
         }
+        return baseline;
+    }
+
+    // Top right, on the clock's line: a green dot while the recipient is online and a small count of their unread
+    // messages, both dressed as a camera's mode indicators, with no word that names either. Nothing at all when neither
+    // holds, as on any camera. Half strength while capturing, so the red dot stays the one thing that stands out.
+    private void drawRecipient(Canvas canvas) {
+        if (recipient == null) {
+            return;
+        }
+        boolean showCount = recipient.unread > 0 || recipient.unreadMark;
+        if (!recipient.online && !showCount) {
+            return;
+        }
+        int alpha = recording ? 0x80 : 0xff;
+        float centerY = statusBaseline() - textPaint.getTextSize() * 0.35f;
+        float x = getWidth() - AndroidUtilities.dp(16);
+        if (showCount) {
+            float height = AndroidUtilities.dp(22);
+            float width = height;
+            String count = null;
+            if (recipient.unread > 0) {
+                count = recipient.unread > 99 ? "99+" : String.valueOf(recipient.unread);
+                width = Math.max(height, pillTextPaint.measureText(count) + AndroidUtilities.dp(14));
+            }
+            pillRect.set(x - width, centerY - height / 2f, x, centerY + height / 2f);
+            fillPaint.setColor(TONAL);
+            fillPaint.setAlpha(alpha * 0xe6 / 0xff);
+            canvas.drawRoundRect(pillRect, height / 2f, height / 2f, fillPaint);
+            int ink = recipient.muted ? 0x99 : 0xff;
+            if (count != null) {
+                pillTextPaint.setAlpha(alpha * ink / 0xff);
+                Paint.FontMetrics metrics = pillTextPaint.getFontMetrics();
+                canvas.drawText(count, pillRect.centerX() - pillTextPaint.measureText(count) / 2f, centerY - (metrics.ascent + metrics.descent) / 2f, pillTextPaint);
+            } else {
+                fillPaint.setColor(0xffffffff);
+                fillPaint.setAlpha(alpha * ink / 0xff); // marked unread with nothing counted: a bare dot, as the chat list shows
+                canvas.drawCircle(pillRect.centerX(), centerY, AndroidUtilities.dp(3.5f), fillPaint);
+            }
+            x = pillRect.left - AndroidUtilities.dp(8);
+        }
+        if (recipient.online) {
+            float radius = AndroidUtilities.dp(5);
+            fillPaint.setColor(ONLINE);
+            fillPaint.setAlpha(alpha);
+            canvas.drawCircle(x - radius, centerY, radius, fillPaint);
+        }
+    }
+
+    // Top centre: a blinking red dot and the clock while capturing, a pause or stop glyph and its word otherwise
+    private void drawStatus(Canvas canvas) {
+        float baseline = statusBaseline();
         if (!everRecorded) {
             String text = LocaleController.getString(R.string.CameraMemoStarting);
             canvas.drawText(text, (getWidth() - dimTextPaint.measureText(text)) / 2f, baseline, dimTextPaint);
