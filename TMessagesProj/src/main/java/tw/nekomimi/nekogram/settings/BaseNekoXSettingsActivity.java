@@ -368,9 +368,16 @@ public class BaseNekoXSettingsActivity extends BaseFragment {
         }
         if (position > -1 && listView != null && layoutManager != null) {
             int finalPosition = position;
-            listView.highlightRow(() -> {
-                layoutManager.scrollToPositionWithOffset(finalPosition, dp(60));
-                return finalPosition;
+            layoutManager.scrollToPositionWithOffset(finalPosition, dp(60));
+            // NagramX: highlightRow looks the holder up straight away, and a row already on screen still has its pre-scroll
+            // position then, so the highlight lands where the row used to be. Waiting for the next draw puts it on the row.
+            listView.getViewTreeObserver().addOnPreDrawListener(new android.view.ViewTreeObserver.OnPreDrawListener() {
+                @Override
+                public boolean onPreDraw() {
+                    listView.getViewTreeObserver().removeOnPreDrawListener(this);
+                    listView.highlightRow(() -> finalPosition);
+                    return true;
+                }
             });
         } else if (unknown != null) {
             unknown.run();
