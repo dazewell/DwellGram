@@ -21786,7 +21786,9 @@ public class ChatActivity extends BaseFragment implements
                 } else if (currentEncryptedChat == null && userInfo != null) {
                     allowPin = userInfo.can_pin_message;
                 }
-                if (allowPin) {
+                if (nkBookmarks) { // NagramX: #bookmarks-chat. No real Unpin from the bookmarks selection bar
+                    allowPin = false;
+                } else if (allowPin) {
                     allowPin = false;
                     ArrayList<MessageObject> selected = getSelectedMessages1();
                     for (MessageObject selectedMessage : selected) {
