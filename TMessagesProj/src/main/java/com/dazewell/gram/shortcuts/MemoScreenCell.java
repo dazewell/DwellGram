@@ -84,11 +84,12 @@ public class MemoScreenCell extends LinearLayout {
         private final android.graphics.Path clip = new android.graphics.Path();
         private final RectF arc = new RectF();
         private LinearGradient shade; // the round camera's or the viewfinder's, built for the current size
-        private float shadeKey = Float.NaN;
+        private final String label;
 
         Option(Context context, int screen) {
             super(context);
             this.screen = screen;
+            label = getString(screen == VideoNoteShortcut.SCREEN_CAMERA ? R.string.VideoNoteShortcutScreenCamera : R.string.VideoNoteShortcutScreenChat);
             setWillNotDraw(false);
             labelPaint.setTextSize(dp(13));
             tinyPaint.setTextSize(dp(7));
@@ -101,12 +102,15 @@ public class MemoScreenCell extends LinearLayout {
                 }
             };
             radio.setSize(dp(20));
+            radio.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO); // the option speaks for itself
             addView(radio, LayoutHelper.createFrame(22, 22, Gravity.RIGHT | Gravity.TOP, 0, 8, 8, 0));
             radio.setChecked(VideoNoteShortcut.getScreen() == screen, false);
         }
 
-        private String getLabel() {
-            return getString(screen == VideoNoteShortcut.SCREEN_CAMERA ? R.string.VideoNoteShortcutScreenCamera : R.string.VideoNoteShortcutScreenChat);
+        @Override
+        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+            super.onSizeChanged(w, h, oldw, oldh);
+            shade = null; // its geometry moved
         }
 
         @Override
@@ -143,7 +147,6 @@ public class MemoScreenCell extends LinearLayout {
             stroke.setColor(withAlpha(track, 140));
             canvas.drawRoundRect(rect, dp(8), dp(8), stroke);
 
-            String label = getLabel();
             labelPaint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
             canvas.drawText(label, (getMeasuredWidth() - labelPaint.measureText(label)) / 2f, dp(CARD_HEIGHT + 22), labelPaint);
         }
@@ -238,11 +241,10 @@ public class MemoScreenCell extends LinearLayout {
             canvas.drawRoundRect(phone.centerX() - dp(3.5f), cy - dp(3.5f), phone.centerX() + dp(3.5f), cy + dp(3.5f), dp(1.5f), dp(1.5f), paint);
         }
 
-        // Each option draws one gradient, whose geometry only moves when the cell is resized
+        // Each option draws one gradient, with fixed colours and a geometry that only moves on resize
         private LinearGradient shade(float x0, float y0, float x1, float y1, int from, int to) {
-            if (shade == null || shadeKey != y0 + x1) {
+            if (shade == null) {
                 shade = new LinearGradient(x0, y0, x1, y1, from, to, Shader.TileMode.CLAMP);
-                shadeKey = y0 + x1;
             }
             return shade;
         }
@@ -257,7 +259,7 @@ public class MemoScreenCell extends LinearLayout {
             info.setClassName(RadioButton.class.getName());
             info.setCheckable(true);
             info.setChecked(radio.isChecked());
-            info.setContentDescription(getLabel());
+            info.setContentDescription(label);
         }
     }
 }
