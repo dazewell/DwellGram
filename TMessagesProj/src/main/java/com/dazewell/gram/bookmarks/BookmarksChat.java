@@ -112,7 +112,8 @@ public final class BookmarksChat {
             long selfId = UserConfig.getInstance(load.account).getClientUserId();
             ArrayList<Long> usersToLoad = new ArrayList<>();
             ArrayList<Long> chatsToLoad = new ArrayList<>();
-            cursor = storage.getDatabase().queryFinalized(String.format(Locale.US, "SELECT data, mid, date FROM messages_v2 WHERE uid = %d AND mid IN (%s)", load.dialogId, TextUtils.join(",", load.missing)));
+            // random_id is not serialized in a secret message's data; without it a delete never reaches the peer.
+            cursor = storage.getDatabase().queryFinalized(String.format(Locale.US, "SELECT m.data, m.mid, m.date, r.random_id FROM messages_v2 as m LEFT JOIN randoms_v2 as r ON r.mid = m.mid AND r.uid = m.uid WHERE m.uid = %d AND m.mid IN (%s)", load.dialogId, TextUtils.join(",", load.missing)));
             while (cursor.next()) {
                 NativeByteBuffer data = cursor.byteBufferValue(0);
                 if (data == null) {
@@ -123,6 +124,9 @@ public final class BookmarksChat {
                     message.readAttachPath(data, selfId);
                     message.id = cursor.intValue(1);
                     message.date = cursor.intValue(2);
+                    if (!cursor.isNull(3)) {
+                        message.random_id = cursor.longValue(3);
+                    }
                     message.dialog_id = load.dialogId;
                     MessagesStorage.addUsersAndChatsFromMessage(message, usersToLoad, chatsToLoad, null);
                     load.found.put(message.id, message);
