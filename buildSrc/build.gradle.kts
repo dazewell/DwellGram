@@ -24,5 +24,7 @@ repositories {
 dependencies {
     implementation(gradleApi())
     implementation("com.android.tools.build:gradle:9.3.1")
+    // NagramX: provides com.android.built-in-kotlin; keep in step with the AGP version above.
+    implementation("com.android.tools.build:gradle-kotlin:9.3.1")
     implementation("com.google.code.gson:gson:2.14.0")
 }
