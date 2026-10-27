@@ -134,6 +134,10 @@ public final class BookmarksChat {
             if (!usersToLoad.isEmpty()) {
                 storage.getUsersInternal(usersToLoad, users);
             }
+            // The fetch picks channels.getMessages from the chat object, so it must be in memory even when no row is local.
+            if (DialogObject.isChatDialog(load.dialogId) && !chatsToLoad.contains(-load.dialogId)) {
+                chatsToLoad.add(-load.dialogId);
+            }
             if (!chatsToLoad.isEmpty()) {
                 storage.getChatsInternal(TextUtils.join(",", chatsToLoad), chats);
             }
@@ -162,6 +166,12 @@ public final class BookmarksChat {
         head.clear();
         TLObject request;
         TLRPC.Chat chat = DialogObject.isChatDialog(load.dialogId) ? MessagesController.getInstance(load.account).getChat(-load.dialogId) : null;
+        if (DialogObject.isChatDialog(load.dialogId) && chat == null) {
+            // Without the chat we can't tell a channel from a group, and messages.getMessages with channel ids
+            // would return unrelated private-box messages under the same numbers.
+            finish(from, load);
+            return;
+        }
         if (ChatObject.isChannel(chat)) {
             TLRPC.TL_channels_getMessages req = new TLRPC.TL_channels_getMessages();
             req.channel = MessagesController.getInputChannel(chat);
