@@ -156,7 +156,7 @@ Adds space between the composer and the keyboard or emoji panel while either is 
 
 ### Interface style <!-- #interface-style --> <!-- #composer-transparency --> <!-- #rounded-navigation --> <!-- #message-menu-blur -->
 
-NagramX Settings → General → Interface Style picks Liquid Glass or Material Design 3, restyling chat headers, chat-list top bar, buttons, bottom navigation and composer, each with an Apply to toggle. Also blur, switch and slider styles, typeface, icons, tablet mode, notification icon, title centering, decorations, the bottom bar and folder tabs, each with a live preview. Rounded navigation and Match Classic and Day header color are off by default.
+NagramX Settings → General → Interface Style picks Liquid Glass or Material Design 3, restyling chat headers, chat-list top bar, buttons, bottom navigation and composer, each with an Apply to toggle. Also blur strength (message menus too), switch and slider styles, typeface, icons, tablet mode, notification icon, title centering, decorations, the bottom bar and folder tabs. Rounded navigation and Match Classic and Day header color are off by default.
 
 ### Quick schedule button <!-- #quick-schedule -->
 
