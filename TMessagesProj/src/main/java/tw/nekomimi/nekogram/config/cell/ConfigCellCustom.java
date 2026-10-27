@@ -13,6 +13,7 @@ public class ConfigCellCustom extends AbstractConfigCell implements WithKey {
     public static final int CUSTOM_ITEM_InterfaceStyleSlider = 991;
     public static final int CUSTOM_ITEM_InterfaceStyleNavPreview = 990;
     public static final int CUSTOM_ITEM_InterfaceStyleFolderPreview = 989;
+    public static final int CUSTOM_ITEM_VideoMemoScreen = 988;
 
     public final int type;
     public boolean enabled;

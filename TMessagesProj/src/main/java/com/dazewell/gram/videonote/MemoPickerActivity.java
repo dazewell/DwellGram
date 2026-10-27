@@ -49,7 +49,8 @@ public class MemoPickerActivity extends Activity {
         finish();
     }
 
-    // Null when the memo is off or the hash isn't minted yet; the launcher shortcuts wait on the same hash
+    // Null when the memo is off or the hash isn't minted yet; the launcher shortcuts wait on the same hash. Built on tap,
+    // so a video alias opens whichever screen the video memo is set to, whatever its saved label says.
     private static Intent createTarget(String alias) {
         if (SharedConfig.directShareHash == null) {
             return null;

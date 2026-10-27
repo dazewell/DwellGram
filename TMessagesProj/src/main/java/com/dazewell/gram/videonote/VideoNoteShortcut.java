@@ -49,15 +49,21 @@ public final class VideoNoteShortcut {
     private static final String SHORTCUT_ID_REAR = "video_note_rear";
     private static final String EXTRA_HASH = "hash";
     private static final String EXTRA_REAR = "rear";
-    // #camera-memo: the same recorder under a plain camera screen (CameraMemo). Its own id, so turning it on or off never
-    // touches a pinned video memo, and the same action, so LaunchActivity needs no second branch.
-    private static final String SHORTCUT_ID_CAMERA = "camera_memo";
+    // #camera-memo #video-memo-screen: the same recorder under a plain camera screen (CameraMemo), picked as the video
+    // memo's screen. Its own ids, so switching the screen changes the set buildShortcuts compares and the launcher gets
+    // the new label and icon, and a pinned copy keeps the screen it was pinned with. Not the old single "camera_memo",
+    // whose pinned copies carry the lens they were pinned with. Same action, so LaunchActivity needs no second branch.
+    private static final String SHORTCUT_ID_CAMERA = "camera_memo_front";
+    private static final String SHORTCUT_ID_CAMERA_REAR = "camera_memo_rear";
     private static final String EXTRA_CAMERA = "camera";
     private static final long PENDING_TTL_MS = 10_000;
 
     public static final int CAMERA_FRONT = 0;
     public static final int CAMERA_REAR = 1;
     public static final int CAMERA_BOTH = 2;
+
+    public static final int SCREEN_CHAT = 0;
+    public static final int SCREEN_CAMERA = 1;
 
     // Armed when the intent is accepted, consumed by the chat it opens. Static on purpose: it dies with
     // the process, so a restored activity or fragment can never replay the camera start.
@@ -74,17 +80,13 @@ public final class VideoNoteShortcut {
         return NaConfig.INSTANCE.getVideoNoteShortcut().Bool();
     }
 
-    public static boolean isCameraMemoEnabled() {
-        return NaConfig.INSTANCE.getCameraMemoShortcut().Bool();
+    /** VideoNoteShortcutScreen, with anything unknown read as the chat. */
+    public static int getScreen() {
+        return NaConfig.INSTANCE.getVideoNoteShortcutScreen().Int() == SCREEN_CAMERA ? SCREEN_CAMERA : SCREEN_CHAT;
     }
 
-    /** CameraMemoCamera, with anything unknown read as front. */
-    public static boolean isCameraMemoRear() {
-        return NaConfig.INSTANCE.getCameraMemoCamera().Int() == CAMERA_REAR;
-    }
-
-    public static String getCameraMemoLabel() {
-        return com.dazewell.gram.helpers.ShortcutHelper.variantLabel(LocaleController.getString(R.string.CameraMemoShortcutLabel));
+    public static boolean isCameraScreen() {
+        return getScreen() == SCREEN_CAMERA;
     }
 
     /** VideoNoteShortcutCamera, with anything unknown read as front. */
@@ -99,13 +101,27 @@ public final class VideoNoteShortcut {
     }
 
     private static String getBaseLabel(boolean rear, boolean longLabel) {
+        boolean camera = isCameraScreen();
         if (getCameraMode() != CAMERA_BOTH) {
-            return LocaleController.getString(R.string.VideoNoteShortcutLabel);
+            return LocaleController.getString(camera ? R.string.CameraMemoShortcutLabel : R.string.VideoNoteShortcutLabel);
         }
         if (longLabel) {
+            if (camera) {
+                return LocaleController.getString(rear ? R.string.CameraMemoShortcutLabelRearLong : R.string.CameraMemoShortcutLabelFrontLong);
+            }
             return LocaleController.getString(rear ? R.string.VideoNoteShortcutLabelRearLong : R.string.VideoNoteShortcutLabelFrontLong);
         }
+        if (camera) {
+            return LocaleController.getString(rear ? R.string.CameraMemoShortcutLabelRear : R.string.CameraMemoShortcutLabelFront);
+        }
         return LocaleController.getString(rear ? R.string.VideoNoteShortcutLabelRear : R.string.VideoNoteShortcutLabelFront);
+    }
+
+    private static String getShortcutId(boolean rear) {
+        if (isCameraScreen()) {
+            return rear ? SHORTCUT_ID_CAMERA_REAR : SHORTCUT_ID_CAMERA;
+        }
+        return rear ? SHORTCUT_ID_REAR : SHORTCUT_ID;
     }
 
     private static boolean publishes(boolean rear) {
@@ -114,20 +130,17 @@ public final class VideoNoteShortcut {
 
     /** MediaDataController.buildShortcuts: ranks taken past the one it hands to publish, which recent chats skip. */
     public static int getExtraRanks() {
-        int count = (publishes(false) ? 1 : 0) + (publishes(true) ? 1 : 0) + (isCameraMemoEnabled() ? 1 : 0) + (TextMemoShortcut.isEnabled() ? 2 : 0);
+        int count = (publishes(false) ? 1 : 0) + (publishes(true) ? 1 : 0) + (TextMemoShortcut.isEnabled() ? 2 : 0);
         return Math.max(0, count - 1);
     }
 
     /** MediaDataController.buildShortcuts: the ids it keeps when pruning stale shortcuts. */
     public static void addShortcutId(List<String> wantedIds) {
         if (publishes(false)) {
-            wantedIds.add(SHORTCUT_ID);
+            wantedIds.add(getShortcutId(false));
         }
         if (publishes(true)) {
-            wantedIds.add(SHORTCUT_ID_REAR);
-        }
-        if (isCameraMemoEnabled()) {
-            wantedIds.add(SHORTCUT_ID_CAMERA);
+            wantedIds.add(getShortcutId(true));
         }
         TextMemoShortcut.addShortcutId(wantedIds);
     }
@@ -143,36 +156,19 @@ public final class VideoNoteShortcut {
         if (publishes(true)) {
             publish(true, recreate, existingIds, rank++);
         }
-        if (isCameraMemoEnabled()) {
-            publishCameraMemo(recreate, existingIds, rank++);
-        }
         // The text memo rides these hooks rather than adding its own to MediaDataController
         TextMemoShortcut.publish(recreate, existingIds, rank);
     }
 
     private static void publish(boolean rear, boolean recreate, List<String> existingIds, int rank) {
-        String id = rear ? SHORTCUT_ID_REAR : SHORTCUT_ID;
+        String id = getShortcutId(rear);
         push(id, recreate, existingIds, () -> new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, id)
                 .setShortLabel(getLabel(rear, false))
                 .setLongLabel(getLabel(rear, true))
-                .setIcon(IconCompat.createWithBitmap(createIcon()))
+                .setIcon(IconCompat.createWithBitmap(isCameraScreen() ? createCameraMemoIcon() : createIcon()))
                 .setRank(rank)
                 .setIntent(createIntent(rear))
                 .build());
-    }
-
-    private static void publishCameraMemo(boolean recreate, List<String> existingIds, int rank) {
-        push(SHORTCUT_ID_CAMERA, recreate, existingIds, () -> {
-            Intent intent = createIntent(isCameraMemoRear());
-            intent.putExtra(EXTRA_CAMERA, true);
-            return new ShortcutInfoCompat.Builder(ApplicationLoader.applicationContext, SHORTCUT_ID_CAMERA)
-                    .setShortLabel(getCameraMemoLabel())
-                    .setLongLabel(getCameraMemoLabel())
-                    .setIcon(IconCompat.createWithBitmap(createCameraMemoIcon()))
-                    .setRank(rank)
-                    .setIntent(intent)
-                    .build();
-        });
     }
 
     // Own try, building included, so a launcher rejecting one can't abort the rest
@@ -191,12 +187,15 @@ public final class VideoNoteShortcut {
         }
     }
 
-    /** The intent a launcher shortcut or MemoPickerActivity starts, carrying the current hash. */
+    /** The intent a launcher shortcut or MemoPickerActivity starts, carrying the current hash and screen. */
     static Intent createIntent(boolean rear) {
         Intent intent = new Intent(ApplicationLoader.applicationContext, LaunchActivity.class);
         intent.setAction(ACTION);
         intent.putExtra(EXTRA_HASH, SharedConfig.directShareHash);
         intent.putExtra(EXTRA_REAR, rear);
+        if (isCameraScreen()) {
+            intent.putExtra(EXTRA_CAMERA, true);
+        }
         return intent;
     }
 
@@ -230,9 +229,8 @@ public final class VideoNoteShortcut {
     }
 
     private static boolean isGenuine(Intent intent) {
-        // Each kind answers to its own switch, so turning the video memo off leaves the camera memo working
-        return intent != null && ACTION.equals(intent.getAction())
-                && (intent.getBooleanExtra(EXTRA_CAMERA, false) ? isCameraMemoEnabled() : isEnabled())
+        // One switch for both screens: a camera memo is a video memo on the camera screen
+        return intent != null && ACTION.equals(intent.getAction()) && isEnabled()
                 && SharedConfig.directShareHash != null && SharedConfig.directShareHash.equals(intent.getStringExtra(EXTRA_HASH));
     }
 
@@ -244,11 +242,9 @@ public final class VideoNoteShortcut {
     public static long accept(Intent intent, int account) {
         boolean genuine = isGenuine(intent);
         boolean camera = intent.getBooleanExtra(EXTRA_CAMERA, false);
-        // The camera memo has one shortcut that follows its setting, read here: a launcher that keeps an unchanged id
-        // (MediaDataController.buildShortcuts skips republishing them) would otherwise keep the lens it was pinned with.
-        // A video memo copy pinned before shortcuts carried their camera has no extra, and still follows the setting.
-        boolean rear = camera ? isCameraMemoRear()
-                : intent.hasExtra(EXTRA_REAR) ? intent.getBooleanExtra(EXTRA_REAR, false) : getCameraMode() == CAMERA_REAR;
+        // Screen and lens both come from the shortcut, so a pinned copy keeps what it was pinned with. A video memo copy
+        // pinned before shortcuts carried their camera has no extra, and still follows the setting.
+        boolean rear = intent.hasExtra(EXTRA_REAR) ? intent.getBooleanExtra(EXTRA_REAR, false) : getCameraMode() == CAMERA_REAR;
         intent.setAction(null);
         intent.removeExtra(EXTRA_HASH);
         intent.removeExtra(EXTRA_REAR);
