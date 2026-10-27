@@ -144,7 +144,8 @@ public class BlurredBackgroundProviderImpl {
                     if (!LiteMode.isEnabled(LiteMode.FLAG_CHAT_BLUR)) {
                         return Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground);
                     }
-                    return Theme.multAlpha(Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground), isDark ? 0.85f : 0.825f);
+                    // NagramX: follow the Blur strength slider like the header and composer; upstream's fixed 82.5-85% read as flat.
+                    return Theme.multAlpha(Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground), xyz.nextalone.nagram.NaConfig.interfaceStyleBlurAlpha());
                 })
                 .setStrokeColorTop(0x44FFFFFF, 0)
                 .setStrokeColorBottom(0x22FFFFFF, 0)
