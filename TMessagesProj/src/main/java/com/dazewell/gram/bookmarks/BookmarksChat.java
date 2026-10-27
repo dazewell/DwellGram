@@ -252,7 +252,8 @@ public final class BookmarksChat {
                     // The pinned list hosts real cells; a self-destruct timer would start counting on view.
                     message.media.ttl_seconds = 0;
                 }
-                objects.put(id, new MessageObject(load.account, message, false, false));
+                // checkMediaExists: the pinned feed copies these flags rather than rechecking, so downloaded media shows as such.
+                objects.put(id, new MessageObject(load.account, message, false, true));
             }
             int unavailable = load.total - ids.size();
             AndroidUtilities.runOnUIThread(() -> present(from, load, ids, objects, unavailable));
