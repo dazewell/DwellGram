@@ -371,8 +371,8 @@ source message rather than copying it —
 `newMsg.media = msgObj.messageOwner.media` (`SendMessagesHelper.java:2398`).
 `updateMediaPaths`, which reconciles the placeholder once the server confirms
 the send, then mutates that same `TLRPC.MessageMedia` object in place — see
-the photo-size and live-photo writes at `SendMessagesHelper.java:8759-8760`
-and `:8780-8782`. Because of the alias, those writes land on the **original
+the photo-size and live-photo writes at `SendMessagesHelper.java:8767-8768`
+and `:8788-8790`. Because of the alias, those writes land on the **original
 forwarded message's media too**, not just the copy's.
 
 This is upstream code, not a fork addition. Filed as
@@ -386,14 +386,14 @@ avoids it because it builds fresh media from a local path instead of aliasing
 
 `SendMessagesHelper.prepareSendingMedia`'s "send as documents" flush declares
 one `extension` variable outside its per-item loop
-(`SendMessagesHelper.java:10980`), reassigns it per item as each document is
-queued (e.g. `:11534-11552`), and then passes its **final leftover value**
+(`SendMessagesHelper.java:10988`), reassigns it per item as each document is
+queued (e.g. `:11542-11560`), and then passes its **final leftover value**
 as the `mime` argument to every `prepareSendingDocumentInternal` call for the
-whole batch (`SendMessagesHelper.java:11718`). A batch of documents with
+whole batch (`SendMessagesHelper.java:11726`). A batch of documents with
 different extensions therefore gets the wrong MIME type on most of its
 members — and since audio-attribute extraction inside
 `prepareSendingDocumentInternal` branches on the mime it's handed
-(`SendMessagesHelper.java:9377-9396`), a mixed-extension album can also lose
+(`SendMessagesHelper.java:9385-9404`), a mixed-extension album can also lose
 audio attributes it should have kept.
 
 *(Established 2026-09-02.)*
@@ -403,7 +403,7 @@ audio attributes it should have kept.
 `prepareSendingDocumentInternal` partitions a `groupId` by media type: when
 the current item's derived `docType` differs from the previous item's, it
 calls `finishGroup` and rotates to a fresh `groupId`
-(`SendMessagesHelper.java:9646-9650`, types assigned at `:9631-9645`). That's
+(`SendMessagesHelper.java:9654-9658`, types assigned at `:9639-9653`). That's
 correct behaviour for an arbitrary multi-file share where the caller wants
 photos and non-previewable files kept in separate groups. It's **wrong** for
 a captured source album being resent as documents, where group membership
@@ -867,7 +867,7 @@ bitrate; that is false, and only a direct read of the early return settled it.
 when `bitrate == -2` (the "Original" quality selection, set in
 `PhotoViewer.updateWidthHeightBitrateForCompression` around `:22055-22058`).
 When it returns false, `prepareSendingMedia` leaves `path` pointing at the
-original file (`SendMessagesHelper.java:11455-11460`) and no conversion is
+original file (`SendMessagesHelper.java:11463-11468`) and no conversion is
 scheduled (`:6620-6628`). The transcoder is the only thing that strips the
 audio track, so a muted clip that reaches the send path carrying `-2` uploads
 the untouched source with its sound intact. Treat "muted" and
@@ -983,7 +983,7 @@ Established 2026-09-09 (#ghost-hold). `MessagesStorage.getUnsentMessages` runs a
 second cursor over `scheduled_messages_v2` selecting `mid < 0 AND send_state = 1`
 (`MessagesStorage.java:8726`), so local unsent scheduled rows are pulled into the
 resend path alongside `messages_v2` rows, and `processUnsentMessages` feeds them
-to its scheduled retry loop (`SendMessagesHelper.java:9126`+). This runs not just
+to its scheduled retry loop (`SendMessagesHelper.java:9134`+). This runs not just
 at startup: `checkUnsentMessages()` is called from `ApplicationLoader.java:308`
 **and** from inside `processSentMessage` (`SendMessagesHelper.java:1811`), i.e.
 every time the unsent queue drains during normal use. The current fork-store
@@ -994,7 +994,7 @@ negative-id row in scheduled_messages_v2 renders in the Scheduled list" entry;
 the pre-rebuild design that persisted held rows as negative-id
 `scheduled_messages_v2` rows was discarded as unsafe). The `scheduled_messages_v2`
 drain guards that remain — `processUnsentMessages` skips held rows
-(`SendMessagesHelper.java:9147`) and `retrySendMessage` refuses them
+(`SendMessagesHelper.java:9155`) and `retrySendMessage` refuses them
 (`SendMessagesHelper.java:1766`) — survive for exactly one window: a legacy-upgrade
 launch where `checkUnsentMessages()` runs the auto-resend loop before
 `checkOnProcessStart()` has migrated the old marked rows out of the stock tables.
@@ -1035,7 +1035,7 @@ PR #363 was closed unmerged.)*
 ## Local photo upload re-resolves the largest PhotoSize; attachPath is not its byte identity
 
 Local photo preparation creates a small size and then a full-size entry
-(`SendMessagesHelper.java:9365-9394`). The outgoing placeholder records an
+(`SendMessagesHelper.java:9373-9402`). The outgoing placeholder records an
 `attachPath` from the last size's location (`SendMessagesHelper.java:4749-4753`),
 but the delayed upload keeps the last `PhotoSize` separately
 (`SendMessagesHelper.java:5623-5628`). When upload runs, it resolves that
@@ -1134,7 +1134,7 @@ facts together:
 
 - The mid rewrite in `updateMessageStateAndIdInternal` that writes the confirmed
   server id back into `randoms_v2` is gated `_oldId < 0 && scheduled == 1`
-  (`MessagesStorage.java:13923`). A send-now message is `scheduled == 0`, so it
+  (`MessagesStorage.java:13924`). A send-now message is `scheduled == 0`, so it
   never enters this branch.
 - The `scheduled == 0` id-remap branch (`MessagesStorage.java:14061`+) rewrites
   `messages_v2`, `messages_topics`, `media_v4`, `media_topics` and
@@ -1153,13 +1153,34 @@ state — making it work would have required editing stock
 `updateMessageStateAndIdInternal`, changing message-receipt behaviour for every
 chat in the app.
 
+## Since 13.1.1 a send handler must strip its own updateMessageID, or a fresh scheduled message deletes itself
+
+Established 2026-10-27 (#scheduled-send-fix). 13.1.1 made `processUpdates` take
+every `updateMessageID` out of a live `TL_updates` and remap it through
+`processMessageIDUpdate` (`MessagesController.java:18180`, `:18160`), which looks
+the id up in `randoms_v2`. A send handler that remaps its own message *and*
+passes the response on to `processUpdates` remaps twice. For a scheduled send the
+handler's remap writes the positive server id into `randoms_v2` (the
+`_oldId < 0 && scheduled == 1` branch, `MessagesStorage.java:13924`). If that
+lands first, the second remap reads a positive mid and takes the
+"scheduled message has now been sent" branch (`MessagesStorage.java:13939`). That
+branch deletes the brand-new scheduled row locally, while the server keeps it.
+The two remaps race on the storage queue, so the deletion is intermittent.
+
+The forward, album and gram-transfer handlers strip their own update
+(`SendMessagesHelper.java:2871`, `:7969`, `:2006`). The single-send handler did
+not, and now strips its own once it has found the message
+(`SendMessagesHelper.java:8595`). Cost if missed: a new or edited response
+handler that remaps scheduled messages and forwards the raw `Updates` loses
+scheduled messages from the local list and hides the Scheduled button.
+
 ## Grouped media carries `groupId` before every sibling reaches the send funnel
 
 The grouped-media preparation paths mint or retain a group id before dispatching
-any sibling (`SendMessagesHelper.java:11070-11076`). Each supported grouped branch
+any sibling (`SendMessagesHelper.java:11078-11084`). Each supported grouped branch
 then writes that id into the sibling's params before its UI-thread
-`sendMessage(SendMessageParams)` call: documents at `:9686-9720`, search media at
-`:11244-11264`, videos at `:11521-11565`, and photos at `:11748-11780`. By the
+`sendMessage(SendMessageParams)` call: documents at `:9694-9728`, search media at
+`:11252-11272`, videos at `:11529-11573`, and photos at `:11756-11788`. By the
 time the single Ghost Hold hook runs, every sibling is already identifiable as
 grouped; `GhostHoldController.isHoldableSend` refuses a non-zero `groupId` at
 `GhostHoldController.java:236-240`, so it cannot admit only part of an album.
@@ -1174,7 +1195,7 @@ completion state and leave a partially held, partially sent album.
 `ChatActivityEnterView` builds a fresh `MessageObject.SendAnimationData` for a
 normal (non-forwarding) text send before constructing the params
 (`ChatActivityEnterView.java:9628-9630`), and `of(...)` stores it verbatim
-(`SendMessagesHelper.java:12537`). It is a transient UI fly-in hint — the
+(`SendMessagesHelper.java:12545`). It is a transient UI fly-in hint — the
 composer's on-screen x/y/width/height — carrying no part of the sent message,
 but it is set on ~100% of composer sends. Any allowlist/denylist that treats an
 unrecognised non-default `SendMessageParams` field as "not an ordinary text
@@ -1221,12 +1242,12 @@ only one of them is the stored message:
   `createReplyInput(TL_messageReplyHeader)` at `:227-240`, which also reads
   `reply_to_peer_id` when `flags & 1` is set). So whatever reply header is on the
   stored row is what gets sent -- `of(MessageObject)` passing `replyToMsg = null`
-  (`SendMessagesHelper.java:12453`) does not lose it.
+  (`SendMessagesHelper.java:12461`) does not lose it.
 - **Entities ride on the params, which `of()` nulls.** The local `entities` used
   to build `reqSend.entities` comes from `sendMessageParams.entities`
   (`SendMessagesHelper.java:4399`, then `reqSend.entities = entities` at `:5462`),
   and `of(MessageObject)` passes `entities = null`
-  (`SendMessagesHelper.java:12453`). `newMsg.entities` is never read back into the
+  (`SendMessagesHelper.java:12461`). `newMsg.entities` is never read back into the
   request on this path (the Pangu block at `:5243-5256` only ever re-derives from
   the already-null local, and its `newMsg.entities = entities` write is guarded on
   the local being non-empty, so it does not restore anything either). So a
