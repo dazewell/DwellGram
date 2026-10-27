@@ -97,8 +97,8 @@ its own topic anchor (`:5348-5349`), dereferenced there unconditionally.
 Note what the reconstructed peer does *not* buy. Every send builds its request
 from the local header, `createReplyInput((TL_messageReplyHeader) newMsg.reply_to)`
 (`SendMessagesHelper.java:5563,5622,5719`), and that header's `reply_to_peer_id`
-is `peer2`, which upstream re-derives itself with
-`getMessagesController().getPeer(replyToMsg.getDialogId())` (`:5329`).
+is `peer2`, which upstream re-derives itself from the reply's dialog (or its sender,
+in Saved Messages) with `getMessagesController().getPeer(...)` (`:5329`).
 `getPeer` picks channel over chat only when the chat is in cache
 (`MessagesController.java:6100-6110`), so an uncached channel degrades to
 `TL_peerChat` on the wire whatever peer the reference holds. Upstream's own
