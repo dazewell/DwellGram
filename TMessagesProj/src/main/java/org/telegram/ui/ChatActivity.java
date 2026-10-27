@@ -13324,11 +13324,20 @@ public class ChatActivity extends BaseFragment implements
     }
 
     // NagramX: #bookmarks-chat. processDeletedMessages wants the positive channel id; upstream's own pinned-list
-    // unpin passes dialog_id, which makes it a no-op in channels. The last row closes the list.
+    // unpin passes dialog_id, which makes it a no-op in channels. The flag lets these rows past the save-deleted
+    // skip in that loop: they are only leaving the view. AyuState.permitDeleteMessage would also do it, but its
+    // 60s permit would let a real deletion of the same message go unsaved. The last row closes the list.
+    private boolean nkRemovingBookmarkRows;
+
     private void nkRemoveBookmarkRows(int[] ids) {
         ArrayList<Integer> list = new ArrayList<>(ids.length);
         for (int id : ids) list.add(id);
-        processDeletedMessages(list, ChatObject.isChannel(currentChat) ? -dialog_id : 0, false);
+        nkRemovingBookmarkRows = true;
+        try {
+            processDeletedMessages(list, ChatObject.isChannel(currentChat) ? -dialog_id : 0, false);
+        } finally {
+            nkRemovingBookmarkRows = false;
+        }
         if (pinnedMessageIds.isEmpty()) finishFragment();
     }
 
@@ -29167,7 +29176,7 @@ public class ChatActivity extends BaseFragment implements
             Integer mid = markAsDeletedMessages.get(a);
             MessageObject obj = chatAdapter != null && chatAdapter.isFiltered ? filteredMessagesDict.get(mid) :  messagesDict[loadIndex].get(mid);
 
-            if (AyuSavePreferences.saveDeletedMessageFor(currentAccount, getDialogId(), obj) && !AyuState.isDeletePermitted(currentAccount, getDialogId(), mid, chatMode == MODE_SCHEDULED)) {
+            if (!nkRemovingBookmarkRows && AyuSavePreferences.saveDeletedMessageFor(currentAccount, getDialogId(), obj) && !AyuState.isDeletePermitted(currentAccount, getDialogId(), mid, chatMode == MODE_SCHEDULED)) { // NagramX: #bookmarks-chat
                 continue;
             }
 
