@@ -52903,7 +52903,9 @@ public class ChatActivity extends BaseFragment implements
             pollAddVisibility = animatorPollAddAnswerVisibility.getFloatValue();
         }
 
-        if (!isInsideContainer && !isInPreviewMode() && !shouldHideBottomFor3ButtonNav() && !shouldHideBottomForGesture()) {
+        // NagramX: #bookmarks-chat. The bookmarks list has nothing at the bottom until a selection or an edit, so
+        // it takes the branch that lets the island collapse instead of keeping an empty 44dp bar.
+        if (!isInsideContainer && !nkBookmarks && !isInPreviewMode() && !shouldHideBottomFor3ButtonNav() && !shouldHideBottomForGesture()) {
             return lerp(Math.max(lerp(defaultIslandHeight, enterViewIslandHeight, enterViewFactor) * visibility, dp(44)), -dp(7), pollAddVisibility);
         } else {
             return lerp(defaultIslandHeight, enterViewIslandHeight, enterViewFactor) * visibility;
