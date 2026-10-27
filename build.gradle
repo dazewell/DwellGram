@@ -28,9 +28,12 @@ subprojects {
                     coreLibraryDesugaringEnabled = !project.projectDir.absolutePath.replace('\\', '/').contains('/TMessagesProj_Modules/media/')
                 }
 
-                kotlin {
-                    compilerOptions {
-                        jvmTarget = JvmTarget.JVM_21
+                // NagramX: with android.builtInKotlin off, only projects that apply a Kotlin plugin have this extension
+                if (project.extensions.findByName('kotlin') != null) {
+                    kotlin {
+                        compilerOptions {
+                            jvmTarget = JvmTarget.JVM_21
+                        }
                     }
                 }
 

@@ -32,5 +32,5 @@ gradle.ext.androidxMediaModulePrefix = 'TMessagesProj_Modules:media3:media-'
 apply from: file("TMessagesProj_Modules/media/core_settings.gradle")
 project(':TMessagesProj_Modules:media3').projectDir = file('TMessagesProj_Modules/media/libraries')
 
-// common-ktx applies kotlin-android, which AGP 9's built-in Kotlin rejects, and nothing we build depends on it.
+// Nothing we build depends on common-ktx, so its build script is skipped rather than configured.
 project(':TMessagesProj_Modules:media3:media-lib-common-ktx').buildFileName = 'unused.gradle'

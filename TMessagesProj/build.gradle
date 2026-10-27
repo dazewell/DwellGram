@@ -3,6 +3,7 @@ import org.gradle.internal.os.OperatingSystem
 
 plugins {
     id 'com.android.application'
+    id 'com.android.built-in-kotlin' // NagramX: android.builtInKotlin is off for the media submodule
     id 'com.google.gms.google-services'
     id 'com.google.firebase.crashlytics'
     id 'org.telegram.build-plugin'
