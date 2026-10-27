@@ -78,15 +78,12 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
 
     private final AbstractConfigCell headerVideoNote = cellGroup.appendCell(new ConfigCellHeader(getString(R.string.MemoShortcutsHeader)));
     private final AbstractConfigCell videoNoteRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getVideoNoteShortcut(), getString(R.string.VideoNoteShortcutNotice)));
+    // Not enabled for the list: the cell's two options take their own taps
+    private final AbstractConfigCell videoNoteScreenRow = cellGroup.appendCell(new ConfigCellCustom(NaConfig.INSTANCE.getVideoNoteShortcutScreen().getKey(), ConfigCellCustom.CUSTOM_ITEM_VideoMemoScreen, false));
     private final AbstractConfigCell videoNoteCameraRow = cellGroup.appendCell(new ConfigCellSelectBox("VideoNoteShortcutCamera", NaConfig.INSTANCE.getVideoNoteShortcutCamera(), new String[]{
             getString(R.string.CameraInVideoMessagesFront),
             getString(R.string.CameraInVideoMessagesRear),
             getString(R.string.VideoNoteShortcutCameraBoth)
-    }, null));
-    private final AbstractConfigCell cameraMemoRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getCameraMemoShortcut(), getString(R.string.CameraMemoShortcutNotice)));
-    private final AbstractConfigCell cameraMemoCameraRow = cellGroup.appendCell(new ConfigCellSelectBox("CameraMemoCamera", NaConfig.INSTANCE.getCameraMemoCamera(), new String[]{
-            getString(R.string.CameraInVideoMessagesFront),
-            getString(R.string.CameraInVideoMessagesRear)
     }, null));
     private final AbstractConfigCell textMemoRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getTextMemoShortcut(), getString(R.string.TextMemoShortcutNotice)));
     // Shared by every memo, so it sits last
@@ -95,6 +92,7 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
 
     private ListAdapter listAdapter;
     private PreviewCell previewCell;
+    private MemoScreenCell screenCell;
     private int targetLoadRequest;
 
     public LauncherShortcutsActivity() {
@@ -152,30 +150,41 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
     }
 
     private void onShortcutSettingChanged(String key) {
-        boolean memo = key.equals(NaConfig.INSTANCE.getVideoNoteShortcut().getKey()) || key.equals(NaConfig.INSTANCE.getTextMemoShortcut().getKey())
-                || key.equals(NaConfig.INSTANCE.getCameraMemoShortcut().getKey());
-        // The camera decides how many video memo shortcuts there are and what they are called
-        boolean camera = key.equals(NaConfig.INSTANCE.getVideoNoteShortcutCamera().getKey()) || key.equals(NaConfig.INSTANCE.getCameraMemoCamera().getKey());
+        boolean memo = key.equals(NaConfig.INSTANCE.getVideoNoteShortcut().getKey()) || key.equals(NaConfig.INSTANCE.getTextMemoShortcut().getKey());
+        // The camera decides how many video memo shortcuts there are, and with the screen what they are called
+        boolean camera = key.equals(NaConfig.INSTANCE.getVideoNoteShortcutCamera().getKey()) || key.equals(NaConfig.INSTANCE.getVideoNoteShortcutScreen().getKey());
         if (!memo && !camera && !key.equals(NaConfig.INSTANCE.getGhostModeShortcut().getKey())
                 && !key.equals(NaConfig.INSTANCE.getNewConversationShortcut().getKey())) {
             return;
         }
         MediaDataController.getInstance(currentAccount).buildShortcuts();
+        if (key.equals(NaConfig.INSTANCE.getVideoNoteShortcutScreen().getKey())) {
+            VideoNoteShortcut.refreshScreen(); // queued after the rebuild, and reaches pinned copies it doesn't
+        }
         if (memo) {
             updateMemoRows(true);
         }
         if (previewCell != null) {
             previewCell.update();
         }
+        if (screenCell != null) {
+            screenCell.update(); // an import changes the screen without a tap
+        }
     }
 
-    // Each camera only means something while its memo is on, the recipient while any memo is. ConfigCellSelectBox
-    // can't be dimmed, so the rows are taken out instead, and the row map is rebuilt so search results and settings links
-    // still land on the right row.
+    // The screen tap writes the setting itself, then takes the same path an import does
+    private void setScreen(int screen) {
+        NaConfig.INSTANCE.getVideoNoteShortcutScreen().setConfigInt(screen);
+        onShortcutSettingChanged(NaConfig.INSTANCE.getVideoNoteShortcutScreen().getKey());
+    }
+
+    // The screen and camera only mean something while the video memo is on, the recipient while any memo is.
+    // ConfigCellSelectBox can't be dimmed, so the rows are taken out instead, and the row map is rebuilt so search results
+    // and settings links still land on the right row. The screen goes in first: the camera row is placed after it.
     private void updateMemoRows(boolean animated) {
-        setRowShown(videoNoteCameraRow, videoNoteRow, VideoNoteShortcut.isEnabled(), animated);
-        setRowShown(cameraMemoCameraRow, cameraMemoRow, VideoNoteShortcut.isCameraMemoEnabled(), animated);
-        setRowShown(videoNoteTargetRow, textMemoRow, VideoNoteShortcut.isEnabled() || VideoNoteShortcut.isCameraMemoEnabled() || TextMemoShortcut.isEnabled(), animated);
+        setRowShown(videoNoteScreenRow, videoNoteRow, VideoNoteShortcut.isEnabled(), animated);
+        setRowShown(videoNoteCameraRow, videoNoteScreenRow, VideoNoteShortcut.isEnabled(), animated);
+        setRowShown(videoNoteTargetRow, textMemoRow, VideoNoteShortcut.isEnabled() || TextMemoShortcut.isEnabled(), animated);
         addRowsToMap(cellGroup);
     }
 
@@ -294,6 +303,9 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
             if (previewCell != null) {
                 previewCell.update();
             }
+            if (screenCell != null) {
+                screenCell.update();
+            }
         }, Theme.key_windowBackgroundWhite));
         return themeDescriptions;
     }
@@ -309,12 +321,17 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
             if (viewType == ConfigCellCustom.CUSTOM_ITEM_LauncherShortcutsPreview) {
                 return previewCell = new PreviewCell(mContext);
             }
+            if (viewType == ConfigCellCustom.CUSTOM_ITEM_VideoMemoScreen) {
+                return screenCell = new MemoScreenCell(mContext, LauncherShortcutsActivity.this::setScreen);
+            }
             return null;
         }
 
         @Override
         protected void onBindCustomViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             if (holder.itemView instanceof PreviewCell cell) {
+                cell.update();
+            } else if (holder.itemView instanceof MemoScreenCell cell) {
                 cell.update();
             }
         }
@@ -330,16 +347,19 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
         private static final int POPUP_PADDING = 6;
         private static final int POPUP_TOP = 8;
         private static final int POPUP_BOTTOM = 16;
-        private static final int ITEM_COUNT = 7;
+        private static final int ITEM_COUNT = 6;
 
         private final LinearLayout popup;
         private final GradientDrawable popupBackground = new GradientDrawable();
         private final TextView[] labels = new TextView[ITEM_COUNT];
+        private final ImageView[] icons = new ImageView[ITEM_COUNT];
+        // Both video memo icons built once, swapped by screen
+        private final Bitmap videoNoteIcon = VideoNoteShortcut.createIcon();
+        private final Bitmap cameraMemoIcon = VideoNoteShortcut.createCameraMemoIcon();
         private final View newConversationItem;
         private final View ghostModeItem;
         private final View videoNoteItem;
         private final View videoNoteRearItem;
-        private final View cameraMemoItem;
         private final View textMemoItem;
         private final View textMemoCardItem;
 
@@ -360,11 +380,10 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
             newConversationItem = addItem(context, 0, R.drawable.shortcut_compose, null, R.string.NewConversationShortcut);
             // Built once, not per bind: both are fresh bitmaps, and the base page rebinds everything on resume.
             ghostModeItem = addItem(context, 1, 0, GhostModeShortcut.createIcon(), R.string.AyuModeShortcut);
-            videoNoteItem = addItem(context, 2, 0, VideoNoteShortcut.createIcon(), R.string.VideoNoteShortcutLabel);
-            videoNoteRearItem = addItem(context, 3, 0, VideoNoteShortcut.createIcon(), R.string.VideoNoteShortcutLabel);
-            cameraMemoItem = addItem(context, 4, 0, VideoNoteShortcut.createCameraMemoIcon(), R.string.CameraMemoShortcutLabel);
-            textMemoItem = addItem(context, 5, 0, TextMemoShortcut.createIcon(), R.string.TextMemoShortcutLabel);
-            textMemoCardItem = addItem(context, 6, 0, TextMemoShortcut.createIcon(), R.string.TextMemoShortcutLabelCard);
+            videoNoteItem = addItem(context, 2, 0, videoNoteIcon, R.string.VideoNoteShortcutLabel);
+            videoNoteRearItem = addItem(context, 3, 0, videoNoteIcon, R.string.VideoNoteShortcutLabel);
+            textMemoItem = addItem(context, 4, 0, TextMemoShortcut.createIcon(), R.string.TextMemoShortcutLabel);
+            textMemoCardItem = addItem(context, 5, 0, TextMemoShortcut.createIcon(), R.string.TextMemoShortcutLabelCard);
 
             setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
             update();
@@ -410,6 +429,7 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
             label.setText(getString(labelRes));
             item.addView(label, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f, Gravity.CENTER_VERTICAL, 0, 0, 16, 0));
             labels[index] = label;
+            icons[index] = icon;
 
             popup.addView(item, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, ITEM_HEIGHT));
             return item;
@@ -428,12 +448,13 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
             labels[1].setText(GhostModeShortcut.getLabel());
             labels[2].setText(VideoNoteShortcut.getLabel(false, true));
             labels[3].setText(VideoNoteShortcut.getLabel(true, true));
+            Bitmap videoIcon = VideoNoteShortcut.isCameraScreen() ? cameraMemoIcon : videoNoteIcon;
+            icons[2].setImageBitmap(videoIcon);
+            icons[3].setImageBitmap(videoIcon);
             videoNoteItem.setVisibility(VideoNoteShortcut.isEnabled() ? VISIBLE : GONE);
             videoNoteRearItem.setVisibility(VideoNoteShortcut.isEnabled() && both ? VISIBLE : GONE);
-            labels[4].setText(VideoNoteShortcut.getCameraMemoLabel());
-            cameraMemoItem.setVisibility(VideoNoteShortcut.isCameraMemoEnabled() ? VISIBLE : GONE);
-            labels[5].setText(TextMemoShortcut.getLabel(false));
-            labels[6].setText(TextMemoShortcut.getLabel(true));
+            labels[4].setText(TextMemoShortcut.getLabel(false));
+            labels[5].setText(TextMemoShortcut.getLabel(true));
             textMemoItem.setVisibility(TextMemoShortcut.isEnabled() ? VISIBLE : GONE);
             textMemoCardItem.setVisibility(TextMemoShortcut.isEnabled() ? VISIBLE : GONE);
         }

@@ -54,7 +54,7 @@ public final class CameraMemo {
         return size * 16 / 9;
     }
 
-    /** VideoNoteShortcut.onChatViewCreated, for the chat a camera memo shortcut is opening. Up from the push's first frame. */
+    /** VideoNoteShortcut.onChatViewCreated, for the chat a video memo on the camera screen is opening. Up from the push's first frame. */
     static void attach(ChatActivity chat, ViewGroup contentView) {
         end();
         CameraMemoCover cover = new CameraMemoCover(contentView.getContext(), chat);
