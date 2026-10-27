@@ -2828,3 +2828,15 @@ waits for `hasVideoToSend()`.
 `ActionBar.createActionMode` sets the themed solid `actionModeColor` background when the bar is not yet in glass mode (`ActionBar.java:872-874`, written through `:824-831`). `ActionBar.setupGlass` only retro-fits an existing mode with `setTranslationX` and `setGlassMode(true)` (`ActionBar.java:276-279`) — it never clears that colour. So on a glass screen any mode created during `createView` before the glass setup call comes up solid. `ChatActivity` builds its mode lazily on first selection instead (`createActionMode()` at `ChatActivity.java:11619`, reached from the selection path), which is the pattern to copy. The reverse trap also holds: `hideActionMode` leaves the mode view around, so creating once and showing/hiding is fine.
 
 *(Established 2026-10-25, `#bookmarks-multiselect`, PR 555.)*
+
+## The pinned list (MODE_PINNED) as a host for any fixed message list
+
+`ChatActivity` in `MODE_PINNED` renders whatever its private `pinnedMessageIds` / `pinnedMessageObjects` hold. It posts them once as `messagesDidLoad` from `onFragmentCreate` (`ChatActivity.java:3493`; `pinnedMessageIds.get(0)` there throws on an empty feed). Reusing it for another list has five traps:
+
+- **Pin traffic rewrites the feed.** `didLoadPinnedMessages` and `pinnedInfoDidLoad` add, remove or replace rows (`:26147`, `:26644`). Guard both.
+- **Don't resolve through `MediaDataController.loadPinnedMessages`.** It writes `chat_pinned_v2` (`MediaDataController.java:6238`). On a failed fetch it unpins the ids in the chat's real pin state (`:6186`, `:6206`). Fetch with `messages.getMessages` / `channels.getMessages` instead.
+- **Hiding the bottom bar reads as "can send".** Reply, sticker and emoji send gates test `bottomChannelButtonsLayout`'s visibility, for example `canSendMessage` (`:39301`) and `getChatActivityEnterViewForStickers` (`:15618`). Hiding the layout (`:31007`) re-enables them unless they are guarded too.
+- **Process death restores a bare `new ChatActivity(args)`.** `LaunchActivity` saves the top chat's arguments (`LaunchActivity.java:8638`) and restores them (`:636`) with no feed, which hits the `get(0)` above. `chatMode` is read only in `onFragmentCreate` (`ChatActivity.java:3137`), and `presentFragment` runs that synchronously (`ActionBarLayout.java:2143`). Removing it from the arguments after presenting makes the restore open the plain chat.
+- **Removing rows needs two things.** `processDeletedMessages` returns early in a channel unless it gets the positive channel id (`ChatActivity.java:29140`). Upstream's own pinned-list unpin passes `dialog_id`, which is a no-op there (`:26256`). Save-deleted also skips the row (`:29182`), and `AyuState.permitDeleteMessage` is the wrong bypass because its 60 s permit also stops a real deletion being saved.
+
+*(Established 2026-10-27, `#bookmarks-chat`, PR 563.)*

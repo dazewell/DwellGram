@@ -39,7 +39,7 @@ Private chats now show a reply glyph and count next to a message's timestamp, br
 
 ### Message bookmarks <!-- #bookmarks-300 --> <!-- #bookmarks-multiselect --> <!-- #bookmarks-chat -->
 
-Bookmarks come from NagramX; this fork raises the per-chat cap from 30 to 300. Saving from the message menu, per-account storage, and inclusion in settings backup and restore all work as they did.
+Bookmark a message from its menu, up to 300 per chat. *Bookmarks* in the chat's menu, or a row in the bookmarked-chats list, opens that chat's bookmarks as a normal chat; the arrow beside each jumps to it in the chat. *Remove bookmark* is in the message menu and the selection bar's overflow. Off by default; enable *Bookmark* under N-Settings → Chat → Menu and Buttons → Message menu.
 
 ### Save scope by chat type <!-- #save-scope -->
 
