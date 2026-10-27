@@ -59,9 +59,12 @@ public class MemoScreenCell extends LinearLayout {
         }
     }
 
+    // Bind, a setting change and a theme change. The radio colours are set here, never in onDraw: setColor invalidates,
+    // so from onDraw it would redraw the cell every frame.
     public void update() {
         int screen = VideoNoteShortcut.getScreen();
         for (Option o : options) {
+            o.radio.setColor(Theme.getColor(Theme.key_radioBackground), Theme.getColor(Theme.key_radioBackgroundChecked));
             o.radio.setChecked(o.screen == screen, false);
             o.invalidate();
         }
@@ -105,6 +108,7 @@ public class MemoScreenCell extends LinearLayout {
             radio.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO); // the option speaks for itself
             addView(radio, LayoutHelper.createFrame(22, 22, Gravity.RIGHT | Gravity.TOP, 0, 8, 8, 0));
             radio.setChecked(VideoNoteShortcut.getScreen() == screen, false);
+            radio.setColor(Theme.getColor(Theme.key_radioBackground), Theme.getColor(Theme.key_radioBackgroundChecked));
         }
 
         @Override
@@ -116,7 +120,6 @@ public class MemoScreenCell extends LinearLayout {
         @Override
         protected void onDraw(Canvas canvas) {
             float progress = radio.getProgress();
-            radio.setColor(Theme.getColor(Theme.key_radioBackground), Theme.getColor(Theme.key_radioBackgroundChecked));
 
             // The card: a faint fill, and the accent outline fading in as the radio checks
             int track = Theme.getColor(Theme.key_switchTrack);
