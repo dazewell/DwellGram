@@ -303,6 +303,9 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
             if (previewCell != null) {
                 previewCell.update();
             }
+            if (screenCell != null) {
+                screenCell.update();
+            }
         }, Theme.key_windowBackgroundWhite));
         return themeDescriptions;
     }
