@@ -13937,6 +13937,7 @@ public class MessagesStorage extends BaseController {
                 }
             }
         } else if (_oldId > 0) {
+            android.util.Log.w("NAX_SMOKE_scheduled-send-fix", "positive randoms mid -> scheduled delete mid=" + _oldId + " newId=" + newId + " did=" + dialogId + " scheduled=" + scheduled, new Throwable());
             TL_update.TL_updateDeleteScheduledMessages update = new TL_update.TL_updateDeleteScheduledMessages();
             update.messages.add(oldMessageId);
             if (DialogObject.isChatDialog(dialogId)) {

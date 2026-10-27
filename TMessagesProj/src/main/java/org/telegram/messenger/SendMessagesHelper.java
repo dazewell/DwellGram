@@ -8598,6 +8598,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                                 for (int i = updatesArr.size() - 1; i >= 0; i--) {
                                     if (updatesArr.get(i) instanceof TL_update.TL_updateMessageID && ((TL_update.TL_updateMessageID) updatesArr.get(i)).random_id == newMsgObj.random_id) {
                                         updatesArr.remove(i);
+                                        android.util.Log.w("NAX_SMOKE_scheduled-send-fix", "stripped own updateMessageID oldId=" + oldId + " newId=" + message.id + " scheduled=" + scheduled + " current=" + currentSchedule);
                                     }
                                 }
                                 MessageObject.getDialogId(message);
