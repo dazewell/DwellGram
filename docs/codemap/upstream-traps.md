@@ -1134,7 +1134,7 @@ facts together:
 
 - The mid rewrite in `updateMessageStateAndIdInternal` that writes the confirmed
   server id back into `randoms_v2` is gated `_oldId < 0 && scheduled == 1`
-  (`MessagesStorage.java:13923`). A send-now message is `scheduled == 0`, so it
+  (`MessagesStorage.java:13924`). A send-now message is `scheduled == 0`, so it
   never enters this branch.
 - The `scheduled == 0` id-remap branch (`MessagesStorage.java:14061`+) rewrites
   `messages_v2`, `messages_topics`, `media_v4`, `media_topics` and
@@ -1152,6 +1152,27 @@ with a negative id and `send_state = 1`) and drove the rebuild onto fork-owned
 state — making it work would have required editing stock
 `updateMessageStateAndIdInternal`, changing message-receipt behaviour for every
 chat in the app.
+
+## Since 13.1.1 a send handler must strip its own updateMessageID, or a fresh scheduled message deletes itself
+
+Established 2026-10-27 (#scheduled-send-fix). 13.1.1 made `processUpdates` take
+every `updateMessageID` out of a live `TL_updates` and remap it through
+`processMessageIDUpdate` (`MessagesController.java:18180`, `:18160`), which looks
+the id up in `randoms_v2`. A send handler that remaps its own message *and*
+passes the response on to `processUpdates` remaps twice. For a scheduled send the
+handler's remap writes the positive server id into `randoms_v2` (the
+`_oldId < 0 && scheduled == 1` branch, `MessagesStorage.java:13924`). If that
+lands first, the second remap reads a positive mid and takes the
+"scheduled message has now been sent" branch (`MessagesStorage.java:13939`). That
+branch deletes the brand-new scheduled row locally, while the server keeps it.
+The two remaps race on the storage queue, so the deletion is intermittent.
+
+The forward, album and gram-transfer handlers strip their own update
+(`SendMessagesHelper.java:2871`, `:7969`, `:2006`). The single-send handler did
+not, and now strips its own once it has found the message
+(`SendMessagesHelper.java:8595`). Cost if missed: a new or edited response
+handler that remaps scheduled messages and forwards the raw `Updates` loses
+scheduled messages from the local list and hides the Scheduled button.
 
 ## Grouped media carries `groupId` before every sibling reaches the send funnel
 
