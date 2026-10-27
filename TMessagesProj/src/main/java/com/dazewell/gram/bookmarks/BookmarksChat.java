@@ -53,6 +53,9 @@ public final class BookmarksChat {
     private static final int FETCH_CHUNK = 100;
     private static final long FETCH_TIMEOUT_MS = 8000;
 
+    // UI thread only. A newer open() supersedes a slower earlier one, e.g. two quick taps on different chats.
+    private static int lastOpenId;
+
     private BookmarksChat() {
     }
 
@@ -62,6 +65,8 @@ public final class BookmarksChat {
         final ArrayList<Integer> missing = new ArrayList<>();
         final HashMap<Integer, TLRPC.Message> found = new HashMap<>();
         final int total;
+        // Which open() this is; only the latest one may present.
+        int openId;
         // UI thread only, from the first fetchNext on.
         ArrayList<Integer> toFetch;
         // UI thread only: drops a reply that lands after its timeout already moved on.
@@ -93,6 +98,7 @@ public final class BookmarksChat {
             return;
         }
         Load load = new Load(account, dialogId, ids);
+        load.openId = ++lastOpenId;
         MessagesStorage storage = MessagesStorage.getInstance(account);
         storage.getStorageQueue().postRunnable(() -> {
             ArrayList<TLRPC.User> users = new ArrayList<>();
@@ -280,7 +286,7 @@ public final class BookmarksChat {
 
     private static void present(BaseFragment from, Load load, ArrayList<Integer> ids, HashMap<Integer, MessageObject> objects, int unavailable) {
         // The fetch can take seconds; if the user has moved on, don't push the list over whatever they opened.
-        if (from.isFinished || from.getParentActivity() == null || from.getParentLayout() == null || from.getParentLayout().getLastFragment() != from) {
+        if (from.isFinished || from.getParentActivity() == null || from.getParentLayout() == null || from.getParentLayout().getLastFragment() != from || load.openId != lastOpenId) {
             return;
         }
         if (ids.isEmpty()) {
