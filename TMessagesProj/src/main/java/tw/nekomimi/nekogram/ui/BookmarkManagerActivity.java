@@ -871,7 +871,7 @@ public class BookmarkManagerActivity extends BaseFragment {
                     return;
                 }
                 BookmarkChatItem item = items.get(position);
-                presentFragment(new BookmarksActivity(item.dialogId));
+                com.dazewell.gram.bookmarks.BookmarksChat.open(BookmarkManagerActivity.this, item.dialogId); // NagramX: #bookmarks-chat
             });
         }
     }
