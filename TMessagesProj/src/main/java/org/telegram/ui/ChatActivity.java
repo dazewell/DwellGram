@@ -5977,6 +5977,7 @@ public class ChatActivity extends BaseFragment implements
                         MessageObject message = getSlidingMessageObject();
                         final boolean allowReplyOnOpenTopic = canSendMessageToTopic(message);
                         if (
+                            nkBookmarks || // NagramX: #bookmarks-chat. The list hides its bottom bar, which is what normally blocks Reply in the pinned list
                             bottomChannelButtonsLayout != null && bottomChannelButtonsLayout.getVisibility() == View.VISIBLE && !(bottomOverlayChatWaitsReply && allowReplyOnOpenTopic || message.wasJustSent) ||
                             currentChat != null && (
                                 ChatObject.isNotInChat(currentChat) && !isThreadChat() ||
@@ -21716,7 +21717,7 @@ public class ChatActivity extends BaseFragment implements
                 final int newEditVisibility = !hasSelectedAyuDeletedMessage && canEditMessagesCount == 1 && selectedCount == 1 && NaConfig.INSTANCE.getActionBarButtonEdit().Bool() ? View.VISIBLE : View.GONE;
                 if (actionsButtonsLayout != null) {
                     boolean allowChatActions = true;
-                    if (bottomChannelButtonsLayout != null && bottomChannelButtonsLayout.getVisibility() == View.VISIBLE && !bottomOverlayChatWaitsReply ||
+                    if (nkBookmarks || bottomChannelButtonsLayout != null && bottomChannelButtonsLayout.getVisibility() == View.VISIBLE && !bottomOverlayChatWaitsReply || // NagramX: #bookmarks-chat
                             currentChat != null && (ChatObject.isNotInChat(currentChat) && !isThreadChat() || ChatObject.isChannel(currentChat) && !ChatObject.canPost(currentChat) && !currentChat.megagroup || !ChatObject.canSendMessages(currentChat)) || hasSelectedAyuDeletedMessage) {
                         allowChatActions = false;
                     }
@@ -34008,7 +34009,7 @@ public class ChatActivity extends BaseFragment implements
         if (message.isExpiredStory() || chatMode == MODE_SCHEDULED || threadMessageObjects != null && threadMessageObjects.contains(message) ||
                 message.isSponsored() || type == MESSAGE_TYPE_SERVICE && message.getDialogId() == mergeDialogId ||
                 message.messageOwner.action instanceof TLRPC.TL_messageActionSecureValuesSent ||
-                currentEncryptedChat == null && message.getId() < 0 ||
+                currentEncryptedChat == null && message.getId() < 0 || nkBookmarks || // NagramX: #bookmarks-chat
                 bottomChannelButtonsLayout != null && bottomChannelButtonsLayout.getVisibility() == View.VISIBLE && !(bottomOverlayChatWaitsReply && selectedObject != null && (MessageObject.getTopicId(currentAccount, selectedObject.messageOwner, ChatObject.isForum(currentChat)) != 0 || selectedObject.wasJustSent))) {
             allowChatActions = false;
         }
@@ -51707,7 +51708,7 @@ public class ChatActivity extends BaseFragment implements
             message.isSponsored() || type == MESSAGE_TYPE_SERVICE && message.getDialogId() == mergeDialogId ||
             message.messageOwner.action instanceof TLRPC.TL_messageActionSecureValuesSent ||
             isEphemeral ||
-            currentEncryptedChat == null && message.getId() < 0 ||
+            currentEncryptedChat == null && message.getId() < 0 || nkBookmarks || // NagramX: #bookmarks-chat
             bottomChannelButtonsLayout != null && bottomChannelButtonsLayout.getVisibility() == View.VISIBLE && !(bottomOverlayChatWaitsReply && selectedObject != null && (MessageObject.getTopicId(currentAccount, selectedObject.messageOwner, ChatObject.isForum(currentChat)) != 0 || selectedObject.wasJustSent))
         ) {
             allowChatActions = false;
