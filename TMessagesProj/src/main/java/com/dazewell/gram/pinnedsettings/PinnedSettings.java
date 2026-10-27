@@ -58,6 +58,17 @@ public final class PinnedSettings {
         String token() {
             return prefix + ":" + key;
         }
+
+        // UItem diffing compares item.object, and every fill builds new entries, so without this each update re-inserts every row
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof Entry other && token().equals(other.token());
+        }
+
+        @Override
+        public int hashCode() {
+            return token().hashCode();
+        }
     }
 
     // Malformed tokens and anything past the cap are dropped here rather than rewritten in storage
