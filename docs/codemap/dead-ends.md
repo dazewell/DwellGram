@@ -282,7 +282,7 @@ shape and builds a minimal row (`createPatternFieldRow`) in
 
 Disproven. `grouped_id` is only remapped onto a newly-sent message when the
 **source** message already had a non-zero `grouped_id`
-(`SendMessagesHelper.java:2498`). `MessageObject.getGroupIdForUse` is purely
+(`SendMessagesHelper.java:2680`). `MessageObject.getGroupIdForUse` is purely
 field-driven — `localSentGroupId` if set, else `messageOwner.grouped_id`
 (`MessageObject.java:7941-7942`) — with no date or adjacency fallback, and
 `ChatActivity`'s group construction keys strictly on that value. The four call
@@ -884,7 +884,7 @@ selfId)` (`GhostHoldStore.java:610`) while `encode()`
 the docstring saying it does," suspecting a decode misparse. It does append it,
 implicitly. `encode()` allocates `message.getObjectSize()` bytes and calls
 `message.serializeToStream(data)` -- byte-for-byte the stock store pattern at
-`MessagesStorage.java:11431-11432`. Every `TL_message*.serializeToStream(...)`
+`MessagesStorage.java:11432-11433`. Every `TL_message*.serializeToStream(...)`
 ends with `writeAttachPath(stream)` (e.g. `TLRPC.java:57927`), and
 `getObjectSize()` computes its size by running that same `serializeToStream`
 into a counting buffer (`TLObject.java:86-91`), so the attach path is inside
@@ -923,7 +923,7 @@ persisted value (`SharedConfig.java:489`, `:535-539`, `:563`), and both
 That leaves two wrong-byte directions. Stock photo generation can reuse the id
 and replace the old cache path, after which the held retry uploads the unrelated
 photo because upload re-resolves the `PhotoSize` without checking byte identity
-(`SendMessagesHelper.java:6624-6642`, `FileLoader.java:401-427`,
+(`SendMessagesHelper.java:6799-6820`, `FileLoader.java:401-427`,
 `FileUploadOperation.java:98-104`). In the other direction, restoring the
 private held bytes to a reassigned id while its cache file is absent can put
 those bytes under the path now referenced by another message. Refusing an

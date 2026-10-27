@@ -1174,13 +1174,13 @@ it. This upstream behaviour still matters because it is why a leftover legacy ro
 or the stock twin a send-now handoff writes, renders without extra plumbing.
 The chain: `MessagesStorage.getMessagesInternal`'s scheduled branch selects
 every row for the dialog with no `send_state`/id filter and the id scrub is
-gated `message.id > 0` (`MessagesStorage.java:9008`, `:9015`), so a negative-id
+gated `message.id > 0` (`MessagesStorage.java:9009`, `:9016`), so a negative-id
 row survives load; `MessagesController.processLoadedMessages` skips `id < 0`
 when hashing `getScheduledHistory` (`MessagesController.java:12229-12231`), so a
 held row can't corrupt scheduled-cache validation; `ChatActivity`'s
 `messagesDidLoad` clears the list only for `MODE_DEFAULT`/`MODE_SUGGESTIONS`
 (`ChatActivity.java:22475`), so a server scheduled refresh merges rather than
-wipes; and server sync deletes only `mid > 0` (`MessagesStorage.java:16269`), so
+wipes; and server sync deletes only `mid > 0` (`MessagesStorage.java:16270`), so
 the local row is not swept. The in-bubble "held" caption is the one thing not
 free — it's a fork branch in `ChatMessageCell`'s time-string block
 (`ChatMessageCell.java:18692`+).
@@ -1237,8 +1237,8 @@ reply). So a feature hooked on this widget covers only chat-composer sends by
 construction, and can never see a story reply, a notification reply, or a
 share-sheet comment — nor, since they don't go through any composer at all, a
 forward, gallery media, a bot keyboard button, or
-`SendMessagesHelper`'s automatic retry of unsent messages on reconnect
-(`SendMessagesHelper.java:9103-9122`). Anything that needs to observe *every*
+`SendMessagesHelper`'s automatic retry of unsent messages at startup and whenever the unsent queue drains
+(`SendMessagesHelper.java:9306-9344`). Anything that needs to observe *every*
 outgoing message needs a hook at the send or network layer, not here; the pair
 of Ghost Mode warnings is split along exactly this line.
 
