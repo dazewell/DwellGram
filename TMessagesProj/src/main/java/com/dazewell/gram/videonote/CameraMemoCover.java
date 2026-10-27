@@ -39,7 +39,9 @@ import java.util.Locale;
  * as a viewfinder (CameraMemoBackdrop) edge to edge under the status bar, the controls below it, and a grid of square
  * cells whose three rows are exactly the crop the round clip sends. While the viewfinder is live it covers the round
  * camera too, so nothing on screen reads as a round video recorder. The moment it isn't (no fresh frame, switched off,
- * paused), a hole opens over the stock circle, so a live picture is always on screen. A gesture that starts on the crop
+ * paused), a hole opens over the stock circle, so a live picture is always on screen. The one exception is the start:
+ * until the camera's first frames reach either view the circle has no live picture to show, so the hole stays shut and
+ * the screen comes up as a camera's would, black under its grid. A gesture that starts on the crop
  * is handed to the camera view, mapped onto its circle, so the round video's own gestures work as usual. The recording cue and the controls are drawn here, white on black, with no Telegram colour.
  *
  * Fixed dark in both themes on purpose: a theme colour would give the app away. Everything it shows is read from the
@@ -61,6 +63,9 @@ final class CameraMemoCover extends FrameLayout {
     private static final int GRID = 0x80ffffff;
     private static final int GRID_CROP = 0xe6ffffff; // the crop's top and bottom, a little stronger than the rest
     private static final long VIEWFINDER_STALE_MS = 500;
+    // From the recorder's start, how long the viewfinder gets to show its first frame before the circle stands in for it.
+    // Both are fed by the same GL draw, so this only runs out when the viewfinder failed.
+    private static final long VIEWFINDER_FIRST_FRAME_MS = 1_000;
 
     private static final int RED = 0xffff3b30;
     private static final int AMBER = 0xffffb300;
@@ -86,6 +91,8 @@ final class CameraMemoCover extends FrameLayout {
     // Stamped by the viewfinder's own TextureView each time a camera frame actually reaches it, on the UI thread
     private long viewfinderFrameAt;
     private boolean viewfinderCovers;
+    private boolean holeOpen; // the stock circle shows through: set with viewfinderCovers, once per draw
+    private boolean awaitingFirstFrame;
     private final RectF viewfinderRect = new RectF();
     private final RectF cropRect = new RectF(); // the viewfinder's centre square: what the round clip sends
     private final Matrix forwardMatrix = new Matrix();
@@ -106,6 +113,7 @@ final class CameraMemoCover extends FrameLayout {
     private boolean bound;
     private boolean wasRecording;
     private boolean everRecorded;
+    private long firstRecordingAt;
     // Whether the last stop can be resumed. The recorder has no lasting answer (togglePause only refuses while the file is
     // handed off or the encoder is tearing down), so the cause decides: a stop that follows a pause asked for here (the
     // Pause button, a tap on the crop) is a pause. Anything else, a send landing on a preview, the cap, the onPause
@@ -329,7 +337,7 @@ final class CameraMemoCover extends FrameLayout {
                 if (viewfinderCovers && hasFlatHole && cropRect.contains(event.getX(), event.getY())) {
                     startForwarding();
                     forwardDownAt = event.getEventTime();
-                } else if (!viewfinderCovers) {
+                } else if (holeOpen) {
                     touchThrough = isInHole(event.getX(), event.getY());
                 }
             }
@@ -413,6 +421,9 @@ final class CameraMemoCover extends FrameLayout {
             elapsed += now - lastTick;
         }
         if (recording) {
+            if (!everRecorded) {
+                firstRecordingAt = now;
+            }
             everRecorded = true;
             failed = false; // the recorder overrules the cover: never a failure message over a live recording
             resumableStop = false;
@@ -658,11 +669,23 @@ final class CameraMemoCover extends FrameLayout {
                 && SystemClock.elapsedRealtime() - viewfinderFrameAt < VIEWFINDER_STALE_MS;
     }
 
+    // No viewfinder frame yet, and the recorder either hasn't started or started only just now. Before its first frames the
+    // circle shows a placeholder, not the camera, so there is no live picture to open the hole for.
+    // Bounded by START_TIMEOUT_MS even before recording, since a locked memo never sets failed here.
+    private boolean isAwaitingFirstFrame() {
+        long now = SystemClock.elapsedRealtime();
+        return viewfinderFrameAt == 0 && !failed && (everRecorded
+                ? now - firstRecordingAt < VIEWFINDER_FIRST_FRAME_MS
+                : now - attachedAt < START_TIMEOUT_MS);
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         viewfinderCovers = isViewfinderLive();
+        awaitingFirstFrame = isAwaitingFirstFrame();
+        holeOpen = hasHole && !viewfinderCovers && !awaitingFirstFrame;
         canvas.save();
-        if (hasHole && !viewfinderCovers) {
+        if (holeOpen) {
             canvas.clipOutPath(holePath);
         }
         canvas.drawColor(0xff000000);
@@ -674,13 +697,13 @@ final class CameraMemoCover extends FrameLayout {
     @Override
     protected void dispatchDraw(Canvas canvas) {
         canvas.save();
-        if (hasHole && !viewfinderCovers) {
+        if (holeOpen) {
             canvas.clipOutPath(holePath);
         }
         super.dispatchDraw(canvas);
         canvas.restore();
-        if (!failed && viewfinderCovers && !cropRect.isEmpty()) {
-            drawGrid(canvas); // only over a live viewfinder: with the real circle showing, it would mark the wrong place
+        if (!failed && !holeOpen && (viewfinderCovers || awaitingFirstFrame) && !cropRect.isEmpty()) {
+            drawGrid(canvas); // never with the real circle showing: it would mark the wrong place
         }
         if (!failed) {
             drawStatus(canvas);
@@ -750,7 +773,7 @@ final class CameraMemoCover extends FrameLayout {
         if (viewfinder.getWidth() > 0) {
             baseline = Math.max(viewfinder.getTop(), AndroidUtilities.statusBarHeight) + AndroidUtilities.dp(36);
         }
-        if (!viewfinderCovers && hasHole && baseline > hole.top - AndroidUtilities.dp(16)) { // never over the real circle
+        if (holeOpen && baseline > hole.top - AndroidUtilities.dp(16)) { // never over the real circle
             baseline = Math.max(AndroidUtilities.statusBarHeight + AndroidUtilities.dp(24), hole.top - AndroidUtilities.dp(16));
         }
         if (!everRecorded) {
