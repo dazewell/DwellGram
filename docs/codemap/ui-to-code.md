@@ -473,9 +473,9 @@ action and channel buttons and the round-video recorder, which forwards it to
 its flash/infinite row and zoom chips (`ChatActivity.java:12068`;
 `InstantCameraView.java:418-447`, `:489-494`). The recording lock and view-once chips build
 their own `Md3ButtonColorProvider` over `key_chat_messagePanelVoiceLockBackground`
-(`ChatActivityEnterView.java:1840`); the deleted-messages and bookmarks screens
-give one to their page-down button over `key_chat_messagePanelBackground`
-(`AyuViewDeleted.java:503`; `BookmarksActivity.java:486`). It skips `BlurredBackgroundProvider`, so
+(`ChatActivityEnterView.java:1840`); the deleted-messages screen
+gives one to its page-down button over `key_chat_messagePanelBackground`
+(`AyuViewDeleted.java:503`). It skips `BlurredBackgroundProvider`, so
 Liquid Glass keeps the drawable's default stroke and shadow. The glyphs share
 `key_glass_defaultIcon`, the side buttons' tint (`ChatActivityBlurredRoundButton.java:169`);
 the recorder's hardcoded white/grey glyphs switch to it through

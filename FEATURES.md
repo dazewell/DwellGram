@@ -37,9 +37,9 @@ Private chats now show a reply glyph and count next to a message's timestamp, br
 
 <img height="150" alt="private chat message bubble showing a reply glyph and count next to its timestamp" src="docs/images/features/reply-threads.png" />
 
-### Message bookmarks <!-- #bookmarks-300 --> <!-- #bookmarks-multiselect -->
+### Message bookmarks <!-- #bookmarks-300 --> <!-- #bookmarks-multiselect --> <!-- #bookmarks-chat -->
 
-Bookmarks come from NagramX; this fork raises the per-chat cap from 30 to 300. Saving from the message menu, per-account storage, and inclusion in settings backup and restore all work as they did. The bookmarked-messages screen now long-presses into multi-select: hold and swipe to range-select rows, tap to toggle, then forward, copy, share, save or remove bookmarks in bulk. *Select Range* fills the range between the outermost ticks.
+Bookmarks come from NagramX; this fork raises the per-chat cap from 30 to 300. Saving from the message menu, per-account storage, and inclusion in settings backup and restore all work as they did.
 
 ### Save scope by chat type <!-- #save-scope -->
 
