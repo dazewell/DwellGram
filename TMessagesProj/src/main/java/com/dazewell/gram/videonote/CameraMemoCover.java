@@ -795,6 +795,11 @@ final class CameraMemoCover extends FrameLayout {
         float baseline = Math.max(AndroidUtilities.statusBarHeight + AndroidUtilities.dp(44), AndroidUtilities.dp(56));
         if (viewfinder.getWidth() > 0) {
             baseline = Math.max(viewfinder.getTop(), AndroidUtilities.statusBarHeight) + AndroidUtilities.dp(36);
+            // the strip above the viewfinder, where a camera keeps its own indicators, when it is tall enough for a row
+            float strip = viewfinder.getTop() - AndroidUtilities.statusBarHeight;
+            if (strip >= AndroidUtilities.dp(40)) {
+                baseline = AndroidUtilities.statusBarHeight + strip / 2f + textPaint.getTextSize() * 0.35f;
+            }
         }
         if (holeOpen && baseline > hole.top - AndroidUtilities.dp(16)) { // never over the real circle
             baseline = Math.max(AndroidUtilities.statusBarHeight + AndroidUtilities.dp(24), hole.top - AndroidUtilities.dp(16));
