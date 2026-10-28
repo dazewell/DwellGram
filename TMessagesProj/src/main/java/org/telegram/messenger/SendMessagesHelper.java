@@ -612,13 +612,6 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
     }
 
     private static DispatchQueue mediaSendQueue = new DispatchQueue("mediaSendQueue");
-
-    // NagramX: #send-when-online-spread. Runs next on the UI thread once media/document copies queued before this
-    // call have posted their send. Photos prepare on mediaSendQueue, documents on globalQueue, and both post the
-    // send to the UI thread from inside their job, so a barrier on each queue (FIFO) is behind that post.
-    public static void runAfterMediaSendPrepared(Runnable next) {
-        Utilities.globalQueue.postRunnable(() -> mediaSendQueue.postRunnable(() -> AndroidUtilities.runOnUIThread(next)));
-    }
     private static ThreadPoolExecutor mediaSendThreadPool;
 
     static {
