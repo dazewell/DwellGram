@@ -111,12 +111,14 @@ public class QuoteSpan implements LeadingMarginSpan {
             if (tp == null) {
                 return;
             }
-            tp.setTextSize(dp(span.edit ? 16 : SharedConfig.fontSize - 2));
+            // NagramX (#input-text-size): an edit-mode quote was a fixed 16dp, oversized next to a smaller input
+            // field. Stay 2dp under whichever field hosts it (16 at 18), so other editors keep their own scale.
+            tp.setTextSize(span.edit ? tp.getTextSize() - dp(2) : dp(SharedConfig.fontSize - 2));
         }
 
         @Override
         public void updateMeasureState(@NonNull TextPaint tp) {
-            tp.setTextSize(dp(span.edit ? 16 : SharedConfig.fontSize - 2));
+            tp.setTextSize(span.edit ? tp.getTextSize() - dp(2) : dp(SharedConfig.fontSize - 2));
             tp.setTextScaleX(span.edit ? 1.1f : 1f);
         }
 
