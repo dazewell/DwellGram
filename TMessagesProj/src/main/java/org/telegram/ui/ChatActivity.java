@@ -16356,6 +16356,15 @@ public class ChatActivity extends BaseFragment implements
     // taken (never a late read of the mutable static). hideCaption is a separate flag and carries only
     // caption suppression.
     private boolean dispatchForwardSpread(ArrayList<ArrayList<MessageObject>> slots, ArrayList<MessageObject> allSources, long did, boolean hideCaption, boolean notify, int baseScheduleDate, int intervalSeconds, long payStars, boolean singleTarget) {
+        return dispatchForwardSpread(slots, allSources, did, hideCaption, notify, baseScheduleDate, intervalSeconds, payStars, singleTarget, false);
+    }
+
+    // NagramX: #send-when-online-spread. sequenced holds slot i+1 back until slot i has posted its send request,
+    // for Send-When-Online where every slot shares one sentinel date and only arrival order ranks them (a photo
+    // prepares off-thread, so a later text would otherwise overtake it). All chain state is touched on the UI
+    // thread only. The batch is judged admissible up front, so a sequenced call returns true and reports a late
+    // failure through the bulletin and finalizeRepostCopyDispatch, not through its return value.
+    private boolean dispatchForwardSpread(ArrayList<ArrayList<MessageObject>> slots, ArrayList<MessageObject> allSources, long did, boolean hideCaption, boolean notify, int baseScheduleDate, int intervalSeconds, long payStars, boolean singleTarget, boolean sequenced) {
         if (slots == null || slots.isEmpty()) {
             return true;
         }
@@ -16367,6 +16376,40 @@ public class ChatActivity extends BaseFragment implements
         HashMap<String, HashMap<String, String>> markerMap = singleTarget ? buildRepostCopyMarkerMap(batch, allSources) : null;
         boolean sentAny = false;
         boolean allDispatched = true;
+        if (sequenced && slots.size() > 1) {
+            final MessageObject naxThread = toCurrentDialog ? getThreadMessage() : null;
+            final int naxChatMode = toCurrentDialog ? chatMode : 0;
+            final long naxMonoPeer = toCurrentDialog ? getSendMonoForumPeerId() : 0;
+            final MessageSuggestionParams naxSuggestion = toCurrentDialog ? getSendMessageSuggestionParams() : null;
+            final String naxQuickShortcut = quickReplyShortcut;
+            final int naxQuickId = getQuickReplyId();
+            final boolean[] flags = new boolean[2]; // sentAny, allDispatched
+            flags[1] = true;
+            final int[] next = new int[1];
+            final Runnable[] step = new Runnable[1];
+            step[0] = () -> {
+                int i = next[0]++;
+                MessageHelper.CopyDispatchResult r = getMessageHelper().sendMessagesAsCopy(slots.get(i), did, null, naxThread, null, true, hideCaption, notify, baseScheduleDate, naxChatMode, naxQuickShortcut, naxQuickId, payStars, naxMonoPeer, naxSuggestion, markerMap);
+                flags[0] = flags[0] || r.sentAny;
+                flags[1] = flags[1] && r.allDispatched;
+                if (next[0] < slots.size()) {
+                    SendMessagesHelper.runAfterMediaSendPrepared(step[0]);
+                    return;
+                }
+                finalizeRepostCopyDispatch(batch, flags[0], flags[1]);
+                if (!flags[1]) {
+                    waitingForSendingMessageLoad = false;
+                    AndroidUtilities.runOnUIThread(() -> {
+                        if (getParentActivity() == null || fragmentView == null || isFinishing()) {
+                            return;
+                        }
+                        BulletinFactory.of(this).createErrorBulletin(getString(R.string.PleaseDownload), themeDelegate).show();
+                    }, 300);
+                }
+            };
+            step[0].run();
+            return true;
+        }
         for (int i = 0; i < slots.size(); i++) {
             int slotSchedule = baseScheduleDate + i * intervalSeconds;
             MessageHelper.CopyDispatchResult r = getMessageHelper().sendMessagesAsCopy(slots.get(i), did, null, toCurrentDialog ? getThreadMessage() : null, null, true, hideCaption, notify, slotSchedule, toCurrentDialog ? chatMode : 0, quickReplyShortcut, getQuickReplyId(), payStars, toCurrentDialog ? getSendMonoForumPeerId() : 0, toCurrentDialog ? getSendMessageSuggestionParams() : null, markerMap);
@@ -16430,7 +16473,7 @@ public class ChatActivity extends BaseFragment implements
         if (!preflight.ok) {
             return false;
         }
-        dispatchForwardSpread(slots, messagesToForward, dialog_id, messagePreviewParams.hideCaption, notify, baseScheduleDate, spreadInterval, payStars, true);
+        dispatchForwardSpread(slots, messagesToForward, dialog_id, messagePreviewParams.hideCaption, notify, baseScheduleDate, spreadInterval, payStars, true, sendWhenOnline);
         return true;
     }
 
