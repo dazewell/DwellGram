@@ -36,7 +36,7 @@ import java.util.Locale;
 
 /**
  * #camera-memo: the plain camera screen over a camera memo's chat. Opaque black, with the whole camera frame, uncropped,
- * as a viewfinder (CameraMemoBackdrop) edge to edge right above the controls, and a grid of square
+ * as a viewfinder (CameraMemoBackdrop) edge to edge with the controls right below it, and a grid of square
  * cells whose three rows are exactly the crop the round clip sends. While the viewfinder is live it covers the round
  * camera too, so nothing on screen reads as a round video recorder. The moment it isn't (no fresh frame, switched off,
  * paused), a hole opens over the stock circle, so a live picture is always on screen. The one exception is the start:
@@ -558,7 +558,9 @@ final class CameraMemoCover extends FrameLayout {
         }
     }
 
-    // At the bottom, with the viewfinder right above it.
+    private static final int CONTROLS_GAP = 18; // dp from the viewfinder's bottom to the control row, as the stock camera's shutter sits
+
+    // Right below the viewfinder.
     // Without a viewfinder, below the circle where there's room. Never past the navigation bar.
     private int computeControlsTop(boolean withViewfinder) {
         int height = getHeight();
@@ -566,7 +568,7 @@ final class CameraMemoCover extends FrameLayout {
         int lowest = height - AndroidUtilities.navigationBarHeight - AndroidUtilities.dp(16) - rowHeight;
         int top;
         if (withViewfinder) {
-            top = lowest; // the viewfinder sits right above the row (computeViewfinder)
+            top = Math.round(viewfinderRect.bottom + AndroidUtilities.dp(CONTROLS_GAP));
         } else {
             top = lowest - AndroidUtilities.dp(40);
             if (hasHole && top < hole.bottom + AndroidUtilities.dp(24)) {
@@ -576,7 +578,7 @@ final class CameraMemoCover extends FrameLayout {
         return Math.max(0, Math.min(top, lowest));
     }
 
-    // The full frame edge to edge, sitting right above the control row, and no higher than the status bar. The
+    // The full frame edge to edge, 14% down the screen and no lower than the control row allows. The
     // crop is its centre square, the frame's shorter side. Until the first camera frame says otherwise, the shape
     // CameraMemo.roundCameraWidth asks for.
     private boolean computeViewfinder(int width, int height) {
@@ -593,15 +595,16 @@ final class CameraMemoCover extends FrameLayout {
         }
         float viewfinderWidth = width;
         float viewfinderHeight = width * frameHeight / frameWidth;
-        // its bottom edge sits 16dp above the control row, which computeControlsTop puts at the bottom
-        float roomBottom = height - AndroidUtilities.navigationBarHeight - AndroidUtilities.dp(16 + 72 + 16);
+        // Laid out like the stock camera's 4:3 mode: the frame starts 14% of the screen down and the control row follows
+        // CONTROLS_GAP below it (computeControlsTop). Pushed up only as far as the row needs to stay on screen.
+        float roomBottom = height - AndroidUtilities.navigationBarHeight - AndroidUtilities.dp(16 + 72 + CONTROLS_GAP);
         float room = roomBottom - AndroidUtilities.statusBarHeight;
         if (viewfinderHeight > room && room > 0) {
             // Too short for it even from the top (split screen, a tablet): narrower, so the whole frame still shows
             viewfinderHeight = room;
             viewfinderWidth = viewfinderHeight * frameWidth / frameHeight;
         }
-        float top = Math.max(0, roomBottom - viewfinderHeight);
+        float top = Math.max(0, Math.min(height * 0.14f, roomBottom - viewfinderHeight));
         float left = (width - viewfinderWidth) / 2f;
         viewfinderRect.set(left, top, left + viewfinderWidth, top + viewfinderHeight);
         float side = Math.min(viewfinderRect.width(), viewfinderRect.height());
