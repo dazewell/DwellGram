@@ -11292,6 +11292,11 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
         int inset = dp(COMPOSER_TEXT_HORIZONTAL_INSET);
         publishComposerPrimaryOffset();
+        // NagramX (#composer-input-fix): a restored video draft shows the review panel before the column's first
+        // publish, so the panel has to follow the offset here too or it stays under the send button.
+        if (toolbarReplacementVisible) {
+            applyComposerReplacementGeometry();
+        }
         int endInset = getComposerTextEndInset();
         boolean compact = !messageEditExpanded && !richDraftActive && messageEditText.getLineCount() <= 1;
         int gravity = messageEditExpanded
