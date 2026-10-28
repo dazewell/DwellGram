@@ -589,7 +589,7 @@ final class CameraMemoCover extends FrameLayout {
         float frameHeight = laidFrameHeight;
         if (!(frameWidth >= 1f && frameWidth <= 4f && frameHeight >= 1f && frameHeight <= 4f)) {
             frameWidth = 1f;
-            frameHeight = 16f / 9f;
+            frameHeight = 4f / 3f;
         }
         float viewfinderWidth = width;
         float viewfinderHeight = width * frameHeight / frameWidth;
