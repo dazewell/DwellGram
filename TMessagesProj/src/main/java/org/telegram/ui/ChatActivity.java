@@ -16398,8 +16398,9 @@ public class ChatActivity extends BaseFragment implements
     // dispatched the spread; every ineligible case - including a batch that can't all be copied, or a span
     // past the scheduling horizon - returns false and leaves the caller's plain forward untouched, so a send
     // the user never asked to spread is never refused, it just goes the ordinary way. Send-When-Online
-    // (0x7ffffffe) is a protocol sentinel, never a real date, so it is excluded before any slot arithmetic
-    // can turn it into garbage times.
+    // (0x7ffffffe) is a protocol sentinel, never a real date: it takes interval 0 so no slot arithmetic can
+    // turn it into garbage times, and each slot still goes out as its own request in selection order
+    // (#send-when-online-spread). Ordering past that is the server's, as for any batch.
     private boolean naxTryStagedForwardSpread(ArrayList<MessageObject> messagesToForward, boolean notify, int rawScheduleDate, int baseScheduleDate, boolean composerEmpty, long payStars) {
         if (messagePreviewParams == null || !messagePreviewParams.hideForwardSendersName) {
             return false;
@@ -16407,9 +16408,11 @@ public class ChatActivity extends BaseFragment implements
         if (!composerEmpty) {
             return false;
         }
-        if (rawScheduleDate == 0 || rawScheduleDate == 0x7ffffffe) {
+        if (rawScheduleDate == 0) {
             return false;
         }
+        final boolean sendWhenOnline = rawScheduleDate == 0x7ffffffe;
+        final int spreadInterval = sendWhenOnline ? 0 : REPOST_SPREAD_INTERVAL_SECONDS;
         ArrayList<ArrayList<MessageObject>> slots = getMessageHelper().buildCopySpreadSlots(messagesToForward);
         // NagramX: #scheduled-reply-fix. One slot has nothing to spread, but it still can't go out as a
         // plain forward without losing something: messages.forwardMessages carries no reply_to, so the
@@ -16420,14 +16423,14 @@ public class ChatActivity extends BaseFragment implements
                 && !getMessageHelper().shouldRepostAsCopyPreservingReply(messagesToForward, dialog_id, getThreadMessage())) {
             return false;
         }
-        if (!naxSpreadScheduleWithinHorizon(baseScheduleDate, slots.size(), REPOST_SPREAD_INTERVAL_SECONDS)) {
+        if (!sendWhenOnline && !naxSpreadScheduleWithinHorizon(baseScheduleDate, slots.size(), spreadInterval)) {
             return false;
         }
         MessageHelper.CopyPreflightResult preflight = getMessageHelper().preflightSpreadAsCopy(messagesToForward);
         if (!preflight.ok) {
             return false;
         }
-        dispatchForwardSpread(slots, messagesToForward, dialog_id, messagePreviewParams.hideCaption, notify, baseScheduleDate, REPOST_SPREAD_INTERVAL_SECONDS, payStars, true);
+        dispatchForwardSpread(slots, messagesToForward, dialog_id, messagePreviewParams.hideCaption, notify, baseScheduleDate, spreadInterval, payStars, true);
         return true;
     }
 

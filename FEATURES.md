@@ -251,9 +251,9 @@ When you select messages in the scheduled view, the top bar keeps just Send Now,
 
 Telegram's forward API cannot forward a message that hasn't been sent yet. The selection bar's ⋯ → Forward re-sends the picked scheduled messages instead, so they arrive as new scheduled messages, keeping their replies to the originals across cloud chats. Media must be in the app's cache to be re-sent. Polls, locations, and contacts cannot be forwarded this way.
 
-### Repost as Copy <!-- #repost-reply --> <!-- #repost-spread --> <!-- #scheduled-reply-fix -->
+### Repost as Copy <!-- #repost-reply --> <!-- #repost-spread --> <!-- #scheduled-reply-fix --> <!-- #send-when-online-spread -->
 
-*Repost as Copy* comes from NagramX — turn it on in settings (it's off by default) and it re-sends a message without a "Forwarded from" header, re-uploading the media. Copies keep the original reply and quote, and offer to delete the originals once sent. A scheduled *NoQuote* forward is re-sent as a copy too when it replies to something, so the reply survives; several are spaced three minutes apart.
+*Repost as Copy* comes from NagramX — turn it on in settings (it's off by default) and it re-sends a message without a "Forwarded from" header. Copies keep the original reply and quote, and offer to delete the originals once sent. A scheduled *NoQuote* forward replying to something is re-sent as a copy too; several are spaced three minutes apart, or sent one by one with *Send when online*.
 
 <img height="150" alt="Reposted as a copy confirmation bar with a Delete action for the original messages" src="docs/images/features/repost-copy.png" />
 
