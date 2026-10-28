@@ -41,17 +41,18 @@ public final class CameraMemo {
 
     /**
      * InstantCameraView's Camera2 opens ask for a square stream, so the camera crops before the frame ever reaches the
-     * viewfinder. The camera memo's chat asks for 16:9 instead, so the viewfinder fills most of a portrait screen: the
-     * circle and the clip stay the stream's centre square, cropped by texture coordinates the way the Camera1 path always
-     * is. Only in portrait, since that crop takes the upright frame to be portrait and would squash a landscape one.
-     * Camera2Session.create also matches lenses by aspect, so on a phone with mixed sensor shapes this can pick another.
+     * viewfinder. The camera memo's chat asks for 4:3 instead, so the viewfinder shows the whole frame: the circle and the
+     * clip stay the stream's centre square, cropped by texture coordinates the way the Camera1 path always is. Only in
+     * portrait, since that crop takes the upright frame to be portrait and would squash a landscape one. 4:3 is the
+     * sensor's own shape, so that centre square is the same view a square request gives; a 16:9 stream is the camera
+     * cropping the sensor's sides first, and its centre square showed about three quarters of the width.
      */
     public static int roundCameraWidth(Object delegate, int size) {
         if (!(delegate instanceof ChatActivity) || !isSessionChat((ChatActivity) delegate)
                 || AndroidUtilities.displaySize.x > AndroidUtilities.displaySize.y) {
             return size;
         }
-        return size * 16 / 9;
+        return size * 4 / 3;
     }
 
     /** VideoNoteShortcut.onChatViewCreated, for the chat a video memo on the camera screen is opening. Up from the push's first frame. */

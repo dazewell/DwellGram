@@ -2808,16 +2808,19 @@ Every exit also shows the field before building its set (`:11858`), and the norm
 ## The round camera's Camera2 stream is already square
 
 On the Camera2 path `InstantCameraView` opens the camera with `Camera2Session.create(front, roundVideoSize,
-roundVideoSize)` (`InstantCameraView.java:1124`, `:1140`, `:1713`, `:1762`), and `chooseOptimalSize`
+roundVideoSize)` (`InstantCameraView.java:1129`, `:1151`, `:1738`, `:1791`), and `chooseOptimalSize`
 (`Camera2Session.java:620`) prefers an output size of exactly that aspect: a square. The camera then crops before a
 frame reaches the GL thread: with a square request the stream itself is square, and drawing the camera texture
 uncropped shows nothing beyond the circle's square. The preview's own crop is texture coordinates (`texData`,
-`InstantCameraView.java:2257`, rebuilt on flip at `:2617`), so a non-square request crops back to the same centre
-square for the preview and the encoder alike. `create` also picks the lens by aspect match
-(`Camera2Session.java:105`), so a non-square request can choose another lens on a phone with mixed sensor shapes.
-`CameraMemo.roundCameraWidth` asks for 16:9, in portrait only, for the camera memo alone.
+`InstantCameraView.java:2302`, rebuilt on flip at `:2678`), so a non-square request is cropped to its centre square
+for the preview and the encoder alike. **That square is not the same view as a square request's**: the camera crops
+the sensor to the stream's aspect first, so a 9:16 stream of a 3:4 sensor is a quarter narrower and its centre square
+shows about 0.75 of the width (a 16:9 camera memo looked zoomed in against the chat recorder, seen on device
+2026-10-28). Ask for the sensor's own 4:3 to keep the view. `create` also picks the lens by aspect match
+(`Camera2Session.java:105`); pinning the lens to the square request's did not remove the difference on device.
+`CameraMemo.roundCameraWidth` asks for 4:3, in portrait only, for the camera memo alone.
 
-Anything drawn from `CameraGLThread` (the viewfinder hook at `InstantCameraView.java:2491`) runs on the recording's
+Anything drawn from `CameraGLThread` (the viewfinder hook at `InstantCameraView.java:2540`) runs on the recording's
 thread: restore the viewport and the current surface, never write the camera textures' parameters, and swap with
 interval 0, or an undrawn consumer holds the camera thread on a swap.
 
