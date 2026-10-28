@@ -2808,7 +2808,7 @@ Every exit also shows the field before building its set (`:11858`), and the norm
 ## The round camera's Camera2 stream is already square
 
 On the Camera2 path `InstantCameraView` opens the camera with `Camera2Session.create(front, roundVideoSize,
-roundVideoSize)` (`InstantCameraView.java:1124`, `:1140`, `:1713`, `:1762`), and `chooseOptimalSize`
+roundVideoSize)` (`InstantCameraView.java:1129`, `:1151`, `:1738`, `:1791`), and `chooseOptimalSize`
 (`Camera2Session.java:620`) prefers an output size of exactly that aspect: a square. The camera then crops before a
 frame reaches the GL thread: with a square request the stream itself is square, and drawing the camera texture
 uncropped shows nothing beyond the circle's square. The preview's own crop is texture coordinates (`texData`,

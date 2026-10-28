@@ -71,6 +71,7 @@ final class CameraMemoCover extends FrameLayout {
     private static final int AMBER = 0xffffb300;
     private static final int TONAL = 0xff2b2e33;
     private static final int ONLINE = 0xff34c759; // a fixed green, not the theme's online colour, which would give the app away
+    private static final int CONTROLS_GAP = 18; // dp from the viewfinder's bottom to the control row, as the stock camera's shutter sits
 
     private final WeakReference<ChatActivity> chatRef;
     private final long attachedAt = SystemClock.elapsedRealtime();
@@ -558,10 +559,7 @@ final class CameraMemoCover extends FrameLayout {
         }
     }
 
-    private static final int CONTROLS_GAP = 18; // dp from the viewfinder's bottom to the control row, as the stock camera's shutter sits
-
-    // Right below the viewfinder.
-    // Without a viewfinder, below the circle where there's room. Never past the navigation bar.
+    // Right below the viewfinder. Without a viewfinder, below the circle where there's room. Never past the navigation bar.
     private int computeControlsTop(boolean withViewfinder) {
         int height = getHeight();
         int rowHeight = AndroidUtilities.dp(72);
