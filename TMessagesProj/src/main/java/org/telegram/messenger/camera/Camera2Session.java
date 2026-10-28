@@ -81,6 +81,11 @@ public class Camera2Session {
     private long lastTime;
 
     public static Camera2Session create(boolean front, int viewWidth, int viewHeight) {
+        return create(front, viewWidth, viewHeight, viewWidth);
+    }
+
+    // NagramX (#camera-memo): lensWidth is the width lens selection matches sensors against; viewWidth only sizes the stream, so a 16:9 request picks the same lens a square one would
+    public static Camera2Session create(boolean front, int viewWidth, int viewHeight, int lensWidth) {
         final Context context = ApplicationLoader.applicationContext;
         final CameraManager cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
 
@@ -99,10 +104,10 @@ public class Camera2Session {
                 StreamConfigurationMap confMap = (StreamConfigurationMap) characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                 Size pixelSize = characteristics.get(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE);
                 float cameraAspectRatio = pixelSize == null ? 0 : (float) pixelSize.getWidth() / pixelSize.getHeight();
-                if ((viewWidth / (float) viewHeight >= 1f) != (cameraAspectRatio >= 1f)) {
+                if ((lensWidth / (float) viewHeight >= 1f) != (cameraAspectRatio >= 1f)) { // NagramX (#camera-memo): lensWidth, was viewWidth
                     cameraAspectRatio = 1f / cameraAspectRatio;
                 }
-                if (bestAspectRatio <= 0 || Math.abs((float) viewWidth / viewHeight - bestAspectRatio) > Math.abs((float) viewWidth / viewHeight - cameraAspectRatio)) {
+                if (bestAspectRatio <= 0 || Math.abs((float) lensWidth / viewHeight - bestAspectRatio) > Math.abs((float) lensWidth / viewHeight - cameraAspectRatio)) {
                     if (confMap != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         Size size = chooseOptimalSize(confMap.getOutputSizes(SurfaceTexture.class), viewWidth, viewHeight, false);
                         if (size != null) {
