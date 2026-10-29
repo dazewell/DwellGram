@@ -101,11 +101,16 @@ public class InstantZoomControlView extends FrameLayout {
             // faded out for the paused preview or the close, but still laid out: an unseen stop or flip mustn't fire.
             // Under the camera memo's cover, whose crop forwards into the recorder, the cover's own zoom is the one
             if (getAlpha() < 0.01f || CameraMemo.covers(getParent() instanceof View ? (View) getParent() : null)) {
+                android.util.Log.i("NAX_SMOKE_round-zoom-dial", "down declined alpha=" + getAlpha() + " row=" + zoom.hasRow());
                 return false;
             }
             // a touch that closes the open dial is declined by it; over the flip a disabled button still takes it, so
             // that touch only closes the dial (a flip would rebuild the row from the other camera's range mid-turn)
             flip.setEnabled(!zoom.isDialOpen());
+            final boolean dialWas = zoom.isDialOpen();
+            final boolean taken = super.dispatchTouchEvent(ev);
+            android.util.Log.i("NAX_SMOKE_round-zoom-dial", "down taken=" + taken + " dialWasOpen=" + dialWas + " row=" + zoom.hasRow() + " compact=" + compact);
+            return taken;
         }
         return super.dispatchTouchEvent(ev);
     }
@@ -145,7 +150,11 @@ public class InstantZoomControlView extends FrameLayout {
     /** Re-reads the camera's zoom. Camera1 (wholeSteps) turns the dial by whole x, as dazewell chose for it. */
     public void sync(boolean wholeSteps) {
         zoom.setWholeSteps(wholeSteps);
+        final boolean had = zoom.hasRow();
         zoom.sync(true);
+        if (had != zoom.hasRow()) {
+            android.util.Log.i("NAX_SMOKE_round-zoom-dial", "row shown=" + zoom.hasRow() + " wholeSteps=" + wholeSteps);
+        }
     }
 
     public boolean hasRow() {
@@ -180,6 +189,7 @@ public class InstantZoomControlView extends FrameLayout {
         }
         this.compact = compact;
         this.leftReserve = leftReserve;
+        android.util.Log.i("NAX_SMOKE_round-zoom-dial", "placement compact=" + compact + " deferred=" + zoom.isTouching());
         if (zoom.isTouching()) {
             relayoutPending = true;
         } else {
