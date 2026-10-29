@@ -94,15 +94,8 @@ public class InstantZoomControlView extends FrameLayout {
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
-        if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            if (!live()) {
-                android.util.Log.i("NAX_SMOKE_round-zoom-dial", "down declined alpha=" + getAlpha() + " row=" + zoom.hasRow());
-                return false;
-            }
-            final boolean dialWas = zoom.isDialOpen();
-            final boolean taken = super.dispatchTouchEvent(ev);
-            android.util.Log.i("NAX_SMOKE_round-zoom-dial", "down taken=" + taken + " dialWasOpen=" + dialWas + " row=" + zoom.hasRow() + " compact=" + compact);
-            return taken;
+        if (ev.getActionMasked() == MotionEvent.ACTION_DOWN && !live()) {
+            return false;
         }
         return super.dispatchTouchEvent(ev);
     }
@@ -187,11 +180,7 @@ public class InstantZoomControlView extends FrameLayout {
     /** Re-reads the camera's zoom. Camera1 (wholeSteps) turns the dial by whole x, as dazewell chose for it. */
     public void sync(boolean wholeSteps) {
         zoom.setWholeSteps(wholeSteps);
-        final boolean had = zoom.hasRow();
         zoom.sync(true);
-        if (had != zoom.hasRow()) {
-            android.util.Log.i("NAX_SMOKE_round-zoom-dial", "row shown=" + zoom.hasRow() + " wholeSteps=" + wholeSteps);
-        }
     }
 
     public boolean hasRow() {
@@ -226,7 +215,6 @@ public class InstantZoomControlView extends FrameLayout {
         }
         this.compact = compact;
         this.leftReserve = leftReserve;
-        android.util.Log.i("NAX_SMOKE_round-zoom-dial", "placement compact=" + compact + " deferred=" + zoom.isTouching());
         if (zoom.isTouching()) {
             relayoutPending = true;
         } else {
@@ -272,16 +260,8 @@ public class InstantZoomControlView extends FrameLayout {
         controls.getLocationInWindow(at);
         final float bottom = at[1] + controls.getHeight();
         host.getLocationInWindow(at);
-        final float line = bottom - AndroidUtilities.dp(225) - at[1];
-        if (Math.abs(line - smokeLine) > 1f) {
-            smokeLine = line;
-            final float live = enter.onceVisible ? enter.controlsView.onceRect.centerY() + bottom - controls.getHeight() - at[1] : Float.NaN;
-            android.util.Log.i("NAX_SMOKE_round-zoom-dial", "onceLine=" + line + " liveOnce=" + live + " controlsH=" + controls.getHeight());
-        }
-        return line;
+        return bottom - AndroidUtilities.dp(225) - at[1];
     }
-
-    private static float smokeLine = Float.NaN;
 
     // The lowest point, in this view's own coordinates, that the row takes up left of x, so the
     // front flash brightness arm in the bottom-left corner can stop short of it. Negative when nothing reaches that far.
