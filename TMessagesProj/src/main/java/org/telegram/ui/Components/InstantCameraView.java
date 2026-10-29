@@ -643,6 +643,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
+        zoomControlView.onRecorderTouch(ev); // NagramX: outside DOWNs must close the ruler before recorder gestures run
         getParent().requestDisallowInterceptTouchEvent(true);
         return super.onInterceptTouchEvent(ev);
     }
@@ -1311,7 +1312,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         // buttons and the view-once column. 8dp of hysteresis so the keyboard slide can't flap it, and
         // gapAfterLift is continuous across the maxLift cap, so it crosses once
         final boolean compact = zoomControlView.isCompact() ? gapAfterLift < dp(112) : gapAfterLift < dp(104);
-        zoomControlView.setPlacement(compact, buttonsLayout.getMeasuredWidth() > 0 ? buttonsLayout.getMeasuredWidth() + dp(1) : dp(108));
 
         final float cameraBottom = translationY + textureViewSize / 2f + dp(8);
         // NagramX (#video-zoom): the view-once button's line, where there's a composer to measure
@@ -1327,7 +1327,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             final float want = Float.isNaN(once) ? (cameraBottom + bottomControlsTop - dp(56)) / 2f : once;
             rowCenterY = lo > hi ? hi : Math.min(Math.max(want, lo), hi);
         }
-        zoomControlView.setTranslationY(rowCenterY);
+        zoomControlView.setPlacement(compact, buttonsLayout.getMeasuredWidth() > 0 ? buttonsLayout.getMeasuredWidth() + dp(1) : dp(108), rowCenterY);
         zoomControlView.setFlipLine(Float.isNaN(once) ? rowCenterY : once); // up the column from the view-once button
         // dock the label inside the camera circle, bottom-center: the row's band is the zoom's own
         zoomLabel.setTranslationY(translationY + textureViewSize / 2f - dp(30));

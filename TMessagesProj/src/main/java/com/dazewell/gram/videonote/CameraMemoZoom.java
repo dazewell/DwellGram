@@ -270,6 +270,7 @@ public final class CameraMemoZoom extends View {
 
     /** Closes the dial and drops the gesture in progress: something else has the zoom now. */
     public void dismiss() {
+        tapAt = 0;
         if (dragging) {
             dragAbandoned = true;
         }
@@ -302,6 +303,7 @@ public final class CameraMemoZoom extends View {
         boolean rebuilt = !available || Math.abs(zoom[0] / min - 1f) > 0.01f || Math.abs(zoom[1] / max - 1f) > 0.01f
                 || !Arrays.equals(stops, newStops);
         if (rebuilt) {
+            tapAt = 0;
             if (available) { // a flip
                 if (dragging) {
                     dragAbandoned = true;
@@ -318,7 +320,7 @@ public final class CameraMemoZoom extends View {
             majors = buildMajors();
             a11y.invalidateRoot();
         }
-        if (!dragging && SystemClock.elapsedRealtime() - tapAt > TAP_SETTLE_MS) {
+        if (!dragging) {
             current = zoom[2];
         }
         setVisibility(VISIBLE);
@@ -326,6 +328,7 @@ public final class CameraMemoZoom extends View {
     }
 
     private void reset() {
+        tapAt = 0;
         removeCallbacks(holdOpens);
         removeCallbacks(dialCloses);
         if (dialAnimator != null) {

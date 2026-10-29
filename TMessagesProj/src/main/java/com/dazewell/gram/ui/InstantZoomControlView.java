@@ -50,12 +50,21 @@ public class InstantZoomControlView extends FrameLayout {
     private boolean glass;
     private boolean compact;
     private float leftReserve;
+    private float rowCenterY;
     private boolean relayoutPending;
     private final RectF rect = new RectF();
 
     public InstantZoomControlView(Context context, InstantCameraView camera, int chipBackgroundColor, int glyphColor) {
         super(context);
-        flip = new ImageView(context);
+        flip = new ImageView(context) {
+            @Override
+            public boolean onTouchEvent(MotionEvent event) {
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN && !live()) {
+                    return false;
+                }
+                return super.onTouchEvent(event);
+            }
+        };
         flip.setScaleType(ImageView.ScaleType.CENTER);
         flip.setImageResource(R.drawable.camera_revert1);
         flip.setContentDescription(LocaleController.getString(R.string.AccDescrSwitchCamera));
@@ -195,6 +204,19 @@ public class InstantZoomControlView extends FrameLayout {
         return zoom.isTouching();
     }
 
+    /** A recorder touch outside this band must close the ruler before the recorder handles its gesture. */
+    public void onRecorderTouch(MotionEvent event) {
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN && zoom.isDialOpen()
+                && !contains(this, event.getX(), event.getY()) && !contains(flip, event.getX(), event.getY())) {
+            zoom.dismiss();
+        }
+    }
+
+    private static boolean contains(View view, float x, float y) {
+        return x >= view.getX() && x < view.getX() + view.getWidth()
+                && y >= view.getY() && y < view.getY() + view.getHeight();
+    }
+
     /** Pinch, a close or a pause has the zoom now: the dial goes and the gesture on it is dropped. */
     public void dismiss() {
         zoom.dismiss();
@@ -209,17 +231,14 @@ public class InstantZoomControlView extends FrameLayout {
      * it on the flash row's own line, between the flash buttons (leftReserve, px from the left edge) and the
      * view-once column on the right.
      */
-    public void setPlacement(boolean compact, float leftReserve) {
-        if (this.compact == compact && this.leftReserve == leftReserve) {
+    public void setPlacement(boolean compact, float leftReserve, float rowCenterY) {
+        if (this.compact == compact && this.leftReserve == leftReserve && this.rowCenterY == rowCenterY) {
             return;
         }
         this.compact = compact;
         this.leftReserve = leftReserve;
-        if (zoom.isTouching()) {
-            relayoutPending = true;
-        } else {
-            layoutRow();
-        }
+        this.rowCenterY = rowCenterY;
+        layoutRow();
     }
 
     @Override
@@ -229,6 +248,10 @@ public class InstantZoomControlView extends FrameLayout {
     }
 
     private void layoutRow() {
+        if (zoom.isTouching()) {
+            relayoutPending = true;
+            return;
+        }
         final int w = getMeasuredWidth();
         if (w <= 0) {
             return;
@@ -237,15 +260,17 @@ public class InstantZoomControlView extends FrameLayout {
         // flash buttons on the left, so it sits off centre there
         final float side = AndroidUtilities.dp(COLUMN_DP + 8);
         zoom.setRowBounds(compact ? Math.max(side, leftReserve + AndroidUtilities.dp(8)) : side, side);
+        setTranslationY(rowCenterY);
         flip.setTranslationX(getTranslationX() + w / 2f - AndroidUtilities.dp(26));
     }
 
     /**
      * The composer's view-once "(1)" centre line once a recording is locked, in host's coordinates, for the row to share.
-     * ChatActivityEnterView.ControlsView.onDraw puts it there: with the lock drag done (yAdd capped at 57dp, :1557),
-     * lockY = 72dp + (height - 194dp) - 57dp (:1564, :1577), the pause button 44dp tall from lockY and the once button
-     * 24dp + 44dp above that (:1849), so 225dp up from that view's bottom. Re-check those lines on an upstream merge. The same line in a chat with no view-once, so the row doesn't move from chat to chat. NaN with no
-     * composer to measure (a story reply, or before its controls are laid out).
+     * startLockTransition restores lockAnimatedTranslation to startTranslation (:5172), so yAdd = 0 and
+     * moveProgress = 1 (:1554-1563). lockY = 72dp + (height - 194dp) + 14dp (:1577), and the once centre is
+     * 24dp + 22dp above it (:1843-1852): 154dp up from the controls' bottom. Re-check on an upstream merge.
+     * Use the same line without view-once, so the row doesn't move from chat to chat. NaN with no composer
+     * to measure (a story reply, or before its controls are laid out).
      */
     public static float onceLine(View host, Object delegate) {
         if (!(delegate instanceof ChatActivity)) {
@@ -260,12 +285,12 @@ public class InstantZoomControlView extends FrameLayout {
         controls.getLocationInWindow(at);
         final float bottom = at[1] + controls.getHeight();
         host.getLocationInWindow(at);
-        return bottom - AndroidUtilities.dp(225) - at[1];
+        return bottom - AndroidUtilities.dp(154) - at[1];
     }
 
     // The lowest point, in this view's own coordinates, that the row takes up left of x, so the
     // front flash brightness arm in the bottom-left corner can stop short of it. Negative when nothing reaches that far.
-    // The open dial isn't counted: it's up for a moment, and the arm drawn over its left edge is the lesser cost.
+    // getRowRect also includes the open ruler's wider capsule.
     public float occupiedBottomLeftOf(float x) {
         float bottom = -1;
         if (zoom.getRowRect(rect) && rect.left < x) {
