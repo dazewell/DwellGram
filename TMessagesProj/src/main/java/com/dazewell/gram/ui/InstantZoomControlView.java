@@ -39,9 +39,7 @@ import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundColorPro
 @SuppressLint("ViewConstructor")
 public class InstantZoomControlView extends FrameLayout {
 
-    public static final int ROW_DP = 56;
-    public static final int REACH_DP = 150;
-    public static final int HEIGHT_DP = ROW_DP + REACH_DP;
+    public static final int HEIGHT_DP = 56;
     private static final int FLIP_DP = 44;
     private static final int EDGE_DP = 16;
     private static final int ONCE_DP = 56; // the composer's view-once "(1)", centred 26dp in from the right edge
@@ -61,7 +59,7 @@ public class InstantZoomControlView extends FrameLayout {
         flip.setImageResource(R.drawable.camera_revert1);
         flip.setContentDescription(LocaleController.getString(R.string.AccDescrSwitchCamera));
         ScaleStateListAnimator.apply(flip);
-        addView(flip, LayoutHelper.createFrame(FLIP_DP, FLIP_DP, Gravity.LEFT | Gravity.BOTTOM, 0, 0, 0, (ROW_DP - FLIP_DP) / 2f));
+        addView(flip, LayoutHelper.createFrame(FLIP_DP, FLIP_DP, Gravity.LEFT | Gravity.CENTER_VERTICAL));
 
         // above the flip button, so a stop or the open dial gets the touch first
         zoom = new CameraMemoZoom(context, new CameraMemoZoom.Host() {
@@ -80,8 +78,8 @@ public class InstantZoomControlView extends FrameLayout {
                 camera.setCoverZoom(ratio, animate);
             }
         });
-        zoom.setRowBand(AndroidUtilities.dp(ROW_DP));
-        zoom.setDialReach(AndroidUtilities.dp(REACH_DP));
+        zoom.setRowBand(AndroidUtilities.dp(HEIGHT_DP));
+        zoom.setRulerMode(true);
         zoom.setPassOutsideDial(true);
         // a layout change asked for mid-gesture (the keyboard, recording starting) waits for the finger to lift,
         // so the stop under it doesn't slide away
@@ -195,11 +193,6 @@ public class InstantZoomControlView extends FrameLayout {
         } else {
             layoutRow();
         }
-    }
-
-    /** The row's centre, measured from this view's centre: what the recorder's placement adds to its translation. */
-    public static float rowCenterOffset() {
-        return AndroidUtilities.dp(HEIGHT_DP) / 2f - AndroidUtilities.dp(ROW_DP) / 2f;
     }
 
     @Override

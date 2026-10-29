@@ -42,8 +42,8 @@ import tw.nekomimi.nekogram.NekoConfig;
  * #camera-memo-zoom: the camera memo's zoom, as a stock camera has it. A row of stops along the viewfinder's bottom edge,
  * tap one to jump there; hold one, or slide along the row, and a dial rises in its place to reach any value in between.
  * Laid out over the viewfinder exactly. It draws nothing and takes no touch outside the row until the dial is open.
- * The round recorder (#video-zoom, InstantZoomControlView) shows the same one under its circle, with its own row
- * colours and bounds; the defaults here are the memo's.
+ * The round recorder (#video-zoom, InstantZoomControlView) shows the same row under its circle, with its own colours
+ * and bounds, and in place of the dial its capsule turns into a flat ruler (setRulerMode). The defaults are the memo's.
  *
  * All the zoom state is the recorder's (InstantCameraView.getCoverZoom); this only holds what the finger is doing.
  * Synced on the host's tick, which also catches a flip: a new camera's range and stops rebuild the row, close the dial
@@ -98,8 +98,11 @@ public final class CameraMemoZoom extends View {
     private float rowBand; // the strip along the bottom edge the row sits in when it fits: the memo's is below the crop
     private float rowLeft;
     private float rowRight;
-    private float dialReach; // the dial's radius in place of the memo's share of the height, 0 for the memo's
+    private boolean ruler; // the recorder: the row's capsule becomes a straight scale instead of the dial
     private boolean passOutsideDial; // the recorder: a touch outside the open dial closes it and goes on to the circle
+    private final Paint rulerLabelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint readoutPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF capsule = new RectF();
     private boolean wholeSteps; // camera1: the dial moves by whole x
     private final Paint rowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint rowActivePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -176,8 +179,19 @@ public final class CameraMemoZoom extends View {
         }
     }
 
-    public void setDialReach(float px) {
-        dialReach = px;
+    /**
+     * Hold or slide turns the row's own capsule into a straight scale, widened to the row's bounds, that slides under a
+     * fixed index: the round recorder's, where a disc rising over the circle reads as out of place. Same drag, detents and
+     * haptics as the dial; colours from setRowColors.
+     */
+    public void setRulerMode(boolean on) {
+        ruler = on;
+        rulerLabelPaint.set(rowPaint);
+        rulerLabelPaint.setTextSize(sp(12));
+        readoutPaint.set(rowActivePaint);
+        readoutPaint.setTextSize(sp(13));
+        readoutPaint.setTypeface(AndroidUtilities.bold());
+        invalidate();
     }
 
     /**
@@ -205,6 +219,9 @@ public final class CameraMemoZoom extends View {
             rowActivePaint.clearShadowLayer();
         }
         chipColor = chip;
+        if (ruler) {
+            setRulerMode(true);
+        }
         invalidate();
     }
 
@@ -224,6 +241,11 @@ public final class CameraMemoZoom extends View {
         out.set(stopX(0) - half, cy - AndroidUtilities.dp(20), stopX(0) + half, cy + AndroidUtilities.dp(20));
         out.union(stopX(stops.length - 1) - half, out.top);
         out.union(stopX(stops.length - 1) + half, out.top);
+        if (ruler && dial > 0f) {
+            // the ruler gets the whole of the row's bounds
+            out.left = Math.min(out.left, out.left + (rowLeft - out.left) * dial);
+            out.right = Math.max(out.right, out.right + (getWidth() - rowRight - out.right) * dial);
+        }
         return true;
     }
 
@@ -438,11 +460,13 @@ public final class CameraMemoZoom extends View {
     }
 
     private float radius() {
-        float cap = dialReach > 0 ? dialReach : getHeight() * 0.4f;
-        return Math.min(AndroidUtilities.dp(150), Math.min(cap, getWidth() / 2f));
+        return Math.min(AndroidUtilities.dp(150), Math.min(getHeight() * 0.4f, getWidth() / 2f));
     }
 
     private boolean inDial(float x, float y) {
+        if (ruler) {
+            return getRowRect(capsule) && x >= capsule.left && x <= capsule.right && Math.abs(y - rowCenterY()) <= AndroidUtilities.dp(24);
+        }
         float dx = x - getWidth() / 2f;
         float dy = y - getHeight();
         float r = radius();
@@ -661,11 +685,15 @@ public final class CameraMemoZoom extends View {
         if (!available) {
             return;
         }
-        if (dial < 1f) {
+        if (dial < 1f || ruler) {
             drawRow(canvas, 1f - dial);
         }
         if (dial > 0f) {
-            drawDial(canvas, dial);
+            if (ruler) {
+                drawRuler(canvas, dial);
+            } else {
+                drawDial(canvas, dial);
+            }
         }
     }
 
@@ -676,12 +704,13 @@ public final class CameraMemoZoom extends View {
         float baseline = cy - (metrics.ascent + metrics.descent) / 2f;
         float chip = Math.min(AndroidUtilities.dp(18), spacing() / 2f); // a tight row shrinks it rather than overlap
         if (rowBackground != null && getRowRect(discRect)) {
-            int save = alpha < 1f ? canvas.saveLayerAlpha(discRect.left - 1, discRect.top - 1, discRect.right + 1, discRect.bottom + 1, (int) (255 * alpha)) : canvas.save();
+            // the ruler's capsule stays up while it opens, only the stops fade
+            int save = alpha < 1f && !ruler ? canvas.saveLayerAlpha(discRect.left - 1, discRect.top - 1, discRect.right + 1, discRect.bottom + 1, (int) (255 * alpha)) : canvas.save();
             rowBackground.setBounds(Math.round(discRect.left), Math.round(discRect.top), Math.round(discRect.right), Math.round(discRect.bottom));
             rowBackground.draw(canvas);
             canvas.restoreToCount(save);
         }
-        for (int i = 0; i < stops.length; i++) {
+        for (int i = 0; i < stops.length && alpha > 0f; i++) {
             float x = stopX(i);
             if (i == active) {
                 fillPaint.setColor(chipColor);
@@ -694,6 +723,99 @@ public final class CameraMemoZoom extends View {
                 canvas.drawText(format(stops[i]), x, baseline, rowPaint);
             }
         }
+    }
+
+    // The recorder's scale, inside the capsule: minor ticks every tenth of a doubling (whole x on camera1), taller ones
+    // with labels at the stops and the round values, a fixed index at the centre with the live ratio under it
+    private void drawRuler(Canvas canvas, float progress) {
+        if (!getRowRect(capsule)) {
+            return;
+        }
+        float cx = capsule.centerX();
+        float top = capsule.top;
+        float perDoubling = AndroidUtilities.dp(DRAG_DP_PER_DOUBLING);
+        float direction = getLayoutDirection() == LAYOUT_DIRECTION_RTL ? -1f : 1f;
+        float now = log2(current);
+        float lo = log2(min);
+        float hi = log2(max);
+        int ink = rowActivePaint.getColor();
+        canvas.save();
+        canvas.clipRect(capsule);
+
+        tickPaint.setStrokeWidth(AndroidUtilities.dp(1.5f));
+        if (wholeSteps) {
+            for (int k = (int) Math.ceil(min); k <= Math.floor(max); k++) {
+                if (k > 1 && log2(k / (k - 1f)) * perDoubling < AndroidUtilities.dp(6)) {
+                    continue; // whole steps bunch up past about 6x
+                }
+                rulerTick(canvas, cx + (log2(k) - now) * perDoubling * direction, top, AndroidUtilities.dp(5), ink, 0x66, progress);
+            }
+        } else {
+            for (int k = (int) Math.ceil(lo * 10); k <= Math.floor(hi * 10); k++) {
+                if (!nearMajor(k / 10f)) {
+                    rulerTick(canvas, cx + (k / 10f - now) * perDoubling * direction, top, AndroidUtilities.dp(5), ink, 0x66, progress);
+                }
+            }
+        }
+        tickPaint.setStrokeWidth(AndroidUtilities.dp(2));
+        float[] marks = wholeSteps ? stops : majors;
+        float baseline = top + AndroidUtilities.dp(31);
+        rulerLabelPaint.setColor(rowPaint.getColor());
+        for (float m : marks) {
+            float x = cx + (log2(m) - now) * perDoubling * direction;
+            rulerTick(canvas, x, top, AndroidUtilities.dp(9), ink, 0xcc, progress);
+            if (Math.abs(x - cx) < AndroidUtilities.dp(24) || !isStop(m) && nearStopLabel(m, perDoubling)) {
+                continue; // the readout has the centre; a stop's label beats a round value's
+            }
+            rulerLabelPaint.setAlpha((int) (rowAlpha * progress * edgeFade(x)));
+            canvas.drawText(format(m), x, baseline, rulerLabelPaint);
+        }
+        // the range's ends, a little taller, so the scale visibly stops
+        rulerTick(canvas, cx + (lo - now) * perDoubling * direction, top, AndroidUtilities.dp(12), ink, 0xcc, progress);
+        rulerTick(canvas, cx + (hi - now) * perDoubling * direction, top, AndroidUtilities.dp(12), ink, 0xcc, progress);
+
+        tickPaint.setStrokeWidth(AndroidUtilities.dp(2.5f));
+        tickPaint.setColor(ink);
+        tickPaint.setAlpha((int) (255 * progress));
+        canvas.drawLine(cx, top + AndroidUtilities.dp(4), cx, top + AndroidUtilities.dp(18), tickPaint);
+        readoutPaint.setColor(ink);
+        readoutPaint.setAlpha((int) (255 * progress));
+        canvas.drawText(format(current) + "×", cx, baseline, readoutPaint);
+        canvas.restore();
+    }
+
+    private void rulerTick(Canvas canvas, float x, float top, float length, int ink, int inkAlpha, float progress) {
+        float fade = edgeFade(x);
+        if (fade <= 0f) {
+            return;
+        }
+        tickPaint.setColor(ink);
+        tickPaint.setAlpha((int) (inkAlpha * progress * fade));
+        canvas.drawLine(x, top + AndroidUtilities.dp(6), x, top + AndroidUtilities.dp(6) + length, tickPaint);
+    }
+
+    // ticks and labels thin out over the capsule's last 16dp either side instead of being cut off
+    private float edgeFade(float x) {
+        float edge = Math.min(x - capsule.left, capsule.right - x);
+        return Math.max(0f, Math.min(1f, edge / AndroidUtilities.dp(16)));
+    }
+
+    private boolean isStop(float ratio) {
+        for (float s : stops) {
+            if (Math.abs(Math.log(s / ratio)) < SAME) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean nearStopLabel(float ratio, float perDoubling) {
+        for (float s : stops) {
+            if (Math.abs(log2(s) - log2(ratio)) * perDoubling < AndroidUtilities.dp(26)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void drawDial(Canvas canvas, float progress) {

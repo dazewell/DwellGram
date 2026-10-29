@@ -1322,7 +1322,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             final float hi = bottomControlsTop - dp(56 + 8) - dp(20);
             rowCenterY = lo > hi ? hi : Math.min(Math.max((cameraBottom + bottomControlsTop - dp(56)) / 2f, lo), hi);
         }
-        zoomControlView.setTranslationY(rowCenterY - InstantZoomControlView.rowCenterOffset());
+        zoomControlView.setTranslationY(rowCenterY);
         // dock the label inside the camera circle, bottom-center: the row's band is the zoom's own
         zoomLabel.setTranslationY(translationY + textureViewSize / 2f - dp(30));
     }
