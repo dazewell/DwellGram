@@ -90,8 +90,10 @@ public class InstantZoomControlView extends FrameLayout {
         zoom.setRulerMode(true);
         zoom.setPassOutsideDial(true);
         // a layout change asked for mid-gesture (the keyboard, recording starting) waits for the finger to lift,
-        // so the stop under it doesn't slide away
+        // so the stop under it doesn't slide away. The zoom read is re-done too: a tap's animation still running
+        // when a hold took over was dropped while the finger was down
         zoom.setOnGestureEnd(() -> {
+            zoom.sync(true);
             if (relayoutPending) {
                 relayoutPending = false;
                 layoutRow();
