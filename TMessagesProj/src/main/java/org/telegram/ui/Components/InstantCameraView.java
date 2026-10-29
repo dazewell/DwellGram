@@ -5056,7 +5056,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         animateZoom(fromZoom, lockedZoom, 350, CubicBezierInterpolator.DEFAULT);
     }
 
-    // NagramX: every animated zoom change (tap, track tap, hold-to-zoom, pinch snap-back) runs through this one
+    // NagramX: every animated zoom change (tap, track tap, hold-to-zoom, pinch snap-back, the camera memo's stops) runs through this one
     // animator, in slider-fraction space: the pinch gate above blocks concurrent writers, and a dual camera swap
     // mid-animation stays correct because each frame maps the fraction onto whatever session is current
     private void animateZoom(float fromFraction, float toFraction, long duration, TimeInterpolator interpolator) {
@@ -5100,6 +5100,40 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             showZoomLabel(zoomFractionToRatio(camera2SessionCurrent, lockedZoom));
         } else if (!useCamera2 && cameraSession != null && cameraSession.getMaxZoomRatio() > 1f) {
             showZoomLabel(camera1FractionToRatio(lockedZoom));
+        }
+    }
+
+    // NagramX (#camera-memo-zoom): the camera memo draws its own stops and dial over this view and drives the zoom
+    // through the same animator and follower as the slider. {min, max, current} as ratios; null with nothing to zoom
+    public float[] getCoverZoom() {
+        if (useCamera2) {
+            final Camera2Session session = camera2SessionCurrent;
+            if (session == null || session.getMaxZoom() <= session.getMinZoom() * 1.01f) {
+                return null;
+            }
+            return new float[]{session.getMinZoom(), session.getMaxZoom(), zoomFractionToRatio(session, lockedZoom)};
+        }
+        final float max = cameraSession == null ? 1f : cameraSession.getMaxZoomRatio();
+        return max <= 1.01f ? null : new float[]{1f, max, camera1FractionToRatio(lockedZoom)};
+    }
+
+    public float[] getCoverZoomStops() {
+        final Camera2Session session = useCamera2 ? camera2SessionCurrent : null;
+        return session != null && session.isZoomRatioMode() ? com.dazewell.gram.helpers.RoundLensPresets.get(session.cameraId) : null;
+    }
+
+    public void setCoverZoom(float ratio, boolean animate) {
+        final float[] zoom = getCoverZoom();
+        if (zoom == null || ratio <= 0f || isInPinchToZoomTouchMode) {
+            return;
+        }
+        // the slider's log fraction, for camera2 and camera1 alike (camera1's min is 1x)
+        final float target = Utilities.clamp((float) (Math.log(ratio / zoom[0]) / Math.log(zoom[1] / zoom[0])), 1f, 0f);
+        if (animate) {
+            animateZoom(lockedZoom, target, zoomStepDuration(target - lockedZoom), CubicBezierInterpolator.EASE_OUT);
+        } else {
+            cancelFinishZoomTransition();
+            setZoomFraction(target);
         }
     }
 

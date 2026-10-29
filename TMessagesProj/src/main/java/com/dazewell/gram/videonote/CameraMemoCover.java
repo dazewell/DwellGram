@@ -101,6 +101,7 @@ final class CameraMemoCover extends FrameLayout {
     private InstantCameraView forwardTarget;
     private boolean forwarding;
     private final TextureView viewfinder;
+    private final CameraMemoZoom zoom;
     private float laidFrameWidth;
     private float laidFrameHeight;
 
@@ -212,6 +213,30 @@ final class CameraMemoCover extends FrameLayout {
         viewfinder.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
         addView(viewfinder);
 
+        // Over the viewfinder, exactly; the recorder holds the zoom, read afresh on every call
+        zoom = new CameraMemoZoom(context, new CameraMemoZoom.Host() {
+            @Override
+            public float[] zoom() {
+                InstantCameraView camera = camera();
+                return camera != null ? camera.getCoverZoom() : null;
+            }
+
+            @Override
+            public float[] stops() {
+                InstantCameraView camera = camera();
+                return camera != null ? camera.getCoverZoomStops() : null;
+            }
+
+            @Override
+            public void setZoom(float ratio, boolean animate) {
+                InstantCameraView camera = camera();
+                if (camera != null) {
+                    camera.setCoverZoom(ratio, animate);
+                }
+            }
+        });
+        addView(zoom);
+
         discardButton = new ControlButton(context, ControlButton.DISCARD);
         discardButton.setContentDescription(LocaleController.getString(R.string.Discard));
         discardButton.setOnClickListener(v -> {
@@ -267,6 +292,11 @@ final class CameraMemoCover extends FrameLayout {
         addView(closeButton);
 
         refresh();
+    }
+
+    private InstantCameraView camera() {
+        ChatActivity chat = chatRef.get();
+        return chat != null ? chat.instantCameraView : null;
     }
 
     private float sp(float value) {
@@ -355,7 +385,8 @@ final class CameraMemoCover extends FrameLayout {
         if (action == MotionEvent.ACTION_DOWN) {
             touchThrough = false;
             forwarding = false;
-            if (!failed && hasHole) {
+            // The zoom's row and open dial can lie over the crop (a square frame, the dial's height): theirs first
+            if (!failed && hasHole && !zoom.claims(event.getX() - zoom.getLeft(), event.getY() - zoom.getTop())) {
                 if (viewfinderCovers && hasFlatHole && cropRect.contains(event.getX(), event.getY())) {
                     startForwarding();
                     forwardDownAt = event.getEventTime();
@@ -496,6 +527,8 @@ final class CameraMemoCover extends FrameLayout {
         discardButton.setVisibility(controls);
         sendButton.setVisibility(controls);
         pauseButton.setVisibility(controls);
+        // Only over a live viewfinder: with the hole open the stock circle shows, which these don't belong to
+        zoom.sync(live && viewfinderCovers);
         failedText.setVisibility(failed ? VISIBLE : GONE);
         closeButton.setVisibility(failed && !VideoNoteShortcut.isLockedMemo() ? VISIBLE : GONE);
         setContentDescription(stateText());
@@ -629,6 +662,8 @@ final class CameraMemoCover extends FrameLayout {
         boolean shown = computeViewfinder(width, parent != null && parent.getHeight() > 0 ? parent.getHeight() : height);
         viewfinder.measure(MeasureSpec.makeMeasureSpec(shown ? Math.round(viewfinderRect.width()) : 0, MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(shown ? Math.round(viewfinderRect.height()) : 0, MeasureSpec.EXACTLY));
+        zoom.measure(MeasureSpec.makeMeasureSpec(viewfinder.getMeasuredWidth(), MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(viewfinder.getMeasuredHeight(), MeasureSpec.EXACTLY));
     }
 
     @Override
@@ -655,8 +690,14 @@ final class CameraMemoCover extends FrameLayout {
             int vl = Math.round(viewfinderRect.left);
             int vt = Math.round(viewfinderRect.top);
             viewfinder.layout(vl, vt, vl + vw, vt + vh);
+            if (zoom.getMeasuredWidth() != vw || zoom.getMeasuredHeight() != vh) {
+                zoom.measure(MeasureSpec.makeMeasureSpec(vw, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(vh, MeasureSpec.EXACTLY));
+            }
+            zoom.layout(vl, vt, vl + vw, vt + vh);
+            zoom.setRowBand(viewfinderRect.bottom - cropRect.bottom);
         } else {
             viewfinder.layout(0, 0, 0, 0);
+            zoom.layout(0, 0, 0, 0);
             cropRect.setEmpty();
         }
         controlsTop = computeControlsTop(shown);
