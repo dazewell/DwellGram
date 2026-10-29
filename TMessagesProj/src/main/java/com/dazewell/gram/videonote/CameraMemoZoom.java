@@ -236,7 +236,7 @@ public final class CameraMemoZoom extends View {
         if (!available || stops.length == 0) {
             return false;
         }
-        float half = spacing() / 2f;
+        float half = Math.min(AndroidUtilities.dp(18), spacing() / 2f);
         float cy = rowCenterY();
         out.set(stopX(0) - half, cy - AndroidUtilities.dp(20), stopX(0) + half, cy + AndroidUtilities.dp(20));
         out.union(stopX(stops.length - 1) - half, out.top);

@@ -319,6 +319,8 @@ Round video recordings warn you before they end. Configured via N-Settings → C
 
 ### Smoother video message zoom <!-- #video-zoom -->
 
+The round video camera has zoom stops under the circle. Tap one to jump, or hold and slide to fine-tune on a ruler. The flip button sits above the view-once button. Turn on N-Settings → Chat → Camera → *Newer camera for video messages* (off by default) to use supported rear lenses.
+
 ### Front flash brightness for video messages <!-- #front-flash-brightness -->
 
 Turn on the flash while recording a round video with the front camera and a pill grows up out of the flash button. Drag it to set how bright the screen flash is, from 30% to full. It starts at full and keeps your last setting for the next recording.
