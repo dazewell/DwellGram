@@ -12,6 +12,7 @@ import android.widget.EditText;
 import org.telegram.messenger.FileLog;
 import org.telegram.ui.Components.AnimatedEmojiSpan;
 import org.telegram.ui.Components.QuoteSpan;
+import org.telegram.ui.Components.TextStyleSpan;
 import org.telegram.ui.Components.URLSpanReplacement;
 
 import java.util.Locale;
@@ -39,7 +40,7 @@ public final class PasteAsLink {
         int start = Math.min(editText.getSelectionStart(), editText.getSelectionEnd());
         int end = Math.max(editText.getSelectionStart(), editText.getSelectionEnd());
         // Same span cleanup as EditTextCaption.makeSelectedUrl, so a pasted link
-        // and one made from the formatting menu end up identical.
+        // and one made from the formatting menu clear the same styles.
         CharacterStyle[] spans = editable.getSpans(start, end, CharacterStyle.class);
         for (CharacterStyle oldSpan : spans) {
             if (oldSpan instanceof AnimatedEmojiSpan || oldSpan instanceof QuoteSpan.QuoteStyleSpan) {
@@ -52,7 +53,12 @@ public final class PasteAsLink {
                 editable.setSpan(oldSpan, spanStart, start, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
             if (spanEnd > end) {
-                editable.setSpan(oldSpan, end, spanEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                // One span instance can't cover both sides, so a span straddling the
+                // selection needs a copy for the suffix (as EditTextCaption.removeStyle does).
+                CharacterStyle suffix = spanStart < start ? copyOf(oldSpan) : oldSpan;
+                if (suffix != null) {
+                    editable.setSpan(suffix, end, spanEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
             }
         }
         try {
@@ -63,6 +69,20 @@ public final class PasteAsLink {
         }
         editText.setSelection(end);
         return true;
+    }
+
+    // Styles and links are what the composer's formatting puts down; any other
+    // straddling type stays on the prefix only.
+    private static CharacterStyle copyOf(CharacterStyle span) {
+        if (span instanceof URLSpanReplacement) {
+            URLSpanReplacement url = (URLSpanReplacement) span;
+            TextStyleSpan.TextStyleRun run = url.getTextStyleRun();
+            return new URLSpanReplacement(url.getURL(), run == null ? null : new TextStyleSpan.TextStyleRun(run));
+        }
+        if (span instanceof TextStyleSpan) {
+            return new TextStyleSpan(new TextStyleSpan.TextStyleRun(((TextStyleSpan) span).getTextStyleRun()));
+        }
+        return null;
     }
 
     /** Whether a paste of the current clipboard would become a link, for paste handlers that run first. */
