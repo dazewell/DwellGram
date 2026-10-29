@@ -367,6 +367,18 @@ final class CameraMemoZoom extends View {
                 }
                 return true;
             }
+            case MotionEvent.ACTION_POINTER_DOWN: {
+                // One finger's gesture. A second one ends it where it is, or a later move could read the wrong finger
+                // against the first one's start and jump the zoom.
+                removeCallbacks(holdOpens);
+                if (dragging) {
+                    dragging = false;
+                    postDelayed(dialCloses, DIAL_LINGER_MS);
+                }
+                downStop = -1;
+                dragAbandoned = true;
+                return true;
+            }
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
                 removeCallbacks(holdOpens);
