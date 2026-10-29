@@ -484,6 +484,7 @@
     <string name="CameraMemoPaused">Paused</string>
     <string name="CameraMemoStopped">Stopped</string>
     <string name="CameraMemoFailed">Couldn\'t start the camera. Check camera and microphone access, then open Camera memo again.</string>
+    <string name="CameraMemoZoomStop">Zoom %1$s</string>
     <string name="MemoShortcutsHeader">Memos</string>
     <string name="TextMemoShortcut">Text memo shortcut</string>
     <string name="TextMemoShortcutNotice">Adds two launcher shortcuts for typing a message to Saved Messages or a person you pick, even while the app is locked: one opens full screen, the other floats over what you were doing.</string>

@@ -351,9 +351,9 @@ Turn on *Video memo shortcut* or *Text memo shortcut* under N-Settings → Gener
 
 A text memo shows *online* next to its label, and an unread badge, when your *Recipient* is online or has messages you haven't read. A video memo recorded while the app is locked shows both at the top of the screen. Always on.
 
-### Camera memo screen <!-- #camera-memo --> <!-- #video-memo-screen -->
+### Camera memo screen <!-- #camera-memo --> <!-- #video-memo-screen --> <!-- #camera-memo-zoom -->
 
-Pick the video memo's screen from two previews under N-Settings → General → Launcher shortcuts: *Chat*, the usual round recorder, or *Camera screen*, a 4:3 viewfinder, framed like the chat recorder, with a grid and, above it, a red dot and timer while recording. The shortcut then reads *Camera memo* with a dark icon, pinned copies included. *Chat* by default.
+Pick the video memo's screen from two previews under N-Settings → General → Launcher shortcuts: *Chat*, the usual round recorder, or *Camera screen*, a 4:3 viewfinder with a grid and a recording timer. Zoom stops sit along its bottom edge: tap one to jump, hold or slide to fine-tune on a dial. The shortcut then reads *Camera memo* with a dark icon. *Chat* by default.
 
 ### Custom file names for saved media <!-- #custom-file-names -->
 
