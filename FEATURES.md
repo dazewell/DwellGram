@@ -148,6 +148,8 @@ Cut, Copy, and Paste are available as composer toolbar buttons, added through th
 
 ### Paste a URL over selected text to link it <!-- #paste-link -->
 
+Select text in the message field and paste a URL, from the Paste menu, the toolbar Paste button, Ctrl+V or your keyboard's clipboard, and the selection becomes a link to it instead of being replaced. Only URLs starting with http://, https:// or tg:// count. Always on.
+
 ### Composer toolbar size <!-- #composer-scale --> <!-- #composer-spacing -->
 
 The toolbar row can be scaled from 75% to 125% in 5% steps. Its buttons sit packed close together without shrinking.
