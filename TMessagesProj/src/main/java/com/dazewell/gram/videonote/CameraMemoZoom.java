@@ -258,10 +258,11 @@ final class CameraMemoZoom extends View {
 
     // Whole numbers bare, the rest to one decimal, as the stops read on a camera
     static String format(float ratio) {
-        if (ratio >= 10f || Math.abs(ratio - Math.round(ratio)) < 0.05f) {
-            return String.valueOf(Math.round(ratio));
+        float tenths = Math.round(ratio * 10f) / 10f; // rounded first, so 1.96 reads 2, not 2.0
+        if (tenths >= 10f || tenths == Math.round(tenths)) {
+            return String.valueOf(Math.round(tenths));
         }
-        return String.format(Locale.US, "%.1f", ratio);
+        return String.format(Locale.US, "%.1f", tenths);
     }
 
     private static float log2(float value) {
