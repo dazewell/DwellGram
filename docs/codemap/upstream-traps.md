@@ -2865,3 +2865,23 @@ waits for `hasVideoToSend()`.
 - **Removing rows needs two things.** `processDeletedMessages` returns early in a channel unless it gets the positive channel id (`ChatActivity.java:29140`). Upstream's own pinned-list unpin passes `dialog_id`, which is a no-op there (`:26256`). Save-deleted also skips the row (`:29182`), and `AyuState.permitDeleteMessage` is the wrong bypass because its 60 s permit also stops a real deletion being saved.
 
 *(Established 2026-10-27, `#bookmarks-chat`, PR 563.)*
+
+## The round recorder's view-once button is drawn, not laid out
+
+The locked recording's view-once "(1)" lives in `ChatActivityEnterView.ControlsView.onDraw`, not a child view.
+Its column is centred 26dp from the right (`ChatActivityEnterView.java:1562`). `startLockTransition` animates
+`lockAnimatedTranslation` back to `startTranslation` (`:5172-5174`): the settled `yAdd` is 0, not its 57dp drag cap,
+and `moveProgress` is 1 (`:1554-1563`). The 44dp pause button then starts at
+`72dp + height - 194dp + 14dp` (`:1576-1577`). The view-once button is another 44dp + 24dp above it
+(`:1843-1852`), putting its centre 154dp above the controls' bottom. Using the drag cap instead puts the anchor
+71dp too high. `onceRect` is only refreshed when view-once is available (`:1845-1857`); it is not a stable layout
+anchor for groups or other chats without that button.
+
+`InstantZoomControlView.onceLine` maps that resting line between the controls' and recorder's window coordinates
+(`InstantZoomControlView.java:276-289`), including when view-once is absent. `InstantCameraView.updateTranslationY`
+uses it for the roomy zoom row, clamped to the available gap, and for the flip button one 68dp step above
+(`InstantCameraView.java:1317-1331`, `InstantZoomControlView.java:157-158`). Compact placement instead shares the
+flash row's line. Re-check the composer's drawing arithmetic after an upstream change to the recording controls;
+do not anchor to the last frame's `onceRect`.
+
+*(Established 2026-10-29, `#video-zoom`, PR 576.)*

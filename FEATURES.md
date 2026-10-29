@@ -319,7 +319,7 @@ Round video recordings warn you before they end. Configured via N-Settings → C
 
 ### Smoother video message zoom <!-- #video-zoom -->
 
-The zoom control under the round video camera has a full-range slider and step buttons. Turn on N-Settings → Chat → Camera → *Newer camera for video messages* (off by default) to reach the telephoto and ultrawide lenses, with tappable zoom stops like 0.6x, 1x, 1.5x, 2x, 3x and 6x above the slider; 1.5x and 2x crops fill the gaps between lenses. MediaTek phones stop at 1x.
+The round video camera has zoom stops under the circle. Tap one to jump, or hold and slide to fine-tune on a ruler. The flip button sits above the view-once button. Turn on N-Settings → Chat → Camera → *Newer camera for video messages* (off by default) to use supported rear lenses.
 
 ### Front flash brightness for video messages <!-- #front-flash-brightness -->
 

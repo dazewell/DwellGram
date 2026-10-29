@@ -42,15 +42,17 @@ import tw.nekomimi.nekogram.NekoConfig;
  * #camera-memo-zoom: the camera memo's zoom, as a stock camera has it. A row of stops along the viewfinder's bottom edge,
  * tap one to jump there; hold one, or slide along the row, and a dial rises in its place to reach any value in between.
  * Laid out over the viewfinder exactly. It draws nothing and takes no touch outside the row until the dial is open.
+ * The round recorder (#video-zoom, InstantZoomControlView) shows the same row under its circle, with its own colours
+ * and bounds, and in place of the dial its capsule turns into a flat ruler (setRulerMode). The defaults are the memo's.
  *
  * All the zoom state is the recorder's (InstantCameraView.getCoverZoom); this only holds what the finger is doing.
- * Synced on the cover's tick, which also catches a flip: a new camera's range and stops rebuild the row, close the dial
+ * Synced on the host's tick, which also catches a flip: a new camera's range and stops rebuild the row, close the dial
  * and drop the drag in progress, so it can't carry on through the old camera's ruler.
  */
 @SuppressLint("ViewConstructor")
-final class CameraMemoZoom extends View {
+public final class CameraMemoZoom extends View {
 
-    interface Host {
+    public interface Host {
         /** {min, max, current} zoom ratios, or null while there's nothing to zoom. */
         float[] zoom();
 
@@ -93,7 +95,21 @@ final class CameraMemoZoom extends View {
     private float current = 1f;
     private float[] stops = new float[0];
     private float[] majors = new float[0];
-    private float rowBand; // the viewfinder's strip below the crop, where the row sits when it fits
+    private float rowBand; // the strip along the bottom edge the row sits in when it fits: the memo's is below the crop
+    private float rowLeft;
+    private float rowRight;
+    private boolean ruler; // the recorder: the row's capsule becomes a straight scale instead of the dial
+    private boolean passOutsideDial; // the recorder: a touch outside the open dial closes it and goes on to the circle
+    private final Paint rulerLabelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint readoutPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF capsule = new RectF();
+    private boolean wholeSteps; // camera1: the dial moves by whole x
+    private final Paint rowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint rowActivePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private int chipColor = CHIP;
+    private int rowAlpha = 0xd9;
+    private Runnable onGestureEnd;
+    private android.graphics.drawable.Drawable rowBackground; // behind the stops, for a row that isn't over a picture
 
     // The dial: 0 closed, 1 open
     private float dial;
@@ -120,7 +136,7 @@ final class CameraMemoZoom extends View {
     };
     private final Runnable dialCloses = () -> setDialOpen(false);
 
-    CameraMemoZoom(Context context, Host host) {
+    public CameraMemoZoom(Context context, Host host) {
         super(context);
         this.host = host;
         touchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
@@ -134,6 +150,8 @@ final class CameraMemoZoom extends View {
         activePaint.set(labelPaint);
         activePaint.setColor(ORANGE);
         tickPaint.setStrokeCap(Paint.Cap.ROUND);
+        rowPaint.set(labelPaint);
+        rowActivePaint.set(activePaint);
         a11y = new Stops();
         ViewCompat.setAccessibilityDelegate(this, a11y);
         setVisibility(GONE);
@@ -143,16 +161,130 @@ final class CameraMemoZoom extends View {
         return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, value, getResources().getDisplayMetrics());
     }
 
-    /** The height of the viewfinder's strip below the crop, in px. */
-    void setRowBand(float band) {
+    /** The height of the strip along the bottom edge the row centres in, in px. */
+    public void setRowBand(float band) {
         if (rowBand != band) {
             rowBand = band;
             invalidate();
         }
     }
 
+    /** How far in from the left and right edges the stops keep, in px. */
+    public void setRowBounds(float left, float right) {
+        if (rowLeft != left || rowRight != right) {
+            rowLeft = left;
+            rowRight = right;
+            a11y.invalidateRoot();
+            invalidate();
+        }
+    }
+
+    /**
+     * Hold or slide turns the row's own capsule into a straight scale, widened to the row's bounds, that slides under a
+     * fixed index: the round recorder's, where a disc rising over the circle reads as out of place. Same drag, detents and
+     * haptics as the dial; colours from setRowColors.
+     */
+    public void setRulerMode(boolean on) {
+        ruler = on;
+        rulerLabelPaint.set(rowPaint);
+        rulerLabelPaint.setTextSize(sp(12));
+        readoutPaint.set(rowActivePaint);
+        readoutPaint.setTextSize(sp(13));
+        readoutPaint.setTypeface(AndroidUtilities.bold());
+        invalidate();
+    }
+
+    /**
+     * Over the round recorder this view reaches into the circle, whose hold sends and whose pinch zooms. A touch outside
+     * the open dial then closes it and is declined, so the circle still gets it, instead of being spent on the close.
+     */
+    public void setPassOutsideDial(boolean pass) {
+        passOutsideDial = pass;
+    }
+
+    public void setWholeSteps(boolean whole) {
+        wholeSteps = whole;
+    }
+
+    /** The row's colours. The dial keeps its own dark disc, which reads over any background. */
+    public void setRowColors(int label, int active, int chip, boolean shadow) {
+        rowPaint.setColor(label);
+        rowAlpha = Color.alpha(label);
+        rowActivePaint.setColor(active);
+        if (shadow) {
+            rowPaint.setShadowLayer(AndroidUtilities.dp(1), 0, 0, 0x99000000);
+            rowActivePaint.setShadowLayer(AndroidUtilities.dp(1), 0, 0, 0x99000000);
+        } else {
+            rowPaint.clearShadowLayer();
+            rowActivePaint.clearShadowLayer();
+        }
+        chipColor = chip;
+        if (ruler) {
+            setRulerMode(true);
+        }
+        invalidate();
+    }
+
+    /** A capsule drawn behind the stops, sized to them; null draws none, as over the memo's viewfinder. */
+    public void setRowBackground(android.graphics.drawable.Drawable background) {
+        rowBackground = background;
+        invalidate();
+    }
+
+    /** Where the row's capsule sits, in this view's coordinates; false while there is no row. */
+    public boolean getRowRect(RectF out) {
+        if (!available || stops.length == 0) {
+            return false;
+        }
+        float half = selectionRadius();
+        float cy = rowCenterY();
+        out.set(stopX(0) - half, cy - half, stopX(0) + half, cy + half);
+        out.union(stopX(stops.length - 1) - half, out.top);
+        out.union(stopX(stops.length - 1) + half, out.top);
+        if (ruler && dial > 0f) {
+            // the ruler gets the whole of the row's bounds
+            out.left = Math.min(out.left, out.left + (rowLeft - out.left) * dial);
+            out.right = Math.max(out.right, out.right + (getWidth() - rowRight - out.right) * dial);
+            float rulerHalf = half + (AndroidUtilities.dp(20) - half) * dial;
+            out.top = cy - rulerHalf;
+            out.bottom = cy + rulerHalf;
+        }
+        return true;
+    }
+
+    /** Run once a touch gesture on this view ends, so the host can apply what it held back meanwhile. */
+    public void setOnGestureEnd(Runnable runnable) {
+        onGestureEnd = runnable;
+    }
+
+    /** The row is up: the camera has a zoom range and at least two stops. */
+    public boolean hasRow() {
+        return available;
+    }
+
+    public boolean isDialOpen() {
+        return dialOpen;
+    }
+
+    /** A finger is on the row or the dial. */
+    public boolean isTouching() {
+        return dragging || downStop >= 0;
+    }
+
+    /** Closes the dial and drops the gesture in progress: something else has the zoom now. */
+    public void dismiss() {
+        tapAt = 0;
+        if (dragging) {
+            dragAbandoned = true;
+        }
+        removeCallbacks(holdOpens);
+        dragging = false;
+        downStop = -1;
+        setDialOpen(false);
+    }
+
     /** True when a touch at this point, in this view's coordinates, is the zoom's and not the crop's. */
-    boolean claims(float x, float y) {
+    public boolean claims(float x, float y) {
         if (getVisibility() != VISIBLE || x < 0 || y < 0 || x > getWidth() || y > getHeight()) {
             return false;
         }
@@ -160,7 +292,7 @@ final class CameraMemoZoom extends View {
     }
 
     /** On the cover's tick: what the recorder zooms now, and whether the zoom may show at all. */
-    void sync(boolean show) {
+    public void sync(boolean show) {
         float[] zoom = show ? host.zoom() : null;
         float[] newStops = zoom != null ? buildStops(zoom[0], zoom[1], host.stops()) : null;
         if (newStops == null || newStops.length < 2) {
@@ -174,6 +306,7 @@ final class CameraMemoZoom extends View {
         boolean rebuilt = !available || Math.abs(zoom[0] / min - 1f) > 0.01f || Math.abs(zoom[1] / max - 1f) > 0.01f
                 || !Arrays.equals(stops, newStops);
         if (rebuilt) {
+            tapAt = 0;
             if (available) { // a flip
                 if (dragging) {
                     dragAbandoned = true;
@@ -190,7 +323,7 @@ final class CameraMemoZoom extends View {
             majors = buildMajors();
             a11y.invalidateRoot();
         }
-        if (!dragging && SystemClock.elapsedRealtime() - tapAt > TAP_SETTLE_MS) {
+        if (!dragging) {
             current = zoom[2];
         }
         setVisibility(VISIBLE);
@@ -198,6 +331,7 @@ final class CameraMemoZoom extends View {
     }
 
     private void reset() {
+        tapAt = 0;
         removeCallbacks(holdOpens);
         removeCallbacks(dialCloses);
         if (dialAnimator != null) {
@@ -309,13 +443,17 @@ final class CameraMemoZoom extends View {
     }
 
     private float spacing() {
-        return Math.min(AndroidUtilities.dp(56), getWidth() / (float) Math.max(1, stops.length));
+        return Math.min(AndroidUtilities.dp(56), Math.max(1f, getWidth() - rowLeft - rowRight) / Math.max(1, stops.length));
+    }
+
+    private float selectionRadius() {
+        return Math.min(AndroidUtilities.dp(ruler ? 20 : 18), spacing() / 2f);
     }
 
     private float stopX(int index) {
         int n = stops.length;
         int slot = getLayoutDirection() == LAYOUT_DIRECTION_RTL ? n - 1 - index : index;
-        return getWidth() / 2f + (slot - (n - 1) / 2f) * spacing();
+        return (rowLeft + getWidth() - rowRight) / 2f + (slot - (n - 1) / 2f) * spacing();
     }
 
     private int stopAt(float x, float y) {
@@ -335,7 +473,11 @@ final class CameraMemoZoom extends View {
         return Math.min(AndroidUtilities.dp(150), Math.min(getHeight() * 0.4f, getWidth() / 2f));
     }
 
-    private boolean inDial(float x, float y) {
+    /** The dial's touch region in this view's coordinates, also used before sibling controls take a DOWN. */
+    public boolean isInDial(float x, float y) {
+        if (ruler) {
+            return getRowRect(capsule) && x >= capsule.left && x <= capsule.right && Math.abs(y - rowCenterY()) <= AndroidUtilities.dp(24);
+        }
         float dx = x - getWidth() / 2f;
         float dy = y - getHeight();
         float r = radius();
@@ -355,11 +497,14 @@ final class CameraMemoZoom extends View {
                 }
                 if (dialOpen) {
                     removeCallbacks(dialCloses);
-                    if (inDial(x, y)) {
+                    if (isInDial(x, y)) {
                         beginDrag(x);
                     } else {
                         setDialOpen(false);
                         downStop = -1;
+                        if (passOutsideDial) {
+                            return false;
+                        }
                     }
                     return true;
                 }
@@ -409,6 +554,9 @@ final class CameraMemoZoom extends View {
                 }
                 downStop = -1;
                 dragAbandoned = false;
+                if (onGestureEnd != null) {
+                    onGestureEnd.run();
+                }
                 return true;
             }
         }
@@ -458,6 +606,18 @@ final class CameraMemoZoom extends View {
         float log = dragStartLog + (dragStartX - x) / perDoubling * direction;
         boolean end = log <= lo || log >= hi;
         log = Math.max(lo, Math.min(hi, log));
+        if (wholeSteps) {
+            // camera1 (dazewell's call): the dial clicks from one whole x to the next instead of gliding, so the
+            // stops' detents have nothing to add
+            float whole = Math.max(min, Math.min(max, Math.round((float) Math.pow(2, log))));
+            if (Math.abs(whole / current - 1f) > 0.001f) {
+                haptic(HapticFeedbackConstants.CLOCK_TICK);
+                current = whole;
+                host.setZoom(whole, false);
+                invalidate();
+            }
+            return;
+        }
         // Stops hold the dial a little, with more pull to leave than to enter, so it doesn't flutter on the edge. Not
         // at the range's ends: a stop just short of one (4x on a 4.2x camera) would hold the dial off it for good.
         if (end) {
@@ -536,32 +696,137 @@ final class CameraMemoZoom extends View {
         if (!available) {
             return;
         }
-        if (dial < 1f) {
+        if (dial < 1f || ruler) {
             drawRow(canvas, 1f - dial);
         }
         if (dial > 0f) {
-            drawDial(canvas, dial);
+            if (ruler) {
+                drawRuler(canvas, dial);
+            } else {
+                drawDial(canvas, dial);
+            }
         }
     }
 
     private void drawRow(Canvas canvas, float alpha) {
         float cy = rowCenterY();
         int active = activeStop();
-        Paint.FontMetrics metrics = labelPaint.getFontMetrics();
+        Paint.FontMetrics metrics = rowPaint.getFontMetrics();
         float baseline = cy - (metrics.ascent + metrics.descent) / 2f;
-        for (int i = 0; i < stops.length; i++) {
+        float chip = selectionRadius();
+        if (rowBackground != null && getRowRect(discRect)) {
+            // the ruler's capsule stays up while it opens, only the stops fade
+            int save = alpha < 1f && !ruler ? canvas.saveLayerAlpha(discRect.left - 1, discRect.top - 1, discRect.right + 1, discRect.bottom + 1, (int) (255 * alpha)) : canvas.save();
+            rowBackground.setBounds(Math.round(discRect.left), Math.round(discRect.top), Math.round(discRect.right), Math.round(discRect.bottom));
+            rowBackground.draw(canvas);
+            canvas.restoreToCount(save);
+        }
+        for (int i = 0; i < stops.length && alpha > 0f; i++) {
             float x = stopX(i);
             if (i == active) {
-                fillPaint.setColor(CHIP);
-                fillPaint.setAlpha((int) (Color.alpha(CHIP) * alpha));
-                canvas.drawCircle(x, cy, AndroidUtilities.dp(18), fillPaint);
-                activePaint.setAlpha((int) (255 * alpha));
-                canvas.drawText(format(displayed()) + "×", x, baseline, activePaint);
+                fillPaint.setColor(chipColor);
+                fillPaint.setAlpha((int) (Color.alpha(chipColor) * alpha));
+                canvas.drawCircle(x, cy, chip, fillPaint);
+                rowActivePaint.setAlpha((int) (255 * alpha));
+                canvas.drawText(format(displayed()) + "×", x, baseline, rowActivePaint);
             } else {
-                labelPaint.setAlpha((int) (0xd9 * alpha));
-                canvas.drawText(format(stops[i]), x, baseline, labelPaint);
+                rowPaint.setAlpha((int) (rowAlpha * alpha));
+                canvas.drawText(format(stops[i]), x, baseline, rowPaint);
             }
         }
+    }
+
+    // The recorder's scale, inside the capsule: minor ticks every tenth of a doubling (whole x on camera1), taller ones
+    // with labels at the stops and the round values, a fixed index at the centre with the live ratio under it
+    private void drawRuler(Canvas canvas, float progress) {
+        if (!getRowRect(capsule)) {
+            return;
+        }
+        float cx = capsule.centerX();
+        float top = capsule.top;
+        float perDoubling = AndroidUtilities.dp(DRAG_DP_PER_DOUBLING);
+        float direction = getLayoutDirection() == LAYOUT_DIRECTION_RTL ? -1f : 1f;
+        float now = log2(current);
+        float lo = log2(min);
+        float hi = log2(max);
+        int ink = rowActivePaint.getColor();
+        canvas.save();
+        canvas.clipRect(capsule);
+
+        tickPaint.setStrokeWidth(AndroidUtilities.dp(1.5f));
+        if (wholeSteps) {
+            for (int k = (int) Math.ceil(min); k <= Math.floor(max); k++) {
+                if (k > 1 && log2(k / (k - 1f)) * perDoubling < AndroidUtilities.dp(6)) {
+                    continue; // whole steps bunch up past about 6x
+                }
+                rulerTick(canvas, cx + (log2(k) - now) * perDoubling * direction, top, AndroidUtilities.dp(5), ink, 0x66, progress);
+            }
+        } else {
+            for (int k = (int) Math.ceil(lo * 10); k <= Math.floor(hi * 10); k++) {
+                if (!nearMajor(k / 10f)) {
+                    rulerTick(canvas, cx + (k / 10f - now) * perDoubling * direction, top, AndroidUtilities.dp(5), ink, 0x66, progress);
+                }
+            }
+        }
+        tickPaint.setStrokeWidth(AndroidUtilities.dp(2));
+        float[] marks = wholeSteps ? stops : majors;
+        float baseline = top + AndroidUtilities.dp(31);
+        rulerLabelPaint.setColor(rowPaint.getColor());
+        for (float m : marks) {
+            float x = cx + (log2(m) - now) * perDoubling * direction;
+            rulerTick(canvas, x, top, AndroidUtilities.dp(9), ink, 0xcc, progress);
+            if (Math.abs(x - cx) < AndroidUtilities.dp(24) || !isStop(m) && nearStopLabel(m, perDoubling)) {
+                continue; // the readout has the centre; a stop's label beats a round value's
+            }
+            rulerLabelPaint.setAlpha((int) (rowAlpha * progress * edgeFade(x)));
+            canvas.drawText(format(m), x, baseline, rulerLabelPaint);
+        }
+        // the range's ends, a little taller, so the scale visibly stops
+        rulerTick(canvas, cx + (lo - now) * perDoubling * direction, top, AndroidUtilities.dp(12), ink, 0xcc, progress);
+        rulerTick(canvas, cx + (hi - now) * perDoubling * direction, top, AndroidUtilities.dp(12), ink, 0xcc, progress);
+
+        tickPaint.setStrokeWidth(AndroidUtilities.dp(2.5f));
+        tickPaint.setColor(ink);
+        tickPaint.setAlpha((int) (255 * progress));
+        canvas.drawLine(cx, top + AndroidUtilities.dp(4), cx, top + AndroidUtilities.dp(18), tickPaint);
+        readoutPaint.setColor(ink);
+        readoutPaint.setAlpha((int) (255 * progress));
+        canvas.drawText(format(current) + "×", cx, baseline, readoutPaint);
+        canvas.restore();
+    }
+
+    private void rulerTick(Canvas canvas, float x, float top, float length, int ink, int inkAlpha, float progress) {
+        float fade = edgeFade(x);
+        if (fade <= 0f) {
+            return;
+        }
+        tickPaint.setColor(ink);
+        tickPaint.setAlpha((int) (inkAlpha * progress * fade));
+        canvas.drawLine(x, top + AndroidUtilities.dp(6), x, top + AndroidUtilities.dp(6) + length, tickPaint);
+    }
+
+    // ticks and labels thin out over the capsule's last 16dp either side instead of being cut off
+    private float edgeFade(float x) {
+        float edge = Math.min(x - capsule.left, capsule.right - x);
+        return Math.max(0f, Math.min(1f, edge / AndroidUtilities.dp(16)));
+    }
+
+    private boolean isStop(float ratio) {
+        for (float s : stops) {
+            if (Math.abs(Math.log(s / ratio)) < SAME) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean nearStopLabel(float ratio, float perDoubling) {
+        for (float s : stops) {
+            if (Math.abs(log2(s) - log2(ratio)) * perDoubling < AndroidUtilities.dp(26)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void drawDial(Canvas canvas, float progress) {

@@ -337,15 +337,12 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     private final InstantZoomControlView zoomControlView;
     private float lockedZoom;
     private final TextView zoomLabel;
-    private int zoomGlideDirection;
-    private boolean zoomGliding;
     private boolean zoomLabelVisible;
     private float zoomFollowCurrent = -1f;
     private float zoomFollowTarget;
     private boolean zoomFollowing;
     private long zoomFollowLastTick;
     private float appliedZoomRatio = -1f;
-    private final Runnable zoomGlideStarter = this::startZoomGlide;
     private final Runnable zoomLabelHider = this::hideZoomLabel;
     private final Runnable zoomFollowerTick = this::stepZoomFollower;
 
@@ -407,38 +404,13 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         addView(cameraContainer, new LayoutParams(AndroidUtilities.roundPlayingMessageSize, AndroidUtilities.roundPlayingMessageSize, Gravity.CENTER));
         addView(flashViews.foregroundView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.FILL));
 
-        zoomControlView = new InstantZoomControlView(context, Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(isDarkAppearance()));
+        // NagramX (#video-zoom): the camera memo's stops and dial, plus the flip button; it reads and sets the zoom
+        // through getCoverZoom / setCoverZoom like the memo does
+        zoomControlView = new InstantZoomControlView(context, this, Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(isDarkAppearance()));
         zoomControlView.setAlpha(0.0f);
-        zoomControlView.setContentDescription(LocaleController.getString(R.string.AccDescrZoomControl));
-        zoomControlView.setDelegate(new InstantZoomControlView.Delegate() {
-            @Override
-            public void didSetZoom(float zoom) {
-                setLockedZoom(zoom);
-            }
-
-            @Override
-            public void onButtonDown(int direction) {
-                zoomGlideDirection = direction;
-                AndroidUtilities.cancelRunOnUIThread(zoomGlideStarter);
-                AndroidUtilities.runOnUIThread(zoomGlideStarter, 250);
-            }
-
-            @Override
-            public void onButtonUp(int direction, boolean cancelled) {
-                AndroidUtilities.cancelRunOnUIThread(zoomGlideStarter);
-                if (zoomGliding) {
-                    stopZoomGlide();
-                } else if (!cancelled) {
-                    zoomStep(direction);
-                }
-            }
-
-            @Override
-            public void onSwitchCamera() {
-                flipCamera();
-            }
-        });
-        addView(zoomControlView, new LayoutParams(LayoutHelper.MATCH_PARENT, dp(104), Gravity.CENTER));
+        zoomControlView.setOnSwitchCamera(this::flipCamera);
+        addView(zoomControlView, new LayoutParams(LayoutHelper.MATCH_PARENT, dp(InstantZoomControlView.HEIGHT_DP), Gravity.CENTER));
+        addView(zoomControlView.flipButton(), new LayoutParams(dp(44), dp(44), Gravity.CENTER));
 
         zoomLabel = new TextView(context);
         zoomLabel.setTextColor(0xffffffff);
@@ -671,6 +643,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
+        zoomControlView.onRecorderTouch(ev); // NagramX: outside DOWNs must close the ruler before recorder gestures run
         getParent().requestDisallowInterceptTouchEvent(true);
         return super.onInterceptTouchEvent(ev);
     }
@@ -1310,8 +1283,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         // control fits beneath it instead of being crammed over the preview. measured from the
         // settled (fully-open) position, so the lift stays constant through the open/close slide
         // rather than yanking the circle while animationTranslationY runs.
-        // the roomy layout needs ~124dp (104dp of rows + margins); lift toward a hair more (dp132) as
-        // far as the top chrome allows, then let whatever room is left pick roomy vs compact.
+        // the roomy layout needs ~112dp (the zoom row above the flash row, plus margins); lift toward a little
+        // more (dp120) as far as the top chrome allows, then let whatever room is left pick roomy vs compact.
         final float restingGap = bottomControlsTop - (panTranslationY + textureViewSize / 2f + dp(8));
         // keep the circle on screen no matter what the keyboard/pan animators are doing. the parent
         // (ChatActivityFragmentView, which holds this view) is itself translated up while the keyboard
@@ -1323,10 +1296,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         // pinned with ~20dp of usable room above it going unused, so the two-row control fell to compact.)
         final float parentTop = getParent() instanceof View ? ((View) getParent()).getTranslationY() : 0f;
         final float maxLift = Math.max(0f, parentTop + visibleHalf + panTranslationY - textureViewSize / 2f - dp(64));
-        // lift toward dp(132), a little over the ~124dp two rows actually need, so the fed gap lands
-        // solidly in the roomy band; the circle then sits as low (and as safely on screen) as the room
-        // allows instead of being yanked all the way up.
-        final float liftForRoomy = Math.max(0f, dp(132) - restingGap);
+        // lift toward dp(120), a little over the ~112dp roomy needs, so the gap lands clear of the compact
+        // hysteresis below; the circle then sits as low (and as safely on screen) as the room allows
+        // instead of being yanked all the way up.
+        final float liftForRoomy = Math.max(0f, dp(120) - restingGap);
         final float lift = Math.min(liftForRoomy, maxLift);
         final float gapAfterLift = restingGap + lift;
 
@@ -1334,43 +1307,30 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         textureOverlayView.setTranslationY(translationY);
         cameraContainer.setTranslationY(translationY);
 
-        // feed a gap that's decisively outside the compact hysteresis band [112..126] so the keyboard
-        // slide can't flap the layout; gapAfterLift is continuous across the maxLift cap and crosses once.
-        // the shortened two-row block (InstantZoomControlView, 68dp) has its buttons ~40dp below center,
-        // so it only overlaps the panel below ~80dp of gap — gate there. between the relaxed lift cap
-        // above (which now frees the circle to open the gap to ~100dp when a reply squeezes it) and this
-        // floor gate, two rows win whenever they physically fit; feeding dp(132)/<dp(108) keeps the
-        // values clear of the [112..126] band. compact only when it genuinely can't fit (very small gaps).
-        // NagramX: with the lens strip up the rows reach 50dp above and 48dp below center, not 44 and 40 (see
-        // InstantZoomControlView.updateGeometry), so the roomy gate (twice the reach below) and the placement
-        // margin grow to match. the 80dp gate and 68dp rows described above are the no-strip case
-        final boolean presetRows = zoomControlView.hasPresets();
-        zoomControlView.setAvailableGap(gapAfterLift >= dp(presetRows ? 96 : 80) ? dp(132) : Math.min(gapAfterLift, dp(108)));
-        final boolean compact = zoomControlView.isCompact();
+        // NagramX (#video-zoom): the zoom row's 40dp capsule goes above the 56dp flash row when the gap
+        // holds both with 8dp margins (112dp); otherwise it shares the flash row's line, between the flash
+        // buttons and the view-once column. 8dp of hysteresis so the keyboard slide can't flap it, and
+        // gapAfterLift is continuous across the maxLift cap, so it crosses once
+        final boolean compact = zoomControlView.isCompact() ? gapAfterLift < dp(112) : gapAfterLift < dp(104);
 
         final float cameraBottom = translationY + textureViewSize / 2f + dp(8);
-        // the drawn rows sit at the view's own center in both layouts, so translationY is the content center
-        final float contentHalf = dp(compact ? 24 : presetRows ? 50 : 44);
-        final float lo = cameraBottom + dp(8) + contentHalf;
-        final float hi = bottomControlsTop - dp(12) - contentHalf;
-        float zoomControlCenterY;
-        if (compact && gapAfterLift < dp(64)) {
-            // almost no room left: hug the record controls and let the scrims ride over the preview edge
-            zoomControlCenterY = bottomControlsTop - dp(36);
-        } else if (lo > hi) {
-            // vertical budget too tight for the row to clear both edges: sit it centered in the gap
-            zoomControlCenterY = (cameraBottom + bottomControlsTop) / 2f;
+        // NagramX (#video-zoom): the view-once button's line, where there's a composer to measure
+        final float once = InstantZoomControlView.onceLine(this, delegate) - visibleHalf;
+        float rowCenterY;
+        if (compact) {
+            // the flash row's centre, even where the circle reaches it: the row then rides over its edge
+            rowCenterY = bottomControlsTop - dp(28);
         } else {
-            zoomControlCenterY = Math.min(Math.max((cameraBottom + bottomControlsTop) / 2f, lo), hi);
+            final float lo = cameraBottom + dp(8) + dp(20);
+            final float hi = bottomControlsTop - dp(56 + 8) - dp(20);
+            // on the view-once button's line, else mid-gap
+            final float want = Float.isNaN(once) ? (cameraBottom + bottomControlsTop - dp(56)) / 2f : once;
+            rowCenterY = lo > hi ? hi : Math.min(Math.max(want, lo), hi);
         }
-        zoomControlView.setTranslationY(zoomControlCenterY);
-        // NagramX: the lens strip fills the band above the slider, so the ratio readout docks in the circle
-        if (compact || zoomControlView.hasPresets()) {
-            // no vertical room above the row: dock the label inside the camera circle, bottom-center
-            zoomLabel.setTranslationY(translationY + textureViewSize / 2f - dp(30));
-        } else {
-            zoomLabel.setTranslationY(zoomControlCenterY - dp(54));
-        }
+        zoomControlView.setPlacement(compact, buttonsLayout.getMeasuredWidth() > 0 ? buttonsLayout.getMeasuredWidth() + dp(1) : dp(108), rowCenterY);
+        zoomControlView.setFlipLine(Float.isNaN(once) ? rowCenterY : once); // up the column from the view-once button
+        // dock the label inside the camera circle, bottom-center: the row's band is the zoom's own
+        zoomLabel.setTranslationY(translationY + textureViewSize / 2f - dp(30));
     }
 
     public RectF getCameraRect() {
@@ -2004,6 +1964,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 CameraController.getInstance().openRound(cameraSession, surfaceTexture, () -> {
                     if (cameraSession != null) {
                         updateFlash();
+                        updateZoomControlAvailability(); // NagramX (#video-zoom): camera1 only knows its zoom range once open
 
                         boolean updateScale = false;
                         try {
@@ -4996,6 +4957,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 pointerId1 = ev.getPointerId(0);
                 pointerId2 = ev.getPointerId(1);
                 isInPinchToZoomTouchMode = true;
+                zoomControlView.dismiss(); // NagramX (#video-zoom): the pinch has the zoom; the dial goes
             }
             if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 AndroidUtilities.rectTmp.set(cameraContainer.getX(), cameraContainer.getY(), cameraContainer.getX() + cameraContainer.getMeasuredWidth(), cameraContainer.getY() + cameraContainer.getMeasuredHeight());
@@ -5063,28 +5025,16 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         cancelFinishZoomTransition();
         final float to = Utilities.clamp(toFraction, 1f, 0f);
         if (Math.abs(fromFraction - to) <= 0.0001f) {
-            zoomGliding = false;
             return;
         }
         finishZoomTransition = ValueAnimator.ofFloat(fromFraction, to);
         finishZoomTransition.addUpdateListener(valueAnimator -> setZoomFraction((float) valueAnimator.getAnimatedValue()));
         finishZoomTransition.addListener(new AnimatorListenerAdapter() {
-            boolean cancelled;
-
-            @Override
-            public void onAnimationCancel(Animator animation) {
-                cancelled = true;
-            }
-
             @Override
             public void onAnimationEnd(Animator animation) {
                 if (animation.equals(finishZoomTransition)) {
                     finishZoomTransition = null;
                 }
-                if (zoomGliding && !cancelled && (to <= 0f || to >= 1f)) {
-                    zoomHaptic(HapticFeedbackConstants.CLOCK_TICK);
-                }
-                zoomGliding = false;
             }
         });
         finishZoomTransition.setDuration(duration);
@@ -5094,7 +5044,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
     private void setZoomFraction(float fraction) {
         lockedZoom = Utilities.clamp(fraction, 1f, 0f);
-        zoomControlView.setZoom(lockedZoom, false);
+        syncZoomControl();
         followZoom(lockedZoom, false);
         if (useCamera2 && camera2SessionCurrent != null) {
             showZoomLabel(zoomFractionToRatio(camera2SessionCurrent, lockedZoom));
@@ -5235,6 +5185,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     // lens stops (RoundLensPresets) when the camera has them, camera1 moves by a whole 1x; anything else falls back
     // to the zoom control's own step.
     private void onHoldSwipe(int swipe) {
+        if (zoomControlView.isDialOpen()) {
+            return; // the dial has the zoom and the camera; a flip under it would rebuild it mid-turn
+        }
         if (swipe == com.dazewell.gram.videonote.VideoHoldToSend.SWIPE_LEFT || swipe == com.dazewell.gram.videonote.VideoHoldToSend.SWIPE_RIGHT) {
             flipCamera();
             return;
@@ -5289,46 +5242,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         return (long) (200 + 150 * Math.min(1f, Math.abs(delta) / 0.25f));
     }
 
-    private void startZoomGlide() {
-        if (isInPinchToZoomTouchMode) {
-            return;
-        }
-        // end a possible in-flight tap animation first: its end listener resets zoomGliding
-        cancelFinishZoomTransition();
-        final float target = zoomGlideDirection > 0 ? 1f : 0f;
-        final float distance = Math.abs(target - lockedZoom);
-        if (distance <= 0.0001f) {
-            zoomHaptic(HapticFeedbackConstants.CLOCK_TICK);
-            return;
-        }
-        long fullRangeMs = 3000;
-        float zoomRange = 0f;
-        if (useCamera2 && camera2SessionCurrent != null) {
-            zoomRange = camera2SessionCurrent.getMaxZoom() / camera2SessionCurrent.getMinZoom();
-        } else if (!useCamera2 && cameraSession != null) {
-            zoomRange = cameraSession.getMaxZoomRatio();
-        }
-        if (zoomRange > 1f) {
-            // constant perceptual rate of ~1.7x per second, however many octaves the sensor has
-            fullRangeMs = (long) (1000 * Math.log(zoomRange) / Math.log(1.7));
-        }
-        zoomGliding = true;
-        zoomControlView.setButtonHeld(zoomGlideDirection);
-        zoomHaptic(HapticFeedbackConstants.LONG_PRESS);
-        final long duration = Math.max(200, (long) (distance * fullRangeMs));
-        final float ramp = Math.min(0.5f, 200f / duration);
-        animateZoom(lockedZoom, target, duration, t -> {
-            // velocity ramps in over the first ~200ms so a hold doesn't lurch, then stays constant
-            final float k = 1f / (1f - ramp / 2f);
-            return t < ramp ? k * t * t / (2f * ramp) : k * (ramp / 2f + (t - ramp));
-        });
-    }
-
-    private void stopZoomGlide() {
-        zoomGliding = false;
-        cancelFinishZoomTransition();
-    }
-
     private void zoomHaptic(int feedback) {
         try {
             if (!NekoConfig.disableVibration.Bool()) {
@@ -5339,7 +5252,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
     private void showZoomLabel(float ratio) {
         zoomLabel.setText(String.format(Locale.US, "%.1fx", ratio));
-        if (opened && zoomControlView.isZoomEnabled()) {
+        // NagramX (#video-zoom): the row's lit stop reads the ratio already; the label is for a pinch or no row
+        if (opened && (!zoomControlView.hasRow() || isInPinchToZoomTouchMode)) {
             if (!zoomLabelVisible) {
                 zoomLabelVisible = true;
                 zoomLabel.animate().alpha(1.0f).setDuration(120).start();
@@ -5356,8 +5270,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
     private void cancelZoomInteractions() {
         holdToSend.reset(); // NagramX (#video-hold-send): same open/close/pause/detach points a hold must not outlive
-        AndroidUtilities.cancelRunOnUIThread(zoomGlideStarter);
-        zoomGliding = false;
+        zoomControlView.dismiss();
         cancelFinishZoomTransition();
         stopZoomFollower();
         AndroidUtilities.cancelRunOnUIThread(zoomLabelHider);
@@ -5372,7 +5285,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         // to show may not exist yet (or be the one switched away from), so adaptZoomToSession finishes this
         zoomHomePending = true;
         lockedZoom = useCamera2 && camera2SessionCurrent != null ? getZoomControlValueFromCamera2(1f) : 0.0f;
-        zoomControlView.setZoom(lockedZoom, false);
+        syncZoomControl();
         applyLockedZoomToCamera();
     }
 
@@ -5389,49 +5302,25 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (target > 0f) {
             cancelFinishZoomTransition();
             lockedZoom = getZoomControlValueFromCamera2(target);
-            zoomControlView.setZoom(lockedZoom, false);
+            syncZoomControl();
         }
-    }
-
-    // NagramX: lens stops for the camera now showing; their slider spots depend on its zoom range
-    private void updateZoomPresets(Camera2Session session, boolean hasZoom) {
-        final boolean hadPresets = zoomControlView.hasPresets();
-        applyZoomPresets(session, hasZoom);
-        if (hadPresets != zoomControlView.hasPresets()) {
-            updateTranslationY();
-        }
-    }
-
-    private void applyZoomPresets(Camera2Session session, boolean hasZoom) {
-        final float[] stops = hasZoom && session.isZoomRatioMode() ? com.dazewell.gram.helpers.RoundLensPresets.get(session.cameraId) : null;
-        if (stops == null || stops.length < 2) {
-            zoomControlView.setPresets(null, null);
-            return;
-        }
-        final float[] fractions = new float[stops.length];
-        final String[] labels = new String[stops.length];
-        for (int i = 0; i < stops.length; i++) {
-            fractions[i] = getZoomControlValueFromCamera2(stops[i]);
-            labels[i] = com.dazewell.gram.helpers.RoundLensPresets.label(stops[i]);
-        }
-        zoomControlView.setPresets(fractions, labels);
     }
 
     private void updateZoomControlAvailability() {
-        if (!useCamera2) {
-            return;
-        }
-        final Camera2Session session = camera2SessionCurrent;
-        final boolean hasZoom = session != null && session.getMaxZoom() > session.getMinZoom() * 1.01f;
-        // keep the control laid out so its flip button stays; only the slider + rocker follow zoom
-        zoomControlView.setZoomEnabled(hasZoom);
-        if (session != null) {
-            updateZoomPresets(session, hasZoom);
-        }
-        if (!hasZoom) {
+        syncZoomControl();
+        if (!zoomControlView.hasRow()) {
             zoomLabelVisible = false;
             zoomLabel.animate().cancel();
             zoomLabel.setAlpha(0.0f);
+        }
+    }
+
+    // NagramX (#video-zoom): the row reads the zoom through getCoverZoom; a new camera's range rebuilds its stops
+    private void syncZoomControl() {
+        final boolean hadRow = zoomControlView.hasRow();
+        zoomControlView.sync(!useCamera2);
+        if (hadRow != zoomControlView.hasRow()) {
+            updateTranslationY();
         }
     }
 
@@ -5538,34 +5427,15 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         return Utilities.clamp((float) (Math.log(zoom / min) / Math.log(max / min)), 1f, 0f);
     }
 
+    // NagramX (#video-zoom): a pinch springs back to lockedZoom on release, so the row keeps showing that while the
+    // label reads the pinch's own ratio
     private void syncZoomControlView(float currentZoom) {
-        if (zoomControlView == null || zoomControlView.isTouch()) {
-            return;
-        }
         if (useCamera2) {
-            zoomControlView.setZoom(getZoomControlValueFromCamera2(currentZoom), false);
             showZoomLabel(currentZoom);
         } else {
-            zoomControlView.setZoom(Utilities.clamp01(currentZoom), false);
             if (cameraSession != null && cameraSession.getMaxZoomRatio() > 1f) {
                 showZoomLabel(camera1FractionToRatio(Utilities.clamp01(currentZoom)));
             }
-        }
-    }
-
-    private void setLockedZoom(float zoom) {
-        if (isInPinchToZoomTouchMode) {
-            return;
-        }
-        zoom = Utilities.clamp(zoom, 1f, 0f);
-        if (!zoomControlView.isDragging() && Math.abs(zoom - lockedZoom) > 0.05f) {
-            // a big jump means a tap on the track: pull the knob back and ease over instead of teleporting
-            final float from = lockedZoom;
-            zoomControlView.setZoom(from, false);
-            animateZoom(from, zoom, zoomStepDuration(zoom - from), CubicBezierInterpolator.EASE_OUT);
-        } else {
-            cancelFinishZoomTransition();
-            setZoomFraction(zoom);
         }
     }
 
