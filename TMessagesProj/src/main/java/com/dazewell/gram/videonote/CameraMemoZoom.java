@@ -236,15 +236,18 @@ public final class CameraMemoZoom extends View {
         if (!available || stops.length == 0) {
             return false;
         }
-        float half = Math.min(AndroidUtilities.dp(18), spacing() / 2f);
+        float half = selectionRadius();
         float cy = rowCenterY();
-        out.set(stopX(0) - half, cy - AndroidUtilities.dp(20), stopX(0) + half, cy + AndroidUtilities.dp(20));
+        out.set(stopX(0) - half, cy - half, stopX(0) + half, cy + half);
         out.union(stopX(stops.length - 1) - half, out.top);
         out.union(stopX(stops.length - 1) + half, out.top);
         if (ruler && dial > 0f) {
             // the ruler gets the whole of the row's bounds
             out.left = Math.min(out.left, out.left + (rowLeft - out.left) * dial);
             out.right = Math.max(out.right, out.right + (getWidth() - rowRight - out.right) * dial);
+            float rulerHalf = half + (AndroidUtilities.dp(20) - half) * dial;
+            out.top = cy - rulerHalf;
+            out.bottom = cy + rulerHalf;
         }
         return true;
     }
@@ -441,6 +444,10 @@ public final class CameraMemoZoom extends View {
 
     private float spacing() {
         return Math.min(AndroidUtilities.dp(56), Math.max(1f, getWidth() - rowLeft - rowRight) / Math.max(1, stops.length));
+    }
+
+    private float selectionRadius() {
+        return Math.min(AndroidUtilities.dp(ruler ? 20 : 18), spacing() / 2f);
     }
 
     private float stopX(int index) {
@@ -706,7 +713,7 @@ public final class CameraMemoZoom extends View {
         int active = activeStop();
         Paint.FontMetrics metrics = rowPaint.getFontMetrics();
         float baseline = cy - (metrics.ascent + metrics.descent) / 2f;
-        float chip = Math.min(AndroidUtilities.dp(18), spacing() / 2f); // a tight row shrinks it rather than overlap
+        float chip = selectionRadius();
         if (rowBackground != null && getRowRect(discRect)) {
             // the ruler's capsule stays up while it opens, only the stops fade
             int save = alpha < 1f && !ruler ? canvas.saveLayerAlpha(discRect.left - 1, discRect.top - 1, discRect.right + 1, discRect.bottom + 1, (int) (255 * alpha)) : canvas.save();
