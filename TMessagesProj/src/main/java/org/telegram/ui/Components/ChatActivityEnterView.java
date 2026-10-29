@@ -7276,6 +7276,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             messageEditText.setLocalePreferredLineHeightForMinimumUsed(false);
         }
+        messageEditText.pasteUrlAsLink = true; // NagramX: paste a URL over a selection to link it
         messageEditText.setDelegate(new EditTextCaption.EditTextCaptionDelegate() {
             @Override
             public void onSpansChanged() {
