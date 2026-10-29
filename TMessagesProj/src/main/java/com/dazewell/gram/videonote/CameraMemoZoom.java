@@ -466,7 +466,8 @@ public final class CameraMemoZoom extends View {
         return Math.min(AndroidUtilities.dp(150), Math.min(getHeight() * 0.4f, getWidth() / 2f));
     }
 
-    private boolean inDial(float x, float y) {
+    /** The dial's touch region in this view's coordinates, also used before sibling controls take a DOWN. */
+    public boolean isInDial(float x, float y) {
         if (ruler) {
             return getRowRect(capsule) && x >= capsule.left && x <= capsule.right && Math.abs(y - rowCenterY()) <= AndroidUtilities.dp(24);
         }
@@ -489,7 +490,7 @@ public final class CameraMemoZoom extends View {
                 }
                 if (dialOpen) {
                     removeCallbacks(dialCloses);
-                    if (inDial(x, y)) {
+                    if (isInDial(x, y)) {
                         beginDrag(x);
                     } else {
                         setDialOpen(false);

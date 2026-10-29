@@ -2878,7 +2878,7 @@ and `moveProgress` is 1 (`:1554-1563`). The 44dp pause button then starts at
 anchor for groups or other chats without that button.
 
 `InstantZoomControlView.onceLine` maps that resting line between the controls' and recorder's window coordinates
-(`InstantZoomControlView.java:275-288`), including when view-once is absent. `InstantCameraView.updateTranslationY`
+(`InstantZoomControlView.java:276-289`), including when view-once is absent. `InstantCameraView.updateTranslationY`
 uses it for the roomy zoom row, clamped to the available gap, and for the flip button one 68dp step above
 (`InstantCameraView.java:1317-1331`, `InstantZoomControlView.java:157-158`). Compact placement instead shares the
 flash row's line. Re-check the composer's drawing arithmetic after an upstream change to the recording controls;

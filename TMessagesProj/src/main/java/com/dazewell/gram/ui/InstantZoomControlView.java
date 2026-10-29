@@ -204,10 +204,11 @@ public class InstantZoomControlView extends FrameLayout {
         return zoom.isTouching();
     }
 
-    /** A recorder touch outside this band must close the ruler before the recorder handles its gesture. */
+    /** Observe before sibling controls can consume a touch outside the ruler. */
     public void onRecorderTouch(MotionEvent event) {
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN && zoom.isDialOpen()
-                && !contains(this, event.getX(), event.getY()) && !contains(flip, event.getX(), event.getY())) {
+                && !zoom.isInDial(event.getX() - getX() - zoom.getX(), event.getY() - getY() - zoom.getY())
+                && !contains(flip, event.getX(), event.getY())) {
             zoom.dismiss();
         }
     }
