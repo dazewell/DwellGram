@@ -74,6 +74,8 @@ final class CameraMemoZoom extends View {
     private static final float SAME = 0.02f; // |ln| below which two ratios read as the same stop
     // Ruler labels besides the lens stops, as a camera's dial marks them
     private static final float[] MAJORS = {1f, 1.5f, 2f, 3f, 5f, 10f, 20f, 50f, 100f};
+    private static final float[] CROPS = {1.5f, 2f};
+    private static final float CROP_GAP = 0.26f; // ln 1.3: a crop stop only where nothing is within 30% of it
 
     private final Host host;
     private final Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -208,7 +210,9 @@ final class CameraMemoZoom extends View {
         downStop = -1;
     }
 
-    // The camera's lens stops as they are. Without any, 1x, 2x and the top of the range up to 4x.
+    // The camera's lens stops as they are. Without any, 1x, 2x and the top of the range up to 4x. Then 1.5x and 2x
+    // (35 and 50 mm) wherever no stop is already near: the main sensor's crops a stock camera offers, which no Camera2
+    // key reports.
     private static float[] buildStops(float min, float max, float[] lens) {
         ArrayList<Float> list = new ArrayList<>();
         if (lens != null && lens.length >= 2) {
@@ -221,6 +225,11 @@ final class CameraMemoZoom extends View {
                 add(list, 2f);
             }
             add(list, Math.min(max, 4f));
+        }
+        for (float crop : CROPS) {
+            if (crop >= min && crop <= max && !near(list, crop)) {
+                list.add(crop);
+            }
         }
         float[] result = new float[list.size()];
         for (int i = 0; i < result.length; i++) {
@@ -237,6 +246,15 @@ final class CameraMemoZoom extends View {
             }
         }
         list.add(ratio);
+    }
+
+    private static boolean near(ArrayList<Float> list, float ratio) {
+        for (float s : list) {
+            if (Math.abs(Math.log(s / ratio)) < CROP_GAP) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private float[] buildMajors() {
