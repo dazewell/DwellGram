@@ -210,7 +210,7 @@ final class CameraMemoZoom extends View {
         downStop = -1;
     }
 
-    // The camera's lens stops as they are. Without any, 1x, 2x and the top of the range up to 4x. Then 1.5x and 2x
+    // The camera's lens stops as they are (RoundLensPresets already adds the same crops to them). Without any, 1x, 2x and the top of the range up to 4x. Then 1.5x and 2x
     // (35 and 50 mm on the usual 24 mm main camera) wherever no stop is already near: the main sensor's crops a stock camera offers, which no Camera2
     // key reports.
     private static float[] buildStops(float min, float max, float[] lens) {
