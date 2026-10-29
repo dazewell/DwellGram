@@ -428,8 +428,11 @@ final class CameraMemoZoom extends View {
         float log = dragStartLog + (dragStartX - x) / perDoubling * direction;
         boolean end = log <= lo || log >= hi;
         log = Math.max(lo, Math.min(hi, log));
-        // Stops hold the dial a little, with more pull to leave than to enter, so it doesn't flutter on the edge
-        if (detent >= 0 && Math.abs(log - log2(stops[detent])) * perDoubling <= AndroidUtilities.dp(DETENT_EXIT_DP)) {
+        // Stops hold the dial a little, with more pull to leave than to enter, so it doesn't flutter on the edge. Not
+        // at the range's ends: a stop just short of one (4x on a 4.2x camera) would hold the dial off it for good.
+        if (end) {
+            detent = -1;
+        } else if (detent >= 0 && Math.abs(log - log2(stops[detent])) * perDoubling <= AndroidUtilities.dp(DETENT_EXIT_DP)) {
             log = log2(stops[detent]);
         } else {
             int next = nearestStop(log, AndroidUtilities.dp(DETENT_DP));
