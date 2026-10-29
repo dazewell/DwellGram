@@ -92,6 +92,8 @@ public class EditTextCaption extends EditTextBoldCursor implements FloatingToolb
     private final Theme.ResourcesProvider resourcesProvider;
     private AlertDialog creationLinkDialog;
     public boolean adaptiveCreateLinkDialog;
+    // NagramX: opt-in so plain-text fields built on this class (story link, JS prompt) still replace on paste.
+    public boolean pasteUrlAsLink;
 
     public interface EditTextCaptionDelegate {
         void onSpansChanged();
@@ -1451,11 +1453,27 @@ public class EditTextCaption extends EditTextBoldCursor implements FloatingToolb
         return Theme.getColor(key, resourcesProvider);
     }
 
+    // NagramX: a lone URL over a selection links it, from the paste menu or a keyboard clipboard;
+    // createUrlSpan keeps subclass spans.
+    public boolean pasteLinkText(CharSequence text) {
+        if (!pasteUrlAsLink || !com.dazewell.gram.composer.PasteAsLink.tryApply(this, text, this::createUrlSpan)) {
+            return false;
+        }
+        if (delegate != null) {
+            delegate.onSpansChanged();
+        }
+        return true;
+    }
+
     @Override
     public boolean onTextContextMenuItem(int id) {
         if (id == android.R.id.paste) {
             ClipboardManager clipboard = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
             ClipData clipData = clipboard.getPrimaryClip();
+            // NagramX: ahead of the HTML branch, which would replace the selection.
+            if (pasteLinkText(com.dazewell.gram.composer.PasteAsLink.clipText(this, clipData))) {
+                return true;
+            }
             if (clipData != null && clipData.getItemCount() == 1 && clipData.getDescription().hasMimeType("text/html")) {
                 try {
                     String html = clipData.getItemAt(0).getHtmlText();

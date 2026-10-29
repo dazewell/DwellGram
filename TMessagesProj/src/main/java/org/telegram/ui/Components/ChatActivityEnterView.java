@@ -6806,7 +6806,8 @@ public class ChatActivityEnterView extends FrameLayout implements
                     }
                     return true;
                 };
-                return InputConnectionCompat.createWrapper(ic, editorInfo, callback);
+                // NagramX: keyboard clipboard entries arrive as commitText; see PasteAsLink.wrap.
+                return com.dazewell.gram.composer.PasteAsLink.wrap(InputConnectionCompat.createWrapper(ic, editorInfo, callback), this);
             } catch (Throwable e) {
                 FileLog.e(e);
             }
@@ -7189,7 +7190,8 @@ public class ChatActivityEnterView extends FrameLayout implements
 
             @Override
             public boolean onTextContextMenuItem(int id) {
-                if (id == android.R.id.paste && handleRichHtmlPaste()) {
+                // NagramX: a URL pasted over a selection falls through to EditTextCaption, which links it.
+                if (id == android.R.id.paste && !com.dazewell.gram.composer.PasteAsLink.wouldApply(this) && handleRichHtmlPaste()) {
                     return true;
                 }
                 return super.onTextContextMenuItem(id);
@@ -7275,6 +7277,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             messageEditText.setLocalePreferredLineHeightForMinimumUsed(false);
         }
+        messageEditText.pasteUrlAsLink = true; // NagramX: paste a URL over a selection to link it
         messageEditText.setDelegate(new EditTextCaption.EditTextCaptionDelegate() {
             @Override
             public void onSpansChanged() {
