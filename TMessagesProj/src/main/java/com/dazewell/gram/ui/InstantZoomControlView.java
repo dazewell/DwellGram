@@ -20,6 +20,8 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.ChatActivity;
+import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.InstantCameraView;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.ScaleStateListAnimator;
@@ -210,6 +212,30 @@ public class InstantZoomControlView extends FrameLayout {
         final float flipLeft = w - AndroidUtilities.dp(ONCE_DP + FLIP_DP);
         zoom.setRowBounds(compact ? leftReserve + AndroidUtilities.dp(8) : AndroidUtilities.dp(EDGE_DP), w - flipLeft + AndroidUtilities.dp(8));
         flip.setTranslationX(flipLeft);
+    }
+
+    /**
+     * The composer's view-once "(1)" centre line once a recording is locked, in host's coordinates, for the row to share.
+     * ChatActivityEnterView.ControlsView.onDraw puts it there: with the lock drag done, lockY = 72dp + (height - 194dp)
+     * - 57dp, the pause button 44dp tall from lockY and the once button 24dp + 44dp above that, so 225dp up from that
+     * view's bottom. The same line in a chat with no view-once, so the row doesn't move from chat to chat. NaN with no
+     * composer to measure (a story reply, or before its controls are laid out).
+     */
+    public static float onceLine(View host, Object delegate) {
+        if (!(delegate instanceof ChatActivity)) {
+            return Float.NaN;
+        }
+        final ChatActivityEnterView enter = ((ChatActivity) delegate).getChatActivityEnterView();
+        final View controls = enter != null ? enter.controlsView : null;
+        if (controls == null || controls.getHeight() == 0 || !controls.isAttachedToWindow()) {
+            return Float.NaN;
+        }
+        final int[] at = new int[2];
+        controls.getLocationInWindow(at);
+        final float bottom = at[1] + controls.getHeight();
+        host.getLocationInWindow(at);
+        final float line = bottom - AndroidUtilities.dp(225) - at[1];
+        return line;
     }
 
     // The lowest point, in this view's own coordinates, that the row or the flip button takes up left of x, so the

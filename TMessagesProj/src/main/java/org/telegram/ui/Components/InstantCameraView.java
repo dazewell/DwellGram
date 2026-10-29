@@ -1320,7 +1320,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         } else {
             final float lo = cameraBottom + dp(8) + dp(20);
             final float hi = bottomControlsTop - dp(56 + 8) - dp(20);
-            rowCenterY = lo > hi ? hi : Math.min(Math.max((cameraBottom + bottomControlsTop - dp(56)) / 2f, lo), hi);
+            // on the view-once button's line where there's a composer to measure, else mid-gap
+            final float once = InstantZoomControlView.onceLine(this, delegate) - visibleHalf;
+            final float want = Float.isNaN(once) ? (cameraBottom + bottomControlsTop - dp(56)) / 2f : once;
+            rowCenterY = lo > hi ? hi : Math.min(Math.max(want, lo), hi);
         }
         zoomControlView.setTranslationY(rowCenterY);
         // dock the label inside the camera circle, bottom-center: the row's band is the zoom's own
