@@ -235,8 +235,15 @@ public class InstantZoomControlView extends FrameLayout {
         final float bottom = at[1] + controls.getHeight();
         host.getLocationInWindow(at);
         final float line = bottom - AndroidUtilities.dp(225) - at[1];
+        if (Math.abs(line - smokeLine) > 1f) {
+            smokeLine = line;
+            final float live = enter.onceVisible ? enter.controlsView.onceRect.centerY() + bottom - controls.getHeight() - at[1] : Float.NaN;
+            android.util.Log.i("NAX_SMOKE_round-zoom-dial", "onceLine=" + line + " liveOnce=" + live + " controlsH=" + controls.getHeight());
+        }
         return line;
     }
+
+    private static float smokeLine = Float.NaN;
 
     // The lowest point, in this view's own coordinates, that the row or the flip button takes up left of x, so the
     // front flash brightness arm in the bottom-left corner can stop short of it. Negative when nothing reaches that far.
