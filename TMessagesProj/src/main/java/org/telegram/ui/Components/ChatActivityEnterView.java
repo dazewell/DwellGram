@@ -6806,7 +6806,8 @@ public class ChatActivityEnterView extends FrameLayout implements
                     }
                     return true;
                 };
-                return InputConnectionCompat.createWrapper(ic, editorInfo, callback);
+                // NagramX: keyboard clipboard entries arrive as commitText; see PasteAsLink.wrap.
+                return com.dazewell.gram.composer.PasteAsLink.wrap(InputConnectionCompat.createWrapper(ic, editorInfo, callback), this);
             } catch (Throwable e) {
                 FileLog.e(e);
             }

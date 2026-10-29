@@ -1453,16 +1453,25 @@ public class EditTextCaption extends EditTextBoldCursor implements FloatingToolb
         return Theme.getColor(key, resourcesProvider);
     }
 
+    // NagramX: a lone URL over a selection links it, from the paste menu or a keyboard clipboard;
+    // createUrlSpan keeps subclass spans.
+    public boolean pasteLinkText(CharSequence text) {
+        if (!pasteUrlAsLink || !com.dazewell.gram.composer.PasteAsLink.tryApply(this, text, this::createUrlSpan)) {
+            return false;
+        }
+        if (delegate != null) {
+            delegate.onSpansChanged();
+        }
+        return true;
+    }
+
     @Override
     public boolean onTextContextMenuItem(int id) {
         if (id == android.R.id.paste) {
             ClipboardManager clipboard = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
             ClipData clipData = clipboard.getPrimaryClip();
-            // NagramX: ahead of the HTML branch, which would replace the selection; createUrlSpan keeps subclass spans.
-            if (pasteUrlAsLink && com.dazewell.gram.composer.PasteAsLink.tryApply(this, clipData, this::createUrlSpan)) {
-                if (delegate != null) {
-                    delegate.onSpansChanged();
-                }
+            // NagramX: ahead of the HTML branch, which would replace the selection.
+            if (pasteLinkText(com.dazewell.gram.composer.PasteAsLink.clipText(this, clipData))) {
                 return true;
             }
             if (clipData != null && clipData.getItemCount() == 1 && clipData.getDescription().hasMimeType("text/html")) {
