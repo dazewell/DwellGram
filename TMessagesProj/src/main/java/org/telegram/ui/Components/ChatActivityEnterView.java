@@ -7189,7 +7189,8 @@ public class ChatActivityEnterView extends FrameLayout implements
 
             @Override
             public boolean onTextContextMenuItem(int id) {
-                if (id == android.R.id.paste && handleRichHtmlPaste()) {
+                // NagramX: a URL pasted over a selection falls through to EditTextCaption, which links it.
+                if (id == android.R.id.paste && !com.dazewell.gram.composer.PasteAsLink.wouldApply(this) && handleRichHtmlPaste()) {
                     return true;
                 }
                 return super.onTextContextMenuItem(id);

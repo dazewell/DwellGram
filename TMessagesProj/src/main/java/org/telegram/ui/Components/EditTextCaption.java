@@ -1456,6 +1456,13 @@ public class EditTextCaption extends EditTextBoldCursor implements FloatingToolb
         if (id == android.R.id.paste) {
             ClipboardManager clipboard = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
             ClipData clipData = clipboard.getPrimaryClip();
+            // NagramX: ahead of the HTML branch, which would replace the selection; createUrlSpan keeps subclass spans.
+            if (com.dazewell.gram.composer.PasteAsLink.tryApply(this, clipData, this::createUrlSpan)) {
+                if (delegate != null) {
+                    delegate.onSpansChanged();
+                }
+                return true;
+            }
             if (clipData != null && clipData.getItemCount() == 1 && clipData.getDescription().hasMimeType("text/html")) {
                 try {
                     String html = clipData.getItemAt(0).getHtmlText();

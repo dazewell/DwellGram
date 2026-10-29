@@ -146,6 +146,8 @@ The attach paperclip remains visible on the toolbar even when the field is full 
 
 Cut, Copy, and Paste are available as composer toolbar buttons, added through the layout editor.
 
+### Paste a URL over selected text to link it <!-- #paste-link -->
+
 ### Composer toolbar size <!-- #composer-scale --> <!-- #composer-spacing -->
 
 The toolbar row can be scaled from 75% to 125% in 5% steps. Its buttons sit packed close together without shrinking.
