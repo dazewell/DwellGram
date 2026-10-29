@@ -140,6 +140,7 @@ public class InstantZoomControlView extends FrameLayout {
         }
         flip.setAlpha(alpha);
         flip.setClickable(alpha >= 0.01f); // a faded one lets the touch through, as this view does
+        flip.setImportantForAccessibility(alpha >= 0.01f ? IMPORTANT_FOR_ACCESSIBILITY_AUTO : IMPORTANT_FOR_ACCESSIBILITY_NO);
     }
 
     @Override
@@ -253,9 +254,9 @@ public class InstantZoomControlView extends FrameLayout {
 
     /**
      * The composer's view-once "(1)" centre line once a recording is locked, in host's coordinates, for the row to share.
-     * ChatActivityEnterView.ControlsView.onDraw puts it there: with the lock drag done, lockY = 72dp + (height - 194dp)
-     * - 57dp, the pause button 44dp tall from lockY and the once button 24dp + 44dp above that, so 225dp up from that
-     * view's bottom. The same line in a chat with no view-once, so the row doesn't move from chat to chat. NaN with no
+     * ChatActivityEnterView.ControlsView.onDraw puts it there: with the lock drag done (yAdd capped at 57dp, :1557),
+     * lockY = 72dp + (height - 194dp) - 57dp (:1564, :1577), the pause button 44dp tall from lockY and the once button
+     * 24dp + 44dp above that (:1849), so 225dp up from that view's bottom. Re-check those lines on an upstream merge. The same line in a chat with no view-once, so the row doesn't move from chat to chat. NaN with no
      * composer to measure (a story reply, or before its controls are laid out).
      */
     public static float onceLine(View host, Object delegate) {
