@@ -198,8 +198,15 @@ public class InstantZoomControlView extends View {
         return trackY - AndroidUtilities.dp(40);
     }
 
+    // up to six stops with the crops, so on a narrow screen or a large font the segments shrink to keep
+    // the strip 16dp inside each edge
+    private float segment() {
+        final int room = getMeasuredWidth() - AndroidUtilities.dp(32);
+        return room > 0 ? Math.min(presetSegment, room / (float) presetFractions.length) : presetSegment;
+    }
+
     private float stripLeft() {
-        return (getMeasuredWidth() - presetSegment * presetFractions.length) / 2f;
+        return (getMeasuredWidth() - segment() * presetFractions.length) / 2f;
     }
 
     // where the knob sits in segment units: whole numbers on a stop, fractional in between, so the
@@ -224,10 +231,10 @@ public class InstantZoomControlView extends View {
         }
         final float top = stripTop(), left = stripLeft();
         // slop reaches past the top and sides but barely below, where the knob's own touch zone starts
-        if (y < top - slop || y > top + stripHeight() + Math.min(slop, AndroidUtilities.dp(2)) || x < left - slop || x > left + presetSegment * presetFractions.length + slop) {
+        if (y < top - slop || y > top + stripHeight() + Math.min(slop, AndroidUtilities.dp(2)) || x < left - slop || x > left + segment() * presetFractions.length + slop) {
             return -1;
         }
-        return Math.max(0, Math.min(presetFractions.length - 1, (int) ((x - left) / presetSegment)));
+        return Math.max(0, Math.min(presetFractions.length - 1, (int) ((x - left) / segment())));
     }
 
     // re-read the recorder's colors so the chips follow a live theme flip (e.g. battery-saver dark
@@ -636,7 +643,7 @@ public class InstantZoomControlView extends View {
             return;
         }
         final float top = stripTop(), left = stripLeft(), h = stripHeight();
-        final int l = Math.round(left), t = Math.round(top), r = Math.round(left + presetSegment * n), b = Math.round(top + h);
+        final int l = Math.round(left), t = Math.round(top), r = Math.round(left + segment() * n), b = Math.round(top + h);
         final int radius = Math.round(h / 2f);
         final int save = alpha < 1f ? canvas.saveLayerAlpha(l - radius, t - radius, r + radius, b + radius, (int) (0xFF * alpha)) : canvas.save();
         if (stripChip != null) {
@@ -655,15 +662,15 @@ public class InstantZoomControlView extends View {
         }
         final float selection = presetSelection();
         final float inset = AndroidUtilities.dp(3);
-        final float hx = left + presetSegment * selection;
-        stripRect.set(hx + inset, top + inset, hx + presetSegment - inset, top + h - inset);
+        final float hx = left + segment() * selection;
+        stripRect.set(hx + inset, top + inset, hx + segment() - inset, top + h - inset);
         chipPaint.setColor(ColorUtils.setAlphaComponent(glyphColor, presetPressed != -1 ? 0x44 : 0x2E));
         canvas.drawRoundRect(stripRect, radius - inset, radius - inset, chipPaint);
         final float baseline = top + h / 2f - (presetPaint.descent() + presetPaint.ascent()) / 2f;
         for (int i = 0; i < n; i++) {
             final float near = Math.max(0f, 1f - Math.abs(selection - i));
             presetPaint.setColor(ColorUtils.setAlphaComponent(glyphColor, (int) (0x99 + (0xFF - 0x99) * near)));
-            canvas.drawText(presetLabels[i], left + presetSegment * (i + 0.5f), baseline, presetPaint);
+            canvas.drawText(presetLabels[i], left + segment() * (i + 0.5f), baseline, presetPaint);
         }
         canvas.restoreToCount(save);
     }

@@ -16,12 +16,17 @@ import java.util.Locale;
 import java.util.Set;
 
 // Fixed zoom stops for the round video recorder, matching the lenses a logical multi-camera reports:
-// the ultrawide floor where allowed, 1x, each telephoto, and twice the longest telephoto. Hardware facts,
-// so cached per camera id for the process.
+// the ultrawide floor where allowed, 1x, each telephoto, and twice the longest telephoto, plus 1.5x and 2x
+// crops of the main sensor between them. Hardware facts, so cached per camera id for the process.
 public final class RoundLensPresets {
 
     private static final float[] NONE = new float[0];
     private static final int MAX_PRESETS = 4;
+    // the stock camera's in-sensor crops, which no Camera2 key reports: kept only where nothing lies within
+    // about 30% (ln 1.3), as on the camera memo screen (CameraMemoZoom), so they fill a gap rather than crowd
+    // a lens. They come after the lens cap, so at most six stops and no lens gives way to one
+    private static final float[] CROPS = {1.5f, 2f};
+    private static final float CROP_GAP = 0.26f;
     private static final HashMap<String, float[]> cache = new HashMap<>();
 
     private RoundLensPresets() {
@@ -51,7 +56,10 @@ public final class RoundLensPresets {
     }
 
     public static String label(float ratio) {
-        return ratio < 1f ? String.format(Locale.US, "%.1fx", ratio) : String.format(Locale.US, "%dx", Math.round(ratio));
+        if (ratio >= 1f && Math.abs(ratio - Math.round(ratio)) < 0.05f) {
+            return String.format(Locale.US, "%dx", Math.round(ratio));
+        }
+        return String.format(Locale.US, "%.1fx", ratio);
     }
 
     private static float[] compute(String cameraId) {
@@ -86,10 +94,16 @@ public final class RoundLensPresets {
             }
             if (stops.size() < 2) return NONE;
             stops.sort(Float::compare);
-            final int n = Math.min(MAX_PRESETS, stops.size());
-            final float[] result = new float[n];
-            for (int i = 0; i < n; i++) {
-                result[i] = stops.get(i);
+            final ArrayList<Float> all = new ArrayList<>(stops.subList(0, Math.min(MAX_PRESETS, stops.size())));
+            for (float crop : CROPS) {
+                if (crop >= min && crop <= max && !near(all, crop)) {
+                    all.add(crop);
+                }
+            }
+            all.sort(Float::compare);
+            final float[] result = new float[all.size()];
+            for (int i = 0; i < result.length; i++) {
+                result[i] = all.get(i);
             }
             return result;
         } catch (Exception e) {
@@ -103,6 +117,13 @@ public final class RoundLensPresets {
             if (label(s).equals(label(ratio))) return;
         }
         stops.add(ratio);
+    }
+
+    private static boolean near(ArrayList<Float> stops, float ratio) {
+        for (float s : stops) {
+            if (Math.abs(Math.log(s / ratio)) < CROP_GAP) return true;
+        }
+        return false;
     }
 
     // 35mm-equivalent focal length, so lenses on different sensor sizes compare
