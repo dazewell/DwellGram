@@ -1,5 +1,6 @@
 package com.dazewell.gram.videonote;
 
+import android.view.View;
 import android.view.ViewGroup;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -37,6 +38,12 @@ public final class CameraMemo {
 
     static boolean isSessionChat(ChatActivity chat) {
         return chat != null && getChat() == chat;
+    }
+
+    /** The cover is up over this recorder and forwards its crop's touches into it, so the recorder's own zoom stands down. */
+    public static boolean covers(View camera) {
+        ChatActivity chat = getChat();
+        return chat != null && camera != null && chat.instantCameraView == camera && sessionCover != null && sessionCover.get() != null;
     }
 
     /**

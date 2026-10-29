@@ -14,9 +14,8 @@
     <string name="BlackRoundVideoCorners">Black Corners on Saved Round Videos</string>
     <string name="BlackRoundVideoCornersInfo">Saved round videos are black outside the circle. Saving takes a few seconds longer.</string>
     <string name="VideoMessagesPlayAll">Play all video messages</string>
-    <string name="AccDescrZoomControl">Zoom</string>
     <string name="VideoMessagesCamera2">Newer camera for video messages</string>
-    <string name="VideoMessagesCamera2Notice">Uses the Camera2 API, which switches between rear lenses by itself and, on phones with several of them, adds zoom stops above the slider. Applies from the next chat you open.</string>
+    <string name="VideoMessagesCamera2Notice">Uses the Camera2 API, which switches between rear lenses by itself and, on phones with several of them, adds those lenses to the zoom stops under the circle. Applies from the next chat you open.</string>
     <string name="VideoMessagesResetZoomOnSwitch">Reset zoom when switching cameras</string>
     <string name="VideoMessagesWarningVibration">Video message warning buzz</string>
     <string name="VideoMessagesWarningVibrationNotice">Buzzes 5 seconds before it ends.</string>
