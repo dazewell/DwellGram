@@ -18,6 +18,7 @@ import org.telegram.ui.Components.EditTextCaption;
 import org.telegram.ui.Components.QuoteSpan;
 import org.telegram.ui.Components.TextStyleSpan;
 import org.telegram.ui.Components.URLSpanReplacement;
+import org.telegram.utils.code.highlight.CodeHighlighting;
 
 import java.util.Locale;
 
@@ -75,7 +76,7 @@ public final class PasteAsLink {
         return true;
     }
 
-    // Styles and links are what the composer's formatting puts down; any other
+    // Styles, links and code blocks are what the composer's formatting puts down; any other
     // straddling type stays on the prefix only.
     private static CharacterStyle copyOf(CharacterStyle span) {
         if (span instanceof URLSpanReplacement) {
@@ -85,6 +86,11 @@ public final class PasteAsLink {
         }
         if (span instanceof TextStyleSpan) {
             return new TextStyleSpan(new TextStyleSpan.TextStyleRun(((TextStyleSpan) span).getTextStyleRun()));
+        }
+        if (span instanceof CodeHighlighting.Span) {
+            CodeHighlighting.Span code = (CodeHighlighting.Span) span;
+            TextStyleSpan.TextStyleRun run = code.style == null ? null : new TextStyleSpan.TextStyleRun(code.style);
+            return new CodeHighlighting.Span(code.smallerSize, code.currentType, run, code.lng, code.code);
         }
         return null;
     }
