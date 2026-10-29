@@ -410,6 +410,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         zoomControlView.setAlpha(0.0f);
         zoomControlView.setOnSwitchCamera(this::flipCamera);
         addView(zoomControlView, new LayoutParams(LayoutHelper.MATCH_PARENT, dp(InstantZoomControlView.HEIGHT_DP), Gravity.CENTER));
+        addView(zoomControlView.flipButton(), new LayoutParams(dp(44), dp(44), Gravity.CENTER));
 
         zoomLabel = new TextView(context);
         zoomLabel.setTextColor(0xffffffff);
@@ -1313,6 +1314,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         zoomControlView.setPlacement(compact, buttonsLayout.getMeasuredWidth() > 0 ? buttonsLayout.getMeasuredWidth() + dp(1) : dp(108));
 
         final float cameraBottom = translationY + textureViewSize / 2f + dp(8);
+        // NagramX (#video-zoom): the view-once button's line, where there's a composer to measure
+        final float once = InstantZoomControlView.onceLine(this, delegate) - visibleHalf;
         float rowCenterY;
         if (compact) {
             // the flash row's centre, even where the circle reaches it: the row then rides over its edge
@@ -1320,12 +1323,12 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         } else {
             final float lo = cameraBottom + dp(8) + dp(20);
             final float hi = bottomControlsTop - dp(56 + 8) - dp(20);
-            // on the view-once button's line where there's a composer to measure, else mid-gap
-            final float once = InstantZoomControlView.onceLine(this, delegate) - visibleHalf;
+            // on the view-once button's line, else mid-gap
             final float want = Float.isNaN(once) ? (cameraBottom + bottomControlsTop - dp(56)) / 2f : once;
             rowCenterY = lo > hi ? hi : Math.min(Math.max(want, lo), hi);
         }
         zoomControlView.setTranslationY(rowCenterY);
+        zoomControlView.setFlipLine(Float.isNaN(once) ? rowCenterY : once); // up the column from the view-once button
         // dock the label inside the camera circle, bottom-center: the row's band is the zoom's own
         zoomLabel.setTranslationY(translationY + textureViewSize / 2f - dp(30));
     }

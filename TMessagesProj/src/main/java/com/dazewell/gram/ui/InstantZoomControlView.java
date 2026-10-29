@@ -5,7 +5,6 @@ import android.content.Context;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
-import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -31,20 +30,20 @@ import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundColorPro
 
 /**
  * #video-zoom: the round video recorder's zoom, the camera memo's own (CameraMemoZoom): a row of stops under the
- * circle, tap one to jump, hold or slide to open a dial that rises over the circle's bottom. The camera flip sits
- * at the row's end, since the hold's sideways swipe only works mid-recording and only with its gestures on.
+ * circle, tap one to jump, hold or slide to turn the row into a ruler. The camera flip is a button of its own, since
+ * the hold's sideways swipe only works mid-recording and only with its gestures on; the recorder adds it
+ * (flipButton) to the column of the composer's view-once and pause buttons, so the row stays centred.
  *
- * The view is the row's 56dp band plus the dial's reach above it. Only a stop, the flip button or the open dial
- * take a touch; everything else here falls through to the recorder, so the circle's hold and pinch still work
- * over the part of the circle this view overlaps.
+ * The view is the row's 56dp band. Only a stop or the open ruler take a touch; anything else falls through to the
+ * recorder.
  */
 @SuppressLint("ViewConstructor")
 public class InstantZoomControlView extends FrameLayout {
 
     public static final int HEIGHT_DP = 56;
     private static final int FLIP_DP = 44;
-    private static final int EDGE_DP = 16;
-    private static final int ONCE_DP = 56; // the composer's view-once "(1)", centred 26dp in from the right edge
+    private static final int COLUMN_DP = 56; // the composer's view-once and pause buttons, centred 26dp in from the right edge
+    private static final int COLUMN_GAP_DP = 24; // between those two, ChatActivityEnterView.ControlsView.onDraw
 
     private final CameraMemoZoom zoom;
     private final ImageView flip;
@@ -61,9 +60,7 @@ public class InstantZoomControlView extends FrameLayout {
         flip.setImageResource(R.drawable.camera_revert1);
         flip.setContentDescription(LocaleController.getString(R.string.AccDescrSwitchCamera));
         ScaleStateListAnimator.apply(flip);
-        addView(flip, LayoutHelper.createFrame(FLIP_DP, FLIP_DP, Gravity.LEFT | Gravity.CENTER_VERTICAL));
 
-        // above the flip button, so a stop or the open dial gets the touch first
         zoom = new CameraMemoZoom(context, new CameraMemoZoom.Host() {
             @Override
             public float[] zoom() {
@@ -98,15 +95,10 @@ public class InstantZoomControlView extends FrameLayout {
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
         if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            // faded out for the paused preview or the close, but still laid out: an unseen stop or flip mustn't fire.
-            // Under the camera memo's cover, whose crop forwards into the recorder, the cover's own zoom is the one
-            if (getAlpha() < 0.01f || CameraMemo.covers(getParent() instanceof View ? (View) getParent() : null)) {
+            if (!live()) {
                 android.util.Log.i("NAX_SMOKE_round-zoom-dial", "down declined alpha=" + getAlpha() + " row=" + zoom.hasRow());
                 return false;
             }
-            // a touch that closes the open dial is declined by it; over the flip a disabled button still takes it, so
-            // that touch only closes the dial (a flip would rebuild the row from the other camera's range mid-turn)
-            flip.setEnabled(!zoom.isDialOpen());
             final boolean dialWas = zoom.isDialOpen();
             final boolean taken = super.dispatchTouchEvent(ev);
             android.util.Log.i("NAX_SMOKE_round-zoom-dial", "down taken=" + taken + " dialWasOpen=" + dialWas + " row=" + zoom.hasRow() + " compact=" + compact);
@@ -115,8 +107,52 @@ public class InstantZoomControlView extends FrameLayout {
         return super.dispatchTouchEvent(ev);
     }
 
+    // faded out for the paused preview or the close, but still laid out: an unseen stop or flip mustn't fire. Under the
+    // camera memo's cover, whose crop forwards into the recorder, the cover's own zoom is the one
+    private boolean live() {
+        return getAlpha() >= 0.01f && !CameraMemo.covers(getParent() instanceof View ? (View) getParent() : null);
+    }
+
     public void setOnSwitchCamera(Runnable onSwitch) {
-        flip.setOnClickListener(v -> onSwitch.run());
+        flip.setOnClickListener(v -> {
+            if (!live()) {
+                return;
+            }
+            if (zoom.isDialOpen()) {
+                zoom.dismiss(); // a flip would rebuild the row from the other camera's range under the open ruler
+                return;
+            }
+            onSwitch.run();
+        });
+        flip.setClickable(getAlpha() >= 0.01f);
+    }
+
+    /** The flip button, for the recorder to add beside this view; it fades and slides with it. */
+    public View flipButton() {
+        return flip;
+    }
+
+    @Override
+    public void setAlpha(float alpha) {
+        super.setAlpha(alpha);
+        if (flip == null) {
+            return; // the super constructor, before it exists
+        }
+        flip.setAlpha(alpha);
+        flip.setClickable(alpha >= 0.01f); // a faded one lets the touch through, as this view does
+    }
+
+    @Override
+    public void setTranslationX(float translationX) {
+        super.setTranslationX(translationX);
+        if (flip != null && getWidth() > 0) {
+            flip.setTranslationX(translationX + getWidth() / 2f - AndroidUtilities.dp(26));
+        }
+    }
+
+    /** Centres the flip on the view-once and pause column, one gap above the view-once line (in the recorder's centre-relative px). */
+    public void setFlipLine(float onceLine) {
+        flip.setTranslationY(onceLine - AndroidUtilities.dp(FLIP_DP + COLUMN_GAP_DP));
     }
 
     // re-read the recorder's colors so the row follows a live theme flip; the recorder owns the glyph color so
@@ -208,10 +244,11 @@ public class InstantZoomControlView extends FrameLayout {
         if (w <= 0) {
             return;
         }
-        // the flip keeps clear of the view-once column in both layouts; compact also clears the flash buttons
-        final float flipLeft = w - AndroidUtilities.dp(ONCE_DP + FLIP_DP);
-        zoom.setRowBounds(compact ? leftReserve + AndroidUtilities.dp(8) : AndroidUtilities.dp(EDGE_DP), w - flipLeft + AndroidUtilities.dp(8));
-        flip.setTranslationX(flipLeft);
+        // centred, clear of the view-once column on the right and as far from the left edge; compact also clears the
+        // flash buttons on the left, so it sits off centre there
+        final float side = AndroidUtilities.dp(COLUMN_DP + 8);
+        zoom.setRowBounds(compact ? Math.max(side, leftReserve + AndroidUtilities.dp(8)) : side, side);
+        flip.setTranslationX(getTranslationX() + w / 2f - AndroidUtilities.dp(26));
     }
 
     /**
@@ -245,16 +282,13 @@ public class InstantZoomControlView extends FrameLayout {
 
     private static float smokeLine = Float.NaN;
 
-    // The lowest point, in this view's own coordinates, that the row or the flip button takes up left of x, so the
+    // The lowest point, in this view's own coordinates, that the row takes up left of x, so the
     // front flash brightness arm in the bottom-left corner can stop short of it. Negative when nothing reaches that far.
     // The open dial isn't counted: it's up for a moment, and the arm drawn over its left edge is the lesser cost.
     public float occupiedBottomLeftOf(float x) {
         float bottom = -1;
         if (zoom.getRowRect(rect) && rect.left < x) {
             bottom = rect.bottom;
-        }
-        if (flip.getLeft() + flip.getTranslationX() < x) {
-            bottom = Math.max(bottom, flip.getBottom());
         }
         return bottom;
     }
