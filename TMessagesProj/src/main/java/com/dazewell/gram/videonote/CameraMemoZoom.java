@@ -75,7 +75,7 @@ final class CameraMemoZoom extends View {
     // Ruler labels besides the lens stops, as a camera's dial marks them
     private static final float[] MAJORS = {1f, 1.5f, 2f, 3f, 5f, 10f, 20f, 50f, 100f};
     private static final float[] CROPS = {1.5f, 2f};
-    private static final float CROP_GAP = 0.26f; // ln 1.3: a crop stop only where nothing is within 30% of it
+    private static final float CROP_GAP = 0.26f; // about ln 1.3: a crop stop only where nothing is within 30% of it
 
     private final Host host;
     private final Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -211,7 +211,7 @@ final class CameraMemoZoom extends View {
     }
 
     // The camera's lens stops as they are. Without any, 1x, 2x and the top of the range up to 4x. Then 1.5x and 2x
-    // (35 and 50 mm) wherever no stop is already near: the main sensor's crops a stock camera offers, which no Camera2
+    // (35 and 50 mm on the usual 24 mm main camera) wherever no stop is already near: the main sensor's crops a stock camera offers, which no Camera2
     // key reports.
     private static float[] buildStops(float min, float max, float[] lens) {
         ArrayList<Float> list = new ArrayList<>();
