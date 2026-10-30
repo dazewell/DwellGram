@@ -87,20 +87,22 @@ follow-up slice.
 
 *(Established 2026-09-22, during `#interface-style`.)*
 
-## The chat-list header samples frost directly, unlike its Glass controls
+## The chat-list header keeps a frosted body and a separate refractive bottom edge
 
 The main title/status band uses `DialogsActivity.ContentView.drawBlurRect`,
-which samples `iBlur3SourceGlassFrosted` and overlays a scrim; it does not use a
-Liquid Glass drawable (`DialogsActivity.java:1023-1042`). Folder tabs and the
-search field instead use `iBlur3FactoryLiquidGlass`
-(`DialogsActivity.java:5425-5435`). Changing that factory's shader does not
-change the main header.
+which samples `iBlur3SourceGlassFrosted` and overlays a scrim
+(`DialogsActivity.java:1023-1042`). Its separate `ChatListHeaderGlare` uses
+`iBlur3FactoryLiquidGlass` for the bottom 8dp only, leaving the body frosted.
+Construct it after `setSourceRootView`, because the factory subscribes the
+drawable's owner at creation (`DialogsActivity.java:4276-4285`).
 
-The header's separate `ChatListHeaderGlare` draws a 2.5dp top-edge sheen after
-the scrim, only on hardware-rendered Glass with Glare effects enabled. Its
-normalized gradient is clipped to the current header bounds; there is no
-bottom divider against search, stories or folder controls
-(`ChatListHeaderGlare.java:24-35`).
+Keep full-header drawable bounds and pass the blur call's `y` as its source
+offset, then clip the output to the bottom 8dp: using strip-sized drawable
+bounds would refract a separate strip instead of the header's lower edge.
+The bottom 2.5dp glint alone follows Glare effects; refraction remains when
+that setting is off. Both require hardware-rendered Liquid Glass and the
+enclosing blur gates (`ChatListHeaderGlare.java:38-61`). Folder tabs and the
+search field keep their own drawables (`DialogsActivity.java:5427-5437`).
 
 *(Established 2026-10-29, during `#glass-header-glare`.)*
 
