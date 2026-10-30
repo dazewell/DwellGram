@@ -8446,6 +8446,10 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
         needShowTopView = true;
         topViewShowed = true;
+        // NagramX (#glass-composer-fold): the glass composer stays unfolded under a reply or edit bar.
+        if (composerInlineRest != null) {
+            applyComposerTextGeometry();
+        }
         if (allowShowTopView) {
             animatorTopViewVisibility.setValue(true, animated);
             if (openKeyboardInternal) {
@@ -8490,6 +8494,10 @@ public class ChatActivityEnterView extends FrameLayout implements
 
         topViewShowed = false;
         needShowTopView = false;
+        // NagramX (#glass-composer-fold): with the bar gone the glass composer may fold again.
+        if (composerInlineRest != null) {
+            applyComposerTextGeometry();
+        }
         if (allowShowTopView) {
             animatorTopViewVisibility.setValue(false, animated);
         }
@@ -11314,9 +11322,11 @@ public class ChatActivityEnterView extends FrameLayout implements
             messageEditText.setTranslationY(translationY);
         }
         // NagramX (#composer-inline-rest): the floating composer lays the field out itself, in the tools row at rest.
+        // (#glass-composer-fold): the glass one keeps its reply or edit bar over the open field.
         if (composerInlineRest != null) {
             composerInlineRest.layoutField(messageEditText, richDraftPreview,
-                    TextUtils.isEmpty(messageEditText.getText()) && !(keyboardVisible || waitingForKeyboardOpen || isPopupShowing()) && !messageEditExpanded && !richDraftActive,
+                    TextUtils.isEmpty(messageEditText.getText()) && !(keyboardVisible || waitingForKeyboardOpen || isPopupShowing()) && !messageEditExpanded && !richDraftActive
+                            && (com.dazewell.gram.helpers.InterfaceStyleController.applyComposer() || !topViewShowed),
                     inset, getComposerPrimaryEndInset(), dp(composerToolbarHeight() + COMPOSER_TOOLBAR_GAP), animatorInputFieldHeight.getFactor(),
                     animatorInputFieldHeight.getToFactor());
             return;

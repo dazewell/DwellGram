@@ -464,6 +464,14 @@ the field (`ComposerInlineRest.java:168-173`) and the tools row's buttons (`Comp
 The layout editor preview does not show the fold yet.
 *(Established 2026-10-24, `#composer-inline-rest`, PR 549.)*
 
+Glass folds through the same `ComposerInlineRest`, made for either style. Its pill is the `tmpRect` that
+`ChatInputViewsContainer.dispatchDraw` hands the island drawable, narrowed there to the rest edges by the
+morph's progress (`ChatInputViewsContainer.java:364-376`, `ComposerInlineRest.java:82`); drawing only, so
+`inputBubbleFullBounds` keeps touch full-width. The middle capsule pinches to a droplet in
+`ComposerToolbarLayout.drawDroplet` (`ComposerToolbarLayout.java:1339`). A reply or edit bar keeps Glass
+unfolded (`ChatActivityEnterView.java:11325`).
+*(Established 2026-10-29, `#glass-composer-fold`.)*
+
 ## MD3 Buttons reaches buttons through shared providers and targeted hooks
 
 The Buttons switch is read by two shared providers and a few targeted hooks, all flat under

@@ -389,6 +389,11 @@ public final class ComposerToolbarLayout extends FrameLayout {
         return controls.rowHeightDp();
     }
 
+    /** The space layout reserves between neighbouring zones, half of it painted by each one's glass capsule. */
+    public int bubbleGapPx() {
+        return controls.gapPx;
+    }
+
     /** Runs, posted, whenever a layout moves either extent. */
     public void setOnRestGeometryChanged(Runnable listener) {
         controls.restGeometryListener = listener;
@@ -696,6 +701,9 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private static final int BUBBLE_CONTEXT = 2;
         private static final int BUBBLE_TRAILING = 3;
         private static final int BUBBLE_COUNT = 4;
+        // Matches the inline-rest fold, so the droplet is gone as the pill settles.
+        private static final long DROPLET_DURATION = 450;
+        private static final float DROPLET_PINCH = 0.45f;
         private BlurredBackgroundDrawable[] bubbles;
         // The one trailing sub-group the drawGlass split still needs to tell apart inside endSlot: the
         // attach context group (endSlot child 0, its own chat-type lifecycle). Everything else in endSlot
@@ -779,6 +787,10 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private final int sidePaddingPx;
         private final int verticalPaddingPx;
         private boolean restCompact;
+        private long dropletStart;
+        private float dropletLeft;
+        private float dropletRight;
+        private int dropletAlpha;
         private int sendReservePx;
         private int restLeading = -1;
         private int restTrailing = -1;
@@ -837,6 +849,13 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 return;
             }
             restCompact = compact;
+            // NagramX (#glass-composer-fold): the middle capsule folds away as a droplet rather than vanishing.
+            dropletStart = compact && bubbles != null && bubbleDrawn[BUBBLE_MIDDLE] ? SystemClock.uptimeMillis() : 0;
+            if (dropletStart != 0) {
+                dropletLeft = bubbleLeft[BUBBLE_MIDDLE];
+                dropletRight = bubbleRight[BUBBLE_MIDDLE];
+                dropletAlpha = bubbleAlpha[BUBBLE_MIDDLE];
+            }
             middleScrollView.setVisibility(compact ? INVISIBLE : VISIBLE);
             requestLayout();
         }
@@ -1259,6 +1278,9 @@ public final class ComposerToolbarLayout extends FrameLayout {
             int trailingEdgeRole = trailingEdgeRole();
             for (int role = 0; role < BUBBLE_COUNT; role++) {
                 if (!bubbleOccupied[role]) {
+                    if (role == BUBBLE_MIDDLE && dropletStart != 0 && drawDroplet(canvas, top, bottom)) {
+                        continue;
+                    }
                     hideBubble(role);
                     continue;
                 }
@@ -1310,6 +1332,49 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 drawable.draw(canvas);
                 bubbleDrawn[role] = true;
             }
+        }
+
+        // NagramX (#glass-composer-fold): the folded-away middle capsule pinches to a round droplet at its centre,
+        // then shrinks to nothing, over the fold's duration. False once it is gone.
+        private boolean drawDroplet(Canvas canvas, int top, int bottom) {
+            float t = (SystemClock.uptimeMillis() - dropletStart) / (float) DROPLET_DURATION;
+            if (t >= 1f || bubbles == null) {
+                dropletStart = 0;
+                return false;
+            }
+            float e = CubicBezierInterpolator.EASE_OUT.getInterpolation(Math.max(0f, t));
+            float height = bottom - top - 2f * glassPaddingPx;
+            float width = Math.max(0f, dropletRight - dropletLeft - 2f * glassPaddingPx);
+            float shrink = 0f;
+            if (e < DROPLET_PINCH) {
+                width = width + (Math.min(width, height) - width) * (e / DROPLET_PINCH);
+            } else {
+                shrink = (e - DROPLET_PINCH) / (1f - DROPLET_PINCH);
+                width = Math.min(width, height) * (1f - shrink);
+            }
+            float paintedH = height * (1f - shrink);
+            if (width < 1f || paintedH < 1f) {
+                dropletStart = 0;
+                return false;
+            }
+            float cx = (dropletLeft + dropletRight) / 2f;
+            float cy = (top + bottom) / 2f;
+            BlurredBackgroundDrawable drawable = bubbles[BUBBLE_MIDDLE];
+            float radius = Math.min(requestedRadiusPx, Math.min(width, paintedH) / 2f);
+            if (bubbleRadius[BUBBLE_MIDDLE] != radius) {
+                drawable.setRadius(radius);
+                bubbleRadius[BUBBLE_MIDDLE] = radius;
+            }
+            int alpha = Math.round(dropletAlpha * (1f - shrink));
+            if (drawable.getAlpha() != alpha) {
+                drawable.setAlpha(alpha);
+            }
+            drawable.setBounds(Math.round(cx - width / 2f) - glassPaddingPx, Math.round(cy - paintedH / 2f) - glassPaddingPx,
+                    Math.round(cx + width / 2f) + glassPaddingPx, Math.round(cy + paintedH / 2f) + glassPaddingPx);
+            drawable.draw(canvas);
+            bubbleDrawn[BUBBLE_MIDDLE] = true;
+            postInvalidateOnAnimation();
+            return true;
         }
 
         // Drops a bubble that is not painting this frame back to empty bounds, but only on the frame it

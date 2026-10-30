@@ -7,7 +7,6 @@ import android.view.ViewGroup;
 
 import androidx.annotation.Nullable;
 
-import com.dazewell.gram.helpers.InterfaceStyleController;
 import com.dazewell.gram.ui.ComposerToolbarLayout;
 
 import org.telegram.messenger.LocaleController;
@@ -18,8 +17,9 @@ import org.telegram.ui.recyclerview.ChatListItemAnimator;
 import me.vkryl.android.animator.FactorAnimator;
 
 /**
- * The MD3 composer at rest: with the field empty and no keyboard or panel up, the field moves into the tools row
- * between the leading and trailing zones, so the island, or the docked panel, is one row. Opening the keyboard grows
+ * The composer at rest: with the field empty and no keyboard or panel up, the field moves into the tools row
+ * between the leading and trailing zones, so the island, or the docked panel, is one row. Under Liquid Glass the pill
+ * narrows into the gap between the tool capsules instead of covering them. Opening the keyboard grows
  * it back to two rows, the field rising out of the row while the buttons stay put. The send column sits at the end
  * of the tools row in both states, so it never moves either.
  * <p>
@@ -63,15 +63,46 @@ public final class ComposerInlineRest {
     }
 
     /**
-     * The MD3 composer in a chat gets one, floating or docked; Liquid Glass and the enter views outside a chat keep
-     * their layout. The docked panel's top follows the island's, so it folds with it while its bottom stays put.
+     * A composer with a tools row in a chat gets one, MD3 or Liquid Glass, floating or docked; the enter views outside
+     * a chat keep their layout. The docked panel's top follows the island's, so it folds with it while its bottom stays put.
      */
     @Nullable
     public static ComposerInlineRest createIfEnabled(@Nullable ComposerToolbarLayout toolbar, boolean inChat, Runnable onGeometryChanged) {
-        if (toolbar == null || !inChat || !InterfaceStyleController.applyComposer()) {
+        if (toolbar == null || !inChat) {
             return null;
         }
         return new ComposerInlineRest(toolbar, onGeometryChanged);
+    }
+
+    /**
+     * The Liquid Glass pill's horizontal bounds for this frame. open holds the drawable's bounds as laid out and pad its
+     * padding; both edges are rewritten, eased from the gap between the tool capsules at rest to open. False, with
+     * open untouched, while the composer is open or a panel holds the tools row.
+     */
+    public static boolean glassPillEdges(@Nullable ChatActivityEnterView enterView, int pad, int[] open) {
+        final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
+        if (rest == null || !rest.toolsRowShown() || rest.progress >= 1f) {
+            return false;
+        }
+        // Each capsule paints half the reserved gap past its zone, so a full gap from the zone leaves the other half
+        // clear between the capsule and the pill.
+        final int gap = rest.toolbar.bubbleGapPx() - pad;
+        final int restStart = rest.restFieldStart();
+        final int restEnd = rest.restFieldEnd();
+        final int restLeft, restRight;
+        if (LocaleController.isRTL) {
+            restLeft = enterView.getLeft() + restEnd + gap;
+            restRight = restStart > 0 ? enterView.getRight() - restStart - gap : open[1];
+        } else {
+            restLeft = restStart > 0 ? enterView.getLeft() + restStart + gap : open[0];
+            restRight = enterView.getRight() - restEnd - gap;
+        }
+        if (restRight - restLeft <= 2 * pad) {
+            return false;
+        }
+        open[0] = Math.round(restLeft + (open[0] - restLeft) * rest.progress);
+        open[1] = Math.round(restRight + (open[1] - restRight) * rest.progress);
+        return true;
     }
 
     public static boolean morphing(@Nullable ChatActivityEnterView enterView) {

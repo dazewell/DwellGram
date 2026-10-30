@@ -128,7 +128,7 @@ Send and the mic sit inside the text pill, drawn slightly in from its rounded en
 
 The Material Design 3 composer can run as a flat panel edge to edge along the bottom, resting straight on the keyboard instead of floating as an island. The field, reply strip and selection buttons share one corner radius. Pick *Composer style* → Floating or Docked at the top of Chat settings → Composer Toolbar, where the preview shows it. Defaults to Floating.
 
-### One-row composer at rest <!-- #composer-inline-rest -->
+### One-row composer at rest <!-- #composer-inline-rest --> <!-- #glass-composer-fold -->
 
 With the keyboard down and the compose box empty, the composer folds into one row: Leading buttons, field, Trailing buttons, mic. Opening the keyboard grows it back to two rows. It comes with the MD3 composer, in both *Composer style* options (Chat settings → Composer Toolbar).
 
