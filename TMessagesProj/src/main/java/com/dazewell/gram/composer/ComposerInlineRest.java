@@ -33,6 +33,8 @@ public final class ComposerInlineRest {
     private static final int MIN_FIELD = 96;
     // The text sits this far inside the field, measured from the button cell beside it.
     private static final int TEXT_INSET = 12;
+    // Under Liquid Glass, measured from the pill's painted edge instead.
+    private static final int GLASS_TEXT_INSET = 16;
     // The fold's own pace, close to the reference recording's: the stock 250ms that line wraps use was over before
     // the eye caught the field moving. Ease-out, so it starts with the keyboard and settles gently.
     private static final long FOLD_DURATION = 450;
@@ -75,11 +77,12 @@ public final class ComposerInlineRest {
     }
 
     /**
-     * The Liquid Glass pill's horizontal bounds for this frame. open holds the drawable's bounds as laid out and pad its
-     * padding; both edges are rewritten, eased from the gap between the tool capsules at rest to open. False, with
-     * open untouched, while the composer is open or a panel holds the tools row.
+     * The Liquid Glass pill's bounds for this frame, in container's coordinates. open holds the drawable's left, right,
+     * top and bottom as laid out, and pad its padding; all four are rewritten, eased from the gap between the tool
+     * capsules, at their height, at rest to open. False, with open untouched, while the composer is open or a panel
+     * holds the tools row.
      */
-    public static boolean glassPillEdges(@Nullable ChatActivityEnterView enterView, int pad, int[] open) {
+    public static boolean glassPillEdges(@Nullable ChatActivityEnterView enterView, View container, int pad, int[] open) {
         final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
         if (rest == null || !rest.toolsRowShown() || rest.progress >= 1f) {
             return false;
@@ -102,6 +105,22 @@ public final class ComposerInlineRest {
         }
         open[0] = Math.round(restLeft + (open[0] - restLeft) * rest.progress);
         open[1] = Math.round(restRight + (open[1] - restRight) * rest.progress);
+        // At rest the pill paints the capsules' band, so the row reads as one height.
+        float y = 0;
+        View view = rest.toolbar;
+        while (view != container) {
+            y += view.getTop() + view.getTranslationY();
+            if (!(view.getParent() instanceof View)) {
+                return true;
+            }
+            view = (View) view.getParent();
+        }
+        final int restTop = Math.round(y) + rest.toolbar.glassBandTop() - pad;
+        final int restBottom = Math.round(y) + rest.toolbar.glassBandBottom() + pad;
+        if (restBottom - restTop > 2 * pad) {
+            open[2] = Math.round(restTop + (open[2] - restTop) * rest.progress);
+            open[3] = Math.round(restBottom + (open[3] - restBottom) * rest.progress);
+        }
         return true;
     }
 
@@ -222,8 +241,10 @@ public final class ComposerInlineRest {
             }
         }
 
-        final int start = rest && restFieldStart() > 0 ? restFieldStart() + dp(TEXT_INSET) : openStart;
-        final int end = rest ? restFieldEnd() + dp(TEXT_INSET) : openStart;
+        // Under Liquid Glass the pill's painted edge sits a capsule gap past the zone, so the text is inset from that.
+        final int restInset = toolbar.hasGlassCapsules() ? toolbar.bubbleGapPx() + dp(GLASS_TEXT_INSET) : dp(TEXT_INSET);
+        final int start = rest && restFieldStart() > 0 ? restFieldStart() + restInset : openStart;
+        final int end = rest ? restFieldEnd() + restInset : openStart;
         final int bottom = rest ? restBottom(field) : openBottom;
         if (flipped) {
             foldId++;
