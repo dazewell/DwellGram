@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
@@ -31,6 +32,7 @@ import org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory;
 import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
 import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawableRenderNode;
 import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundColorProvider;
+import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundProvider;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -235,6 +237,37 @@ public final class ComposerToolbarLayout extends FrameLayout {
             return;
         }
         controls.attachGlass(factory, colorProvider);
+    }
+
+    /**
+     * NagramX (#glass-lone-circle): this row's drop shades, painted by the input container on its
+     * own screen-wide canvas because the row's canvas is clipped to the row's bounds and the
+     * shades spill past its flush edges (adb-traced on the fold build). The walk sums the offset
+     * up to {@code ancestor} and the visibility and alpha of every view between them, so a faded
+     * or panel-replaced row drops its shades with its glass. The first call latches the shade host,
+     * which switches drawGlass off the drawables' internal shadow painting - the container now
+     * owns every shade, so nothing doubles. Hosts with no container (the settings preview) never
+     * call this and keep the drawables' own shadows.
+     */
+    public void drawShades(Canvas canvas, View ancestor) {
+        if (getWidth() <= 0 || getHeight() <= 0) {
+            return;
+        }
+        float x = 0, y = 0;
+        float factor = getVisibility() == View.VISIBLE ? getAlpha() : 0f;
+        View view = this;
+        while (view != ancestor) {
+            x += view.getLeft() + view.getTranslationX();
+            y += view.getTop() + view.getTranslationY();
+            ViewParent parent = view.getParent();
+            if (!(parent instanceof View)) {
+                return; // the ancestor is not up this chain; nothing to translate to
+            }
+            view = (View) parent;
+            factor *= view.getVisibility() == View.VISIBLE ? view.getAlpha() : 0f;
+        }
+        controls.setShadeHost(ancestor);
+        controls.drawShades(canvas, Math.round(x), Math.round(y), factor);
     }
 
     // NagramX: force the glass bubbles to re-record their baked display lists. The RenderNode glass
@@ -805,6 +838,18 @@ public final class ComposerToolbarLayout extends FrameLayout {
         // off the construction snapshot (2 x the box inset, 8dp at 100%). Fixed for the view's life like
         // the rest of the geometry, so it is captured in the constructor rather than at attachGlass.
         private final int gapPx;
+        // NagramX (#glass-lone-circle): the color provider behind the glass, kept so the lifted
+        // shades (drawShades) read the same shadow params the drawables were configured with.
+        private BlurredBackgroundColorProvider glassColorProvider;
+        // NagramX (#glass-lone-circle): the container painting this row's lifted shades, latched on
+        // its first draw; null until then, and with it the drawables keep their own in-row shadow
+        // painting (the settings preview has no container and keeps that behaviour).
+        private View shadeHost;
+        // NagramX (#glass-lone-circle): set by setShadeHost; see there and drawShades.
+        private boolean shadesLifted;
+        // NagramX (#glass-lone-circle): the lifted shades' paint - transparent fill so only the
+        // shadow layer lands. The layer is configured per role in drawShades.
+        private final Paint shadePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         // Which of the four semantic groups actually occupy space this pass. The two trailing groups
         // (context and trailing) are read off visibility/alpha before the end slot is measured, since they
         // feed its gap margin; the leading and middle groups come from measured width afterwards. The
@@ -857,6 +902,9 @@ public final class ComposerToolbarLayout extends FrameLayout {
             super(context);
             setClipChildren(true);
             setClipToPadding(true);
+            // NagramX (#glass-lone-circle): transparent fill for the shade paint, so only the
+            // shadow layer shows. See drawShades.
+            shadePaint.setColor(0);
             // Snapshot the scale-derived geometry once, before anything measures, lays out or draws, so
             // every later read is the same sample (see the field comment).
             geometryHeightDp = height();
@@ -940,6 +988,8 @@ public final class ComposerToolbarLayout extends FrameLayout {
         void attachGlass(BlurredBackgroundDrawableViewFactory factory, BlurredBackgroundColorProvider colorProvider) {
             glassPaddingPx = AndroidUtilities.dp(geometryInsetDp);
             glassDrawInsetPx = AndroidUtilities.dp(geometryDrawInsetDp);
+            // NagramX (#glass-lone-circle): kept for the lifted shades; see the field.
+            glassColorProvider = colorProvider;
             // One drawable per bubble, each created with this view so viewPositionWatcher.subscribe wires
             // it to the shared backdrop; multiple subscriptions of the same view are supported, and each
             // drawable then samples the region under its own bounds. The capsule radius handed to each
@@ -1267,6 +1317,12 @@ public final class ComposerToolbarLayout extends FrameLayout {
         public void onDescendantInvalidated(View child, View target) {
             super.onDescendantInvalidated(child, target);
             invalidate();
+            // NagramX (#glass-lone-circle): a descendant move re-records only this row, while the
+            // container replays its last shade recording - chase one more frame so the lifted
+            // shades follow the slide instead of freezing behind it.
+            if (shadeHost != null) {
+                shadeHost.postInvalidateOnAnimation();
+            }
         }
 
         @Override
@@ -1423,10 +1479,76 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 if (drawable.getAlpha() != bubbleAlpha[role]) {
                     drawable.setAlpha(bubbleAlpha[role]);
                 }
+                // NagramX (#glass-lone-circle): once a container paints this row's lifted shades,
+                // the drawable's own in-row shadow would double them in the gaps. Its spill past
+                // the flush edges is the part the lift exists for. The droplet keeps its own
+                // shadow: it paints mid-row where nothing clips it, and only while the zone is
+                // unoccupied.
+                if (shadesLifted) {
+                    drawable.setShadowAlpha(0f);
+                }
                 drawable.setBounds(left, bubbleTop, right, bubbleBottom);
                 drawable.draw(canvas);
                 bubbleDrawn[role] = true;
             }
+        }
+
+        // NagramX (#glass-lone-circle): called by ComposerToolbarLayout.drawShades with the
+        // container that paints this row's shades on its own canvas; also latches
+        // shadesLifted, which drawsGlass reads before every bubble draw.
+        void setShadeHost(View host) {
+            shadeHost = host;
+            shadesLifted = true;
+        }
+
+        // NagramX (#glass-lone-circle): the lifted drop shades. The source rect is each drawable's
+        // own last-written bounds (getBounds) inset by its padding - the same boundsWithPadding
+        // its drawShadows would have painted - with the same clamped corner radius (bubbleRadius,
+        // read back rather than recomputed), so the lifted shade lands where the amputated one
+        // would have. Per-role alpha rides the drawable's bubbleAlpha times the host factor
+        // (every ancestor's visibility and alpha, see ComposerToolbarLayout.drawShades) times
+        // this row's own, so a fading or panel-replaced row drops its shades with its glass. The
+        // droplet shades itself in-row and is skipped; a dark theme disables the shade by design,
+        // as in the provider.
+        void drawShades(Canvas canvas, int dx, int dy, float hostFactor) {
+            if (bubbles == null || !(glassColorProvider instanceof BlurredBackgroundProvider)) {
+                return;
+            }
+            float factor = hostFactor * (getVisibility() == View.VISIBLE ? getAlpha() : 0f);
+            if (factor <= 0.05f) {
+                return;
+            }
+            BlurredBackgroundProvider provider = (BlurredBackgroundProvider) glassColorProvider;
+            int shadowColor = provider.getShadowColor();
+            if (Color.alpha(shadowColor) == 0) {
+                return; // dark theme: no drop shade by design
+            }
+            canvas.save();
+            canvas.translate(dx, dy);
+            for (int role = 0; role < BUBBLE_COUNT; role++) {
+                if (role == BUBBLE_MIDDLE && dropletStart != 0) {
+                    continue; // the droplet shades itself, mid-row
+                }
+                if (!bubbleDrawn[role]) {
+                    continue;
+                }
+                int color = Theme.multAlpha(shadowColor, factor * bubbleAlpha[role] / 255f);
+                if (Color.alpha(color) == 0) {
+                    continue;
+                }
+                Rect bounds = bubbles[role].getBounds();
+                int left = bounds.left + glassPaddingPx;
+                int top = bounds.top + glassPaddingPx;
+                int right = bounds.right - glassPaddingPx;
+                int bottom = bounds.bottom - glassPaddingPx;
+                float radius = bubbleRadius[role];
+                if (right <= left || bottom <= top || radius <= 0) {
+                    continue;
+                }
+                shadePaint.setShadowLayer(provider.getShadowRadius(), provider.getShadowDx(), provider.getShadowDy(), color);
+                canvas.drawRoundRect(left, top, right, bottom, radius, radius, shadePaint);
+            }
+            canvas.restore();
         }
 
         // NagramX (#glass-composer-fold): the folded-away middle capsule pinches to a round droplet at its centre,
@@ -1463,6 +1585,13 @@ public final class ComposerToolbarLayout extends FrameLayout {
             int alpha = Math.round(dropletAlpha * (1f - shrink));
             if (drawable.getAlpha() != alpha) {
                 drawable.setAlpha(alpha);
+            }
+            // NagramX (#glass-lone-circle): the droplet restores its own shadow. Its drawable is the
+            // middle bubble, the last occupied draw of which silenced the shadow under the lifted
+            // shades, and the droplet shades itself in-row where nothing clips it - drawShades skips
+            // it while it runs, so nothing doubles.
+            if (shadesLifted) {
+                drawable.setShadowAlpha(1f);
             }
             drawable.setBounds(Math.round(cx - width / 2f) - glassPaddingPx, Math.round(cy - paintedH / 2f) - glassPaddingPx,
                     Math.round(cx + width / 2f) + glassPaddingPx, Math.round(cy + paintedH / 2f) + glassPaddingPx);

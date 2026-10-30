@@ -376,6 +376,13 @@ public class ChatInputViewsContainer extends FrameLayout {
                 postInvalidateOnAnimation();
             }
         }
+        // NagramX (#glass-lone-circle): the composer capsules' drop shades paint here, before the
+        // pill they sit under, because the row's own canvas is clipped to the row's bounds
+        // (adb-traced: [0,0][1042,147]) and their spill past the flush edges dies there. The pill's
+        // own shade never had the problem - it paints on this container's screen-wide canvas.
+        if (glassFoldHost != null) {
+            glassFoldHost.drawComposerGlassShades(canvas, this);
+        }
         blurredBackgroundDrawable.setBounds(tmpRect);
         // NagramX: the MD3 Composer paints its own island instead. Both drawables keep their bounds, since
         // the in-app keyboard clip below and the touch capture still read them.

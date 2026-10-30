@@ -19309,6 +19309,15 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
     }
 
+    // NagramX (#glass-lone-circle): the input container paints this row's drop shades on its own
+    // screen-wide canvas - the row's canvas is clipped to the row's bounds, and the shades spill
+    // past its flush edges. Delegates to the toolbar, which owns the capsule geometry.
+    public void drawComposerGlassShades(Canvas canvas, View ancestor) {
+        if (composerToolbar != null) {
+            composerToolbar.drawShades(canvas, ancestor);
+        }
+    }
+
     /**
      * NagramX (#input-satellites): registers a satellite that lives outside this view — the cancel
      * cross of the top panel (reply, edit, forward and link preview alike), which belongs to the top
