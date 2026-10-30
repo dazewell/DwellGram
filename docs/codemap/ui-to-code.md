@@ -87,25 +87,21 @@ follow-up slice.
 
 *(Established 2026-09-22, during `#interface-style`.)*
 
-## The chat-list header keeps a frosted body and a separate refractive bottom edge
+## The chat-list header keeps its frosted body and adds only a bottom glint
 
 The main title/status band uses `DialogsActivity.ContentView.drawBlurRect`,
 which samples `iBlur3SourceGlassFrosted` and overlays a scrim
-(`DialogsActivity.java:1023-1042`). Its separate `ChatListHeaderGlare` uses
-`iBlur3FactoryLiquidGlass` for the bottom 5dp only, leaving the body frosted.
-Construct it after `setSourceRootView`, because the factory subscribes the
-drawable's owner at creation (`DialogsActivity.java:4276-4285`).
+(`DialogsActivity.java:1023-1042`). Its separate `ChatListHeaderGlare` paints
+only a 1.5dp bottom highlight, gated by Glare effects, hardware-rendered
+Liquid Glass and the enclosing blur gates (`ChatListHeaderGlare.java:24-36`).
+It has no source drawable, factory subscription, tint overlay or offscreen layer.
 
-Keep full-header drawable bounds and pass the blur call's `y` as its source
-offset, then clip the output to the bottom 5dp: using strip-sized drawable
-bounds would refract a separate strip instead of the header's lower edge.
-The strip uses 0.4 refraction intensity and a separate `DST_IN` layer that
-fades in over its upper 3dp, avoiding a hard seam against the frosted body
-(`ChatListHeaderGlare.java:32-36,51-63`). Mask only the strip's layer, not the
-header underneath. The bottom 1.5dp glint alone follows Glare effects; refraction remains when
-that setting is off. Both require hardware-rendered Liquid Glass and the
-enclosing blur gates (`ChatListHeaderGlare.java:45-74`). Folder tabs and the
-search field keep their own drawables (`DialogsActivity.java:5427-5437`).
+A separate refractive strip was removed after repeated device screenshots
+still showed an overly heavy lower edge, including after narrowing and feathering.
+The approved simplification retains frosting and glare only; it does not
+establish which layer caused every dark pixel in those screenshots.
+Folder tabs and the search field keep their own glass drawables
+(`DialogsActivity.java:5425-5435`).
 
 *(Established 2026-10-29, during `#glass-header-glare`.)*
 

@@ -940,7 +940,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
         private Rect blurBounds = new Rect();
         // NagramX: keep the header's glare separate from the rounded controls' glass drawables.
-        private com.dazewell.gram.helpers.ChatListHeaderGlare naxHeaderGlare;
+        private final com.dazewell.gram.helpers.ChatListHeaderGlare naxHeaderGlare = new com.dazewell.gram.helpers.ChatListHeaderGlare();
 
         @Override
         protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
@@ -1037,8 +1037,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             blurScrimPaint.setAlpha(blurAlpha);
             canvas.drawRect(rectTmp, blurScrimPaint);
             blurScrimPaint.setAlpha(oldScrimAlpha);
-            // NagramX: keep the full-width header frosted; only its bottom border refracts.
-            naxHeaderGlare.draw(canvas, y, rectTmp, isThemeLight, top);
+            // NagramX: add glare without a second tinted surface over the frosted header.
+            naxHeaderGlare.draw(canvas, rectTmp, isThemeLight, top);
         }
 
         @Override
@@ -4281,8 +4281,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         iBlur3FactoryLiquidGlass.setSourceRootView(viewPositionWatcher, contentView);
         iBlur3FactoryFade.setSourceRootView(viewPositionWatcher, contentView);
         iBlur3FactoryBlur.setSourceRootView(viewPositionWatcher, contentView);
-        // NagramX: subscribe the border drawable only after the factory points at this rebuilt view.
-        contentView.naxHeaderGlare = new com.dazewell.gram.helpers.ChatListHeaderGlare(contentView, iBlur3FactoryLiquidGlass, BlurredBackgroundProviderImpl.dialogsTopPanel(currentAccount, resourceProvider));
 
         final PointF tmpPoint = new PointF();
         iBlur3Capture = (canvas, position) -> {
