@@ -120,17 +120,17 @@ Style buttons (Bold, Italic, Monospace, Strikethrough, Underline, Spoiler, Quote
 
 <img height="180" alt="compose field with a phrase selected, so the action bubbles in the row below render enabled rather than greyed out" src="docs/images/features/composer-toolbar-live.png" />
 
-### Send and mic inside the input <!-- #composer-input -->
+### Send and mic placement <!-- #composer-input -->
 
-Send and the mic sit inside the text pill, drawn slightly in from its rounded end so a thin ring of glass shows around them. The Material Design 3 composer puts them at the end of its button row instead.
+Send and the mic sit at the end of the composer's button row. Under Liquid Glass, when there is no button row or it is too crowded, they move inside the text pill, drawn slightly in from its rounded end so a thin ring of glass shows around them.
 
 ### Docked composer <!-- #docked-composer -->
 
 The Material Design 3 composer can run as a flat panel edge to edge along the bottom, resting straight on the keyboard instead of floating as an island. The field, reply strip and selection buttons share one corner radius. Pick *Composer style* → Floating or Docked at the top of Chat settings → Composer Toolbar, where the preview shows it. Defaults to Floating.
 
-### One-row composer at rest <!-- #composer-inline-rest -->
+### One-row composer at rest <!-- #composer-inline-rest --> <!-- #glass-composer-fold -->
 
-With the keyboard down and the compose box empty, the composer folds into one row: Leading buttons, field, Trailing buttons, mic. Opening the keyboard grows it back to two rows. It comes with the MD3 composer, in both *Composer style* options (Chat settings → Composer Toolbar).
+With the keyboard down and the compose box empty, the composer folds into one row: Leading buttons, field, Trailing buttons, mic. Opening the keyboard grows it back to two rows. Under Liquid Glass, the text pill shrinks into the gap between the button capsules and stretches back out as the keyboard opens.
 
 ### Composer toolbar layout editor <!-- #composer-layout --> <!-- #composer-layout-tap-toggle --> <!-- #composer-leading-2slot -->
 

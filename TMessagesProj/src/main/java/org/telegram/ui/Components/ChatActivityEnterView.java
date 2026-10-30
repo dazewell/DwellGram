@@ -4390,7 +4390,8 @@ public class ChatActivityEnterView extends FrameLayout implements
     // panel owns the row: there is no toolbar under it then, so it drops to the bottom.
     private int getPrimaryColumnBottomMargin() {
         // NagramX (#composer-inline-rest): there the column sits in the tools row in both states, so it never moves.
-        if (!toolbarReplacementVisible && composerInlineRest != null) {
+        // (#glass-composer-fold): unless a glass row is too crowded for it, when it goes back above the toolbar.
+        if (!toolbarReplacementVisible && composerInlineRest != null && !composerInlineRest.isOverflow()) {
             return composerInlineRest.primaryColumnBottomDp(DEFAULT_HEIGHT);
         }
         return toolbarReplacementVisible ? 0 : composerToolbarHeight() + COMPOSER_TOOLBAR_GAP;
@@ -8446,6 +8447,10 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
         needShowTopView = true;
         topViewShowed = true;
+        // NagramX (#glass-composer-fold): the glass composer stays unfolded under a reply or edit bar.
+        if (composerInlineRest != null) {
+            applyComposerTextGeometry();
+        }
         if (allowShowTopView) {
             animatorTopViewVisibility.setValue(true, animated);
             if (openKeyboardInternal) {
@@ -8490,6 +8495,10 @@ public class ChatActivityEnterView extends FrameLayout implements
 
         topViewShowed = false;
         needShowTopView = false;
+        // NagramX (#glass-composer-fold): with the bar gone the glass composer may fold again.
+        if (composerInlineRest != null) {
+            applyComposerTextGeometry();
+        }
         if (allowShowTopView) {
             animatorTopViewVisibility.setValue(false, animated);
         }
@@ -8799,6 +8808,15 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (messageEditText != null) {
             messageEditText.setEnabled(messageEditTextEnabled);
         }
+        refreshComposerPrimaryOffset(); // NagramX (#glass-composer-fold)
+    }
+
+    // NagramX (#glass-composer-fold): ChatActivity fades this view back in after search with setAlpha alone, which
+    // never redraws it, so the send reserve published at alpha 0 would stick and the send circle covers the paperclip.
+    @Override
+    public void setAlpha(float alpha) {
+        super.setAlpha(alpha);
+        refreshComposerPrimaryOffset();
     }
 
     public void setDialogId(long id, int account) {
@@ -11314,11 +11332,16 @@ public class ChatActivityEnterView extends FrameLayout implements
             messageEditText.setTranslationY(translationY);
         }
         // NagramX (#composer-inline-rest): the floating composer lays the field out itself, in the tools row at rest.
+        // (#glass-composer-fold): the glass one keeps its reply or edit bar over the open field, and moves the send
+        // column when its row runs out of room for it.
         if (composerInlineRest != null) {
-            composerInlineRest.layoutField(messageEditText, richDraftPreview,
-                    TextUtils.isEmpty(messageEditText.getText()) && !(keyboardVisible || waitingForKeyboardOpen || isPopupShowing()) && !messageEditExpanded && !richDraftActive,
+            if (composerInlineRest.layoutField(messageEditText, richDraftPreview,
+                    TextUtils.isEmpty(messageEditText.getText()) && !(keyboardVisible || waitingForKeyboardOpen || isPopupShowing()) && !messageEditExpanded && !richDraftActive
+                            && (com.dazewell.gram.helpers.InterfaceStyleController.applyComposer() || !topViewShowed),
                     inset, getComposerPrimaryEndInset(), dp(composerToolbarHeight() + COMPOSER_TOOLBAR_GAP), animatorInputFieldHeight.getFactor(),
-                    animatorInputFieldHeight.getToFactor());
+                    animatorInputFieldHeight.getToFactor())) {
+                applyComposerReplacementGeometry();
+            }
             return;
         }
         applyComposerTextMargins(messageEditText, inset, endInset);

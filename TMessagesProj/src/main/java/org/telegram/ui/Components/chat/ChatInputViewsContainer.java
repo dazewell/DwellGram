@@ -41,6 +41,9 @@ public class ChatInputViewsContainer extends FrameLayout {
     private final boolean flatComposer;
     // NagramX: set only by ChatActivity when the MD3 Composer is on; it then paints this container's island.
     public com.dazewell.gram.composer.ComposerMd3Surface md3Surface;
+    // NagramX (#glass-composer-fold): set only by ChatActivity without md3Surface; the glass pill folds with its composer.
+    public org.telegram.ui.Components.ChatActivityEnterView glassFoldHost;
+    private final int[] glassFoldEdges = new int[4];
     // NagramX (#composer-keyboard-gap): set only by ChatActivity, so DialogsActivity keeps the stock lift.
     public boolean keyboardGapEnabled;
 
@@ -358,6 +361,21 @@ public class ChatInputViewsContainer extends FrameLayout {
         );
         tmpRect.inset(0, -dp(7));
         tmpRect.offset(0, blurTop + (int) bubbleInputTranlationY);
+        // NagramX (#glass-composer-fold): at rest the pill shrinks into the gap between the tool capsules, at their height. Drawing
+        // only; inputBubbleFullBounds keeps the full width for touch. The fold's last frames move no height, so
+        // nothing else redraws this container for them.
+        if (md3Surface == null && glassFoldHost != null) {
+            glassFoldEdges[0] = tmpRect.left;
+            glassFoldEdges[1] = tmpRect.right;
+            glassFoldEdges[2] = tmpRect.top;
+            glassFoldEdges[3] = tmpRect.bottom;
+            if (com.dazewell.gram.composer.ComposerInlineRest.glassPillEdges(glassFoldHost, this, dp(7), glassFoldEdges)) {
+                tmpRect.set(glassFoldEdges[0], glassFoldEdges[2], glassFoldEdges[1], glassFoldEdges[3]);
+            }
+            if (com.dazewell.gram.composer.ComposerInlineRest.morphing(glassFoldHost)) {
+                postInvalidateOnAnimation();
+            }
+        }
         blurredBackgroundDrawable.setBounds(tmpRect);
         // NagramX: the MD3 Composer paints its own island instead. Both drawables keep their bounds, since
         // the in-app keyboard clip below and the touch capture still read them.

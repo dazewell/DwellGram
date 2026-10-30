@@ -7,7 +7,6 @@ import android.view.ViewGroup;
 
 import androidx.annotation.Nullable;
 
-import com.dazewell.gram.helpers.InterfaceStyleController;
 import com.dazewell.gram.ui.ComposerToolbarLayout;
 
 import org.telegram.messenger.LocaleController;
@@ -18,8 +17,9 @@ import org.telegram.ui.recyclerview.ChatListItemAnimator;
 import me.vkryl.android.animator.FactorAnimator;
 
 /**
- * The MD3 composer at rest: with the field empty and no keyboard or panel up, the field moves into the tools row
- * between the leading and trailing zones, so the island, or the docked panel, is one row. Opening the keyboard grows
+ * The composer at rest: with the field empty and no keyboard or panel up, the field moves into the tools row
+ * between the leading and trailing zones, so the island, or the docked panel, is one row. Under Liquid Glass the pill
+ * narrows into the gap between the tool capsules instead of covering them. Opening the keyboard grows
  * it back to two rows, the field rising out of the row while the buttons stay put. The send column sits at the end
  * of the tools row in both states, so it never moves either.
  * <p>
@@ -33,6 +33,8 @@ public final class ComposerInlineRest {
     private static final int MIN_FIELD = 96;
     // The text sits this far inside the field, measured from the button cell beside it.
     private static final int TEXT_INSET = 12;
+    // Under Liquid Glass, measured from the pill's painted edge instead.
+    private static final int GLASS_TEXT_INSET = 16;
     // The fold's own pace, close to the reference recording's: the stock 250ms that line wraps use was over before
     // the eye caught the field moving. Ease-out, so it starts with the keyboard and settles gently.
     private static final long FOLD_DURATION = 450;
@@ -44,6 +46,7 @@ public final class ComposerInlineRest {
     private boolean held;
     private boolean morphing;
     private boolean pendingFinish;
+    private boolean overflow;
     private int foldId;
     private boolean awaitingTarget;
     private float staleTarget;
@@ -63,15 +66,70 @@ public final class ComposerInlineRest {
     }
 
     /**
-     * The MD3 composer in a chat gets one, floating or docked; Liquid Glass and the enter views outside a chat keep
-     * their layout. The docked panel's top follows the island's, so it folds with it while its bottom stays put.
+     * A composer with a tools row in a chat gets one, MD3 or Liquid Glass, floating or docked; the enter views outside
+     * a chat keep their layout. The docked panel's top follows the island's, so it folds with it while its bottom stays put.
      */
     @Nullable
     public static ComposerInlineRest createIfEnabled(@Nullable ComposerToolbarLayout toolbar, boolean inChat, Runnable onGeometryChanged) {
-        if (toolbar == null || !inChat || !InterfaceStyleController.applyComposer()) {
+        if (toolbar == null || !inChat) {
             return null;
         }
         return new ComposerInlineRest(toolbar, onGeometryChanged);
+    }
+
+    /**
+     * The Liquid Glass pill's bounds for this frame, in container's coordinates. open holds the drawable's left, right,
+     * top and bottom as laid out, and pad its padding; all four are rewritten, eased from the gap between the tool
+     * capsules, at their height, at rest to open. False, with open untouched, while the composer is open or hidden, or
+     * a panel holds the tools row.
+     */
+    public static boolean glassPillEdges(@Nullable ChatActivityEnterView enterView, View container, int pad, int[] open) {
+        final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
+        if (rest == null || !rest.toolsRowShown() || rest.progress >= 1f || rest.overflow) {
+            return false;
+        }
+        // In-chat search hides the composer but draws its bar on this same drawable, so the fold only shows as much
+        // as the composer does, the way ComposerMd3Surface weighs its island.
+        final float shown = enterView.getVisibility() == View.VISIBLE ? enterView.getAlpha() : 0f;
+        if (shown <= 0f) {
+            return false;
+        }
+        final float t = 1f - (1f - rest.progress) * shown;
+        // Each capsule paints half the reserved gap past its zone, so a full gap from the zone leaves the other half
+        // clear between the capsule and the pill.
+        final int gap = rest.toolbar.bubbleGapPx() - pad;
+        final int restStart = rest.restFieldStart();
+        final int restEnd = rest.restFieldEnd();
+        final int restLeft, restRight;
+        if (LocaleController.isRTL) {
+            restLeft = enterView.getLeft() + restEnd + gap;
+            restRight = restStart > 0 ? enterView.getRight() - restStart - gap : open[1];
+        } else {
+            restLeft = restStart > 0 ? enterView.getLeft() + restStart + gap : open[0];
+            restRight = enterView.getRight() - restEnd - gap;
+        }
+        if (restRight - restLeft <= 2 * pad) {
+            return false;
+        }
+        open[0] = Math.round(restLeft + (open[0] - restLeft) * t);
+        open[1] = Math.round(restRight + (open[1] - restRight) * t);
+        // At rest the pill paints the capsules' band, so the row reads as one height.
+        float y = 0;
+        View view = rest.toolbar;
+        while (view != container) {
+            y += view.getTop() + view.getTranslationY();
+            if (!(view.getParent() instanceof View)) {
+                return true;
+            }
+            view = (View) view.getParent();
+        }
+        final int restTop = Math.round(y) + rest.toolbar.glassBandTop() - pad;
+        final int restBottom = Math.round(y) + rest.toolbar.glassBandBottom() + pad;
+        if (restBottom - restTop > 2 * pad) {
+            open[2] = Math.round(restTop + (open[2] - restTop) * t);
+            open[3] = Math.round(restBottom + (open[3] - restBottom) * t);
+        }
+        return true;
     }
 
     public static boolean morphing(@Nullable ChatActivityEnterView enterView) {
@@ -81,6 +139,11 @@ public final class ComposerInlineRest {
 
     public boolean isCompact() {
         return compact;
+    }
+
+    /** True while the glass tools row has no room for the send circle, which then sits beside the open field instead. */
+    public boolean isOverflow() {
+        return overflow;
     }
 
     /** 1 with two rows, 0 with one, eased between them while the island morphs. */
@@ -150,11 +213,19 @@ public final class ComposerInlineRest {
     /**
      * Decides between one row and two and lays the field out for it. {@code openStart} is the field's start inset
      * with two rows, which is also its end inset there, since the send column has moved down to the tools row.
-     * {@code openBottom} is its bottom margin with two rows, the tools row's height plus its gap.
+     * {@code openBottom} is its bottom margin with two rows, the tools row's height plus its gap. Returns true when
+     * {@link #isOverflow()} changed, so the enter view can move the send column.
      */
-    public void layoutField(View field, @Nullable View richPreview, boolean wantsRest, int openStart, int sendReserve,
-                            int openBottom, float currentHeight, float currentTarget) {
-        toolbar.setSendReserve(sendReserve);
+    public boolean layoutField(View field, @Nullable View richPreview, boolean wantsRest, int openStart, int sendReserve,
+                               int openBottom, float currentHeight, float currentTarget) {
+        // A glass row too crowded for the send circle's capsule gap keeps two rows, the circle beside the field as
+        // before. The slots are measured without the reserve, so dropping it can't flip this back.
+        final int fixed = toolbar.fixedSlotsWidth();
+        final boolean over = toolbar.hasGlassCapsules() && sendReserve > 0 && fixed >= 0
+                && fixed + sendReserve + toolbar.bubbleGapPx() > toolbar.rowWidth();
+        final boolean overflowChanged = over != overflow;
+        overflow = over;
+        toolbar.setSendReserve(over ? 0 : sendReserve);
         // While a panel replaces the tools row the field is GONE, so a flip would change no height and only run a
         // phantom morph on the timeout. Hold the fold; the enter view asks again once the row comes back, and that
         // first answer snaps, since the field was never drawn where a morph would start it.
@@ -173,7 +244,7 @@ public final class ComposerInlineRest {
                     .setInterpolator(CubicBezierInterpolator.EASE_OUT).start();
         }
         held = !shown;
-        final boolean rest = shown ? wantsRest && fits(field) && !toolbar.hasMiddleLeading() : compact;
+        final boolean rest = shown ? wantsRest && !over && fits(field) && !toolbar.hasMiddleLeading() : compact;
         final ViewGroup.LayoutParams params = field.getLayoutParams();
         boolean flipped = false;
         float fromStart = 0, fromBottom = 0;
@@ -191,8 +262,10 @@ public final class ComposerInlineRest {
             }
         }
 
-        final int start = rest && restFieldStart() > 0 ? restFieldStart() + dp(TEXT_INSET) : openStart;
-        final int end = rest ? restFieldEnd() + dp(TEXT_INSET) : openStart;
+        // Under Liquid Glass the pill's painted edge sits a capsule gap past the zone, so the text is inset from that.
+        final int restInset = toolbar.hasGlassCapsules() ? toolbar.bubbleGapPx() + dp(GLASS_TEXT_INSET) : dp(TEXT_INSET);
+        final int start = rest && restFieldStart() > 0 ? restFieldStart() + restInset : openStart;
+        final int end = rest ? restFieldEnd() + restInset : over ? sendReserve + openStart : openStart;
         final int bottom = rest ? restBottom(field) : openBottom;
         if (flipped) {
             foldId++;
@@ -214,6 +287,7 @@ public final class ComposerInlineRest {
             progress = compact ? 0f : 1f;
             toolbar.setMiddleAlpha(compact ? 0f : 1f);
         }
+        return overflowChanged;
     }
 
     /**

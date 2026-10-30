@@ -9451,6 +9451,9 @@ public class ChatActivity extends BaseFragment implements
         // NagramX: the MD3 Composer reads these three views' fades to choose which run its island wraps.
         if (chatInputViewsContainer.md3Surface != null) {
             chatInputViewsContainer.md3Surface.bind(chatInputViewsContainer, chatActivityEnterView, bottomChannelButtonsLayout, actionsButtonsLayout);
+        } else {
+            // NagramX (#glass-composer-fold): the glass pill reads the composer's fold to narrow at rest.
+            chatInputViewsContainer.glassFoldHost = chatActivityEnterView;
         }
 
         bottomOverlayStartButton = new TextView(context) {
