@@ -79,14 +79,21 @@ public final class ComposerInlineRest {
     /**
      * The Liquid Glass pill's bounds for this frame, in container's coordinates. open holds the drawable's left, right,
      * top and bottom as laid out, and pad its padding; all four are rewritten, eased from the gap between the tool
-     * capsules, at their height, at rest to open. False, with open untouched, while the composer is open or a panel
-     * holds the tools row.
+     * capsules, at their height, at rest to open. False, with open untouched, while the composer is open or hidden, or
+     * a panel holds the tools row.
      */
     public static boolean glassPillEdges(@Nullable ChatActivityEnterView enterView, View container, int pad, int[] open) {
         final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
         if (rest == null || !rest.toolsRowShown() || rest.progress >= 1f) {
             return false;
         }
+        // In-chat search hides the composer but draws its bar on this same drawable, so the fold only shows as much
+        // as the composer does, the way ComposerMd3Surface weighs its island.
+        final float shown = enterView.getVisibility() == View.VISIBLE ? enterView.getAlpha() : 0f;
+        if (shown <= 0f) {
+            return false;
+        }
+        final float t = 1f - (1f - rest.progress) * shown;
         // Each capsule paints half the reserved gap past its zone, so a full gap from the zone leaves the other half
         // clear between the capsule and the pill.
         final int gap = rest.toolbar.bubbleGapPx() - pad;
@@ -103,8 +110,8 @@ public final class ComposerInlineRest {
         if (restRight - restLeft <= 2 * pad) {
             return false;
         }
-        open[0] = Math.round(restLeft + (open[0] - restLeft) * rest.progress);
-        open[1] = Math.round(restRight + (open[1] - restRight) * rest.progress);
+        open[0] = Math.round(restLeft + (open[0] - restLeft) * t);
+        open[1] = Math.round(restRight + (open[1] - restRight) * t);
         // At rest the pill paints the capsules' band, so the row reads as one height.
         float y = 0;
         View view = rest.toolbar;
@@ -118,8 +125,8 @@ public final class ComposerInlineRest {
         final int restTop = Math.round(y) + rest.toolbar.glassBandTop() - pad;
         final int restBottom = Math.round(y) + rest.toolbar.glassBandBottom() + pad;
         if (restBottom - restTop > 2 * pad) {
-            open[2] = Math.round(restTop + (open[2] - restTop) * rest.progress);
-            open[3] = Math.round(restBottom + (open[3] - restBottom) * rest.progress);
+            open[2] = Math.round(restTop + (open[2] - restTop) * t);
+            open[3] = Math.round(restBottom + (open[3] - restBottom) * t);
         }
         return true;
     }
