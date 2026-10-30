@@ -100,7 +100,7 @@ The header's separate `ChatListHeaderGlare` draws a 2.5dp top-edge sheen after
 the scrim, only on hardware-rendered Glass with Glare effects enabled. Its
 normalized gradient is clipped to the current header bounds; there is no
 bottom divider against search, stories or folder controls
-(`ChatListHeaderGlare.java:24-35`).
+(`ChatListHeaderGlare.java:24-36`).
 
 *(Established 2026-10-29, during `#glass-header-glare`.)*
 
