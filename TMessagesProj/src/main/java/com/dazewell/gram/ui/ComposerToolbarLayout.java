@@ -878,6 +878,12 @@ public final class ComposerToolbarLayout extends FrameLayout {
         // The reserve rides the end padding, which onMeasure and onLayout already take the slots' room from.
         void setSendReserve(int px) {
             px = Math.max(0, px);
+            // NagramX (#glass-composer-fold): the reserve ends at the send circle's drawn edge, and under Glass that
+            // circle is a disc of its own, so the trailing capsule painted to the reserve touched it. One capsule
+            // gap more keeps the same spacing every other pair of capsules has.
+            if (px > 0 && !InterfaceStyleController.applyComposer()) {
+                px += gapPx;
+            }
             if (sendReservePx == px) {
                 return;
             }
