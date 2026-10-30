@@ -517,11 +517,11 @@ for the shades in its `dispatchDraw` before painting the pill under them
 offset and every ancestor's visibility and alpha up to that container
 (`ComposerToolbarLayout.java:252`), and `ControlsLayout.drawShades` paints per-role shadows from each
 drawable's last-written bounds inset by its padding, with the clamped radius read back from
-`bubbleRadius` and the provider's shadow params (`:1499-1551`). `drawGlass` silences the drawables'
-own in-row shadows while lifted (`:1487`) so nothing doubles, the droplet restores and keeps its own
-mid-row shadow (`:1588-1595`), the settings preview has no container and keeps the drawables'
+`bubbleRadius` and the provider's shadow params (`:1512-1564`). `drawGlass` silences the drawables'
+own in-row shadows while lifted (`:1500`) so nothing doubles, the droplet restores and keeps its own
+mid-row shadow (`:1600-1607`), the settings preview has no container and keeps the drawables'
 shadows, and a descendant move chases a container redraw so the lifted shades follow slides
-(`:1317-1327`).
+(`:1318-1328`).
 *(Established 2026-10-30, `#glass-lone-circle`, PR 579.)*
 
 ## MD3 Buttons reaches buttons through shared providers and targeted hooks
