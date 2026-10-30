@@ -394,6 +394,21 @@ public final class ComposerToolbarLayout extends FrameLayout {
         return controls.gapPx;
     }
 
+    /** True while the row paints Liquid Glass capsules. */
+    public boolean hasGlassCapsules() {
+        return controls.bubbles != null;
+    }
+
+    /** Top of the painted capsule band, in px from this view's top. */
+    public int glassBandTop() {
+        return controls.getTop() + controls.glassDrawInsetPx + controls.glassPaddingPx;
+    }
+
+    /** Bottom of the painted capsule band, in px from this view's top. */
+    public int glassBandBottom() {
+        return controls.getBottom() - controls.glassDrawInsetPx - controls.glassPaddingPx;
+    }
+
     /** Runs, posted, whenever a layout moves either extent. */
     public void setOnRestGeometryChanged(Runnable listener) {
         controls.restGeometryListener = listener;
@@ -1291,8 +1306,10 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 // padding insets back, so the painted rounded rect reaches exactly the target edge and
                 // the glass covers the whole button cell instead of stopping short inside it. Neighbours
                 // are held apart by the layout gap, not by leaving this padding on the inner edges.
-                float paintedLeft = flushLeft ? 0f : bubbleLeft[role];
-                float paintedRight = flushRight ? getWidth() : bubbleRight[role];
+                // The trailing flush edge stops at the send reserve, so the send column keeps its own room
+                // beside the capsule rather than sitting inside it.
+                float paintedLeft = flushLeft ? (rtl ? sendReservePx : 0f) : bubbleLeft[role];
+                float paintedRight = flushRight ? (rtl ? getWidth() : getWidth() - sendReservePx) : bubbleRight[role];
                 int left = Math.round(paintedLeft) - glassPaddingPx;
                 int right = Math.round(paintedRight) + glassPaddingPx;
                 if (right - left <= glassPaddingPx * 2) {
