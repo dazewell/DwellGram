@@ -1384,7 +1384,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
             }
             float e = CubicBezierInterpolator.EASE_OUT.getInterpolation(Math.max(0f, t));
             float height = bottom - top - 2f * glassPaddingPx;
-            float width = Math.max(0f, dropletRight - dropletLeft - 2f * glassPaddingPx);
+            float width = Math.max(0f, dropletRight - dropletLeft);
             float shrink = 0f;
             if (e < DROPLET_PINCH) {
                 width = width + (Math.min(width, height) - width) * (e / DROPLET_PINCH);
