@@ -92,16 +92,19 @@ follow-up slice.
 The main title/status band uses `DialogsActivity.ContentView.drawBlurRect`,
 which samples `iBlur3SourceGlassFrosted` and overlays a scrim
 (`DialogsActivity.java:1023-1042`). Its separate `ChatListHeaderGlare` uses
-`iBlur3FactoryLiquidGlass` for the bottom 8dp only, leaving the body frosted.
+`iBlur3FactoryLiquidGlass` for the bottom 5dp only, leaving the body frosted.
 Construct it after `setSourceRootView`, because the factory subscribes the
 drawable's owner at creation (`DialogsActivity.java:4276-4285`).
 
 Keep full-header drawable bounds and pass the blur call's `y` as its source
-offset, then clip the output to the bottom 8dp: using strip-sized drawable
+offset, then clip the output to the bottom 5dp: using strip-sized drawable
 bounds would refract a separate strip instead of the header's lower edge.
-The bottom 2.5dp glint alone follows Glare effects; refraction remains when
+The strip uses 0.4 refraction intensity and a separate `DST_IN` layer that
+fades in over its upper 3dp, avoiding a hard seam against the frosted body
+(`ChatListHeaderGlare.java:32-36,51-63`). Mask only the strip's layer, not the
+header underneath. The bottom 1.5dp glint alone follows Glare effects; refraction remains when
 that setting is off. Both require hardware-rendered Liquid Glass and the
-enclosing blur gates (`ChatListHeaderGlare.java:38-61`). Folder tabs and the
+enclosing blur gates (`ChatListHeaderGlare.java:45-74`). Folder tabs and the
 search field keep their own drawables (`DialogsActivity.java:5427-5437`).
 
 *(Established 2026-10-29, during `#glass-header-glare`.)*
