@@ -839,6 +839,10 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private float dropletRight;
         private int dropletAlpha;
         private int sendReservePx;
+        // NagramX (#glass-lone-circle): smoke probe - one-shot trace of the first painted glass frame,
+        // planted for the shade question and removed in its own commit once the build is read.
+        private boolean smokeReported;
+        private BlurredBackgroundColorProvider probeColorProvider;
         private int restLeading = -1;
         private int restTrailing = -1;
         private int restWidth = -1;
@@ -959,6 +963,11 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 // -1 so the first drawGlass pass always writes the clamped radius (see bubbleRadius).
                 bubbleRadius[i] = -1f;
             }
+            // NagramX (#glass-lone-circle): smoke BEGIN marker - see reportSmoke.
+            probeColorProvider = colorProvider;
+            android.util.Log.i("ComposerGlassSmoke", "NAX_SMOKE_glass-lone-circle BEGIN scenario=composer-tools-row instance="
+                    + System.identityHashCode(this) + " build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING
+                    + " package=" + org.telegram.messenger.BuildConfig.APPLICATION_ID);
             invalidate();
         }
 
@@ -1427,6 +1436,38 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 drawable.draw(canvas);
                 bubbleDrawn[role] = true;
             }
+            reportSmoke(canvas);
+        }
+
+        // NagramX (#glass-lone-circle): smoke probe, one shot on the first painted frame - what the
+        // row actually draws with: the canvas clip (does anything amputate the shade past the row's
+        // edge), the shadow colour the provider hands out (0 means the theme disables it), and each
+        // painted bubble's drawable class, bounds and cell count. Geometry and config only; comes
+        // back out with the rest of the probe once the build is read.
+        private void reportSmoke(Canvas canvas) {
+            if (smokeReported) {
+                return;
+            }
+            smokeReported = true;
+            android.graphics.Rect clip = new android.graphics.Rect();
+            canvas.getClipBounds(clip);
+            String shadow = probeColorProvider instanceof org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundProvider
+                    ? Integer.toHexString(((org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundProvider) probeColorProvider).getShadowColor())
+                    : "no-provider";
+            android.util.Log.i("ComposerGlassSmoke", "NAX_SMOKE_glass-lone-circle EXPECTED drawn instance="
+                    + System.identityHashCode(this) + " hardware=" + canvas.isHardwareAccelerated()
+                    + " clip=" + clip.toShortString() + " rowWidth=" + getWidth()
+                    + " md3=" + InterfaceStyleController.applyComposer() + " shadow=0x" + shadow);
+            for (int role = 0; role < BUBBLE_COUNT; role++) {
+                if (!bubbleDrawn[role]) {
+                    continue;
+                }
+                android.util.Log.i("ComposerGlassSmoke", "NAX_SMOKE_glass-lone-circle role" + role
+                        + " cls=" + bubbles[role].getClass().getSimpleName() + " cells=" + bubbleCells[role]
+                        + " span=" + Math.round(bubbleLeft[role] / AndroidUtilities.density)
+                        + ".." + Math.round(bubbleRight[role] / AndroidUtilities.density) + "dp");
+            }
+            android.util.Log.i("ComposerGlassSmoke", "NAX_SMOKE_glass-lone-circle END instance=" + System.identityHashCode(this));
         }
 
         // NagramX (#glass-composer-fold): the folded-away middle capsule pinches to a round droplet at its centre,
