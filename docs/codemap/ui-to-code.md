@@ -87,6 +87,23 @@ follow-up slice.
 
 *(Established 2026-09-22, during `#interface-style`.)*
 
+## The chat-list header samples frost directly, unlike its Glass controls
+
+The main title/status band uses `DialogsActivity.ContentView.drawBlurRect`,
+which samples `iBlur3SourceGlassFrosted` and overlays a scrim; it does not use a
+Liquid Glass drawable (`DialogsActivity.java:1023-1042`). Folder tabs and the
+search field instead use `iBlur3FactoryLiquidGlass`
+(`DialogsActivity.java:5425-5435`). Changing that factory's shader does not
+change the main header.
+
+The header's separate `ChatListHeaderGlare` draws a 2.5dp top-edge sheen after
+the scrim, only on hardware-rendered Glass with Glare effects enabled. Its
+normalized gradient is clipped to the current header bounds; there is no
+bottom divider against search, stories or folder controls
+(`ChatListHeaderGlare.java:24-35`).
+
+*(Established 2026-10-29, during `#glass-header-glare`.)*
+
 ## Match Classic and Day header color: literal pre-12.4.0 colours, handed only to two consumers
 
 12.4.0 (`918447ef5b`) made Classic's `key_actionBarDefault` white and its icons
