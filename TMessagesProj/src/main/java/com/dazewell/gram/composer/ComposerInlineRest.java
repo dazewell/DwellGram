@@ -46,6 +46,7 @@ public final class ComposerInlineRest {
     private boolean held;
     private boolean morphing;
     private boolean pendingFinish;
+    private boolean overflow;
     private int foldId;
     private boolean awaitingTarget;
     private float staleTarget;
@@ -84,7 +85,7 @@ public final class ComposerInlineRest {
      */
     public static boolean glassPillEdges(@Nullable ChatActivityEnterView enterView, View container, int pad, int[] open) {
         final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
-        if (rest == null || !rest.toolsRowShown() || rest.progress >= 1f) {
+        if (rest == null || !rest.toolsRowShown() || rest.progress >= 1f || rest.overflow) {
             return false;
         }
         // In-chat search hides the composer but draws its bar on this same drawable, so the fold only shows as much
@@ -138,6 +139,11 @@ public final class ComposerInlineRest {
 
     public boolean isCompact() {
         return compact;
+    }
+
+    /** True while the glass tools row has no room for the send circle, which then sits beside the open field instead. */
+    public boolean isOverflow() {
+        return overflow;
     }
 
     /** 1 with two rows, 0 with one, eased between them while the island morphs. */
@@ -207,11 +213,19 @@ public final class ComposerInlineRest {
     /**
      * Decides between one row and two and lays the field out for it. {@code openStart} is the field's start inset
      * with two rows, which is also its end inset there, since the send column has moved down to the tools row.
-     * {@code openBottom} is its bottom margin with two rows, the tools row's height plus its gap.
+     * {@code openBottom} is its bottom margin with two rows, the tools row's height plus its gap. Returns true when
+     * {@link #isOverflow()} changed, so the enter view can move the send column.
      */
-    public void layoutField(View field, @Nullable View richPreview, boolean wantsRest, int openStart, int sendReserve,
-                            int openBottom, float currentHeight, float currentTarget) {
-        toolbar.setSendReserve(sendReserve);
+    public boolean layoutField(View field, @Nullable View richPreview, boolean wantsRest, int openStart, int sendReserve,
+                               int openBottom, float currentHeight, float currentTarget) {
+        // A glass row too crowded for the send circle's capsule gap keeps two rows, the circle beside the field as
+        // before. The slots are measured without the reserve, so dropping it can't flip this back.
+        final int fixed = toolbar.fixedSlotsWidth();
+        final boolean over = toolbar.hasGlassCapsules() && sendReserve > 0 && fixed >= 0
+                && fixed + sendReserve + toolbar.bubbleGapPx() > toolbar.rowWidth();
+        final boolean overflowChanged = over != overflow;
+        overflow = over;
+        toolbar.setSendReserve(over ? 0 : sendReserve);
         // While a panel replaces the tools row the field is GONE, so a flip would change no height and only run a
         // phantom morph on the timeout. Hold the fold; the enter view asks again once the row comes back, and that
         // first answer snaps, since the field was never drawn where a morph would start it.
@@ -230,7 +244,7 @@ public final class ComposerInlineRest {
                     .setInterpolator(CubicBezierInterpolator.EASE_OUT).start();
         }
         held = !shown;
-        final boolean rest = shown ? wantsRest && fits(field) && !toolbar.hasMiddleLeading() : compact;
+        final boolean rest = shown ? wantsRest && !over && fits(field) && !toolbar.hasMiddleLeading() : compact;
         final ViewGroup.LayoutParams params = field.getLayoutParams();
         boolean flipped = false;
         float fromStart = 0, fromBottom = 0;
@@ -251,7 +265,7 @@ public final class ComposerInlineRest {
         // Under Liquid Glass the pill's painted edge sits a capsule gap past the zone, so the text is inset from that.
         final int restInset = toolbar.hasGlassCapsules() ? toolbar.bubbleGapPx() + dp(GLASS_TEXT_INSET) : dp(TEXT_INSET);
         final int start = rest && restFieldStart() > 0 ? restFieldStart() + restInset : openStart;
-        final int end = rest ? restFieldEnd() + restInset : openStart;
+        final int end = rest ? restFieldEnd() + restInset : over ? sendReserve + openStart : openStart;
         final int bottom = rest ? restBottom(field) : openBottom;
         if (flipped) {
             foldId++;
@@ -273,6 +287,7 @@ public final class ComposerInlineRest {
             progress = compact ? 0f : 1f;
             toolbar.setMiddleAlpha(compact ? 0f : 1f);
         }
+        return overflowChanged;
     }
 
     /**

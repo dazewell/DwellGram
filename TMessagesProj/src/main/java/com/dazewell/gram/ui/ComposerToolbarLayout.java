@@ -394,6 +394,23 @@ public final class ComposerToolbarLayout extends FrameLayout {
         return controls.gapPx;
     }
 
+    /**
+     * What the leading and trailing zones take with an empty middle and no send reserve, side padding included, or -1
+     * before the row is measured. The slots are measured unbounded, so this doesn't move with the reserve.
+     */
+    public int fixedSlotsWidth() {
+        if (controls.getMeasuredWidth() <= 0 || controls.startSlot == null || controls.endSlot == null) {
+            return -1;
+        }
+        final int start = controls.startSlot.getMeasuredWidth();
+        final int end = controls.endSlot.getMeasuredWidth();
+        return start + end + (start > 0 && end > 0 ? controls.gapPx : 0) + 2 * controls.sidePaddingPx;
+    }
+
+    public int rowWidth() {
+        return controls.getMeasuredWidth();
+    }
+
     /** True while the row paints Liquid Glass capsules. */
     public boolean hasGlassCapsules() {
         return controls.bubbles != null;
