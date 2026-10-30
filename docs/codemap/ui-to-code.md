@@ -328,7 +328,7 @@ view, the channel buttons and the selection bar to it (`ChatActivity.java:5413-5
 drawing the island and under-keyboard glass. It still sets both drawables'
 bounds, because the in-app keyboard clip and touch capture read them, and touch
 capture also covers the painted island (`ChatInputViewsContainer.java:43`,
-`:338-357`, `:360-368`, `:461`). `DialogsActivity` and `GiftMessageBottomSheet` never get a
+`:338-357`, `:360-368`, `:468`). `DialogsActivity` and `GiftMessageBottomSheet` never get a
 surface, so they keep their glass.
 
 The surface paints one island: the 44dp text row and the tools row
@@ -429,7 +429,7 @@ the left under `LocaleController.isRTL` (`ComposerMd3Surface.java:636-652`;
 send column sits at the end of the tools row (next section). The reply strip reads `getTopViewHeight()`
 and `getTopViewEnterProgress()` (`ComposerMd3Surface.java:433-434`), while the
 reply content is placed against the enter view's laid-out height; see
-upstream-traps, "The enter view's measured height can drift". The circle keeps its stock 44dp slot, but a press in the 2dp band around it is shifted into the slot for the whole gesture, giving a 48dp target (`ComposerMd3Surface.java:293-323`; `ChatInputViewsContainer.java:440-449`).
+upstream-traps, "The enter view's measured height can drift". The circle keeps its stock 44dp slot, but a press in the 2dp band around it is shifted into the slot for the whole gesture, giving a 48dp target (`ComposerMd3Surface.java:293-323`; `ChatInputViewsContainer.java:447-456`).
 
 The tools row keeps its Liquid Glass geometry unless MD3 is on. Then size runs
 the row, cell, state layer and glyph linearly through 40/48/56dp rows at
@@ -450,10 +450,10 @@ keep their own provider (`ChatActivity.java:4202`).
 `ComposerInlineRest` owns it, one per chat enter view (`ComposerInlineRest.java:73`,
 created at `ChatActivityEnterView.java:2941`). Under both styles the send column sits at the end of
 the tools row, centred on it (`ComposerInlineRest.java:174`, `ChatActivityEnterView.java:4395`), and the
-toolbar's end padding reserves it (`ComposerToolbarLayout.java:896`). Both styles fold: with the field
+toolbar's end padding reserves it (`ComposerToolbarLayout.java:962`). Both styles fold: with the field
 empty and no keyboard, panel, fullscreen input or rich draft, the field moves into the tools row between the
 leading and trailing zones and the Scrolling viewport goes INVISIBLE at width 0, its buttons untouched
-(`ComposerInlineRest.java:247`; `ComposerToolbarLayout.java:879`, `:1041`). The decision rides
+(`ComposerInlineRest.java:247`; `ComposerToolbarLayout.java:945`, `:1109`). The decision rides
 `checkBotMenu()`, which every text, keyboard and panel change already calls (`ChatActivityEnterView.java:5150`),
 and `applyComposerTextGeometry()` hands it the field (`:11329`). A row that would leave the field under 96dp,
 or a send-as avatar or bot pill at the head of the Scrolling zone, keeps two rows (`ComposerInlineRest.java:33`,
@@ -478,7 +478,7 @@ and the surface draws the field tone and send slot from the column geometry mean
 (`ComposerMd3Surface.java:641-642`). A record panel's exit keeps the row until it ends, not from when it starts
 (`ChatActivityEnterView.java:12581`; upstream-traps, "The record panel's exit releases the composer at its start"),
 and the return then eases over 250ms: the tone between the column and the fold (`ComposerMd3Surface.java:669`),
-the field (`ComposerInlineRest.java:239-244`) and the tools row's buttons (`ComposerToolbarLayout.java:994`).
+the field (`ComposerInlineRest.java:239-244`) and the tools row's buttons (`ComposerToolbarLayout.java:1048`).
 The layout editor preview does not show the fold yet.
 *(Established 2026-10-24, `#composer-inline-rest`, PR 549.)*
 
@@ -487,11 +487,37 @@ Glass folds through the same `ComposerInlineRest`, made for either style. Its pi
 morph's progress (`ChatInputViewsContainer.java:364-378`, `ComposerInlineRest.java:86`); drawing only, so
 `inputBubbleFullBounds` keeps touch full-width. In-chat search hides the composer but draws its bar on that
 same drawable, so the narrowing is weighted by the enter view's visibility and alpha (`ComposerInlineRest.java:93`).
-The middle capsule pinches to a droplet in `ComposerToolbarLayout.drawDroplet` (`ComposerToolbarLayout.java:1379`).
+The middle capsule pinches to a droplet in `ComposerToolbarLayout.drawDroplet` (`ComposerToolbarLayout.java:1556`).
 A reply or edit bar keeps Glass unfolded (`ChatActivityEnterView.java:11331`), and so does a tools row too
 crowded for the send circle's capsule, which then sits above the toolbar beside the field
 (`ComposerInlineRest.java:223-225`, `ChatActivityEnterView.java:4394`).
 *(Established 2026-10-29, `#glass-composer-fold`.)*
+
+## The glass composer row paints one bubble per zone, a circle for a lone-cell zone, and shades lifted to the container
+
+`ControlsLayout.drawGlass` draws up to four zones as separate `BlurredBackgroundDrawable`s — leading,
+scrolling middle, attach context, trailing (`ComposerToolbarLayout.java:764-768`). A zone holding
+exactly one occupied cell paints its bubble as a circle: the count is the row's own occupancy rule
+(`bubbleCells`/`loneCell` at `:786-792`, filled in `computeBubbleSpans`/`countOccupiedCells`
+`:1617-1715`), the circle centres on the lone child and the vertical bounds outset the glass padding
+the drawable insets back, so the painted shape is a full circle rather than a stadium reading as an
+oval at any toolbar scale (`:1414-1444`); a child laid out wider than a fixed cell width — the
+wrap-content bot menu — keeps the pill (`isCellWidth`, `:1676-1690`).
+
+The row's drop shades are not painted from the row once a shade host exists: the row's canvas is
+bounds-clipped where the row is flush to the screen margins, so its own shadows died at the flush
+edges (upstream-traps, "The composer row's canvas clips to its own bounds"). The input container asks
+for the shades in its `dispatchDraw` before painting the pill under them
+(`ChatInputViewsContainer.java:379-384` → `ChatActivityEnterView.java:19315`), the toolbar walks its
+offset and every ancestor's visibility and alpha up to that container
+(`ComposerToolbarLayout.java:252`), and `ControlsLayout.drawShades` paints per-role shadows from each
+drawable's last-written bounds inset by its padding, with the clamped radius read back from
+`bubbleRadius` and the provider's shadow params (`:1499-1551`). `drawGlass` silences the drawables'
+own in-row shadows while lifted (`:1487`) so nothing doubles, the droplet restores and keeps its own
+mid-row shadow (`:1588-1595`), the settings preview has no container and keeps the drawables'
+shadows, and a descendant move chases a container redraw so the lifted shades follow slides
+(`:1317-1327`).
+*(Established 2026-10-30, `#glass-lone-circle`, PR 579.)*
 
 ## MD3 Buttons reaches buttons through shared providers and targeted hooks
 
