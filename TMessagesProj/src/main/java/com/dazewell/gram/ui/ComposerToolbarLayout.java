@@ -747,6 +747,21 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private final float[] bubbleRight = new float[BUBBLE_COUNT];
         private final boolean[] bubbleOccupied = new boolean[BUBBLE_COUNT];
         private final int[] bubbleAlpha = new int[BUBBLE_COUNT];
+        // NagramX (#glass-lone-circle): cells each zone's bubble wraps this pass. A bubble wrapping one
+        // cell paints as a circle (see drawGlass); the count, not the painted width, decides it, because
+        // the width rides the slot slides and the bounds animator and would pop into a circle mid-slide.
+        private final int[] bubbleCells = new int[BUBBLE_COUNT];
+        // NagramX (#glass-lone-circle): that one cell itself, when a zone holds exactly one. The loop
+        // in computeBubbleSpans nulls every role but trailing whenever the count leaves one, and
+        // trailing is only ever read behind the same count its span walk wrote it under, so a stale
+        // slot is never read. The circle centres on the cell, not the span: the attach wrapper
+        // measures wider than its lone engaged button while a faded suggestion keeps its width.
+        private final View[] loneCell = new View[BUBBLE_COUNT];
+        // NagramX (#glass-lone-circle): the cell width off the same construction-time scale sample as the
+        // geometry below, matching what addConfigurable laid every button out at. A lone child laid out at
+        // a fixed width no larger than this is a cell; the wrap-content bot menu and anything wider keep
+        // the pill.
+        private final int cellPx;
         // Whether each bubble actually painted last frame. A bubble that stops painting has its bounds
         // cleared to empty once, so getVisiblePositions stops reporting a phantom backdrop region for it;
         // this fires only on the occupied->hidden edge, never per frame, so it does not churn render nodes.
@@ -847,6 +862,9 @@ public final class ComposerToolbarLayout extends FrameLayout {
             geometryHeightDp = height();
             geometryInsetDp = glassInset();
             geometryDrawInsetDp = glassDrawInset();
+            // NagramX (#glass-lone-circle): same construction-time scale sample as the geometry above; see
+            // the cellPx field comment.
+            cellPx = AndroidUtilities.dp(buttonSize());
             // The gap between two neighbouring bubbles, reserved in layout so the glass separates the
             // button cells. 2 x the box inset (8dp at 100%), scale-derived and frozen with the rest of
             // the geometry. MD3 has no bubbles to separate, only groups, and keeps that at a flat 8dp.
@@ -1330,9 +1348,46 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 // the glass covers the whole button cell instead of stopping short inside it. Neighbours
                 // are held apart by the layout gap, not by leaving this padding on the inner edges.
                 // The trailing flush edge stops at the send reserve, so the send column keeps its own room
-                // beside the capsule rather than sitting inside it.
+                // beside the capsule rather than sitting inside it. The lone-cell circle below is the
+                // one deliberate exception: it centres on its cell, so a flush zone's circle sits
+                // inset of the row edge instead of reaching it.
                 float paintedLeft = flushLeft ? (rtl ? sendReservePx : 0f) : bubbleLeft[role];
                 float paintedRight = flushRight ? (rtl ? getWidth() : getWidth() - sendReservePx) : bubbleRight[role];
+                int bubbleTop = top;
+                int bubbleBottom = bottom;
+                // NagramX (#glass-lone-circle): a bubble wrapping exactly one button cell paints as a
+                // circle. The cell beside the band height reads as an oval at every scale (36x32dp at
+                // 75%, 36x44dp at 100%), and only a lone bubble shows it - two cells or more is a wide
+                // pill and looks right. The circle centres on the lone cell itself, not the zone's span:
+                // the attach wrapper measures wider than its lone engaged button while a faded suggestion
+                // keeps its width, and the span would centre the circle on that dead space. Only a real
+                // cell circles - a child laid out at a fixed width no larger than the cell; the
+                // wrap-content bot menu keeps its pill. The vertical bounds outset by the glass padding
+                // the drawable's own padding insets back, so the painted circle is the full d and not d
+                // less two paddings (drawDroplet does the same). The count decides, never the painted
+                // width: slides sweep the width past any threshold and would snap a pill into a circle
+                // mid-move. At 75% the circle is the band height, so the folded pill beside it keeps the
+                // row reading as one height; at 100% the lone circle sits shorter than the band - taken,
+                // a 36dp circle cannot reach a 44dp band.
+                View lone = bubbleCells[role] == 1 ? loneCell[role] : null;
+                if (lone != null && isCellWidth(lone)) {
+                    // One rounded diameter feeds both axes: rounding d and each vertical edge
+                    // separately could leave a 1px stadium where the radius clamps to the
+                    // shorter painted side.
+                    int d = Math.round(Math.min(lone.getWidth(), (bottom - top) - 2f * glassPaddingPx));
+                    if (d > 0) {
+                        // The middle group's cell sits in scrolled content - its left is its place
+                        // in the strip, so map it out by the scroll the way the canvas does, or a
+                        // dragged strip displaces its circle (RTL pins a non-zero scroll on overflow).
+                        float cx = descendantLeft(lone) + lone.getWidth() / 2f
+                                - (role == BUBBLE_MIDDLE ? middleScrollView.getScrollX() : 0);
+                        float cy = (top + bottom) / 2f;
+                        paintedLeft = cx - d / 2f;
+                        paintedRight = cx + d / 2f;
+                        bubbleTop = Math.round(cy - d / 2f) - glassPaddingPx;
+                        bubbleBottom = Math.round(cy + d / 2f) + glassPaddingPx;
+                    }
+                }
                 int left = Math.round(paintedLeft) - glassPaddingPx;
                 int right = Math.round(paintedRight) + glassPaddingPx;
                 if (right - left <= glassPaddingPx * 2) {
@@ -1355,7 +1410,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 // corner into the width. Recomputed every frame because widths move with the slot slides
                 // and the bounds animator; written only when it changes so an idle bubble re-bakes nothing.
                 float paintedW = (right - left) - 2f * glassPaddingPx;
-                float paintedH = (bottom - top) - 2f * glassPaddingPx;
+                float paintedH = (bubbleBottom - bubbleTop) - 2f * glassPaddingPx;
                 float effectiveRadius = Math.min(requestedRadiusPx, Math.min(paintedW, paintedH) / 2f);
                 if (bubbleRadius[role] != effectiveRadius) {
                     drawable.setRadius(effectiveRadius);
@@ -1368,7 +1423,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 if (drawable.getAlpha() != bubbleAlpha[role]) {
                     drawable.setAlpha(bubbleAlpha[role]);
                 }
-                drawable.setBounds(left, top, right, bottom);
+                drawable.setBounds(left, bubbleTop, right, bubbleBottom);
                 drawable.draw(canvas);
                 bubbleDrawn[role] = true;
             }
@@ -1432,9 +1487,100 @@ public final class ComposerToolbarLayout extends FrameLayout {
         // catch-up with no animator of its own. All reused fields, no allocation.
         private void computeBubbleSpans() {
             setBubbleSpan(BUBBLE_LEADING, startSlot);
+            bubbleCells[BUBBLE_LEADING] = countOccupiedCells(startSlot);
             setBubbleSpan(BUBBLE_MIDDLE, middleScrollView);
+            bubbleCells[BUBBLE_MIDDLE] = countOccupiedCells(middleContent);
             setBubbleSpan(BUBBLE_CONTEXT, trailingContextGroup);
+            bubbleCells[BUBBLE_CONTEXT] = countEngagedCells(trailingContextGroup);
             computeTrailingSpan();
+            // NagramX (#glass-lone-circle): the lone cell itself, when a zone holds exactly one. The count
+            // is the row's own occupancy rule, so the decision flips the same frame the slot's measured
+            // width does - never between measures - and the finder only runs at one, so zero-or-many needs
+            // no third state. Trailing is not here: its lone cell is captured in its own span walk.
+            for (int role = 0; role < BUBBLE_TRAILING; role++) {
+                loneCell[role] = bubbleCells[role] == 1 ? findCell(role) : null;
+            }
+        }
+
+        // NagramX (#glass-lone-circle): the zone's one occupied cell, only ever called with the count
+        // already at one, so the first hit is the hit. The middle group's cells sit inside its two slots
+        // (the recursion covers them).
+        private View findCell(int role) {
+            if (role == BUBBLE_LEADING) {
+                return firstOccupied(startSlot);
+            }
+            if (role == BUBBLE_MIDDLE) {
+                return firstOccupied(middleContent);
+            }
+            if (role == BUBBLE_CONTEXT && trailingContextGroup instanceof ViewGroup) {
+                ViewGroup group = (ViewGroup) trailingContextGroup;
+                for (int i = 0; i < group.getChildCount(); i++) {
+                    if (isContextChildEngaged(group.getChildAt(i))) {
+                        return group.getChildAt(i);
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static View firstOccupied(ViewGroup group) {
+            if (group == null) {
+                return null;
+            }
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View child = group.getChildAt(i);
+                if (child instanceof CollapsingLinearLayout) {
+                    View inSlot = firstOccupied((ViewGroup) child);
+                    if (inSlot != null) {
+                        return inSlot;
+                    }
+                } else if (group instanceof CollapsingLinearLayout && ((CollapsingLinearLayout) group).isOccupied(child)) {
+                    return child;
+                }
+            }
+            return null;
+        }
+
+        // NagramX (#glass-lone-circle): a lone child laid out at a fixed width no larger than the cell is
+        // a cell - every configurable button is (addConfigurable lays them out at exactly buttonSize()),
+        // while the wrap-content bot menu and anything wider keep the pill.
+        private boolean isCellWidth(View child) {
+            ViewGroup.LayoutParams lp = child.getLayoutParams();
+            return lp.width > 0 && lp.width <= cellPx;
+        }
+
+        // NagramX (#glass-lone-circle): the cells a zone holds this pass, counted the same way the row
+        // itself counts occupancy, so the lone-circle decision flips on the same frame the slot's width
+        // does - never between measures. The middle group's cells sit inside its two slots, and the
+        // attach wrapper only counts while it holds an engaged child, exactly as isOccupied judges it.
+        private static int countOccupiedCells(ViewGroup group) {
+            if (group == null) {
+                return 0;
+            }
+            int count = 0;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View child = group.getChildAt(i);
+                if (child instanceof CollapsingLinearLayout) {
+                    count += countOccupiedCells((ViewGroup) child);
+                } else if (group instanceof CollapsingLinearLayout && ((CollapsingLinearLayout) group).isOccupied(child)) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private static int countEngagedCells(View view) {
+            if (!(view instanceof ViewGroup)) {
+                return 0;
+            }
+            ViewGroup group = (ViewGroup) view;
+            int count = 0;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                if (isContextChildEngaged(group.getChildAt(i))) {
+                    count++;
+                }
+            }
+            return count;
         }
 
         private void setBubbleSpan(int role, View view) {
@@ -1467,6 +1613,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
         // leftmost occupied one to the rightmost, so it hugs its content and collapses with it.
         private void computeTrailingSpan() {
             bubbleOccupied[BUBBLE_TRAILING] = false;
+            bubbleCells[BUBBLE_TRAILING] = 0;
             if (endSlot == null) {
                 return;
             }
@@ -1481,6 +1628,13 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 if (!isBubbleContent(child)) {
                     continue;
                 }
+                // NagramX (#glass-lone-circle): the count rides the same painted-span walk, and its
+                // one hit is the lone cell; drawGlass only reads the slot behind that count. This
+                // test keeps a wider predicate (any alpha > 0 paints) than the slot occupancy rule
+                // (>= 0.5), so a fading trailing button counts here before its slot frees - matching
+                // the span it still has to cover.
+                bubbleCells[BUBBLE_TRAILING]++;
+                loneCell[BUBBLE_TRAILING] = child;
                 float left = descendantLeft(child);
                 float right = left + child.getWidth();
                 if (left < min) {

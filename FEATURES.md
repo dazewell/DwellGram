@@ -112,7 +112,7 @@ Swiping up at the end of a channel normally jumps to the next unread channel, an
 
 ## Composer and input
 
-### Composer toolbar <!-- #composer-toolbar --> <!-- #composer-bubbles --> <!-- #toggle-formatting -->
+### Composer toolbar <!-- #composer-toolbar --> <!-- #composer-bubbles --> <!-- #toggle-formatting --> <!-- #glass-lone-circle -->
 
 The compose field sits in a glass text pill with Send or mic at its trailing end, and a row of action bubbles below it — Quote, Spoiler, Select All and Clear — which enable when there's text to act on.
 
