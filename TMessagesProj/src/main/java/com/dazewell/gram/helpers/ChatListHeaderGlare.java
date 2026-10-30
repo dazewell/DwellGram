@@ -25,7 +25,6 @@ public final class ChatListHeaderGlare {
         if (!top || bounds.isEmpty() || !canvas.isHardwareAccelerated()
                 || !LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS)
                 || !NaConfig.INSTANCE.getStrokeOnViews().Bool()) {
-            reportSmoke(false, canvas, bounds, top);
             return;
         }
 
@@ -35,27 +34,5 @@ public final class ChatListHeaderGlare {
         canvas.scale(1, AndroidUtilities.dpf2(2.5f));
         canvas.drawRect(0, 0, bounds.width(), 1, isThemeLight ? lightPaint : darkPaint);
         canvas.restore();
-        reportSmoke(true, canvas, bounds, top);
-    }
-
-    private boolean smokeReported;
-
-    public ChatListHeaderGlare() {
-        android.util.Log.i("HeaderGlareSmoke", "NAX_SMOKE_glass-header-glare BEGIN scenario=chat-list-header instance="
-                + System.identityHashCode(this) + " build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING
-                + " package=" + org.telegram.messenger.BuildConfig.APPLICATION_ID);
-    }
-
-    private void reportSmoke(boolean drawn, Canvas canvas, Rect bounds, boolean top) {
-        if (smokeReported) {
-            return;
-        }
-        smokeReported = true;
-        android.util.Log.i("HeaderGlareSmoke", "NAX_SMOKE_glass-header-glare "
-                + (drawn ? "EXPECTED drawn" : "COMPETING skipped") + " instance=" + System.identityHashCode(this)
-                + " top=" + top + " hardware=" + canvas.isHardwareAccelerated() + " empty=" + bounds.isEmpty()
-                + " glass=" + LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS)
-                + " glare=" + NaConfig.INSTANCE.getStrokeOnViews().Bool());
-        android.util.Log.i("HeaderGlareSmoke", "NAX_SMOKE_glass-header-glare END instance=" + System.identityHashCode(this));
     }
 }
