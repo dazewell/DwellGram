@@ -158,9 +158,9 @@ The toolbar row can be scaled from 75% to 125% in 5% steps. Its buttons sit pack
 
 Adds space between the composer and the keyboard or emoji panel while either is open. With both closed the composer stays where it was. Set it from 0 to 24 dp under Chat settings → Composer Toolbar → Gap above keyboard. Defaults to 0.
 
-### Interface style <!-- #interface-style --> <!-- #composer-transparency --> <!-- #rounded-navigation --> <!-- #message-menu-blur -->
+### Interface style <!-- #interface-style --> <!-- #composer-transparency --> <!-- #rounded-navigation --> <!-- #message-menu-blur --> <!-- #glass-header-glare -->
 
-NagramX Settings → General → Interface Style picks Liquid Glass or Material Design 3, restyling chat headers, chat-list top bar, buttons, bottom navigation and composer, each with an Apply to toggle. Also blur strength (message menus too), switch and slider styles, typeface, icons, tablet mode, notification icon, title centering, decorations, the bottom bar and folder tabs. Rounded navigation and Match Classic and Day header color are off by default.
+NagramX Settings → General → Interface Style picks Liquid Glass or Material Design 3 for headers, buttons, navigation and composer, with Apply to toggles. It also holds blur strength, typography, icons and layout options. Glass adds a subtle highlight below the chat-list header, controlled by Glare effects.
 
 ### Quick schedule button <!-- #quick-schedule -->
 

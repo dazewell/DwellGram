@@ -939,6 +939,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         }
 
         private Rect blurBounds = new Rect();
+        // NagramX: keep the header's glare separate from the rounded controls' glass drawables.
+        private final com.dazewell.gram.helpers.ChatListHeaderGlare naxHeaderGlare = new com.dazewell.gram.helpers.ChatListHeaderGlare();
 
         @Override
         protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
@@ -1035,6 +1037,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             blurScrimPaint.setAlpha(blurAlpha);
             canvas.drawRect(rectTmp, blurScrimPaint);
             blurScrimPaint.setAlpha(oldScrimAlpha);
+            // NagramX: add glare without a second tinted surface over the frosted header.
+            naxHeaderGlare.draw(canvas, rectTmp, isThemeLight, top);
         }
 
         @Override
