@@ -53307,6 +53307,9 @@ public class ChatActivity extends BaseFragment implements
         if (chatInputViewsContainer != null) {
             chatInputViewsContainer.setInputBubbleAlpha((int) (255 * (1f - hideFactor)));
             chatInputViewsContainer.setInputBubbleTranslationY(dp(54) * hideFactor);
+            // NagramX (#glass-composer-fold): the glass pill's width follows the enter view's alpha, and an alpha change
+            // alone doesn't redraw the container, so after search closes the pill would stay full width under the send button.
+            chatInputViewsContainer.invalidate();
         }
 
 
