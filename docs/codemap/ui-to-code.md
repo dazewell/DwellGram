@@ -497,12 +497,17 @@ crowded for the send circle's capsule, which then sits above the toolbar beside 
 
 `ControlsLayout.drawGlass` draws up to four zones as separate `BlurredBackgroundDrawable`s — leading,
 scrolling middle, attach context, trailing (`ComposerToolbarLayout.java:764-768`). A zone holding
-exactly one occupied cell paints its bubble as a circle: the count is the row's own occupancy rule
-(`bubbleCells`/`loneCell` at `:786-792`, filled in `computeBubbleSpans`/`countOccupiedCells`
-`:1617-1715`), the circle centres on the lone child and the vertical bounds outset the glass padding
-the drawable insets back, so the painted shape is a full circle rather than a stadium reading as an
-oval at any toolbar scale (`:1414-1444`); a child laid out wider than a fixed cell width — the
-wrap-content bot menu — keeps the pill (`isCellWidth`, `:1676-1690`).
+exactly one occupied cell paints its bubble as a circle whose diameter is the band's full height, so
+a lone bubble matches the pill beside it instead of standing shorter (dazewell caught the shorter
+disc on the verification build): the count is the row's own occupancy rule (`bubbleCells`/`loneCell`
+at `:786-792`, filled in `computeBubbleSpans`/`countOccupiedCells` `:1617-1715`), the circle centres
+on the lone child and the vertical bounds outset the glass padding the drawable insets back, so the
+painted shape is a full circle rather than a stadium reading as an oval at any toolbar scale
+(`circle box 1415-1457`); where the band is wider than the cell the disc spills half the difference
+into each reserved gap, a lone zone against a row's outer flush edge clamps flush with the pill's
+edge (the glyph rides up to ~2dp a side off the disc's centre at 100%, the clamp at `:1443-1454`),
+and a child laid out wider than a fixed cell width — the wrap-content bot menu — keeps the pill
+(`isCellWidth`, `:1689-1697`).
 
 The row's drop shades are not painted from the row once a shade host exists: the row's canvas is
 bounds-clipped where the row is flush to the screen margins, so its own shadows died at the flush

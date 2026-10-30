@@ -1405,8 +1405,9 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 // are held apart by the layout gap, not by leaving this padding on the inner edges.
                 // The trailing flush edge stops at the send reserve, so the send column keeps its own room
                 // beside the capsule rather than sitting inside it. The lone-cell circle below is the
-                // one deliberate exception: it centres on its cell, so a flush zone's circle sits
-                // inset of the row edge instead of reaching it.
+                // one deliberate exception: where the band is wider than a cell it spills half the
+                // difference into each reserved gap, and a lone zone against a row's outer flush edge
+                // clamps flush with the pill's edge instead of spilling past the row's clipped canvas.
                 float paintedLeft = flushLeft ? (rtl ? sendReservePx : 0f) : bubbleLeft[role];
                 float paintedRight = flushRight ? (rtl ? getWidth() : getWidth() - sendReservePx) : bubbleRight[role];
                 int bubbleTop = top;
@@ -1414,23 +1415,22 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 // NagramX (#glass-lone-circle): a bubble wrapping exactly one button cell paints as a
                 // circle. The cell beside the band height reads as an oval at every scale (36x32dp at
                 // 75%, 36x44dp at 100%), and only a lone bubble shows it - two cells or more is a wide
-                // pill and looks right. The circle centres on the lone cell itself, not the zone's span:
-                // the attach wrapper measures wider than its lone engaged button while a faded suggestion
-                // keeps its width, and the span would centre the circle on that dead space. Only a real
-                // cell circles - a child laid out at a fixed width no larger than the cell; the
-                // wrap-content bot menu keeps its pill. The vertical bounds outset by the glass padding
-                // the drawable's own padding insets back, so the painted circle is the full d and not d
-                // less two paddings (drawDroplet does the same). The count decides, never the painted
-                // width: slides sweep the width past any threshold and would snap a pill into a circle
-                // mid-move. At 75% the circle is the band height, so the folded pill beside it keeps the
-                // row reading as one height; at 100% the lone circle sits shorter than the band - taken,
-                // a 36dp circle cannot reach a 44dp band.
+                // pill and looks right. The diameter is the band's full height, so a lone bubble
+                // matches the pill beside it - the central panel at rest - instead of standing a
+                // couple of dp shorter (on-device: the circle read lower than the panel). The circle
+                // centres on the lone cell itself, not the zone's span: the attach wrapper measures
+                // wider than its lone engaged button while a faded suggestion keeps its width, and the
+                // span would centre the circle on that dead space. Only a real cell circles - a child
+                // laid out at a fixed width no larger than the cell; the wrap-content bot menu keeps
+                // its pill. The vertical bounds outset by the glass padding the drawable's own padding
+                // insets back, so the painted circle is the full d and not d less two paddings
+                // (drawDroplet does the same). The count decides, never the painted width: slides
+                // sweep the width past any threshold and would snap a pill into a circle mid-move.
                 View lone = bubbleCells[role] == 1 ? loneCell[role] : null;
                 if (lone != null && isCellWidth(lone)) {
-                    // One rounded diameter feeds both axes: rounding d and each vertical edge
-                    // separately could leave a 1px stadium where the radius clamps to the
-                    // shorter painted side.
-                    int d = Math.round(Math.min(lone.getWidth(), (bottom - top) - 2f * glassPaddingPx));
+                    // One rounded diameter feeds both axes: rounding d and each edge separately
+                    // could leave a 1px stadium where the radius clamps to the shorter painted side.
+                    int d = Math.round((bottom - top) - 2f * glassPaddingPx);
                     if (d > 0) {
                         // The middle group's cell sits in scrolled content - its left is its place
                         // in the strip, so map it out by the scroll the way the canvas does, or a
@@ -1440,6 +1440,19 @@ public final class ComposerToolbarLayout extends FrameLayout {
                         float cy = (top + bottom) / 2f;
                         paintedLeft = cx - d / 2f;
                         paintedRight = cx + d / 2f;
+                        // Where the band is wider than the cell the disc spills half the difference
+                        // into each reserved gap; against the row's outer flush edge it clamps flush
+                        // instead, because past the row edge the row's own canvas dies (the shade's
+                        // amputation is why the shades lift to the container). The glyph then rides
+                        // up to half the difference - about 2dp a side at 100% - off the disc's
+                        // centre; taken, flush with the pill's edge beats a cut disc.
+                        if (paintedLeft < 0f) {
+                            paintedLeft = 0f;
+                            paintedRight = Math.min(d, (float) getWidth());
+                        } else if (paintedRight > (float) getWidth()) {
+                            paintedRight = (float) getWidth();
+                            paintedLeft = Math.max(0f, (float) getWidth() - d);
+                        }
                         bubbleTop = Math.round(cy - d / 2f) - glassPaddingPx;
                         bubbleBottom = Math.round(cy + d / 2f) + glassPaddingPx;
                     }
