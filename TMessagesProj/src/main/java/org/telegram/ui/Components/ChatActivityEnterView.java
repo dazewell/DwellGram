@@ -8808,6 +8808,15 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (messageEditText != null) {
             messageEditText.setEnabled(messageEditTextEnabled);
         }
+        refreshComposerPrimaryOffset(); // NagramX (#glass-composer-fold)
+    }
+
+    // NagramX (#glass-composer-fold): ChatActivity fades this view back in after search with setAlpha alone, which
+    // never redraws it, so the send reserve published at alpha 0 would stick and the send circle covers the paperclip.
+    @Override
+    public void setAlpha(float alpha) {
+        super.setAlpha(alpha);
+        refreshComposerPrimaryOffset();
     }
 
     public void setDialogId(long id, int account) {
