@@ -785,9 +785,11 @@ public abstract class BlurredBackgroundDrawable extends Drawable {
 
     @NonNull
     private NinePatchDrawable checkNinePatchDrawable(int fillColor, boolean withStroke) {
+        // NagramX: lifted composer shades must also suppress the fallback's baked shadow.
+        final int effectiveShadowColor = Theme.multAlpha(shadowColor, shadowAlpha);
         ninePatchHashBuilder.start();
         ninePatchHashBuilder.add(fillColor);
-        ninePatchHashBuilder.add(shadowColor);
+        ninePatchHashBuilder.add(effectiveShadowColor);
         ninePatchHashBuilder.add(boundProps.radii);
         ninePatchHashBuilder.addF(shadowLayerRadius);
         ninePatchHashBuilder.addF(shadowLayerDx);
@@ -818,7 +820,7 @@ public abstract class BlurredBackgroundDrawable extends Drawable {
                     paint.setStyle(Paint.Style.FILL);
                     paint.setColor(fillColor);
                     if (shadowLayerRadius > 0f) {
-                        paint.setShadowLayer(shadowLayerRadius, shadowLayerDx, shadowLayerDy, shadowColor);
+                        paint.setShadowLayer(shadowLayerRadius, shadowLayerDx, shadowLayerDy, effectiveShadowColor);
                     }
                     canvas.drawPath(path, paint);
                     if (shadowLayerRadius > 0f) {

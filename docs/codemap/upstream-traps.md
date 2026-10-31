@@ -2907,4 +2907,10 @@ toolbar for its capsule shades and paints them beside the pill it already owns
 (`ChatInputViewsContainer.java:384`, `ComposerToolbarLayout.java:252`). The obstacle cost a smoke
 probe to attribute — the shade read as "cut" on screenshots long before anyone traced it.
 
+The non-blurred color/bitmap fallback bakes its shadow into a cached nine-patch. Its cache key and
+shadow paint must both use `Theme.multAlpha(shadowColor, shadowAlpha)`
+(`BlurredBackgroundDrawable.java:787-825`); otherwise `setShadowAlpha(0f)` silences the RenderNode
+shadow but leaves the fallback shadow intact, doubling a lifted shade. Restoring alpha to one
+regenerates the shadowed bitmap, which the shrinking middle droplet relies on.
+
 *(Established 2026-10-30, `#glass-lone-circle`, PR 579.)*
