@@ -231,6 +231,13 @@ public final class CameraMemoZoom extends View {
         invalidate();
     }
 
+    private float rowSelectionInset;
+
+    public void setRowSelectionInset(float inset) {
+        rowSelectionInset = Math.max(0f, inset);
+        invalidate();
+    }
+
     /** Where the row's capsule sits, in this view's coordinates; false while there is no row. */
     public boolean getRowRect(RectF out) {
         if (!available || stops.length == 0) {
@@ -713,7 +720,7 @@ public final class CameraMemoZoom extends View {
         int active = activeStop();
         Paint.FontMetrics metrics = rowPaint.getFontMetrics();
         float baseline = cy - (metrics.ascent + metrics.descent) / 2f;
-        float chip = selectionRadius();
+        float chip = Math.max(0f, selectionRadius() - rowSelectionInset);
         if (rowBackground != null && getRowRect(discRect)) {
             // the ruler's capsule stays up while it opens, only the stops fade
             int save = alpha < 1f && !ruler ? canvas.saveLayerAlpha(discRect.left - 1, discRect.top - 1, discRect.right + 1, discRect.bottom + 1, (int) (255 * alpha)) : canvas.save();

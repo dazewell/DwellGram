@@ -186,6 +186,7 @@ public class InstantZoomControlView extends FrameLayout {
         final BlurredBackgroundDrawable rowGlass = factory.create(zoom, colorProvider);
         rowGlass.setRadius(AndroidUtilities.dp(20));
         zoom.setRowBackground(rowGlass);
+        zoom.setRowSelectionInset(AndroidUtilities.dp(2));
     }
 
     /** Re-reads the camera's zoom. Camera1 (wholeSteps) turns the dial by whole x, as dazewell chose for it. */
