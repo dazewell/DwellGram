@@ -521,7 +521,13 @@ drawable's last-written bounds inset by its padding, with the clamped radius rea
 own in-row shadows while lifted (`:1500`) so nothing doubles, the droplet restores and keeps its own
 mid-row shadow (`:1600-1607`), the settings preview has no container and keeps the drawables'
 shadows, and a descendant move chases a container redraw so the lifted shades follow slides
-(`:1318-1328`).
+(`:1318-1328`). The send disc and the lifted-zone glyph read the same band: the clamp on a
+flush-lone zone would leave the glyph off the disc's centre (traced 2.7dp), so its cell carries a
+translation the clamp size ships and `computeBubbleSpans` clears when the zone stops being lone
+(`ComposerToolbarLayout.java:786-800`, lift at `:1463-1481`), and the SendButton draws its disc at
+`glassBandDp()` (`:555`) via `setCircleSize` (`ChatActivityEnterView.java:3872`) with the stock
+`DEFAULT_HEIGHT − 2×inset` rectangle kept for the preview and MD3 (bounded branch in
+`checkBackgroundRect` at `:19161`).
 *(Established 2026-10-30, `#glass-lone-circle`, PR 579.)*
 
 ## MD3 Buttons reaches buttons through shared providers and targeted hooks

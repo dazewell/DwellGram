@@ -546,6 +546,19 @@ public final class ComposerToolbarLayout extends FrameLayout {
         return Math.round(BASE_HEIGHT * scale());
     }
 
+    /**
+     * NagramX (#glass-lone-circle): the painted height of the Liquid Glass band, for consumers that
+     * want their own control to stand at the bubbles' height - the send disc reads it (dazewell read
+     * the stock 38dp disc standing short of the 44dp band on the verification build). 0 under MD3:
+     * that island paints its own geometry, and its send keeps the stock drawing.
+     */
+    public static int glassBandDp() {
+        if (InterfaceStyleController.applyComposer()) {
+            return 0;
+        }
+        return Math.max(0, height() - 2 * (glassInset() + glassDrawInset()));
+    }
+
     /** The glyph factor applyIconBox multiplies ICON_GLYPH by, before any per-button optical correction. */
     private static float glyphScale() {
         if (InterfaceStyleController.applyComposer()) {
@@ -790,6 +803,10 @@ public final class ComposerToolbarLayout extends FrameLayout {
         // slot is never read. The circle centres on the cell, not the span: the attach wrapper
         // measures wider than its lone engaged button while a faded suggestion keeps its width.
         private final View[] loneCell = new View[BUBBLE_COUNT];
+        // NagramX (#glass-lone-circle): the cell currently carrying a glyph lift (see the lone-circle
+        // branch in drawGlass), so the lift clears the frame the zone stops being lone and a wide
+        // pill never paints off its shifted span.
+        private final View[] liftedCell = new View[BUBBLE_COUNT];
         // NagramX (#glass-lone-circle): the cell width off the same construction-time scale sample as the
         // geometry below, matching what addConfigurable laid every button out at. A lone child laid out at
         // a fixed width no larger than this is a cell; the wrap-content bot menu and anything wider keep
@@ -1441,18 +1458,26 @@ public final class ComposerToolbarLayout extends FrameLayout {
                         paintedLeft = cx - d / 2f;
                         paintedRight = cx + d / 2f;
                         // Where the band is wider than the cell the disc spills half the difference
-                        // into each reserved gap; against the row's outer flush edge it clamps flush
-                        // instead, because past the row edge the row's own canvas dies (the shade's
-                        // amputation is why the shades lift to the container). The glyph then rides
-                        // up to half the difference - about 2dp a side at 100% - off the disc's
-                        // centre; taken, flush with the pill's edge beats a cut disc.
-                        if (paintedLeft < 0f) {
-                            paintedLeft = 0f;
-                            paintedRight = Math.min(d, (float) getWidth());
-                        } else if (paintedRight > (float) getWidth()) {
-                            paintedRight = (float) getWidth();
-                            paintedLeft = Math.max(0f, (float) getWidth() - d);
+                        // into each reserved gap; against the row's outer flush edge the disc clamps
+                        // flush, and that clamp would leave the glyph off the disc's centre (on
+                        // device: ~2.7dp left on the leading disc). Lift the lone cell by the clamp
+                        // the moment it fires - computed from the cell's UNTRANSLATED centre, so the
+                        // lifted value is a fixed point and never drifts - and clear it when no
+                        // clamp fires. The touch target follows the visual.
+                        float cxUntranslated = cx - lone.getTranslationX();
+                        float lift = 0f;
+                        if (flushLeft && cxUntranslated - d / 2f < 0f) {
+                            lift = d / 2f - cxUntranslated;
+                        } else if (flushRight && cxUntranslated + d / 2f > (float) getWidth()) {
+                            lift = (float) getWidth() - d / 2f - cxUntranslated;
                         }
+                        if (lone.getTranslationX() != lift) {
+                            lone.setTranslationX(lift);
+                        }
+                        liftedCell[role] = lift != 0f ? lone : null;
+                        cx += lift;
+                        paintedLeft = cx - d / 2f;
+                        paintedRight = cx + d / 2f;
                         bubbleTop = Math.round(cy - d / 2f) - glassPaddingPx;
                         bubbleBottom = Math.round(cy + d / 2f) + glassPaddingPx;
                     }
@@ -1638,8 +1663,13 @@ public final class ComposerToolbarLayout extends FrameLayout {
             // NagramX (#glass-lone-circle): the lone cell itself, when a zone holds exactly one. The count
             // is the row's own occupancy rule, so the decision flips the same frame the slot's measured
             // width does - never between measures - and the finder only runs at one, so zero-or-many needs
-            // no third state. Trailing is not here: its lone cell is captured in its own span walk.
+            // no third state. Trailing is not here: its lone cell is captured in its own span walk. A cell
+            // that stopped being its zone's only one drops its glyph lift here, before anything paints.
             for (int role = 0; role < BUBBLE_TRAILING; role++) {
+                if (bubbleCells[role] != 1 && liftedCell[role] != null) {
+                    liftedCell[role].setTranslationX(0f);
+                    liftedCell[role] = null;
+                }
                 loneCell[role] = bubbleCells[role] == 1 ? findCell(role) : null;
             }
         }
@@ -1774,9 +1804,13 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 // one hit is the lone cell; drawGlass only reads the slot behind that count. This
                 // test keeps a wider predicate (any alpha > 0 paints) than the slot occupancy rule
                 // (>= 0.5), so a fading trailing button counts here before its slot frees - matching
-                // the span it still has to cover.
+                // the span it still has to cover. A count leaving one drops the trailing lift here.
                 bubbleCells[BUBBLE_TRAILING]++;
                 loneCell[BUBBLE_TRAILING] = child;
+                if (bubbleCells[BUBBLE_TRAILING] != 1 && liftedCell[BUBBLE_TRAILING] != null) {
+                    liftedCell[BUBBLE_TRAILING].setTranslationX(0f);
+                    liftedCell[BUBBLE_TRAILING] = null;
+                }
                 float left = descendantLeft(child);
                 float right = left + child.getWidth();
                 if (left < min) {

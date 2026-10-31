@@ -3869,6 +3869,12 @@ public class ChatActivityEnterView extends FrameLayout implements
         sendButton.setSoundEffectsEnabled(false);
         if (composerToolbarEnabled) {
             sendButton.setBackgroundInset(dpf2(COMPOSER_PRIMARY_INSET));
+            // NagramX (#glass-lone-circle): the send disc stands at the toolbar's band instead of
+            // the stock 38dp (dazewell read it smaller than the panel on device); MD3's island has
+            // no band and keeps its own drawing.
+            if (!com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
+                sendButton.setCircleSize(AndroidUtilities.dp(com.dazewell.gram.ui.ComposerToolbarLayout.glassBandDp()));
+            }
         }
         sendButton.setScaleX(0.1f);
         sendButton.setScaleY(0.1f);
@@ -19020,8 +19026,10 @@ public class ChatActivityEnterView extends FrameLayout implements
         public int getVisualWidth() {
             // NagramX (#composer-input): report the drawn control, not its slot. This is what the text and the
             // review panel are held off, and checkBackgroundRect() floors at the same inset height, so the two
-            // agree in the price-widened state too. Identical to the slot at inset zero.
-            final float height = dpf2(DEFAULT_HEIGHT) - 2 * backgroundInset;
+            // agree in the price-widened state too. Identical to the slot at inset zero. Reads the
+            // band-sized disc when the composer sized one (#glass-lone-circle), so the hold-off
+            // tracks the disc that actually draws.
+            final float height = circleWidth >= 0 ? getCircleHeight() : dpf2(DEFAULT_HEIGHT) - 2 * backgroundInset;
             float width = Math.max(height, dpf2(10 + 10) + priceText.getAnimateToWidth());
             return Math.round(lerp(width, height, sameWidthFactor));
         }
@@ -19150,15 +19158,28 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
 
         private void checkBackgroundRect() {
-            final float height = dpf2(DEFAULT_HEIGHT) - 2 * backgroundInset;
+            // NagramX (#glass-lone-circle): when the composer sized the disc to the toolbar's band
+            // (setCircleSize), the background reads that size instead of the stock slot-minus-inset,
+            // and drops its vertical share of the inset - the column the send rides in already
+            // equals the band, so a bottom inset would hang the disc off the band's top. The
+            // horizontal inset keeps the disc off the screen edge like the island's own content.
+            final float height;
+            final float verticalInset;
+            if (circleWidth >= 0) {
+                height = getCircleHeight();
+                verticalInset = 0f;
+            } else {
+                height = dpf2(DEFAULT_HEIGHT) - 2 * backgroundInset;
+                verticalInset = backgroundInset;
+            }
             final float width = lerp(
                 Math.max(height, dpf2(10 + 10) + priceText.getCurrentWidth()),
                 height, sameWidthFactor);
             backgroundRect.set(
                     getMeasuredWidth() - backgroundInset - width,
-                    getMeasuredHeight() - backgroundInset - height,
+                    getMeasuredHeight() - verticalInset - height,
                     getMeasuredWidth() - backgroundInset,
-                    getMeasuredHeight() - backgroundInset
+                    getMeasuredHeight() - verticalInset
             );
         }
     }
