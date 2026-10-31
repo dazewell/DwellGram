@@ -92,7 +92,8 @@ public final class ScheduledCalendarDiagnostics {
                 + ",a=" + view.getAlpha() + ",sx=" + view.getScaleX() + ",sy=" + view.getScaleY()
                 + ",measured=" + view.getMeasuredWidth() + "x" + view.getMeasuredHeight()
                 + ",box=" + view.getLeft() + "," + view.getTop() + "," + view.getRight() + "," + view.getBottom()
-                + ",tx=" + view.getTranslationX() + ",ty=" + view.getTranslationY()
+                + ",tx=" + (view instanceof Button ? ((Button) view).renderedTranslationX() : view.getTranslationX())
+                + ",logicalTx=" + view.getTranslationX() + ",ty=" + view.getTranslationY()
                 + ",attached=" + view.isAttachedToWindow() + ",shown=" + view.isShown()
                 + ",layoutRequested=" + view.isLayoutRequested() + "}";
     }
@@ -103,6 +104,10 @@ public final class ScheduledCalendarDiagnostics {
         public Button(Context context, Consumer<String> observer) {
             super(context);
             this.observer = observer;
+        }
+
+        public float renderedTranslationX() {
+            return super.getTranslationX();
         }
 
         private void changed(String path) {
