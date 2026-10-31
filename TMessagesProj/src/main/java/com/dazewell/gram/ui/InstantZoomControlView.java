@@ -100,6 +100,7 @@ public class InstantZoomControlView extends FrameLayout {
             }
         });
         addView(zoom, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        zoom.setRowSelectionInset(AndroidUtilities.dp(2));
         updateColors(chipBackgroundColor, glyphColor);
     }
 
@@ -165,7 +166,6 @@ public class InstantZoomControlView extends FrameLayout {
     public void updateColors(int chipBackgroundColor, int glyphColor) {
         flip.setColorFilter(new PorterDuffColorFilter(glyphColor, PorterDuff.Mode.SRC_IN));
         zoom.setRowColors(ColorUtils.setAlphaComponent(glyphColor, 0x99), glyphColor, ColorUtils.setAlphaComponent(glyphColor, 0x2E), false);
-        updateSelectionInset();
         if (!glass) {
             // no glass to sit on: the flat message-panel color the flash button's background falls back to
             final int flat = ColorUtils.setAlphaComponent(chipBackgroundColor, 0xFF);
@@ -187,11 +187,6 @@ public class InstantZoomControlView extends FrameLayout {
         final BlurredBackgroundDrawable rowGlass = factory.create(zoom, colorProvider);
         rowGlass.setRadius(AndroidUtilities.dp(20));
         zoom.setRowBackground(rowGlass);
-        updateSelectionInset();
-    }
-
-    private void updateSelectionInset() {
-        zoom.setRowSelectionInset(glass && !com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? AndroidUtilities.dp(2) : 0);
     }
 
     /** Re-reads the camera's zoom. Camera1 (wholeSteps) turns the dial by whole x, as dazewell chose for it. */
