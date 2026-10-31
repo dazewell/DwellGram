@@ -100,6 +100,7 @@ public class InstantZoomControlView extends FrameLayout {
             }
         });
         addView(zoom, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        zoom.setRowSelectionInset(AndroidUtilities.dp(2));
         updateColors(chipBackgroundColor, glyphColor);
     }
 
