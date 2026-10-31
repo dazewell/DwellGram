@@ -3276,7 +3276,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             // and leaves the same ring of input glass around it. The drawable is shared, so scale it down here
             // rather than resizing the asset. Padding is an int, so round the disc's own float inset to the
             // nearest pixel instead of dp()'s ceil, or the outline lands half a pixel tighter than the disc.
-            final int outlineInset = Math.round(dpf2(COMPOSER_PRIMARY_INSET));
+            final int outlineInset = Math.round(dpf2(composerPrimaryInset()));
             sendOutlineView.setScaleType(ImageView.ScaleType.FIT_CENTER);
             sendOutlineView.setPadding(outlineInset, outlineInset, outlineInset, outlineInset);
         } else {
@@ -3291,8 +3291,9 @@ public class ChatActivityEnterView extends FrameLayout implements
             @Override
             protected void onSizeChanged(int w, int h, int oldw, int oldh) {
                 super.onSizeChanged(w, h, oldw, oldh);
-                setPivotX(w - dp(22));
-                setPivotY(h - dp(22));
+                // NagramX: primary controls scale around the centre of their current band-sized slot.
+                setPivotX(w - dp(composerPrimarySize()) / 2f);
+                setPivotY(h - dp(composerPrimarySize()) / 2f);
                 if (w != oldw) {
                     refreshComposerPrimaryOffset();
                 }
@@ -3339,7 +3340,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             // NagramX (#composer-input): the column's controls draw inside their slots, so tell the tracker how
             // far in and let it publish the drawn edge. Round the disc's own float inset rather than taking
             // dp()'s ceil, so the reserved column ends exactly where the control starts.
-            inputSatellites.setContentInset(Math.round(dpf2(COMPOSER_PRIMARY_INSET)));
+            inputSatellites.setContentInset(Math.round(dpf2(composerPrimaryInset())));
         }
         audioVideoButtonContainer = new FrameLayout(context) {
 
@@ -3555,12 +3556,10 @@ public class ChatActivityEnterView extends FrameLayout implements
                         }
                     }
 
-                    // NagramX (#composer-input): the mic slot sits inside the text pill, at its trailing end.
-                    // Drawing the disc a few dp inside its DEFAULT_HEIGHT slot keeps a ring of the pill's own
-                    // glass visible all around it, so the control reads as sitting in the pill rather than
-                    // capping it. The disc keeps the slot's centre, so the icon on top of it doesn't move.
-                    final float margin = composerToolbarEnabled ? dpf2(COMPOSER_PRIMARY_INSET) : 0;
-                    final float size = dpf2(DEFAULT_HEIGHT) - 2 * margin;
+                    // NagramX: the glass record disc fills its band-sized slot, just like send.
+                    // MD3 keeps the inset that leaves its surrounding island visible.
+                    final float margin = composerToolbarEnabled ? dpf2(composerPrimaryInset()) : 0;
+                    final float size = getMeasuredHeight() - 2 * margin;
                     final float r = size / 2f;
                     paint.setColor(getThemedColor(Theme.key_chat_messagePanelSend));
                     backgroundRect.set(
@@ -3603,7 +3602,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             });
         }
         audioVideoButtonContainer.setSoundEffectsEnabled(false);
-        sendButtonContainer.addView(audioVideoButtonContainer, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.RIGHT | Gravity.BOTTOM));
+        sendButtonContainer.addView(audioVideoButtonContainer, LayoutHelper.createFrame(composerPrimarySize(), composerPrimarySize(), Gravity.RIGHT | Gravity.BOTTOM));
         audioVideoButtonContainer.setFocusable(true);
         audioVideoButtonContainer.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
 
@@ -3787,6 +3786,12 @@ public class ChatActivityEnterView extends FrameLayout implements
             public void draw(@NonNull Canvas canvas) {
                 if (audioVideoButtonContainerForbidden && !NekoConfig.useChatAttachMediaMenu.Bool()) {
                     tmpRectF.set(0, 0, getMeasuredWidth(), getMeasuredHeight());
+                    // NagramX: this custom painter bypasses ScaleType; keep its original outline box.
+                    if (composerToolbarEnabled && !com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
+                        int left = (getMeasuredWidth() - dp(DEFAULT_HEIGHT)) / 2;
+                        int top = (getMeasuredHeight() - dp(DEFAULT_HEIGHT)) / 2;
+                        tmpRectF.set(left, top, left + dp(DEFAULT_HEIGHT), top + dp(DEFAULT_HEIGHT));
+                    }
                     tmpRectF.inset(dp(7.5f), dp(7.5f));
                     Drawable d = getCurrentState() == State.VIDEO ? cameraOutline : micOutline;
                     d.setBounds(tmpRectF);
@@ -3801,7 +3806,12 @@ public class ChatActivityEnterView extends FrameLayout implements
 //        audioVideoSendButton.setAccessibilityDelegate(mediaMessageButtonsDelegate);
         padding = dp(10f);
         audioVideoSendButton.setPadding(padding, padding, padding, padding);
-        audioVideoButtonContainer.addView(audioVideoSendButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT));
+        // NagramX: retain the intrinsic glyph when the glass slot follows the toolbar scale.
+        if (composerToolbarEnabled && !com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
+            audioVideoSendButton.setScaleType(ImageView.ScaleType.CENTER);
+            audioVideoSendButton.setPadding(0, 0, 0, 0);
+        }
+        audioVideoButtonContainer.addView(audioVideoSendButton, LayoutHelper.createFrame(composerPrimarySize(), composerPrimarySize()));
 
         cancelBotButton = new ImageView(context);
         cancelBotButton.setVisibility(INVISIBLE);
@@ -3818,7 +3828,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         cancelBotButton.setScaleY(0.1f);
         cancelBotButton.setAlpha(0.0f);
         cancelBotButton.setBackgroundDrawable(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector)));
-        sendButtonContainer.addView(cancelBotButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.RIGHT | Gravity.BOTTOM));
+        sendButtonContainer.addView(cancelBotButton, LayoutHelper.createFrame(composerPrimarySize(), composerPrimarySize(), Gravity.RIGHT | Gravity.BOTTOM));
         cancelBotButton.setOnClickListener(view -> {
             String text = messageEditText != null ? messageEditText.getText().toString() : "";
             int idx = text.indexOf(' ');
@@ -3868,12 +3878,18 @@ public class ChatActivityEnterView extends FrameLayout implements
         sendButton.setContentDescription(getString(R.string.Send));
         sendButton.setSoundEffectsEnabled(false);
         if (composerToolbarEnabled) {
-            sendButton.setBackgroundInset(dpf2(COMPOSER_PRIMARY_INSET));
+            sendButton.setBackgroundInset(dpf2(composerPrimaryInset()));
+            // NagramX (#glass-lone-circle): the send disc stands at the toolbar's band instead of
+            // the stock 38dp (dazewell read it smaller than the panel on device); MD3's island has
+            // no band and keeps its own drawing.
+            if (!com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
+                sendButton.setBackgroundCircleSize(dp(composerPrimarySize()));
+            }
         }
         sendButton.setScaleX(0.1f);
         sendButton.setScaleY(0.1f);
         sendButton.setAlpha(0.0f);
-        sendButtonContainer.addView(sendButton, LayoutHelper.createFrame(100, DEFAULT_HEIGHT, Gravity.RIGHT | Gravity.BOTTOM));
+        sendButtonContainer.addView(sendButton, LayoutHelper.createFrame(100, composerPrimarySize(), Gravity.RIGHT | Gravity.BOTTOM));
         sendButton.setOnClickListener(view -> performSendButtonClick()); // NagramX (#video-hold-send): body moved out so a hold on the round video preview can share it
         sendButton.setOnLongClickListener(this::onSendLongClick);
         if (AndroidUtilities.isAccessibilityScreenReaderEnabled()) {
@@ -3883,7 +3899,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         sendButtonBlockedByTypingView = new SendButtonBlockedByTypingView(context, resourcesProvider);
         sendButtonBlockedByTypingView.setVisibility(View.INVISIBLE);
         if (composerToolbarEnabled) {
-            sendButtonBlockedByTypingView.setBackgroundInset(dpf2(COMPOSER_PRIMARY_INSET));
+            sendButtonBlockedByTypingView.setBackgroundInset(dpf2(composerPrimaryInset()));
         }
         sendButtonBlockedByTypingView.setOnClickListener(v -> {
             if (streamingState == BotForumHelper.SteamingSendButtonState.STOP) {
@@ -3893,7 +3909,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             }
         });
 
-        sendButtonContainer.addView(sendButtonBlockedByTypingView, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.RIGHT | Gravity.BOTTOM));
+        sendButtonContainer.addView(sendButtonBlockedByTypingView, LayoutHelper.createFrame(composerPrimarySize(), composerPrimarySize(), Gravity.RIGHT | Gravity.BOTTOM));
 
         slowModeButton = new SlowModeBtn(context);
         slowModeButton.setTextSize(16);
@@ -3905,7 +3921,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         slowModeButton.setPadding(dp(14), 0, dp(14), 0);
         slowModeButton.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         slowModeButton.setTextColor(getThemedColor(Theme.key_glass_defaultIcon));
-        sendButtonContainer.addView(slowModeButton, LayoutHelper.createFrame(74, DEFAULT_HEIGHT, Gravity.RIGHT | Gravity.BOTTOM));
+        sendButtonContainer.addView(slowModeButton, LayoutHelper.createFrame(74, composerPrimarySize(), Gravity.RIGHT | Gravity.BOTTOM));
         slowModeButton.setOnClickListener(v -> {
             if (delegate != null) {
                 if (delegate.checkCanRemoveRestrictionsByBoosts()) {
@@ -4368,7 +4384,11 @@ public class ChatActivityEnterView extends FrameLayout implements
         };
         doneButton.setContentDescription(getString(R.string.EditMessage));
         if (composerToolbarEnabled) {
-            doneButton.setBackgroundInset(dpf2(COMPOSER_PRIMARY_INSET));
+            doneButton.setBackgroundInset(dpf2(composerPrimaryInset()));
+            // NagramX: editing uses the same glass primary slot as send and record.
+            if (!com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
+                doneButton.setBackgroundCircleSize(dp(composerPrimarySize()));
+            }
         }
         if (bounceable) {
             ScaleStateListAnimator.apply(doneButton);
@@ -4377,13 +4397,24 @@ public class ChatActivityEnterView extends FrameLayout implements
         inputSatellites.trackRightColumn(doneButton);
     }
 
+    // NagramX: measure the primary column at the same diameter the glass toolbar paints.
+    private int composerPrimarySize() {
+        return composerToolbarEnabled && !com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()
+                ? com.dazewell.gram.ui.ComposerToolbarLayout.glassBandDp() : DEFAULT_HEIGHT;
+    }
+
+    private int composerPrimaryInset() {
+        return composerToolbarEnabled && com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()
+                ? COMPOSER_PRIMARY_INSET : 0;
+    }
+
     private FrameLayout.LayoutParams createPrimaryInputLayoutParams(int width) {
         if (!composerToolbarEnabled) {
             return LayoutHelper.createFrame(width, DEFAULT_HEIGHT, Gravity.BOTTOM | Gravity.RIGHT);
         }
         int endGravity = LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT;
-        return LayoutHelper.createFrame(width, DEFAULT_HEIGHT, Gravity.BOTTOM | endGravity, 0, 0, 0,
-                getPrimaryColumnBottomMargin());
+        return LayoutHelper.createFrame(width == DEFAULT_HEIGHT ? composerPrimarySize() : width,
+                composerPrimarySize(), Gravity.BOTTOM | endGravity, 0, 0, 0, getPrimaryColumnBottomMargin());
     }
 
     // NagramX (#composer-toolbar): the primary column rides above the toolbar, except while a record or review
@@ -4392,7 +4423,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         // NagramX (#composer-inline-rest): there the column sits in the tools row in both states, so it never moves.
         // (#glass-composer-fold): unless a glass row is too crowded for it, when it goes back above the toolbar.
         if (!toolbarReplacementVisible && composerInlineRest != null && !composerInlineRest.isOverflow()) {
-            return composerInlineRest.primaryColumnBottomDp(DEFAULT_HEIGHT);
+            return composerInlineRest.primaryColumnBottomDp(composerPrimarySize());
         }
         return toolbarReplacementVisible ? 0 : composerToolbarHeight() + COMPOSER_TOOLBAR_GAP;
     }
@@ -4434,7 +4465,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         expandStickersButton.setScaleY(0.1f);
         expandStickersButton.setAlpha(0.0f);
         expandStickersButton.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector)));
-        sendButtonContainer.addView(expandStickersButton, LayoutHelper.createFrame(DEFAULT_HEIGHT, DEFAULT_HEIGHT, Gravity.RIGHT | Gravity.BOTTOM));
+        sendButtonContainer.addView(expandStickersButton, LayoutHelper.createFrame(composerPrimarySize(), composerPrimarySize(), Gravity.RIGHT | Gravity.BOTTOM));
         expandStickersButton.setOnClickListener(v -> {
             if (expandStickersButton.getVisibility() != VISIBLE || expandStickersButton.getAlpha() != 1.0f || waitingForKeyboardOpen || (keyboardVisible && messageEditText != null && messageEditText.isFocused())) {
                 return;
@@ -18592,6 +18623,14 @@ public class ChatActivityEnterView extends FrameLayout implements
             }
         }
 
+        // NagramX: custom circle sizes elsewhere also serve the legacy painter; only composer opts
+        // the new-design background into that geometry.
+        private boolean backgroundFollowsCircle;
+        public void setBackgroundCircleSize(int size) {
+            setCircleSize(size);
+            backgroundFollowsCircle = true;
+        }
+
         private int circleWidth = -1, circleHeight = -1;
         public void setCircleSize(int size) {
             this.circleWidth = size;
@@ -18617,6 +18656,12 @@ public class ChatActivityEnterView extends FrameLayout implements
 
         @Override
         public void getBounds(RectF bounds) {
+            // NagramX: transitions use the same bounds as the opted-in composer background.
+            if (backgroundFollowsCircle) {
+                checkBackgroundRect();
+                bounds.set(backgroundRect);
+                return;
+            }
             final float w = getCircleWidth();
             final float h = getCircleHeight();
             final float right = getMeasuredWidth() - dp(4) - circlePadX;
@@ -18642,7 +18687,12 @@ public class ChatActivityEnterView extends FrameLayout implements
                 final float priceProgress = animatedPriceVisible.get();
 
                 final float right, cy, h;
-                if (newCounterPos) {
+                if (backgroundFollowsCircle) {
+                    right = lerp(getMeasuredWidth() - getMeasuredHeight() / 2f,
+                            getMeasuredWidth() - backgroundInset, openProgress);
+                    h = getCircleHeight() * openProgress;
+                    cy = getMeasuredHeight() / 2f;
+                } else if (newCounterPos) {
                     right = lerp(getMeasuredWidth() - getMeasuredHeight() / 2.0f, getMeasuredWidth() - dp(4), openProgress) - circlePadX;
                     h = getCircleHeight() * openProgress;
                     cy = getMeasuredHeight() - circlePadY - dp(4) - h / 2f;
@@ -18824,7 +18874,13 @@ public class ChatActivityEnterView extends FrameLayout implements
                 canvas.restore();
             }
             final float right, cy, h;
-            if (newCounterPos) {
+            // NagramX: legacy paint and the glyph clip follow the composer background too.
+            if (backgroundFollowsCircle) {
+                right = lerp(getMeasuredWidth() - getMeasuredHeight() / 2f,
+                        getMeasuredWidth() - backgroundInset, openProgress);
+                h = getCircleHeight() * openProgress;
+                cy = getMeasuredHeight() / 2f;
+            } else if (newCounterPos) {
                 right = lerp(getMeasuredWidth() - getMeasuredHeight() / 2.0f, getMeasuredWidth() - dp(4), openProgress) - circlePadX;
                 h = getCircleHeight() * openProgress;
                 cy = getMeasuredHeight() - circlePadY - dp(4) - h / 2f;
@@ -19020,8 +19076,10 @@ public class ChatActivityEnterView extends FrameLayout implements
         public int getVisualWidth() {
             // NagramX (#composer-input): report the drawn control, not its slot. This is what the text and the
             // review panel are held off, and checkBackgroundRect() floors at the same inset height, so the two
-            // agree in the price-widened state too. Identical to the slot at inset zero.
-            final float height = dpf2(DEFAULT_HEIGHT) - 2 * backgroundInset;
+            // agree in the price-widened state too. Identical to the slot at inset zero. Reads the
+            // band-sized disc when the composer sized one (#glass-lone-circle), so the hold-off
+            // tracks the disc that actually draws.
+            final float height = backgroundFollowsCircle ? getCircleHeight() : dpf2(DEFAULT_HEIGHT) - 2 * backgroundInset;
             float width = Math.max(height, dpf2(10 + 10) + priceText.getAnimateToWidth());
             return Math.round(lerp(width, height, sameWidthFactor));
         }
@@ -19112,6 +19170,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             btn.setCircleSize(circleWidth, circleHeight);
             btn.setCirclePadding(circlePadX, circlePadY);
             btn.setBackgroundInset(backgroundInset);
+            btn.backgroundFollowsCircle = backgroundFollowsCircle;
         }
 
         private ValueAnimator bounceCountAnimator;
@@ -19150,15 +19209,24 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
 
         private void checkBackgroundRect() {
-            final float height = dpf2(DEFAULT_HEIGHT) - 2 * backgroundInset;
+            // NagramX: an explicit primary diameter follows the glass band, centred in its slot.
+            final float height;
+            final float verticalInset;
+            if (backgroundFollowsCircle) {
+                height = getCircleHeight();
+                verticalInset = (getMeasuredHeight() - height) / 2f;
+            } else {
+                height = dpf2(DEFAULT_HEIGHT) - 2 * backgroundInset;
+                verticalInset = backgroundInset;
+            }
             final float width = lerp(
                 Math.max(height, dpf2(10 + 10) + priceText.getCurrentWidth()),
                 height, sameWidthFactor);
             backgroundRect.set(
                     getMeasuredWidth() - backgroundInset - width,
-                    getMeasuredHeight() - backgroundInset - height,
+                    getMeasuredHeight() - verticalInset - height,
                     getMeasuredWidth() - backgroundInset,
-                    getMeasuredHeight() - backgroundInset
+                    getMeasuredHeight() - verticalInset
             );
         }
     }
@@ -19306,6 +19374,15 @@ public class ChatActivityEnterView extends FrameLayout implements
         inputSatellites.configure(factory, colorProvider);
         if (composerToolbar != null) {
             composerToolbar.attachGlass(factory, colorProvider);
+        }
+    }
+
+    // NagramX (#glass-lone-circle): the input container paints this row's drop shades on its own
+    // screen-wide canvas - the row's canvas is clipped to the row's bounds, and the shades spill
+    // past its flush edges. Delegates to the toolbar, which owns the capsule geometry.
+    public void drawComposerGlassShades(Canvas canvas, View ancestor) {
+        if (composerToolbar != null) {
+            composerToolbar.drawShades(canvas, ancestor);
         }
     }
 

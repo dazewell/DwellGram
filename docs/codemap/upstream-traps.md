@@ -2784,7 +2784,7 @@ scale 1 (`:9167-9181`). The method's last `updateRichDraftPreview()` does the sa
 `checkSendButton(true)` (`:14053`) runs on that flip. Any animation of the attach button on edit exit has to start
 after both. It does, at `:13199`.
 
-The toolbar row only gives a control its slot once its alpha reaches 0.5 (`ComposerToolbarLayout.java:1833-1839`).
+The toolbar row only gives a control its slot once its alpha reaches 0.5 (`ComposerToolbarLayout.java:2221-2227`).
 Fade a returning control in on `EASE_OUT_QUINT`: it crosses 0.5 in the first frames, so the slot is claimed
 straight away. On a linear or `DEFAULT` curve the control draws into a zero-width box until it reaches half opacity.
 
@@ -2885,3 +2885,32 @@ flash row's line. Re-check the composer's drawing arithmetic after an upstream c
 do not anchor to the last frame's `onceRect`.
 
 *(Established 2026-10-29, `#video-zoom`, PR 576.)*
+
+## The composer row's canvas clips to its own bounds, so nothing it paints can spill into the screen margins
+
+The glass tools row draws its bubbles' drop shadows through the glass drawables themselves
+(`BlurredBackgroundDrawable.drawShadows`, `BlurredBackgroundDrawable.java:304-317`; the RenderNode
+paints the layer at `BlurredBackgroundDrawableRenderNode.java:188-192`), but the row's own canvas is
+clipped to the row's bounds — traced to device with a `Canvas.getClipBounds()` probe, `[0,0][1042,147]`
+(smoke build `30b00d9`) — and the row is flush to the enter view's 7dp screen margins
+(`ChatActivity.java:9052`). The chain above it reads clip-free (`ComposerToolbarLayout.java:118-119`,
+`ChatActivityEnterView.java:544`, `:2855`, `:2927`), yet the clip reported inside
+`ControlsLayout.dispatchDraw` was the view's own bounds, so the shade's spill past the painted edge
+never appeared left of a lone leading capsule nor at the trailing flush, while the same shadows
+showed in the gaps between capsules. The island pill never noticed: `ChatInputViewsContainer.dispatchDraw`
+paints it on the container's screen-wide canvas.
+
+Do not assume `clipChildren(false)` up the chain buys an out-of-bounds spill a row paints in its own
+dispatch pass; if a painter's hint has to survive past the view it paints from, paint it on the
+ancestor whose bounds actually contain the spill. The composer does this now: the container asks the
+toolbar for its capsule shades and paints them beside the pill it already owns
+(`ChatInputViewsContainer.java:384`, `ComposerToolbarLayout.java:252`). The obstacle cost a smoke
+probe to attribute — the shade read as "cut" on screenshots long before anyone traced it.
+
+The non-blurred color/bitmap fallback bakes its shadow into a cached nine-patch. Its cache key and
+shadow paint must both use `Theme.multAlpha(shadowColor, shadowAlpha)`
+(`BlurredBackgroundDrawable.java:787-825`); otherwise `setShadowAlpha(0f)` silences the RenderNode
+shadow but leaves the fallback shadow intact, doubling a lifted shade. Restoring alpha to one
+regenerates the shadowed bitmap, which the shrinking middle droplet relies on.
+
+*(Established 2026-10-30, `#glass-lone-circle`, PR 579.)*
