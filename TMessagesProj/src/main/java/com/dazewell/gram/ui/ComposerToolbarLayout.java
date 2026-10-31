@@ -245,7 +245,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
      * shades spill past its flush edges (adb-traced on the fold build). The walk sums the offset
      * up to {@code ancestor} and the visibility and alpha of every view between them, so a faded
      * or panel-replaced row drops its shades with its glass. The first call latches the shade host,
-     * which switches drawGlass off the drawables' internal shadow painting - the container now
+     * which switches prepareGlass off the drawables' internal shadow painting - the container now
      * owns every shade, so nothing doubles. Hosts with no container (the settings preview) never
      * call this and keep the drawables' own shadows.
      */
@@ -549,7 +549,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
     /**
      * NagramX (#glass-lone-circle): the painted height of the Liquid Glass band, for consumers that
      * want their own control to stand at the bubbles' height - the send disc reads it. Under glass
-     * the band is the button cell's own diameter (see drawGlass), so every bubble, a lone circle and
+     * the band is the button cell's own diameter (see prepareGlass), so every bubble, a lone circle and
      * the send read one consistent height. 0 under MD3: that island paints its own geometry, and
      * its send keeps the stock drawing.
      */
@@ -780,7 +780,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private static final long DROPLET_DURATION = 450;
         private static final float DROPLET_PINCH = 0.45f;
         private BlurredBackgroundDrawable[] bubbles;
-        // The one trailing sub-group the drawGlass split still needs to tell apart inside endSlot: the
+        // The one trailing sub-group the prepareGlass split still needs to tell apart inside endSlot: the
         // attach context group (endSlot child 0, its own chat-type lifecycle). Everything else in endSlot
         // is the single trailing bubble.
         private View trailingContextGroup;
@@ -791,7 +791,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private final boolean[] bubbleOccupied = new boolean[BUBBLE_COUNT];
         private final int[] bubbleAlpha = new int[BUBBLE_COUNT];
         // NagramX (#glass-lone-circle): cells each zone's bubble wraps this pass. A bubble wrapping one
-        // cell paints as a circle (see drawGlass); the count, not the painted width, decides it, because
+        // cell paints as a circle (see prepareGlass); the count, not the painted width, decides it, because
         // the width rides the slot slides and the bounds animator and would pop into a circle mid-slide.
         private final int[] bubbleCells = new int[BUBBLE_COUNT];
         // NagramX (#glass-lone-circle): that one cell itself, when a zone holds exactly one. The loop
@@ -805,11 +805,11 @@ public final class ComposerToolbarLayout extends FrameLayout {
         // exactly this width is a cell; native smaller controls and wrap-content bot menus keep
         // the pill.
         private final int cellPx;
-        // Whether each bubble actually painted last frame. A bubble that stops painting has its bounds
+        // Whether each bubble paints in the prepared snapshot. A bubble that stops painting has its bounds
         // cleared to empty once, so getVisiblePositions stops reporting a phantom backdrop region for it;
         // this fires only on the occupied->hidden edge, never per frame, so it does not churn render nodes.
         private final boolean[] bubbleDrawn = new boolean[BUBBLE_COUNT];
-        // The clamped capsule radius last written to each bubble drawable. drawGlass recomputes the
+        // The clamped capsule radius last written to each bubble drawable. prepareGlass recomputes the
         // clamp every frame off live width but only calls setRadius when it actually moves, because
         // setRadius rebuilds the drawable's props and (with blur off) re-keys and re-bakes its
         // nine-patch. Initialised to -1 in attachGlass so the first painted frame always writes.
@@ -832,7 +832,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private final int geometryInsetDp;
         private final int geometryDrawInsetDp;
         // The exact pixel geometry handed to every bubble drawable at attachGlass, derived from the
-        // snapshot above. glassPaddingPx is the value passed to each drawable's setPadding; drawGlass
+        // snapshot above. glassPaddingPx is the value passed to each drawable's setPadding; prepareGlass
         // cancels it on every bubble edge by the same field - never a fresh glassInset() - so the two
         // cannot drift, and each bubble's painted rounded rect reaches its group's content edges. The
         // gap between neighbours is not painted: it is reserved in layout (see gapPx) so the glass
@@ -840,7 +840,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private int glassPaddingPx;
         private int glassDrawInsetPx;
         // The full requested capsule radius - half the unpacked bubble height, off the construction
-        // snapshot - computed once in attachGlass. drawGlass clamps this down against each bubble's own
+        // snapshot - computed once in attachGlass. prepareGlass clamps this down against each bubble's own
         // painted box every frame; it is never handed to a drawable raw.
         private float requestedRadiusPx;
         // The gap reserved in layout between two adjacent occupied bubbles, and the same value the
@@ -857,6 +857,9 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private View shadeHost;
         // NagramX (#glass-lone-circle): set by setShadeHost; see there and drawShades.
         private boolean shadesLifted;
+        // Same-traversal handoff: ancestor prepares, child consumes. UI thread only.
+        private boolean glassPrepared;
+        private boolean preparedDroplet;
         // NagramX (#glass-lone-circle): the lifted shades' paint - transparent fill so only the
         // shadow layer lands. The layer is configured per role in drawShades.
         private final Paint shadePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -931,7 +934,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
             // its slots still measure to the unpacked cell (see the height comment above) and each bubble
             // sits lifted off the row edge vertically. The horizontal component is deliberately zero:
             // while it was glassInset() too, a bubble's flush edge - painted to the row edge (literal 0 /
-            // getWidth() in drawGlass) - picked up that whole glassInset() of clearance, but its inner
+            // getWidth() in prepareGlass) - picked up that whole glassInset() of clearance, but its inner
             // edge, set from live content geometry, sat right on the content, so a single-flush leading or
             // trailing bubble came out lopsided (wider gap on the flush side). That was F3/F4. At zero,
             // contentLeft is 0 and contentRight is getWidth(), so the content edges coincide with the
@@ -996,6 +999,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
         }
 
         void attachGlass(BlurredBackgroundDrawableViewFactory factory, BlurredBackgroundColorProvider colorProvider) {
+            glassPrepared = false;
             glassPaddingPx = AndroidUtilities.dp(geometryInsetDp);
             glassDrawInsetPx = AndroidUtilities.dp(geometryDrawInsetDp);
             // NagramX (#glass-lone-circle): kept for the lifted shades; see the field.
@@ -1003,12 +1007,12 @@ public final class ComposerToolbarLayout extends FrameLayout {
             // One drawable per bubble, each created with this view so viewPositionWatcher.subscribe wires
             // it to the shared backdrop; multiple subscriptions of the same view are supported, and each
             // drawable then samples the region under its own bounds. The capsule radius handed to each
-            // drawable is clamped against that bubble's own painted box every frame in drawGlass, not set
+            // drawable is clamped against that bubble's own painted box every frame in prepareGlass, not set
             // for good here: only the blur+glass RenderNode path clips to an outline (which clamps the
             // radius to half its shorter painted side), so with that path off nothing else would reduce an
             // over-large radius and a short bubble would paint an impossible corner. requestedRadiusPx is
             // the unclamped starting value, off the construction snapshot so it stays the same scale as the
-            // height it is drawn against. Padding and drawInset are stored in px here for drawGlass.
+            // height it is drawn against. Padding and drawInset are stored in px here for prepareGlass.
             requestedRadiusPx = AndroidUtilities.dp((geometryHeightDp - geometryInsetDp) / 2f);
             bubbles = new BlurredBackgroundDrawable[BUBBLE_COUNT];
             for (int i = 0; i < BUBBLE_COUNT; i++) {
@@ -1016,13 +1020,14 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 drawable.setRadius(requestedRadiusPx);
                 drawable.setPadding(glassPaddingPx);
                 bubbles[i] = drawable;
-                // -1 so the first drawGlass pass always writes the clamped radius (see bubbleRadius).
+                // -1 so the first prepareGlass pass always writes the clamped radius (see bubbleRadius).
                 bubbleRadius[i] = -1f;
             }
             invalidate();
         }
 
         void clearGlass() {
+            glassPrepared = false;
             bubbles = null;
             invalidate();
         }
@@ -1254,6 +1259,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
         @Override
         protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+            glassPrepared = false;
             int startWidth = startSlot.getMeasuredWidth();
             int middleWidth = middleScrollView.getMeasuredWidth();
             int endWidth = endSlot.getMeasuredWidth();
@@ -1322,13 +1328,14 @@ public final class ComposerToolbarLayout extends FrameLayout {
             invalidate();
         }
 
-        // This row paints content derived from its descendants' geometry (see drawGlass), but a
+        // This row paints content derived from its descendants' geometry (see prepareGlass), but a
         // descendant invalidation only marks ancestors dirty without re-recording them - the child's own
         // render node refreshes while this view replays its last recorded bubble span. Invalidate
         // explicitly so the painter is never staler than what it is painting.
         @Override
         public void onDescendantInvalidated(View child, View target) {
             super.onDescendantInvalidated(child, target);
+            glassPrepared = false;
             invalidate();
             // NagramX (#glass-lone-circle): a descendant move re-records only this row, while the
             // container replays its last shade recording - chase one more frame so the lifted
@@ -1380,12 +1387,29 @@ public final class ComposerToolbarLayout extends FrameLayout {
         }
 
         private void drawGlass(Canvas canvas) {
-            if (bubbles == null || getWidth() <= 0 || getHeight() <= 0) {
-                return;
+            if (!glassPrepared) {
+                prepareGlass(); // settings preview has no ancestor shade pass
             }
-            // Same global vertical guard the single capsule used: below this the painted band would
-            // invert once each drawable insets its padding. Cheap to test once for the whole row.
-            if (getHeight() <= (glassDrawInsetPx + glassPaddingPx) * 2) {
+            glassPrepared = false;
+            if (bubbles != null) {
+                for (int role = 0; role < BUBBLE_COUNT; role++) {
+                    if (bubbleDrawn[role]) {
+                        bubbles[role].draw(canvas);
+                    }
+                }
+            }
+        }
+
+        // NagramX: prepare once before the ancestor's shade pass, then draw these same bounds below.
+        private void prepareGlass() {
+            preparedDroplet = false;
+            if (bubbles == null || getWidth() <= 0 || getHeight() <= (glassDrawInsetPx + glassPaddingPx) * 2) {
+                for (int role = 0; role < BUBBLE_COUNT; role++) {
+                    if (bubbles != null) {
+                        bubbles[role].setBounds(0, 0, 0, 0);
+                    }
+                    bubbleDrawn[role] = false;
+                }
                 return;
             }
             computeBubbleSpans();
@@ -1405,7 +1429,8 @@ public final class ComposerToolbarLayout extends FrameLayout {
             int trailingEdgeRole = trailingEdgeRole();
             for (int role = 0; role < BUBBLE_COUNT; role++) {
                 if (!bubbleOccupied[role]) {
-                    if (role == BUBBLE_MIDDLE && dropletStart != 0 && drawDroplet(canvas, top, bottom)) {
+                    if (role == BUBBLE_MIDDLE && dropletStart != 0 && prepareDroplet(top, bottom)) {
+                        preparedDroplet = true;
                         continue;
                     }
                     hideBubble(role);
@@ -1440,10 +1465,15 @@ public final class ComposerToolbarLayout extends FrameLayout {
                         float cx = descendantLeft(lone) + lone.getWidth() / 2f
                                 - (role == BUBBLE_MIDDLE ? middleScrollView.getScrollX() : 0);
                         float cy = (top + bottom) / 2f;
-                        paintedLeft = cx - d / 2f;
-                        paintedRight = cx + d / 2f;
-                        bubbleTop = Math.round(cy - d / 2f) - glassPaddingPx;
-                        bubbleBottom = Math.round(cy + d / 2f) + glassPaddingPx;
+                        // A clipped middle cell keeps its viewport-bounded pill instead of
+                        // painting its full circle across the reserved neighbouring gap.
+                        if (role != BUBBLE_MIDDLE || cx - d / 2f >= middleScrollView.getLeft()
+                                && cx + d / 2f <= middleScrollView.getRight()) {
+                            paintedLeft = cx - d / 2f;
+                            paintedRight = cx + d / 2f;
+                            bubbleTop = Math.round(cy - d / 2f) - glassPaddingPx;
+                            bubbleBottom = Math.round(cy + d / 2f) + glassPaddingPx;
+                        }
                     }
                 }
                 int left = Math.round(paintedLeft) - glassPaddingPx;
@@ -1490,21 +1520,20 @@ public final class ComposerToolbarLayout extends FrameLayout {
                     drawable.setShadowAlpha(0f);
                 }
                 drawable.setBounds(left, bubbleTop, right, bubbleBottom);
-                drawable.draw(canvas);
                 bubbleDrawn[role] = true;
             }
         }
 
         // NagramX (#glass-lone-circle): called by ComposerToolbarLayout.drawShades with the
         // container that paints this row's shades on its own canvas; also latches
-        // shadesLifted, which drawsGlass reads before every bubble draw.
+        // shadesLifted, which prepareGlass reads before every bubble draw.
         void setShadeHost(View host) {
             shadeHost = host;
             shadesLifted = true;
         }
 
         // NagramX (#glass-lone-circle): the lifted drop shades. The source rect is each drawable's
-        // own last-written bounds (getBounds) inset by its padding - the same boundsWithPadding
+        // own prepared bounds (getBounds) inset by its padding - the same boundsWithPadding
         // its drawShadows would have painted - with the same clamped corner radius (bubbleRadius,
         // read back rather than recomputed), so the lifted shade lands where the amputated one
         // would have. Per-role alpha rides the drawable's bubbleAlpha times the host factor
@@ -1516,6 +1545,8 @@ public final class ComposerToolbarLayout extends FrameLayout {
             if (bubbles == null || !(glassColorProvider instanceof BlurredBackgroundProvider)) {
                 return;
             }
+            prepareGlass();
+            glassPrepared = true;
             float factor = hostFactor * (getVisibility() == View.VISIBLE ? getAlpha() : 0f);
             if (factor <= 0.05f) {
                 return;
@@ -1528,7 +1559,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
             canvas.save();
             canvas.translate(dx, dy);
             for (int role = 0; role < BUBBLE_COUNT; role++) {
-                if (role == BUBBLE_MIDDLE && dropletStart != 0) {
+                if (role == BUBBLE_MIDDLE && preparedDroplet) {
                     continue; // the droplet shades itself, mid-row
                 }
                 if (!bubbleDrawn[role]) {
@@ -1555,7 +1586,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
         // NagramX (#glass-composer-fold): the folded-away middle capsule pinches to a round droplet at its centre,
         // then shrinks to nothing, over the fold's duration. False once it is gone.
-        private boolean drawDroplet(Canvas canvas, int top, int bottom) {
+        private boolean prepareDroplet(int top, int bottom) {
             float t = (SystemClock.uptimeMillis() - dropletStart) / (float) DROPLET_DURATION;
             if (t >= 1f || bubbles == null) {
                 dropletStart = 0;
@@ -1597,7 +1628,6 @@ public final class ComposerToolbarLayout extends FrameLayout {
             }
             drawable.setBounds(Math.round(cx - width / 2f) - glassPaddingPx, Math.round(cy - paintedH / 2f) - glassPaddingPx,
                     Math.round(cx + width / 2f) + glassPaddingPx, Math.round(cy + paintedH / 2f) + glassPaddingPx);
-            drawable.draw(canvas);
             bubbleDrawn[BUBBLE_MIDDLE] = true;
             postInvalidateOnAnimation();
             return true;
@@ -1760,7 +1790,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
                     continue;
                 }
                 // NagramX (#glass-lone-circle): the count rides the same painted-span walk, and its
-                // one hit is the lone cell; drawGlass only reads the slot behind that count. This
+                // one hit is the lone cell; prepareGlass only reads the slot behind that count. This
                 // test keeps a wider predicate (any alpha > 0 paints) than the slot occupancy rule
                 // (>= 0.5), so a fading trailing button counts here before its slot frees - matching
                 // the span it still has to cover.

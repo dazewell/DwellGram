@@ -3786,6 +3786,12 @@ public class ChatActivityEnterView extends FrameLayout implements
             public void draw(@NonNull Canvas canvas) {
                 if (audioVideoButtonContainerForbidden && !NekoConfig.useChatAttachMediaMenu.Bool()) {
                     tmpRectF.set(0, 0, getMeasuredWidth(), getMeasuredHeight());
+                    // NagramX: this custom painter bypasses ScaleType; keep its original outline box.
+                    if (composerToolbarEnabled && !com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
+                        int left = (getMeasuredWidth() - dp(DEFAULT_HEIGHT)) / 2;
+                        int top = (getMeasuredHeight() - dp(DEFAULT_HEIGHT)) / 2;
+                        tmpRectF.set(left, top, left + dp(DEFAULT_HEIGHT), top + dp(DEFAULT_HEIGHT));
+                    }
                     tmpRectF.inset(dp(7.5f), dp(7.5f));
                     Drawable d = getCurrentState() == State.VIDEO ? cameraOutline : micOutline;
                     d.setBounds(tmpRectF);

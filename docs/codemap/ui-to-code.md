@@ -487,7 +487,7 @@ Glass folds through the same `ComposerInlineRest`, made for either style. Its pi
 morph's progress (`ChatInputViewsContainer.java:364-378`, `ComposerInlineRest.java:86`); drawing only, so
 `inputBubbleFullBounds` keeps touch full-width. In-chat search hides the composer but draws its bar on that
 same drawable, so the narrowing is weighted by the enter view's visibility and alpha (`ComposerInlineRest.java:93`).
-The middle capsule pinches to a droplet in `ComposerToolbarLayout.drawDroplet` (`ComposerToolbarLayout.java:1558`).
+The middle capsule pinches to a droplet in `ComposerToolbarLayout.prepareDroplet` (`ComposerToolbarLayout.java:1589`).
 A reply or edit bar keeps Glass unfolded (`ChatActivityEnterView.java:11331`), and so does a tools row too
 crowded for the send circle's capsule, which then sits above the toolbar beside the field
 (`ComposerInlineRest.java:223-225`, `ChatActivityEnterView.java:4394`).
@@ -501,7 +501,7 @@ existing glyph/target floor. The default cell is 44dp, while glyphs retain their
 and `ComposerInlineRest.glassPillEdges`. A lone cell therefore fits its circle before layout reserves
 the neighboring gap; drawing never translates the child to repair a circle that overflowed its slot.
 
-`ControlsLayout.drawGlass` uses occupied-cell counts, rather than animated span widths, to select
+`ControlsLayout.prepareGlass` uses occupied-cell counts, rather than animated span widths, to select
 circles. The center follows the engaged child, with scrollX removed for the middle strip. A lone
 middle cell has no additional strip padding; multiple cells keep the scroll strip's end clearance.
 Native smaller controls and wide bot menus keep their pill. The folded input field's edges use the measured leading/trailing
@@ -517,22 +517,26 @@ other uses of `setCircleSize` keep their existing background behavior, and `copy
 The row's drop shades are painted by the input container before its pill because the row's own
 canvas clips shades at the screen margins (upstream-traps, "The composer row's canvas clips to its
 own bounds"). The toolbar maps its offset and ancestor visibility/alpha into the container;
-`ControlsLayout.drawShades` reads each drawable's last-painted bounds, padding and clamped radius.
-`drawGlass` suppresses internal shadows once a shade host exists. The middle droplet restores its own
+`ControlsLayout.drawShades` first prepares current geometry, then reads each drawable's bounds,
+padding and clamped radius. The child consumes the same prepared snapshot instead of sampling slides
+again. Layout, glass attachment/removal and descendant changes discard the handoff. A clipped lone
+middle cell keeps its viewport-bounded pill; its circle may not spill across the neighboring gap.
+`prepareGlass` suppresses internal shadows once a shade host exists. The middle droplet restores its own
 in-row shadow, and the settings preview retains internal shadows because it has no shade host.
-A descendant move also invalidates the container so the lifted shades follow slides.
+A descendant move also invalidates the container so the lifted shades follow slides. The forbidden
+recording glyph has its own custom painter; it keeps the original outline box centered in the resized slot.
 
 Geometry anchors: `ComposerToolbarLayout.java:575` (cell floor),
-`:453` (reported band), `:1105` (middle padding),
-`:1382` (bubbles), `:1678` (eligible fixed cells),
+`:453` (reported band), `:1110` (middle padding),
+`:1404` (prepared bubbles), `:1708` (eligible fixed cells),
 `ComposerInlineRest.java:86` (folded pill),
 `ChatActivityEnterView.java:3562` (record disc),
-`:4395` (primary slot),
-`:18623` and `:19205` (send background).
+`:4401` (primary slot),
+`:18629` and `:19211` (send background).
 Shade anchors: `ChatInputViewsContainer.java:384` →
-`ChatActivityEnterView.java:19377` →
-`ComposerToolbarLayout.java:252`, `:1515`;
-droplet `:1558`, redraw propagation `:1330`.
+`ChatActivityEnterView.java:19383` →
+`ComposerToolbarLayout.java:252`, `:1544`;
+droplet `:1589`, redraw propagation `:1336`.
 *(Established 2026-10-30, `#glass-lone-circle`, PR 579.)*
 
 ## MD3 Buttons reaches buttons through shared providers and targeted hooks
