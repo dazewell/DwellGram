@@ -26901,6 +26901,8 @@ public class ChatActivity extends BaseFragment implements
             if (dialog_id == did) {
                 if (!isTopic) {
                     scheduledMessagesCount = (Integer) args[1];
+                    // NagramX: record notification receipt separately from composer refresh.
+                    if (chatActivityEnterView != null) chatActivityEnterView.traceScheduledButton(fromCache ? "COUNT-CACHE" : "COUNT-LIVE", scheduledMessagesCount);
                     updateScheduledInterface(openAnimationEnded);
                 } else if (chatMode == 0) {
 //                    waitingForLoad.add(lastLoadIndex);
@@ -30633,6 +30635,8 @@ public class ChatActivity extends BaseFragment implements
 
     private void updateScheduledInterface(boolean animated) {
         if (chatActivityEnterView != null) {
+            // NagramX: include optimistic count writers as well as storage notifications.
+            chatActivityEnterView.traceScheduledButton("COUNT-REFRESH", scheduledMessagesCount);
             chatActivityEnterView.updateScheduleButton(animated);
         }
     }
@@ -32797,6 +32801,8 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onResume() {
         super.onResume();
+        // NagramX: preserve count and navigation state before enter-view resume can repair the calendar.
+        if (chatActivityEnterView != null) chatActivityEnterView.traceScheduledButton("CHAT-RESUME", scheduledMessagesCount);
         // NagramX: re-cover a "require password" chat if backgrounding cleared its unlock, and drive the
         // cover's lifecycle so it auto-prompts fingerprint like the app lock
         showChatLockPasscodeView();

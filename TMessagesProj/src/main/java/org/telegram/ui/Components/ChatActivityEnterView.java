@@ -759,6 +759,34 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     private boolean destroyed;
 
+    // NagramX: temporary state observations must precede resume and typing repairs.
+    private com.dazewell.gram.diagnostics.ScheduledCalendarDiagnostics scheduledTrace;
+    private final Runnable scheduledTraceSnapshot = () -> traceScheduledButton("DELAYED", -2);
+
+    public void traceScheduledButton(String path, int count) {
+        if (destroyed || scheduledTrace != null && scheduledTrace.isEnded()) return;
+        if (scheduledTrace == null || scheduledTrace.account != currentAccount) {
+            if (scheduledTrace != null) scheduledTrace.end();
+            scheduledTrace = new com.dazewell.gram.diagnostics.ScheduledCalendarDiagnostics(currentAccount);
+        }
+        scheduledTrace.capture(path, count, "mode=" + (parentFragment == null ? -1 : parentFragment.getChatMode())
+                + " paused=" + isPaused + " fragmentPaused=" + (parentFragment == null || parentFragment.isPaused())
+                + " last=" + (parentFragment != null && parentFragment.isLastFragment())
+                + " empty=" + (messageEditText == null || AndroidUtilities.getTrimmedString(messageEditText.getTextToUse()).length() == 0)
+                + " hasScheduled=" + (delegate != null && delegate.hasScheduledMessages())
+                + " quick=" + NaConfig.INSTANCE.getQuickScheduleButton().Bool() + " hidden=" + scheduleButtonHidden
+                + " recording=" + recordingAudioVideo + " recordState=" + recordInterfaceState
+                + " editing=" + (editingMessageObject != null || editingBusinessLink != null)
+                + " suppressed=" + inputPrimarySuppressed + " replacement=" + toolbarReplacementVisible
+                + " toolbar=" + composerToolbarEnabled + " anim=" + (runningAnimation != null)
+                + "/" + (runningAnimation2 != null) + "/" + (scheduledButtonAnimation != null) + "/" + (runningAnimationAudio != null),
+                scheduledButton, composerToolbar == null ? "toolbar=absent" : composerToolbar.diagnosticOccupancy(scheduledButton));
+        if (!"DELAYED".equals(path)) {
+            removeCallbacks(scheduledTraceSnapshot);
+            postDelayed(scheduledTraceSnapshot, 350);
+        }
+    }
+
     private MessageObject editingMessageObject;
     private boolean editingCaption;
     // NagramX: text the field started with when edit mode opened, so hasEditChanges() can tell if leaving would drop edits
@@ -4054,7 +4082,8 @@ public class ChatActivityEnterView extends FrameLayout implements
         drawable2.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_chat_recordedVoiceDot), PorterDuff.Mode.MULTIPLY));
         CombinedDrawable combinedDrawable = new CombinedDrawable(drawable1, drawable2);
 
-        scheduledButton = new ImageView(getContext()) {
+        // NagramX: observe every writer, including callbacks that run after a count refresh.
+        scheduledButton = new com.dazewell.gram.diagnostics.ScheduledCalendarDiagnostics.Button(getContext(), path -> traceScheduledButton(path, -2)) {
             private float innerTranslationX;
             @Override
             public float getTranslationX() {
@@ -7441,6 +7470,8 @@ public class ChatActivityEnterView extends FrameLayout implements
 
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+                // NagramX: retain the empty composer's state before the first character can repair it.
+                traceScheduledButton("BEFORE-TEXT", -2);
                 if (ignorePrevTextChange) {
                     return;
                 }
@@ -8599,6 +8630,10 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public void onDestroy() {
+        // NagramX: END brackets this composer, including view rebuilds, and cancels delayed observations.
+        traceScheduledButton("DESTROY-BEFORE", -2);
+        removeCallbacks(scheduledTraceSnapshot);
+        if (scheduledTrace != null) scheduledTrace.end();
         if (composerFormattingActions != null) {
             composerFormattingActions.onDestroy();
         }
@@ -8743,6 +8778,8 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     public void onPause() {
         isPaused = true;
+        // NagramX: the Scheduled child can cover a parent that still receives count updates.
+        traceScheduledButton("PAUSE", -2);
         if (senderSelectPopupWindow != null) {
             senderSelectPopupWindow.setPauseNotifications(false);
             senderSelectPopupWindow.dismiss();
@@ -8764,6 +8801,8 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public void onResume() {
+        // NagramX: resume itself calls checkSendButton, so observe before it repairs anything.
+        traceScheduledButton("RESUME-BEFORE", -2);
         isPaused = false;
         // NagramX (#input-text-size): pick up a slider change made while this chat was backgrounded
         refreshInputTextSize();
@@ -10357,6 +10396,8 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public void checkSendButton(boolean animated) {
+        // NagramX: this competing writer also runs for empty drafts and recording/edit transitions.
+        traceScheduledButton("CHECK-SEND", -2);
         // NagramX (#remember-send-action): only synchronous checkpoint that fires on ordinary composer-state
         // changes (dialog switch, slow mode expiring, self-chat, etc.) without a dedicated observer.
         updateSendButtonArmedState();
@@ -11409,6 +11450,8 @@ public class ChatActivityEnterView extends FrameLayout implements
             return;
         }
         if (delegate == null || AndroidUtilities.getTrimmedString(messageEditText.getTextToUse()).length() == 0) {
+            // NagramX: empty drafts deliberately skip the pinned-calendar repair.
+            traceScheduledButton("COMPETING-EMPTY-SKIP", -2);
             // no delegate yet (init/teardown), or an empty composer (whitespace-only counts as empty, to
             // match checkSendButton): the standard checkSendButton / updateScheduleButton paths own the
             // calendar button here, so only settle the emoji side and never leave the draft gutter behind.
@@ -11421,6 +11464,8 @@ public class ChatActivityEnterView extends FrameLayout implements
                 && editingMessageObject == null
                 && !recordingAudioVideo
                 && recordInterfaceState == 0;
+        // NagramX: distinguish the nonempty repair from ordinary count-driven updates.
+        traceScheduledButton(pin ? "EXPECTED-PIN" : "COMPETING-NOT-PINNED", -2);
         if (pin) {
             createScheduledButton();
         }
@@ -11645,6 +11690,8 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     private int lastRecordState;
     protected void updateRecordInterface(int recordState, boolean animated) {
+        // NagramX: record UI can fade the calendar independently of scheduled count.
+        traceScheduledButton("COMPETING-RECORD-" + recordState, -2);
         if (moveToSendStateRunnable != null) {
             AndroidUtilities.cancelRunOnUIThread(moveToSendStateRunnable);
             moveToSendStateRunnable = null;
@@ -12817,6 +12864,8 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public void setEditingBusinessLink(TL_account.TL_businessChatLink businessLink) {
+        // NagramX: edit paths can hide the View while retaining its cached tag.
+        traceScheduledButton("COMPETING-BUSINESS-EDIT", -2);
         editingBusinessLink = businessLink;
         updateFieldHint(false);
         if (editingBusinessLink != null) {
@@ -12926,6 +12975,8 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public void setEditingMessageObject(MessageObject messageObject, MessageObject.GroupedMessages groupedMessages, boolean caption) {
+        // NagramX: capture the competing edit path without message identifiers or contents.
+        traceScheduledButton("COMPETING-MESSAGE-EDIT", -2);
         // NagramX (#double-tap-edit-cursor): consume-and-clear unconditionally, on every entry, whether or
         // not this call goes on to build a new field text below. This is what stops a stale armed offset
         // from an earlier double-tap (including one on the message already being edited, which the
@@ -14357,6 +14408,8 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public void updateScheduleButton(boolean animated) {
+        // NagramX: count-driven refresh may trust a cached tag while the actual View differs.
+        traceScheduledButton("EXPECTED-UPDATE", -2);
         // NagramX (#quick-schedule): settle the pinned-over-draft state after this runs, once layout is done.
         // This is the path scheduledMessagesUpdated takes when the count loads async, so it re-pins a draft
         // that was restored before the scheduled list arrived.
@@ -14393,6 +14446,8 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
         if (scheduledButton != null) {
             if (scheduledButton.getTag() != null && visible || scheduledButton.getTag() == null && !visible) {
+                // NagramX: this is the unverified cached-state shortcut under investigation.
+                traceScheduledButton("COMPETING-CACHED-RETURN", -2);
                 if (notifyButton != null) {
                     int newVisibility = !hasScheduled && notifyVisible && scheduledButton.getVisibility() != VISIBLE ? VISIBLE : GONE;
                     if (newVisibility != notifyButton.getVisibility()) {

@@ -328,6 +328,25 @@ public final class ComposerToolbarLayout extends FrameLayout {
         controls.setTrailingContextGroup(view);
     }
 
+    // Temporary diagnostic read: keep measured occupancy separate from the current engagement rule.
+    public String diagnosticOccupancy(View calendar) {
+        return "slots=" + diagnosticSlot(startSlot) + "/" + diagnosticSlot(endSlot)
+                + " groups=" + controls.occLeading + "/" + controls.occMiddle + "/" + controls.occContext + "/" + controls.occTrailing
+                + " calendarParent=" + (calendar == null || calendar.getParent() == null ? "absent"
+                : calendar.getParent() == startSlot ? "start" : calendar.getParent() == endSlot ? "end" : "middle-or-other")
+                + " viewport=" + middleScrollView.getMeasuredWidth() + "/" + middleScrollView.getWidth()
+                + " rest=" + controls.restCompact + " boundsAnim=" + (controls.boundsAnimator != null)
+                + " slides=" + (((SlidingLinearLayout) startSlot).slideAnimator != null) + "/" + (((SlidingLinearLayout) endSlot).slideAnimator != null);
+    }
+
+    private static String diagnosticSlot(CollapsingLinearLayout slot) {
+        int occupied = 0;
+        for (int i = 0; i < slot.getChildCount(); i++) {
+            if (slot.isOccupied(slot.getChildAt(i))) occupied++;
+        }
+        return slot.occupiedChildCount + "/" + occupied + "/" + slot.getMeasuredWidth() + "/" + slot.getWidth();
+    }
+
     // Caps where a configurable leading button can land so it never
     // inserts past the delete-draft button's reserved slot (see addStart).
     private int startContextIndex() {

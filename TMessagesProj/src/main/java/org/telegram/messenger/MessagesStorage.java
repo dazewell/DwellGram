@@ -14601,6 +14601,8 @@ public class MessagesStorage extends BaseController {
             cursor.dispose();
             cursor = null;
             AndroidUtilities.runOnUIThread(() -> getNotificationCenter().postNotificationName(NotificationCenter.scheduledMessagesUpdated, did, count, true));
+            // NagramX: account-scoped collateral only; no dialog identifiers leave storage.
+            com.dazewell.gram.diagnostics.ScheduledCalendarDiagnostics.milestone(currentAccount, "STORAGE-COUNT-ENQUEUED", count, true);
         } catch (Exception e) {
             checkSQLException(e);
         } finally {

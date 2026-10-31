@@ -8080,6 +8080,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                                 newMsgObj.id = message.id;
                                 // NagramX: the server's own date; a reply that is no longer scheduled was sent straight away
                                 com.dazewell.gram.schedulecountdown.ScheduleCountdown.confirmed(currentAccount, oldId, currentSchedule ? message.date : 0);
+                                // NagramX: server acceptance is account-scoped collateral, independent of composer refresh.
+                                com.dazewell.gram.diagnostics.ScheduledCalendarDiagnostics.milestone(currentAccount, "MEDIA-ACCEPTED", -1, currentSchedule);
                                 newMsgObj.quick_reply_shortcut_id = message.quick_reply_shortcut_id;
                                 if (newMsgObj.quick_reply_shortcut_id != 0) {
                                     newMsgObj.flags |= 1073741824;
