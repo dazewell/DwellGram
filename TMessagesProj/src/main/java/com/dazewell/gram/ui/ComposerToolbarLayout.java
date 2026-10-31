@@ -422,7 +422,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
         return controls.rowHeightDp();
     }
 
-    /** The space layout reserves between neighbouring zones, half of it painted by each one's glass capsule. */
+    /** The clear space layout reserves between neighbouring painted bubbles. */
     public int bubbleGapPx() {
         return controls.gapPx;
     }
@@ -451,12 +451,12 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     /** Top of the painted capsule band, in px from this view's top. */
     public int glassBandTop() {
-        return controls.getTop() + controls.glassDrawInsetPx + controls.glassPaddingPx;
+        return controls.getTop() + (controls.getHeight() - controls.cellPx) / 2;
     }
 
     /** Bottom of the painted capsule band, in px from this view's top. */
     public int glassBandBottom() {
-        return controls.getBottom() - controls.glassDrawInsetPx - controls.glassPaddingPx;
+        return glassBandTop() + controls.cellPx;
     }
 
     /** Runs, posted, whenever a layout moves either extent. */
@@ -548,15 +548,16 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     /**
      * NagramX (#glass-lone-circle): the painted height of the Liquid Glass band, for consumers that
-     * want their own control to stand at the bubbles' height - the send disc reads it (dazewell read
-     * the stock 38dp disc standing short of the 44dp band on the verification build). 0 under MD3:
-     * that island paints its own geometry, and its send keeps the stock drawing.
+     * want their own control to stand at the bubbles' height - the send disc reads it. Under glass
+     * the band is the button cell's own diameter (see drawGlass), so every bubble, a lone circle and
+     * the send read one consistent height. 0 under MD3: that island paints its own geometry, and
+     * its send keeps the stock drawing.
      */
     public static int glassBandDp() {
         if (InterfaceStyleController.applyComposer()) {
             return 0;
         }
-        return Math.max(0, height() - 2 * (glassInset() + glassDrawInset()));
+        return buttonSize();
     }
 
     /** The glyph factor applyIconBox multiplies ICON_GLYPH by, before any per-button optical correction. */
@@ -568,12 +569,15 @@ public final class ComposerToolbarLayout extends FrameLayout {
     }
 
     /**
-     * Button cell size in dp at the row's scale, packed as tight as it goes and held above a floor
-     * so the cell always holds the widest glyph applyIconBox draws in it.
+     * Button cell size in dp at the row's scale. Holds the widest glyph and, under glass, the
+     * painted band diameter so a lone circle stays inside its measured slot.
      */
     public static int buttonSize() {
         float scale = scale();
-        return Math.max(minCellDp(scale), cellDp(scale));
+        int packed = Math.max(minCellDp(scale), cellDp(scale));
+        // NagramX: a lone glass circle must fit its cell before layout reserves the neighbouring gap.
+        return InterfaceStyleController.applyComposer() ? packed
+                : Math.max(packed, height() - 2 * (glassInset() + glassDrawInset()));
     }
 
     private static int cellDp(float scale) {
@@ -654,13 +658,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
         return Math.max(1, Math.round(GLASS_INSET * scale()));
     }
 
-    /**
-     * Vertical inset of the drawn bubbles inside the row. Paired with the attached glass padding on
-     * the vertical axis only: each bubble's painted top and bottom land at glassDrawInset() +
-     * glassInset() from the row edge. The horizontal edges do not use this - a bubble's outer flush
-     * edge reaches the row edge and its inner edges are set from live child geometry (see drawGlass),
-     * so this term is vertical-only and does not decide left/right alignment with the input pill.
-     */
+    /** Vertical clearance used to derive the glass cell diameter from the row height. */
     private static int glassDrawInset() {
         return Math.max(1, Math.round(GLASS_DRAW_INSET * scale()));
     }
@@ -679,8 +677,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
      * applies (that is the factor applyPanelIconBox passes for a plain glyph), only the per-key optical
      * correction is dropped to 1, since those corrections make any single button's inset glyph-specific
      * and reading one real button's value would make this drift with the user's layout. Re-derived per
-     * measure pass rather than frozen as a dp. 12dp at 100% scale, 9dp at 75%, 15dp at 125%. This is a
-     * taste number, not a derived
+     * measure pass rather than frozen as a dp. This is a taste number, not a derived
      * constraint - the 22dp rounded corner sweeps back across the glyph's corner, so perpendicular
      * clearance wants roughly one icon inset even though the linear reference sits nearer half that. Kept
      * as one expression in one place so halving it later is a one-line change.
@@ -803,13 +800,9 @@ public final class ComposerToolbarLayout extends FrameLayout {
         // slot is never read. The circle centres on the cell, not the span: the attach wrapper
         // measures wider than its lone engaged button while a faded suggestion keeps its width.
         private final View[] loneCell = new View[BUBBLE_COUNT];
-        // NagramX (#glass-lone-circle): the cell currently carrying a glyph lift (see the lone-circle
-        // branch in drawGlass), so the lift clears the frame the zone stops being lone and a wide
-        // pill never paints off its shifted span.
-        private final View[] liftedCell = new View[BUBBLE_COUNT];
         // NagramX (#glass-lone-circle): the cell width off the same construction-time scale sample as the
         // geometry below, matching what addConfigurable laid every button out at. A lone child laid out at
-        // a fixed width no larger than this is a cell; the wrap-content bot menu and anything wider keep
+        // exactly this width is a cell; native smaller controls and wrap-content bot menus keep
         // the pill.
         private final int cellPx;
         // Whether each bubble actually painted last frame. A bubble that stops painting has its bounds
@@ -1107,8 +1100,11 @@ public final class ComposerToolbarLayout extends FrameLayout {
             // icons clear the bubble's rounded corner (F2) instead of running almost to the glass edge.
             // Set here, guarded like the clip toggle below so it only writes when it actually changes, and
             // re-derived each pass rather than frozen. Measured into middleContent's width, so it flows
-            // through middleViewportWidth and the reserved gaps stay correct.
-            int middleInset = InterfaceStyleController.applyComposer() ? 0 : middleContentSideInset();
+            // through middleViewportWidth and the reserved gaps stay correct. A lone fixed cell
+            // already fills its circle; extra strip padding would enlarge only its neighbouring gaps.
+            View middleLone = countOccupiedCells(middleContent) == 1 ? firstOccupied(middleContent) : null;
+            int middleInset = InterfaceStyleController.applyComposer()
+                    || middleLone != null && middleLone.getLayoutParams().width == cellPx ? 0 : middleContentSideInset();
             if (middleContent.getPaddingLeft() != middleInset || middleContent.getPaddingRight() != middleInset) {
                 middleContent.setPadding(middleInset, 0, middleInset, 0);
             }
@@ -1393,8 +1389,10 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 return;
             }
             computeBubbleSpans();
-            int top = glassDrawInsetPx;
-            int bottom = getHeight() - glassDrawInsetPx;
+            // NagramX: one band for the tool bubbles, folded field and primary control. Each cell
+            // reserves this diameter in layout, so circles never spend the neighbouring gap.
+            int top = (getHeight() - cellPx) / 2 - glassPaddingPx;
+            int bottom = top + cellPx + 2 * glassPaddingPx;
             boolean rtl = getLayoutDirection() == LAYOUT_DIRECTION_RTL;
             // The leading group owns the row's leading edge and the trailing group its trailing edge; those
             // two outer edges repeat the capsule's flush arithmetic so they still line up with the input pill
@@ -1421,28 +1419,15 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 // the glass covers the whole button cell instead of stopping short inside it. Neighbours
                 // are held apart by the layout gap, not by leaving this padding on the inner edges.
                 // The trailing flush edge stops at the send reserve, so the send column keeps its own room
-                // beside the capsule rather than sitting inside it. The lone-cell circle below is the
-                // one deliberate exception: where the band is wider than a cell it spills half the
-                // difference into each reserved gap, and a lone zone against a row's outer flush edge
-                // clamps flush with the pill's edge instead of spilling past the row's clipped canvas.
+                // beside the capsule rather than sitting inside it. The lone-cell circle below is
+                // simply its cell painted round (the band is the cell's diameter), so it reaches the
+                // flush edge exactly like a pill does.
                 float paintedLeft = flushLeft ? (rtl ? sendReservePx : 0f) : bubbleLeft[role];
                 float paintedRight = flushRight ? (rtl ? getWidth() : getWidth() - sendReservePx) : bubbleRight[role];
                 int bubbleTop = top;
                 int bubbleBottom = bottom;
-                // NagramX (#glass-lone-circle): a bubble wrapping exactly one button cell paints as a
-                // circle. The cell beside the band height reads as an oval at every scale (36x32dp at
-                // 75%, 36x44dp at 100%), and only a lone bubble shows it - two cells or more is a wide
-                // pill and looks right. The diameter is the band's full height, so a lone bubble
-                // matches the pill beside it - the central panel at rest - instead of standing a
-                // couple of dp shorter (on-device: the circle read lower than the panel). The circle
-                // centres on the lone cell itself, not the zone's span: the attach wrapper measures
-                // wider than its lone engaged button while a faded suggestion keeps its width, and the
-                // span would centre the circle on that dead space. Only a real cell circles - a child
-                // laid out at a fixed width no larger than the cell; the wrap-content bot menu keeps
-                // its pill. The vertical bounds outset by the glass padding the drawable's own padding
-                // insets back, so the painted circle is the full d and not d less two paddings
-                // (drawDroplet does the same). The count decides, never the painted width: slides
-                // sweep the width past any threshold and would snap a pill into a circle mid-move.
+                // NagramX: count occupied cells rather than animated span width, which sweeps past
+                // a diameter during slides. A wide bot menu keeps its pill; a fixed cell paints round.
                 View lone = bubbleCells[role] == 1 ? loneCell[role] : null;
                 if (lone != null && isCellWidth(lone)) {
                     // One rounded diameter feeds both axes: rounding d and each edge separately
@@ -1455,27 +1440,6 @@ public final class ComposerToolbarLayout extends FrameLayout {
                         float cx = descendantLeft(lone) + lone.getWidth() / 2f
                                 - (role == BUBBLE_MIDDLE ? middleScrollView.getScrollX() : 0);
                         float cy = (top + bottom) / 2f;
-                        paintedLeft = cx - d / 2f;
-                        paintedRight = cx + d / 2f;
-                        // Where the band is wider than the cell the disc spills half the difference
-                        // into each reserved gap; against the row's outer flush edge the disc clamps
-                        // flush, and that clamp would leave the glyph off the disc's centre (on
-                        // device: ~2.7dp left on the leading disc). Lift the lone cell by the clamp
-                        // the moment it fires - computed from the cell's UNTRANSLATED centre, so the
-                        // lifted value is a fixed point and never drifts - and clear it when no
-                        // clamp fires. The touch target follows the visual.
-                        float cxUntranslated = cx - lone.getTranslationX();
-                        float lift = 0f;
-                        if (flushLeft && cxUntranslated - d / 2f < 0f) {
-                            lift = d / 2f - cxUntranslated;
-                        } else if (flushRight && cxUntranslated + d / 2f > (float) getWidth()) {
-                            lift = (float) getWidth() - d / 2f - cxUntranslated;
-                        }
-                        if (lone.getTranslationX() != lift) {
-                            lone.setTranslationX(lift);
-                        }
-                        liftedCell[role] = lift != 0f ? lone : null;
-                        cx += lift;
                         paintedLeft = cx - d / 2f;
                         paintedRight = cx + d / 2f;
                         bubbleTop = Math.round(cy - d / 2f) - glassPaddingPx;
@@ -1663,13 +1627,8 @@ public final class ComposerToolbarLayout extends FrameLayout {
             // NagramX (#glass-lone-circle): the lone cell itself, when a zone holds exactly one. The count
             // is the row's own occupancy rule, so the decision flips the same frame the slot's measured
             // width does - never between measures - and the finder only runs at one, so zero-or-many needs
-            // no third state. Trailing is not here: its lone cell is captured in its own span walk. A cell
-            // that stopped being its zone's only one drops its glyph lift here, before anything paints.
+            // no third state. Trailing is not here: its lone cell is captured in its own span walk.
             for (int role = 0; role < BUBBLE_TRAILING; role++) {
-                if (bubbleCells[role] != 1 && liftedCell[role] != null) {
-                    liftedCell[role].setTranslationX(0f);
-                    liftedCell[role] = null;
-                }
                 loneCell[role] = bubbleCells[role] == 1 ? findCell(role) : null;
             }
         }
@@ -1713,12 +1672,12 @@ public final class ComposerToolbarLayout extends FrameLayout {
             return null;
         }
 
-        // NagramX (#glass-lone-circle): a lone child laid out at a fixed width no larger than the cell is
-        // a cell - every configurable button is (addConfigurable lays them out at exactly buttonSize()),
-        // while the wrap-content bot menu and anything wider keep the pill.
+        // NagramX: only a full band-sized cell reserves the circle's complete footprint. Native
+        // smaller controls (the send-as avatar) and wrap-content bot menus retain their pill,
+        // while every configurable button is laid out at exactly buttonSize().
         private boolean isCellWidth(View child) {
             ViewGroup.LayoutParams lp = child.getLayoutParams();
-            return lp.width > 0 && lp.width <= cellPx;
+            return lp.width == cellPx;
         }
 
         // NagramX (#glass-lone-circle): the cells a zone holds this pass, counted the same way the row
@@ -1804,13 +1763,9 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 // one hit is the lone cell; drawGlass only reads the slot behind that count. This
                 // test keeps a wider predicate (any alpha > 0 paints) than the slot occupancy rule
                 // (>= 0.5), so a fading trailing button counts here before its slot frees - matching
-                // the span it still has to cover. A count leaving one drops the trailing lift here.
+                // the span it still has to cover.
                 bubbleCells[BUBBLE_TRAILING]++;
                 loneCell[BUBBLE_TRAILING] = child;
-                if (bubbleCells[BUBBLE_TRAILING] != 1 && liftedCell[BUBBLE_TRAILING] != null) {
-                    liftedCell[BUBBLE_TRAILING].setTranslationX(0f);
-                    liftedCell[BUBBLE_TRAILING] = null;
-                }
                 float left = descendantLeft(child);
                 float right = left + child.getWidth();
                 if (left < min) {

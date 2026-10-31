@@ -487,47 +487,52 @@ Glass folds through the same `ComposerInlineRest`, made for either style. Its pi
 morph's progress (`ChatInputViewsContainer.java:364-378`, `ComposerInlineRest.java:86`); drawing only, so
 `inputBubbleFullBounds` keeps touch full-width. In-chat search hides the composer but draws its bar on that
 same drawable, so the narrowing is weighted by the enter view's visibility and alpha (`ComposerInlineRest.java:93`).
-The middle capsule pinches to a droplet in `ComposerToolbarLayout.drawDroplet` (`ComposerToolbarLayout.java:1556`).
+The middle capsule pinches to a droplet in `ComposerToolbarLayout.drawDroplet` (`ComposerToolbarLayout.java:1558`).
 A reply or edit bar keeps Glass unfolded (`ChatActivityEnterView.java:11331`), and so does a tools row too
 crowded for the send circle's capsule, which then sits above the toolbar beside the field
 (`ComposerInlineRest.java:223-225`, `ChatActivityEnterView.java:4394`).
 *(Established 2026-10-29, `#glass-composer-fold`.)*
 
-## The glass composer row paints one bubble per zone, a circle for a lone-cell zone, and shades lifted to the container
+## The glass composer shares measured cell geometry across bubbles, the folded field and primary controls
 
-`ControlsLayout.drawGlass` draws up to four zones as separate `BlurredBackgroundDrawable`s — leading,
-scrolling middle, attach context, trailing (`ComposerToolbarLayout.java:764-768`). A zone holding
-exactly one occupied cell paints its bubble as a circle whose diameter is the band's full height, so
-a lone bubble matches the pill beside it instead of standing shorter (dazewell caught the shorter
-disc on the verification build): the count is the row's own occupancy rule (`bubbleCells`/`loneCell`
-at `:786-792`, filled in `computeBubbleSpans`/`countOccupiedCells` `:1617-1715`), the circle centres
-on the lone child and the vertical bounds outset the glass padding the drawable insets back, so the
-painted shape is a full circle rather than a stadium reading as an oval at any toolbar scale
-(`circle box 1415-1457`); where the band is wider than the cell the disc spills half the difference
-into each reserved gap, a lone zone against a row's outer flush edge clamps flush with the pill's
-edge (the glyph rides up to ~2dp a side off the disc's centre at 100%, the clamp at `:1443-1454`),
-and a child laid out wider than a fixed cell width — the wrap-content bot menu — keeps the pill
-(`isCellWidth`, `:1689-1697`).
+`ComposerToolbarLayout.buttonSize()` floors glass cells at the painted band diameter as well as the
+existing glyph/target floor. The default cell is 44dp, while glyphs retain their configured size.
+`glassBandDp()` and `glassBandTop()`/`glassBandBottom()` expose that same band to the primary column
+and `ComposerInlineRest.glassPillEdges`. A lone cell therefore fits its circle before layout reserves
+the neighboring gap; drawing never translates the child to repair a circle that overflowed its slot.
 
-The row's drop shades are not painted from the row once a shade host exists: the row's canvas is
-bounds-clipped where the row is flush to the screen margins, so its own shadows died at the flush
-edges (upstream-traps, "The composer row's canvas clips to its own bounds"). The input container asks
-for the shades in its `dispatchDraw` before painting the pill under them
-(`ChatInputViewsContainer.java:379-384` → `ChatActivityEnterView.java:19315`), the toolbar walks its
-offset and every ancestor's visibility and alpha up to that container
-(`ComposerToolbarLayout.java:252`), and `ControlsLayout.drawShades` paints per-role shadows from each
-drawable's last-written bounds inset by its padding, with the clamped radius read back from
-`bubbleRadius` and the provider's shadow params (`:1512-1564`). `drawGlass` silences the drawables'
-own in-row shadows while lifted (`:1500`) so nothing doubles, the droplet restores and keeps its own
-mid-row shadow (`:1600-1607`), the settings preview has no container and keeps the drawables'
-shadows, and a descendant move chases a container redraw so the lifted shades follow slides
-(`:1318-1328`). The send disc and the lifted-zone glyph read the same band: the clamp on a
-flush-lone zone would leave the glyph off the disc's centre (traced 2.7dp), so its cell carries a
-translation the clamp size ships and `computeBubbleSpans` clears when the zone stops being lone
-(`ComposerToolbarLayout.java:786-800`, lift at `:1463-1481`), and the SendButton draws its disc at
-`glassBandDp()` (`:555`) via `setCircleSize` (`ChatActivityEnterView.java:3872`) with the stock
-`DEFAULT_HEIGHT − 2×inset` rectangle kept for the preview and MD3 (bounded branch in
-`checkBackgroundRect` at `:19161`).
+`ControlsLayout.drawGlass` uses occupied-cell counts, rather than animated span widths, to select
+circles. The center follows the engaged child, with scrollX removed for the middle strip. A lone
+middle cell has no additional strip padding; multiple cells keep the scroll strip's end clearance.
+Native smaller controls and wide bot menus keep their pill. The folded input field's edges use the measured leading/trailing
+extents and the same clear gap between bubbles.
+
+The camera/microphone disc is drawn independently of `SendButton`, in
+`audioVideoButtonContainer.dispatchDraw`. Both paths must change when the primary diameter changes.
+`composerPrimarySize()` sizes their actual slots and centers the primary column on the toolbar;
+`composerPrimaryInset()` is zero for glass, so its disc fills that slot. MD3 retains its own geometry.
+`SendButton.setBackgroundCircleSize` opts only composer backgrounds into the explicit diameter;
+other uses of `setCircleSize` keep their existing background behavior, and `copyTo` preserves the opt-in.
+
+The row's drop shades are painted by the input container before its pill because the row's own
+canvas clips shades at the screen margins (upstream-traps, "The composer row's canvas clips to its
+own bounds"). The toolbar maps its offset and ancestor visibility/alpha into the container;
+`ControlsLayout.drawShades` reads each drawable's last-painted bounds, padding and clamped radius.
+`drawGlass` suppresses internal shadows once a shade host exists. The middle droplet restores its own
+in-row shadow, and the settings preview retains internal shadows because it has no shade host.
+A descendant move also invalidates the container so the lifted shades follow slides.
+
+Geometry anchors: `ComposerToolbarLayout.java:575` (cell floor),
+`:453` (reported band), `:1105` (middle padding),
+`:1382` (bubbles), `:1678` (eligible fixed cells),
+`ComposerInlineRest.java:86` (folded pill),
+`ChatActivityEnterView.java:3562` (record disc),
+`:4395` (primary slot),
+`:18623` and `:19205` (send background).
+Shade anchors: `ChatInputViewsContainer.java:384` →
+`ChatActivityEnterView.java:19377` →
+`ComposerToolbarLayout.java:252`, `:1515`;
+droplet `:1558`, redraw propagation `:1330`.
 *(Established 2026-10-30, `#glass-lone-circle`, PR 579.)*
 
 ## MD3 Buttons reaches buttons through shared providers and targeted hooks

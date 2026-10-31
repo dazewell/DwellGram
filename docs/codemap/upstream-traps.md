@@ -2892,9 +2892,9 @@ The glass tools row draws its bubbles' drop shadows through the glass drawables 
 (`BlurredBackgroundDrawable.drawShadows`, `BlurredBackgroundDrawable.java:304-317`; the RenderNode
 paints the layer at `BlurredBackgroundDrawableRenderNode.java:188-192`), but the row's own canvas is
 clipped to the row's bounds — traced to device with a `Canvas.getClipBounds()` probe, `[0,0][1042,147]`
-(`ComposerToolbarLayout.java:1369`) — and the row is flush to the enter view's 7dp screen margins
+(smoke build `30b00d9`) — and the row is flush to the enter view's 7dp screen margins
 (`ChatActivity.java:9052`). The chain above it reads clip-free (`ComposerToolbarLayout.java:118-119`,
-`ChatActivityEnterView.java:2812`, `:2855`, `:2927`), yet the clip reported inside
+`ChatActivityEnterView.java:544`, `:2855`, `:2927`), yet the clip reported inside
 `ControlsLayout.dispatchDraw` was the view's own bounds, so the shade's spill past the painted edge
 never appeared left of a lone leading capsule nor at the trailing flush, while the same shadows
 showed in the gaps between capsules. The island pill never noticed: `ChatInputViewsContainer.dispatchDraw`
@@ -2904,7 +2904,7 @@ Do not assume `clipChildren(false)` up the chain buys an out-of-bounds spill a r
 dispatch pass; if a painter's hint has to survive past the view it paints from, paint it on the
 ancestor whose bounds actually contain the spill. The composer does this now: the container asks the
 toolbar for its capsule shades and paints them beside the pill it already owns
-(`ChatInputViewsContainer.java:379-384`, `ComposerToolbarLayout.java:252`). The obstacle cost a smoke
+(`ChatInputViewsContainer.java:384`, `ComposerToolbarLayout.java:252`). The obstacle cost a smoke
 probe to attribute — the shade read as "cut" on screenshots long before anyone traced it.
 
 *(Established 2026-10-30, `#glass-lone-circle`, PR 579.)*
