@@ -1375,3 +1375,33 @@ so the margin is recomputed from the visible items after upstream's block
 (`ChatActivity.java:20298`).
 
 *(Established 2026-10-07.)*
+
+## Composer Scheduled calendar: count updates and typing take different repair paths
+
+`ChatActivity.hasScheduledMessages()` tests a positive `scheduledMessagesCount`
+and the chat mode, with forum-root and welcome-mode exclusions; it does not test
+how far away the scheduled date is (`ChatActivity.java:2943-2947`). The
+account's `scheduledMessagesUpdated` event replaces that count and calls
+`updateScheduledInterface` (`:26898-26904`), which delegates to
+`ChatActivityEnterView.updateScheduleButton` (`:30634-30637`). That method gates
+visibility on schedule mode, `scheduleButtonHidden` and recording state
+(`ChatActivityEnterView.java:14384-14390`), then may return on a matching tag
+without reconciling the view's actual visibility, alpha or scale (`:14394-14402`).
+
+Typing calls `checkSendButton(true)` (`:7499`), which posts
+`reconcileScheduleButton` (`:11288`). With nonempty text and Quick schedule
+enabled, that reconciler explicitly restores the calendar's tag, visibility,
+alpha and scale when eligible (`:11418-11440`). With an empty composer it
+returns before repairing the calendar (`:11411-11416`). Thus a calendar that
+reappears on typing warrants checking both semantic state and actual view
+properties; typing's repair alone does not establish which writer hid it.
+
+The calendar schedules a nonempty draft when Quick schedule is enabled;
+otherwise it opens the scheduled list. Long-press always opens the list
+(`:4088-4110`). The upload confirmation bulletin is independent:
+`SendMessagesHelper.java:8630` calls `ScheduleCountdown.confirmed` with the
+server date, without refreshing the composer there. A bulletin does not prove
+the calendar has refreshed. The reported upload/back-navigation interleaving
+has not been reproduced or established as the cause of a visibility mismatch.
+
+*(Established 2026-10-30, #docs.)*
