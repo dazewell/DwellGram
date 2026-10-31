@@ -86,6 +86,8 @@ public final class ScheduleCountdown {
      * stored it, or 0 when the reply says it was not scheduled after all (sent straight away), which only disarms.
      */
     public static void confirmed(int account, int localId, int serverDate) {
+        // Temporary account-scoped observation shared by single-media, album and forwarding replies.
+        com.dazewell.gram.diagnostics.ScheduledCalendarDiagnostics.milestone(account, "SERVER-CONFIRMED", -1, serverDate > 0);
         Long armedAt;
         synchronized (armed) {
             armedAt = armed.remove(key(account, localId));
