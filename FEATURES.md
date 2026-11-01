@@ -61,9 +61,9 @@ DwellGramX puts an X in front of its own launcher shortcut names (*X Ayu Mode*, 
 
 Telegram's *New conversation* launcher shortcut can be switched off under N-Settings → General → Launcher shortcuts → Built in, for launchers that only show a few shortcuts. On by default.
 
-### Hold messages while Ghost Mode is on <!-- #ghost-hold -->
+### Hold messages while Ghost Mode is on <!-- #ghost-hold --> <!-- #memo-skips-hold -->
 
-Turn on **Hold Messages** under Settings → Ghost Mode, or from the Send button's long-press menu while Ghost is on (off by default), and most plain text messages, contacts and static locations stay on this device. They wait in the chat's Scheduled list marked "Held — not sent". Turning Ghost Mode or Hold Messages off asks before releasing them; future-scheduled items keep their schedule. Unsupported sends go through normally.
+Turn on **Hold Messages** under Settings → Ghost Mode, or from the Send button's long-press menu while Ghost is on (off by default), and most plain text messages, contacts and static locations stay on this device. They wait in the chat's Scheduled list marked "Held — not sent". Turning Ghost Mode or Hold Messages off asks before releasing them; future-scheduled items keep their schedule. Memos and unsupported sends go through normally.
 
 <img height="260" alt="the Hold Messages toggle in its Ghost Mode section with the explanatory footer beneath it" src="docs/images/features/ghost-hold-setting.png" />
 <img height="260" alt="a chat's Scheduled list with three held messages, each captioned Held — not sent" src="docs/images/features/ghost-hold-scheduled.png" />

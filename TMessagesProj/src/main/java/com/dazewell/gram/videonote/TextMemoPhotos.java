@@ -20,6 +20,7 @@ import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.Utilities;
+import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.Components.RadialProgressView;
 
 import java.io.File;
@@ -265,7 +266,7 @@ final class TextMemoPhotos {
         if (infos.isEmpty()) {
             // Every copy is gone: the text still goes
             if (!TextUtils.isEmpty(caption)) {
-                SendMessagesHelper.prepareSendingText(account, caption, dialogId, true, 0, 0, 0);
+                sendText(account, caption, dialogId);
             }
             return;
         }
@@ -274,8 +275,31 @@ final class TextMemoPhotos {
         infos.get(0).caption = captionFits ? caption : null;
         SendMessagesHelper.prepareSendingMedia(account, infos, dialogId, null, null, null, null, false, infos.size() > 1, null, true, 0, 0, 0, false, null, null, 0, false, 0, 0, null);
         if (!captionFits) {
-            SendMessagesHelper.prepareSendingText(account, caption, dialogId, true, 0, 0, 0);
+            sendText(account, caption, dialogId);
         }
+    }
+
+    /**
+     * SendMessagesHelper.prepareSendingText for a memo, with the same queue hops and splitting, but each part exempt
+     * from Ghost Hold: a memo is written to go out now. A copy, so keep it in step with upstream's when that changes.
+     */
+    static void sendText(AccountInstance account, CharSequence text, long dialogId) {
+        account.getMessagesStorage().getStorageQueue().postRunnable(() -> Utilities.stageQueue.postRunnable(() -> AndroidUtilities.runOnUIThread(() -> {
+            CharSequence textFinal = SendMessagesHelper.getTrimmedString(text);
+            if (textFinal == null || textFinal.length() == 0) {
+                return;
+            }
+            int limit = account.getMessagesController().getMaxMessageLength();
+            int count = (int) Math.ceil(textFinal.length() / (float) limit);
+            for (int a = 0; a < count; a++) {
+                CharSequence[] part = new CharSequence[] { textFinal.subSequence(a * limit, Math.min((a + 1) * limit, textFinal.length())) };
+                ArrayList<TLRPC.MessageEntity> entities = account.getMediaDataController().getEntities(part, true);
+                SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(part[0].toString(), dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false);
+                params.entities = entities;
+                com.dazewell.gram.ghosthold.GhostHoldController.exempt(params);
+                account.getSendMessagesHelper().sendMessage(params);
+            }
+        })));
     }
 
     static void discard(List<String> paths) {

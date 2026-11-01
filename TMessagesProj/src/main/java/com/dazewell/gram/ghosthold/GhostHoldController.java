@@ -95,6 +95,7 @@ public final class GhostHoldController {
     // Set on a re-driven send after a durable-write failure, so the divert hook
     // lets it through to the network instead of trying to hold it again (which
     // would loop while the write keeps failing). See persistHeld's failure path.
+    // Memo sends carry it too, via exempt().
     private static final String PARAM_BYPASS = "ghost_hold_bypass";
 
     private static final String PREFS_NAME = "ghosthold_state";
@@ -793,11 +794,16 @@ public final class GhostHoldController {
             FileLog.e("ghostHold: hold persist failed but logout raced in; abandoning redrive for account " + account + " to avoid cross-account send");
             return;
         }
+        exempt(params);
+        SendMessagesHelper.getInstance(account).sendMessage(params);
+    }
+
+    /** Marks a send the divert hook must never hold, for flows the user means to go out now (memos). */
+    public static void exempt(SendMessagesHelper.SendMessageParams params) {
         if (params.params == null) {
             params.params = new HashMap<>();
         }
         params.params.put(PARAM_BYPASS, PARAM_VALUE);
-        SendMessagesHelper.getInstance(account).sendMessage(params);
     }
 
     private static void showDivertBulletin() {
