@@ -2914,3 +2914,9 @@ shadow but leaves the fallback shadow intact, doubling a lifted shade. Restoring
 regenerates the shadowed bitmap, which the shrinking middle droplet relies on.
 
 *(Established 2026-10-30, `#glass-lone-circle`, PR 579.)*
+
+## `messageOwner.pinned` goes stale within a chat session
+
+Pinning or unpinning updates the chat's pin map and leaves the flag on already-loaded `MessageObject`s untouched. A success from `MessagesController.pinMessage` reaches `MessagesStorage.updatePinnedMessages` (`MessagesController.java:9791`), and that only posts `didLoadPinnedMessages`. `ChatActivity` handles that notification by editing `pinnedMessageIds` / `pinnedMessageObjects` (`ChatActivity.java:26155`). Nothing writes `messageOwner.pinned` back. To know whether a message is pinned now, do what upstream's `allowUnpin` does: check `pinnedMessageObjects.containsKey(id)` with the `mergeDialogId` guard (`ChatActivity.java:34002`). Also exclude the modes upstream's `allowPin` rules out, because scheduled, quick-reply and saved ids are separate id spaces that collide with real pins. The selection-bar Unpin uses this check through `nkIsSelectionPinned` (`ChatActivity.java:49121`).
+
+*(Established 2026-10-31, `#unpin-stale-fix`, PR 585.)*

@@ -21844,7 +21844,8 @@ public class ChatActivity extends BaseFragment implements
                     allowPin = false;
                     ArrayList<MessageObject> selected = getSelectedMessages1();
                     for (MessageObject selectedMessage : selected) {
-                        if (selectedMessage.messageOwner.pinned) {
+                        // NagramX: messageOwner.pinned goes stale on pin/unpin within the session; match upstream's allowUnpin
+                        if (nkIsSelectionPinned(selectedMessage)) {
                             allowPin = true;
                             break;
                         }
@@ -49004,7 +49005,7 @@ public class ChatActivity extends BaseFragment implements
             MessageTransKt.translateMessages(ChatActivity.this, getSelectedMessages());
         } else if (id == nkbtn_unpin) {
             for (MessageObject selectedMessage : getSelectedMessages()) {
-                if (selectedMessage.messageOwner.pinned) {
+                if (nkIsSelectionPinned(selectedMessage)) { // NagramX: same source of truth as the visibility pass
                     unpinMessage(selectedMessage);
                 }
             }
@@ -49159,6 +49160,15 @@ public class ChatActivity extends BaseFragment implements
                 clearSelectionMode();
             });
         }
+    }
+
+    // NagramX: is this selected message in the live pin map. The mode exclusions are upstream allowPin's,
+    // because scheduled, quick-reply and saved ids are their own namespaces and can collide with real pins.
+    private boolean nkIsSelectionPinned(MessageObject m) {
+        if (chatMode == MODE_SAVED || isQuickRepliesOrWelcomeMessagesMode() || chatMode == MODE_SCHEDULED || (isThreadChat() && !isTopic)) {
+            return false;
+        }
+        return m.getDialogId() != mergeDialogId && pinnedMessageObjects.containsKey(m.getId());
     }
 
     private void pinSelectedMessages() {
