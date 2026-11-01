@@ -49262,7 +49262,6 @@ public class ChatActivity extends BaseFragment implements
         builder.setPositiveButton(LocaleController.getString(R.string.PinMessage), (dialogInterface, i) -> {
             final boolean notify = checks[0];
             final boolean oneSide = !checks[1];
-            final boolean started;
             if (mids.size() == 1) {
                 getMessagesController().pinMessage(currentChat, currentUser, mid, false, oneSide, notify);
                 Bulletin bulletin = BulletinFactory.createPinMessageBulletin(this, themeDelegate);
@@ -49273,17 +49272,10 @@ public class ChatActivity extends BaseFragment implements
                         if (!NekoConfig.disableVibration.Bool()) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
                     } catch (Exception ignored) {}
                 }, 550);
-                started = true;
-            } else {
-                started = com.dazewell.gram.bulk.BulkMessageActions.runPin(this, currentAccount, currentChat, currentUser, dialog_id, mids, oneSide, notify);
-                if (!started) {
-                    BulletinFactory.of(this).createSimpleBulletin(R.raw.error, getString(R.string.BulkActionBusy)).show();
-                }
+            } else if (!com.dazewell.gram.bulk.BulkMessageActions.runPin(this, currentAccount, currentChat, currentUser, dialog_id, mids, oneSide, notify)) {
+                BulletinFactory.of(this).createSimpleBulletin(R.raw.error, getString(R.string.BulkActionBusy)).show();
             }
-            // clear the selection only once a run actually started; a single pin from the message menu has none
-            if (started && !fromMessageMenu) {
-                clearSelectionMode();
-            }
+            // Pin all leaves the selection up, so another bulk action (Bookmark, say) can follow on the same messages.
         });
         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
         showDialog(builder.create());
