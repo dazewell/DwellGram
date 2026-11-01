@@ -328,6 +328,11 @@ public final class BookmarksChat {
             if (m == null || m.getId() == 0 || m.isAnyKindOfSticker()) {
                 continue;
             }
+            // A message still sending has a temporary negative id that the server reply replaces, and nothing
+            // remaps a bookmark. Secret chats are the exception: their ids are negative for good.
+            if (m.getId() < 0 && !DialogObject.isEncryptedDialog(m.getDialogId())) {
+                continue;
+            }
             ArrayList<Integer> ids = lists.get(m.getDialogId());
             if (ids == null) {
                 lists.put(m.getDialogId(), ids = new ArrayList<>());
