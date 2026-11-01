@@ -507,6 +507,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int nkheaderbtn_notif_bell = 2106; // NagramX: header bell that cycles the profile
     private final static int nkbtn_stash = 2107; // NagramX: #stash message menu / selection item
     private final static int nkbtn_bookmarks_remove = 2108; // NagramX: #bookmarks-chat selection item
+    private final static int nkbtn_bookmark_selection = 2109; // NagramX: #bookmarks-selection selection item
 
     public int shareAlertDebugMode = DEBUG_SHARE_ALERT_MODE_NORMAL;
     public boolean shareAlertDebugTopicsSlowMotion;
@@ -11746,6 +11747,8 @@ public class ChatActivity extends BaseFragment implements
         actionModeOtherItem.addSubItem(nkbtn_report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
         actionModeOtherItem.addSubItem(nkbtn_detail,R.drawable.msg_info,LocaleController.getString(R.string.MessageDetails));
         if (nkBookmarks) actionModeOtherItem.addSubItem(nkbtn_bookmarks_remove, R.drawable.msg_unfave, LocaleController.getString(R.string.RemoveBookmark)); // NagramX: #bookmarks-chat
+        // NagramX: #bookmarks-selection. Scheduled ids change on send, and the bookmarks list has its own Remove.
+        else if (NaConfig.INSTANCE.getShowAddToBookmark().Bool() && !scheduledActionBar) actionModeOtherItem.addSubItem(nkbtn_bookmark_selection, R.drawable.msg_fave, LocaleController.getString(R.string.AddBookmark));
         if (scheduledActionBar) {
             // NagramX: copy + forward relocated here off the scheduled top row (forward honours the same config toggle as the top-row button)
             actionModeOtherItem.addSubItem(copy, R.drawable.msg_copy, LocaleController.getString(R.string.Copy));
@@ -13343,6 +13346,42 @@ public class ChatActivity extends BaseFragment implements
             nkRemovingBookmarkRows = false;
         }
         if (pinnedMessageIds.isEmpty()) finishFragment();
+    }
+
+    // NagramX: #bookmarks-selection. The selection stays up after the toggle so more actions can follow,
+    // which is why the item's label is refreshed here as well as on every selection change.
+    private void nkUpdateBookmarkSelectionItem() {
+        if (actionModeOtherItem == null || !actionModeOtherItem.hasSubItem(nkbtn_bookmark_selection)) return;
+        ArrayList<MessageObject> selected = getSelectedMessages1();
+        actionModeOtherItem.setSubItemVisibility(nkbtn_bookmark_selection, com.dazewell.gram.bookmarks.BookmarksChat.hasBookmarkable(selected));
+        boolean all = com.dazewell.gram.bookmarks.BookmarksChat.allSelectedBookmarked(currentAccount, selected);
+        ActionBarMenuSubItem item = actionModeOtherItem.getSubItem(nkbtn_bookmark_selection);
+        if (item != null) item.setTextAndIcon(getString(all ? R.string.RemoveBookmark : R.string.AddBookmark), all ? R.drawable.msg_unfave : R.drawable.msg_fave);
+    }
+
+    private void nkBookmarkSelection() {
+        ArrayList<MessageObject> selected = getSelectedMessages1();
+        ToggleResult result = com.dazewell.gram.bookmarks.BookmarksChat.toggleSelected(currentAccount, selected);
+        if (result == ToggleResult.LIMIT_REACHED) {
+            BulletinFactory.of(this).createSimpleBulletin(R.raw.error, formatString(R.string.BookmarksLimitReached, BookmarksHelper.MAX_PER_CHAT)).show();
+            return;
+        }
+        boolean added = result == ToggleResult.ADDED;
+        // A migrated group's old half stores under mergeDialogId, so link to where these actually went.
+        long target = com.dazewell.gram.bookmarks.BookmarksChat.selectionDialog(selected, dialog_id);
+        CharSequence text = AndroidUtilities.replaceSingleTag(getString(added ? R.string.BookmarkAdded : R.string.BookmarkRemoved),
+                () -> com.dazewell.gram.bookmarks.BookmarksChat.open(this, target));
+        Drawable drawable = ContextCompat.getDrawable(getParentActivity(), added ? R.drawable.msg_fave : R.drawable.msg_unfave);
+        if (drawable != null) {
+            drawable = drawable.mutate();
+            drawable.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_undo_infoColor), PorterDuff.Mode.SRC_IN));
+        }
+        BulletinFactory.of(this).createSimpleBulletin(drawable, text).show();
+        updateVisibleRows();
+        nkUpdateBookmarkSelectionItem();
+        if (headerItem != null && bookmarksItem != null) {
+            headerItem.setSubItemShown(nkbtn_bookmarks_manager, BookmarksHelper.getBookmarkedMessageIds(currentAccount, dialog_id).length > 0);
+        }
     }
 
     private void openPinnedMessagesList(boolean preview) {
@@ -21808,6 +21847,7 @@ public class ChatActivity extends BaseFragment implements
                 }
                 if (actionModeOtherItem != null) {
                     actionModeOtherItem.setSubItemVisibility(nkbtn_unpin, allowPin);
+                    nkUpdateBookmarkSelectionItem(); // NagramX: #bookmarks-selection
                 }
 
                 if (shareItem != null) {
@@ -49062,6 +49102,8 @@ public class ChatActivity extends BaseFragment implements
             int[] removed = com.dazewell.gram.bookmarks.BookmarksChat.removeSelected(currentAccount, dialog_id, getSelectedMessages1());
             clearSelectionMode();
             nkRemoveBookmarkRows(removed);
+        } else if (id == nkbtn_bookmark_selection) {
+            nkBookmarkSelection();
         } else if (id == nkheaderbtn_hide_title) {
             if (avatarContainer != null) {
                 avatarContainer.setTitle("");
