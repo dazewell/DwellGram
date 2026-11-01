@@ -280,9 +280,8 @@ final class TextMemoPhotos {
     }
 
     /**
-     * SendMessagesHelper.prepareSendingText for a memo, with the same queue hops so it keeps its place behind media
-     * sent just before it, but each part exempt from Ghost Hold: a memo is written to go out now. A copy, so keep it in
-     * step with upstream's when that changes.
+     * SendMessagesHelper.prepareSendingText for a memo, with the same queue hops and splitting, but each part exempt
+     * from Ghost Hold: a memo is written to go out now. A copy, so keep it in step with upstream's when that changes.
      */
     static void sendText(AccountInstance account, CharSequence text, long dialogId) {
         account.getMessagesStorage().getStorageQueue().postRunnable(() -> Utilities.stageQueue.postRunnable(() -> AndroidUtilities.runOnUIThread(() -> {
