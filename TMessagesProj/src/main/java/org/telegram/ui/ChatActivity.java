@@ -11748,7 +11748,14 @@ public class ChatActivity extends BaseFragment implements
         actionModeOtherItem.addSubItem(nkbtn_detail,R.drawable.msg_info,LocaleController.getString(R.string.MessageDetails));
         if (nkBookmarks) actionModeOtherItem.addSubItem(nkbtn_bookmarks_remove, R.drawable.msg_unfave, LocaleController.getString(R.string.RemoveBookmark)); // NagramX: #bookmarks-chat
         // NagramX: #bookmarks-selection. Scheduled ids change on send, and the bookmarks list has its own Remove.
-        else if (NaConfig.INSTANCE.getShowAddToBookmark().Bool() && !scheduledActionBar) actionModeOtherItem.addSubItem(nkbtn_bookmark_selection, R.drawable.msg_fave, LocaleController.getString(R.string.AddBookmark));
+        else if (NaConfig.INSTANCE.getShowAddToBookmark().Bool() && !scheduledActionBar) {
+            actionModeOtherItem.addSubItem(nkbtn_bookmark_selection, R.drawable.msg_fave, LocaleController.getString(R.string.AddBookmark));
+            // Read storage each time the menu opens: the selection outlives the toggle, and the bookmarks list can change it meanwhile.
+            actionModeOtherItem.setSubMenuDelegate(new ActionBarMenuItem.ActionBarSubMenuItemDelegate() {
+                @Override public void onShowSubMenu() { nkUpdateBookmarkSelectionItem(); }
+                @Override public void onHideSubMenu() {}
+            });
+        }
         if (scheduledActionBar) {
             // NagramX: copy + forward relocated here off the scheduled top row (forward honours the same config toggle as the top-row button)
             actionModeOtherItem.addSubItem(copy, R.drawable.msg_copy, LocaleController.getString(R.string.Copy));
@@ -13348,8 +13355,7 @@ public class ChatActivity extends BaseFragment implements
         if (pinnedMessageIds.isEmpty()) finishFragment();
     }
 
-    // NagramX: #bookmarks-selection. The selection stays up after the toggle so more actions can follow,
-    // which is why the item's label is refreshed here as well as on every selection change.
+    // NagramX: #bookmarks-selection. The selection stays up after the toggle so more actions can follow on it.
     private void nkUpdateBookmarkSelectionItem() {
         if (actionModeOtherItem == null || !actionModeOtherItem.hasSubItem(nkbtn_bookmark_selection)) return;
         ArrayList<MessageObject> selected = getSelectedMessages1();
@@ -13378,7 +13384,6 @@ public class ChatActivity extends BaseFragment implements
         }
         BulletinFactory.of(this).createSimpleBulletin(drawable, text).show();
         updateVisibleRows();
-        nkUpdateBookmarkSelectionItem();
         if (headerItem != null && bookmarksItem != null) {
             headerItem.setSubItemShown(nkbtn_bookmarks_manager, BookmarksHelper.getBookmarkedMessageIds(currentAccount, dialog_id).length > 0);
         }
@@ -21847,7 +21852,6 @@ public class ChatActivity extends BaseFragment implements
                 }
                 if (actionModeOtherItem != null) {
                     actionModeOtherItem.setSubItemVisibility(nkbtn_unpin, allowPin);
-                    nkUpdateBookmarkSelectionItem(); // NagramX: #bookmarks-selection
                 }
 
                 if (shareItem != null) {
