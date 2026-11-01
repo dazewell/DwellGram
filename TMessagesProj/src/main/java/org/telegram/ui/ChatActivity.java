@@ -21801,7 +21801,7 @@ public class ChatActivity extends BaseFragment implements
                     ArrayList<MessageObject> selected = getSelectedMessages1();
                     for (MessageObject selectedMessage : selected) {
                         // NagramX: messageOwner.pinned goes stale on pin/unpin within the session; match upstream's allowUnpin
-                        if (selectedMessage.getDialogId() != mergeDialogId && pinnedMessageObjects.containsKey(selectedMessage.getId())) {
+                        if (chatMode != MODE_SCHEDULED && selectedMessage.getDialogId() != mergeDialogId && pinnedMessageObjects.containsKey(selectedMessage.getId())) {
                             allowPin = true;
                             break;
                         }
@@ -48961,7 +48961,7 @@ public class ChatActivity extends BaseFragment implements
             MessageTransKt.translateMessages(ChatActivity.this, getSelectedMessages());
         } else if (id == nkbtn_unpin) {
             for (MessageObject selectedMessage : getSelectedMessages()) {
-                if (selectedMessage.getDialogId() != mergeDialogId && pinnedMessageObjects.containsKey(selectedMessage.getId())) { // NagramX: same source of truth as the visibility pass
+                if (chatMode != MODE_SCHEDULED && selectedMessage.getDialogId() != mergeDialogId && pinnedMessageObjects.containsKey(selectedMessage.getId())) { // NagramX: same source of truth as the visibility pass
                     unpinMessage(selectedMessage);
                 }
             }
