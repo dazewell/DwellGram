@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 
 import xyz.nextalone.nagram.NaConfig;
+import xyz.nextalone.nagram.ToggleResult;
 import xyz.nextalone.nagram.helper.BookmarksHelper;
 
 /**
@@ -316,6 +317,99 @@ public final class BookmarksChat {
         }
         BookmarksHelper.removeBookmarks(account, dialogId, ids);
         return ids;
+    }
+
+    // #bookmarks-selection. A migrated group's selection spans two dialogs, so ids are grouped by
+    // each message's own dialog, the same key the message-menu toggle uses. Stickers are left out
+    // there too.
+    private static HashMap<Long, int[]> selectionByDialog(ArrayList<MessageObject> selected) {
+        HashMap<Long, ArrayList<Integer>> lists = new HashMap<>();
+        for (MessageObject m : selected) {
+            if (m == null || m.getId() == 0 || m.isAnyKindOfSticker()) {
+                continue;
+            }
+            // A message still sending has a temporary negative id that the server reply replaces, and nothing
+            // remaps a bookmark. Secret chats are the exception: their ids are negative for good.
+            if (m.getId() < 0 && !DialogObject.isEncryptedDialog(m.getDialogId())) {
+                continue;
+            }
+            ArrayList<Integer> ids = lists.get(m.getDialogId());
+            if (ids == null) {
+                lists.put(m.getDialogId(), ids = new ArrayList<>());
+            }
+            ids.add(m.getId());
+        }
+        HashMap<Long, int[]> result = new HashMap<>();
+        for (java.util.Map.Entry<Long, ArrayList<Integer>> e : lists.entrySet()) {
+            int[] ids = new int[e.getValue().size()];
+            for (int i = 0; i < ids.length; i++) {
+                ids[i] = e.getValue().get(i);
+            }
+            result.put(e.getKey(), ids);
+        }
+        return result;
+    }
+
+    /** True when the selection has something bookmarkable and all of it is bookmarked already. */
+    public static boolean allSelectedBookmarked(int account, ArrayList<MessageObject> selected) {
+        HashMap<Long, int[]> byDialog = selectionByDialog(selected);
+        if (byDialog.isEmpty()) {
+            return false;
+        }
+        for (java.util.Map.Entry<Long, int[]> e : byDialog.entrySet()) {
+            if (!BookmarksHelper.areAllBookmarked(account, e.getKey(), e.getValue())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** The dialog the bulletin should open: the selection's only dialog, else the chat's own. */
+    public static long selectionDialog(ArrayList<MessageObject> selected, long fallback) {
+        HashMap<Long, int[]> byDialog = selectionByDialog(selected);
+        return byDialog.size() == 1 ? byDialog.keySet().iterator().next() : fallback;
+    }
+
+    /** True when the selection holds at least one message that can be bookmarked. */
+    public static boolean hasBookmarkable(ArrayList<MessageObject> selected) {
+        return !selectionByDialog(selected).isEmpty();
+    }
+
+    /**
+     * The selection bar's Bookmark / Remove bookmark. Removes every selected bookmark when all of
+     * them are bookmarked, otherwise adds the missing ones. The limit is checked for every dialog
+     * before anything is written, so a refused add leaves storage as it was.
+     */
+    public static ToggleResult toggleSelected(int account, ArrayList<MessageObject> selected) {
+        HashMap<Long, int[]> byDialog = selectionByDialog(selected);
+        if (allSelectedBookmarked(account, selected)) {
+            for (java.util.Map.Entry<Long, int[]> e : byDialog.entrySet()) {
+                BookmarksHelper.removeBookmarks(account, e.getKey(), e.getValue());
+            }
+            return ToggleResult.REMOVED;
+        }
+        for (java.util.Map.Entry<Long, int[]> e : byDialog.entrySet()) {
+            java.util.HashSet<Integer> current = new java.util.HashSet<>();
+            for (int id : BookmarksHelper.getBookmarkedMessageIds(account, e.getKey())) {
+                current.add(id);
+            }
+            int total = current.size();
+            for (int id : e.getValue()) {
+                if (current.add(id)) {
+                    total++;
+                }
+            }
+            if (total > BookmarksHelper.MAX_PER_CHAT) {
+                return ToggleResult.LIMIT_REACHED;
+            }
+        }
+        for (java.util.Map.Entry<Long, int[]> e : byDialog.entrySet()) {
+            // toggleBookmarks would remove a dialog whose part is already fully bookmarked, so skip those.
+            if (!BookmarksHelper.areAllBookmarked(account, e.getKey(), e.getValue())) {
+                BookmarksHelper.toggleBookmarks(account, e.getKey(), e.getValue());
+            }
+        }
+        return ToggleResult.ADDED;
     }
 
     private static Bundle dialogArgs(long dialogId) {
