@@ -868,7 +868,7 @@ public class TextMemoActivity extends Activity {
                 TextMemoPhotos.send(AccountInstance.getInstance(account), sentPhotos, text, dialogId);
                 return;
             }
-            SendMessagesHelper.prepareSendingText(AccountInstance.getInstance(account), text, dialogId, true, 0, 0, 0);
+            TextMemoPhotos.sendText(AccountInstance.getInstance(account), text, dialogId);
         } catch (Throwable e) {
             FileLog.e(e);
         }
