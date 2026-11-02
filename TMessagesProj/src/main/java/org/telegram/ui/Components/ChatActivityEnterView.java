@@ -7174,10 +7174,12 @@ public class ChatActivityEnterView extends FrameLayout implements
             // NagramX (#fullscreen-input): send, edit-done and the rich editor all empty the field through
             // setText, while a user's own deletion edits the Editable in place, so collapsing here ends
             // fullscreen with the message without closing it under someone who erased their draft to rewrite it.
+            private boolean contextMenuEdit;
+
             @Override
             public void setText(CharSequence text, BufferType type) {
                 super.setText(text, type);
-                if (messageEditExpanded && length() == 0) {
+                if (messageEditExpanded && !contextMenuEdit && length() == 0) {
                     setMessageEditExpanded(false);
                 }
             }
@@ -7244,7 +7246,14 @@ public class ChatActivityEnterView extends FrameLayout implements
                 if (id == android.R.id.paste && !com.dazewell.gram.composer.PasteAsLink.wouldApply(this) && handleRichHtmlPaste()) {
                     return true;
                 }
-                return super.onTextContextMenuItem(id);
+                // NagramX (#fullscreen-input): EditTextCaption's Cut rewrites the field through setText, so a
+                // cut of the whole draft is a user deletion that must not collapse fullscreen (see setText above).
+                contextMenuEdit = true;
+                try {
+                    return super.onTextContextMenuItem(id);
+                } finally {
+                    contextMenuEdit = false;
+                }
             }
 
             float touchX, touchY;
