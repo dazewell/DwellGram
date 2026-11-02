@@ -90,11 +90,14 @@ public class ComposerLayoutActivity extends BaseFragment {
     private static final int TYPE_TEXT_SIZE = 8;
     /** The MD3 composer's Floating / Docked select, shown only while the MD3 composer applies. */
     private static final int TYPE_STYLE = 9;
+    /** The fullscreen-input swipe switch (#fullscreen-input). */
+    private static final int TYPE_SWIPE_EXPAND = 10;
     /** Sentinel "zones" for the slider groups, so one header/footer lookup serves all of them. */
     private static final int GROUP_SCALE = -1;
     private static final int GROUP_KEYBOARD_GAP = -2;
     private static final int GROUP_TEXT_SIZE = -3;
     private static final int GROUP_STYLE = -4;
+    private static final int GROUP_SWIPE_EXPAND = -5;
 
     /** The clamp ChatActivityEnterView.getInputTextSizeDp() applies, and NaConfig.inputTextSize's default. */
     private static final int TEXT_SIZE_MIN = 14;
@@ -343,6 +346,9 @@ public class ComposerLayoutActivity extends BaseFragment {
         items.add(new Item(TYPE_SLIDER_HEADER, GROUP_KEYBOARD_GAP, null));
         items.add(new Item(TYPE_KEYBOARD_GAP, GROUP_KEYBOARD_GAP, null));
         items.add(new Item(TYPE_INFO, GROUP_KEYBOARD_GAP, null));
+        // Right above the zones: with the swipe on, the expand button is the one most worth hiding.
+        items.add(new Item(TYPE_SWIPE_EXPAND, GROUP_SWIPE_EXPAND, null));
+        items.add(new Item(TYPE_INFO, GROUP_SWIPE_EXPAND, null));
         for (int zone : ZONE_ORDER) {
             items.add(new Item(TYPE_HEADER, zone, null));
             List<String> keys = zones.get(zone);
@@ -485,6 +491,7 @@ public class ComposerLayoutActivity extends BaseFragment {
         NaConfig.INSTANCE.getComposerToolbarScale().setConfigInt(100);
         NaConfig.INSTANCE.getComposerKeyboardGap().setConfigInt(0);
         NaConfig.INSTANCE.getInputTextSize().setConfigInt(TEXT_SIZE_DEFAULT);
+        NaConfig.INSTANCE.getComposerSwipeExpand().setConfigBool(true);
         lastSaved = ComposerLayout.snapshot();
         buildItems(lastSaved);
         if (adapter != null) {
@@ -510,7 +517,7 @@ public class ComposerLayoutActivity extends BaseFragment {
             // tap-toggle to fire; everything else (headers, footers, placeholders, the scale slider)
             // has no click behaviour, so it can stay disabled as before.
             final int type = baseType(holder.getItemViewType());
-            return type == TYPE_BUTTON || type == TYPE_STYLE;
+            return type == TYPE_BUTTON || type == TYPE_STYLE || type == TYPE_SWIPE_EXPAND;
         }
 
         @Override
@@ -565,6 +572,13 @@ public class ComposerLayoutActivity extends BaseFragment {
                     styleCell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                     styleCell.setOnClickListener(ComposerLayoutActivity.this::showComposerStyleMenu);
                     view = styleCell;
+                    break;
+                case TYPE_SWIPE_EXPAND:
+                    org.telegram.ui.Cells.TextCheckCell swipeCell = new org.telegram.ui.Cells.TextCheckCell(context);
+                    swipeCell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    // No rebuild: the toolbar reads the switch on every touch-down.
+                    swipeCell.setOnClickListener(v -> swipeCell.setChecked(NaConfig.INSTANCE.getComposerSwipeExpand().toggleConfigBool()));
+                    view = swipeCell;
                     break;
                 default:
                     ButtonRowCell cell = new ButtonRowCell(context);
@@ -661,6 +675,10 @@ public class ComposerLayoutActivity extends BaseFragment {
                     ((org.telegram.ui.Cells.TextSettingsCell) holder.itemView).setTextAndValue(
                             LocaleController.getString(R.string.ComposerStyle), composerStyleName(InterfaceStyleController.composerStyle()), false);
                     break;
+                case TYPE_SWIPE_EXPAND:
+                    ((org.telegram.ui.Cells.TextCheckCell) holder.itemView).setTextAndCheck(
+                            LocaleController.getString(R.string.ComposerSwipeExpand), NaConfig.INSTANCE.getComposerSwipeExpand().Bool(), false);
+                    break;
                 default:
                     ComposerButtons.Button button = ComposerButtons.get(item.key);
                     ButtonRowCell cell = (ButtonRowCell) holder.itemView;
@@ -694,6 +712,8 @@ public class ComposerLayoutActivity extends BaseFragment {
                 return LocaleController.getString(R.string.InputTextSizeInfo);
             case GROUP_STYLE:
                 return LocaleController.getString(R.string.ComposerStyleInfo);
+            case GROUP_SWIPE_EXPAND:
+                return LocaleController.getString(R.string.ComposerSwipeExpandInfo);
             case ComposerButtons.ZONE_START:
                 return LocaleController.getString(R.string.ComposerZoneLeadingInfo);
             case ComposerButtons.ZONE_MIDDLE:
@@ -1608,7 +1628,10 @@ public class ComposerLayoutActivity extends BaseFragment {
         };
 
         descriptions.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
-        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, ButtonRowCell.class, PlaceholderCell.class, org.telegram.ui.Cells.TextSettingsCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+        descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, ButtonRowCell.class, PlaceholderCell.class, org.telegram.ui.Cells.TextSettingsCell.class, org.telegram.ui.Cells.TextCheckCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
+        descriptions.add(new ThemeDescription(listView, 0, new Class[]{org.telegram.ui.Cells.TextCheckCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
+        descriptions.add(new ThemeDescription(listView, 0, new Class[]{org.telegram.ui.Cells.TextCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrack));
+        descriptions.add(new ThemeDescription(listView, 0, new Class[]{org.telegram.ui.Cells.TextCheckCell.class}, new String[]{"checkBox"}, null, null, null, Theme.key_switchTrackChecked));
         descriptions.add(new ThemeDescription(listView, 0, new Class[]{org.telegram.ui.Cells.TextSettingsCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
         descriptions.add(new ThemeDescription(listView, 0, new Class[]{org.telegram.ui.Cells.TextSettingsCell.class}, new String[]{"valueTextView"}, null, null, null, Theme.key_windowBackgroundWhiteValueText));
         // Delegate only, with no background flag: the preview paints the chat wallpaper itself now,
