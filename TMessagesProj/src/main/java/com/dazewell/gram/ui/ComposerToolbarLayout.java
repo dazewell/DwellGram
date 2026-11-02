@@ -115,6 +115,19 @@ public final class ComposerToolbarLayout extends FrameLayout {
         }
     };
 
+    /** Called once per committed vertical swipe: true for up, false for down. */
+    public interface VerticalSwipeListener {
+        void onVerticalSwipe(boolean up);
+    }
+
+    // Same thresholds the pre-toolbar composer drag used: far enough that a sloppy tap never commits,
+    // and clearly vertical so the scrolling middle row keeps its horizontal drags.
+    private static final int VERTICAL_SWIPE_DP = 40;
+    private static final float VERTICAL_SWIPE_DOMINANCE = 1.5f;
+    private VerticalSwipeListener verticalSwipe;
+    private boolean verticalSwipeArmed;
+    private boolean verticalSwipeTriggered;
+
     public ComposerToolbarLayout(Context context) {
         super(context);
         setClipChildren(false);
@@ -180,8 +193,16 @@ public final class ComposerToolbarLayout extends FrameLayout {
         configurationLongPress = listener;
     }
 
+    public void setVerticalSwipe(VerticalSwipeListener listener) {
+        verticalSwipe = listener;
+    }
+
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
+        // A committed swipe owns the rest of the gesture; the children already got their CANCEL.
+        if (verticalSwipeTriggered && event.getActionMasked() != MotionEvent.ACTION_DOWN) {
+            return true;
+        }
         if (configurationLongPressTriggered && event.getActionMasked() != MotionEvent.ACTION_DOWN) {
             if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
                 removeCallbacks(configurationLongPressRunnable);
@@ -191,6 +212,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN: {
                 configurationLongPressTriggered = false;
+                verticalSwipeTriggered = false;
                 configurationLongPressX = event.getX();
                 configurationLongPressY = event.getY();
                 removeCallbacks(configurationLongPressRunnable);
@@ -208,9 +230,41 @@ public final class ComposerToolbarLayout extends FrameLayout {
                         postDelayed(configurationLongPressRunnable, CONFIGURATION_LONG_PRESS_MS);
                     }
                 }
+                // Armed only on a DOWN a control consumed, for the same reason as the timer above, and
+                // so a DOWN that falls through the toolbar to whatever sits under it is never claimed.
+                verticalSwipeArmed = consumed && verticalSwipe != null
+                        && NaConfig.INSTANCE.getComposerSwipeExpand().Bool();
                 return consumed;
             }
             case MotionEvent.ACTION_MOVE:
+                if (verticalSwipeArmed) {
+                    final float dx = Math.abs(event.getX() - configurationLongPressX);
+                    final float dy = event.getY() - configurationLongPressY;
+                    final int slop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
+                    if (dx > slop && dx > Math.abs(dy)) {
+                        verticalSwipeArmed = false;
+                    } else if (Math.abs(dy) > AndroidUtilities.dp(VERTICAL_SWIPE_DP) && Math.abs(dy) > VERTICAL_SWIPE_DOMINANCE * dx) {
+                        verticalSwipeArmed = false;
+                        verticalSwipeTriggered = true;
+                        removeCallbacks(configurationLongPressRunnable);
+                        // the control under the finger must not fire its click on the UP we are about to swallow
+                        MotionEvent cancel = MotionEvent.obtain(event);
+                        cancel.setAction(MotionEvent.ACTION_CANCEL);
+                        super.dispatchTouchEvent(cancel);
+                        cancel.recycle();
+                        verticalSwipe.onVerticalSwipe(dy < 0);
+                        return true;
+                    } else if (Math.abs(dy) > slop && Math.abs(dy) > dx) {
+                        // After super, not before: the middle scroll row releases its own disallow on a
+                        // vertical drag, and that release travels up past us to the ancestors.
+                        boolean handled = super.dispatchTouchEvent(event);
+                        if (getParent() != null) {
+                            getParent().requestDisallowInterceptTouchEvent(true);
+                        }
+                        removeCallbacks(configurationLongPressRunnable);
+                        return handled;
+                    }
+                }
                 if (!configurationLongPressTriggered
                         && (Math.abs(event.getX() - configurationLongPressX) > ViewConfiguration.get(getContext()).getScaledTouchSlop()
                         || Math.abs(event.getY() - configurationLongPressY) > ViewConfiguration.get(getContext()).getScaledTouchSlop())) {
@@ -220,6 +274,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 removeCallbacks(configurationLongPressRunnable);
+                verticalSwipeArmed = false;
                 break;
         }
         return super.dispatchTouchEvent(event);

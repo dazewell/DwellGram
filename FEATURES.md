@@ -273,7 +273,7 @@ Select messages to *Pin all* (applies your pin choice to the whole selection) or
 
 ### Fullscreen message input <!-- #fullscreen-input -->
 
-Tap the outward chevrons to grow the input between the chat header and the keyboard, taking over the pinned message bar's space. Tap the inward chevrons to return to normal height.
+Tap the outward chevrons, or swipe up on the composer toolbar, to grow the input between the chat header and the keyboard, taking over the pinned message bar's space. Tap the inward chevrons or swipe down to return to normal height. The swipe is on by default; turn it off under N-Settings → Chat → Composer Toolbar, where you can also hide the chevrons to free their slot.
 
 <img height="260" alt="message input expanded to fill the space between the chat header and the keyboard, with a text formatting row along the bottom" src="docs/images/features/fullscreen-input-on.png" />
 

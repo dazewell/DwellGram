@@ -1768,6 +1768,12 @@ object NaConfig {
             ConfigItem.configTypeInt,
             18 // dp; slider range 14..20 (see ComposerLayoutActivity)
         )
+    val composerSwipeExpand =
+        addConfig(
+            "ComposerSwipeExpand",
+            ConfigItem.configTypeBool,
+            true // vertical swipe on the composer toolbar opens/closes fullscreen input (see ComposerToolbarLayout)
+        )
     val physicalKeyboardHotkeys =
         addConfig(
             "PhysicalKeyboardHotkeys",

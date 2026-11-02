@@ -2935,6 +2935,13 @@ public class ChatActivityEnterView extends FrameLayout implements
                     parentFragment.presentFragment(new com.dazewell.gram.composer.ComposerLayoutActivity());
                 }
             });
+            // NagramX (#fullscreen-input): the swipe runs the expand button's own click, so it keeps working
+            // after the button is moved to Hidden; a swipe pointing the way the field already is does nothing.
+            composerToolbar.setVerticalSwipe(up -> {
+                if (expandInputButton != null && up != messageEditExpanded && canShowExpandInputButton()) {
+                    expandInputButton.callOnClick();
+                }
+            });
             composerFormattingActions = new com.dazewell.gram.composer.ComposerFormattingActions(this, composerToolbar, resourcesProvider, isChat);
             messageEditTextContainer.addView(composerToolbar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, composerToolbarHeight(), Gravity.BOTTOM));
             // NagramX (#composer-inline-rest): made before the send column, whose bottom margin it decides.
@@ -7164,6 +7171,19 @@ public class ChatActivityEnterView extends FrameLayout implements
 
         messageEditText = new ChatActivityEditTextCaption(getContext(), resourcesProvider) {
 
+            // NagramX (#fullscreen-input): send, edit-done and the rich editor all empty the field through
+            // setText, while a user's own deletion edits the Editable in place, so collapsing here ends
+            // fullscreen with the message without closing it under someone who erased their draft to rewrite it.
+            private boolean contextMenuEdit;
+
+            @Override
+            public void setText(CharSequence text, BufferType type) {
+                super.setText(text, type);
+                if (messageEditExpanded && !contextMenuEdit && length() == 0) {
+                    setMessageEditExpanded(false);
+                }
+            }
+
             private boolean firstDraw = true;
             @Override
             protected void onDraw(Canvas canvas) {
@@ -7226,7 +7246,14 @@ public class ChatActivityEnterView extends FrameLayout implements
                 if (id == android.R.id.paste && !com.dazewell.gram.composer.PasteAsLink.wouldApply(this) && handleRichHtmlPaste()) {
                     return true;
                 }
-                return super.onTextContextMenuItem(id);
+                // NagramX (#fullscreen-input): EditTextCaption's Cut rewrites the field through setText, so a
+                // cut of the whole draft is a user deletion that must not collapse fullscreen (see setText above).
+                contextMenuEdit = true;
+                try {
+                    return super.onTextContextMenuItem(id);
+                } finally {
+                    contextMenuEdit = false;
+                }
             }
 
             float touchX, touchY;
@@ -7486,11 +7513,6 @@ public class ChatActivityEnterView extends FrameLayout implements
                     return;
                 }
 
-                // NagramX: fullscreen input lives only as long as the draft (covers send, edit done and clear-all)
-                if (messageEditExpanded && TextUtils.isEmpty(charSequence)) {
-                    setMessageEditExpanded(false);
-                }
-
                 boolean allowChangeToSmile = true;
                 int currentPage;
                 if (emojiView == null) {
@@ -7667,7 +7689,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         updateFieldRight(lastAttachVisible);
     }
 
-    // NagramX: fullscreen input mode. Not persisted: it ends with the draft (send/clear), with focus,
+    // NagramX: fullscreen input mode. Not persisted: it ends when the field is cleared by send or edit-done, with focus,
     // or when both the keyboard and the emoji panel are gone (the field is sized against them).
     public boolean isMessageEditExpanded() {
         return messageEditExpanded;
