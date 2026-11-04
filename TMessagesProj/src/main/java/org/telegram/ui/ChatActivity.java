@@ -16893,6 +16893,21 @@ public class ChatActivity extends BaseFragment implements
 
     public void showFieldPanelForReply(MessageObject messageObjectToReply) {
         showFieldPanel(true, messageObjectToReply, null, null, null, true, 0, null, false, 0, true);
+        MessageObject playingMessage = MediaController.getInstance().getPlayingMessageObject();
+        if (chatActivityEnterView != null && playingMessage != null && messageObjectToReply != null
+                && playingMessage.currentAccount == currentAccount && messageObjectToReply.currentAccount == currentAccount
+                && playingMessage.getDialogId() == messageObjectToReply.getDialogId()
+                && playingMessage.getId() == messageObjectToReply.getId() && playingMessage.eventId == messageObjectToReply.eventId
+                && (playingMessage.isVoice() || playingMessage.isMusic())
+                && MediaController.getInstance().isPlayingMessage(messageObjectToReply)) {
+            int cursor = Math.max(0, chatActivityEnterView.getCursorPosition());
+            CharSequence fieldText = chatActivityEnterView.getFieldText();
+            String separator = cursor > 0 && fieldText != null && cursor <= fieldText.length()
+                    && !Character.isWhitespace(fieldText.charAt(cursor - 1)) ? " " : "";
+            // NagramX: keep Telegram's existing reply timestamp parser usable without replacing the draft.
+            chatActivityEnterView.replaceWithText(cursor, 0,
+                    separator + AndroidUtilities.formatDuration(playingMessage.audioProgressSec, false) + " ", false);
+        }
     }
 
     private Runnable onHideFieldPanelRunnable;
