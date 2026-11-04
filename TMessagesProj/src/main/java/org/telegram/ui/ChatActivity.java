@@ -16892,11 +16892,8 @@ public class ChatActivity extends BaseFragment implements
     }
 
     public void showFieldPanelForReply(MessageObject messageObjectToReply) {
-        android.util.Log.i("NagramX", "NAX_SMOKE_voice-reply-timestamp_BEGIN build=" + BuildConfig.BUILD_VERSION_STRING
-                + " app=" + BuildConfig.APPLICATION_ID + " scenario=reply account=" + currentAccount);
         showFieldPanel(true, messageObjectToReply, null, null, null, true, 0, null, false, 0, true);
         MessageObject playingMessage = MediaController.getInstance().getPlayingMessageObject();
-        boolean timestampInserted = false;
         if (chatActivityEnterView != null && playingMessage != null && messageObjectToReply != null
                 && playingMessage.currentAccount == currentAccount && messageObjectToReply.currentAccount == currentAccount
                 && playingMessage.getDialogId() == messageObjectToReply.getDialogId()
@@ -16910,13 +16907,7 @@ public class ChatActivity extends BaseFragment implements
             // NagramX: keep Telegram's existing reply timestamp parser usable without replacing the draft.
             chatActivityEnterView.replaceWithText(cursor, 0,
                     separator + AndroidUtilities.formatDuration(playingMessage.audioProgressSec, false) + " ", false);
-            timestampInserted = true;
-            android.util.Log.i("NagramX", "NAX_SMOKE_voice-reply-timestamp_EXPECTED inserted=true");
         }
-        if (!timestampInserted) {
-            android.util.Log.i("NagramX", "NAX_SMOKE_voice-reply-timestamp_FORBIDDEN inserted=false");
-        }
-        android.util.Log.i("NagramX", "NAX_SMOKE_voice-reply-timestamp_END");
     }
 
     private Runnable onHideFieldPanelRunnable;
