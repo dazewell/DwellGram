@@ -178,7 +178,7 @@ Both fragments need the re-push because their header ThemeDescriptions are
 key-only: `ActionBarLayout.setThemeAnimationValue` writes every description
 from the shared palette, then runs the delegates (`ActionBarLayout.java:3100-3131`).
 
-*(Established 2026-09-25, during `#interface-style`; recorder palette corrected 2026-11-04, `#recorder-colors-fix`.)*
+*(Established 2026-09-25, during `#interface-style`.)*
 
 ## MD3 chat-list filter tabs strengthen only FilterTabsView's selected pill
 
@@ -583,7 +583,7 @@ moving: the comment and mute `0xFFD2D3D4` (`CommentButton.java:68`;
 `MuteButton.java:75`) is exactly the stories' `key_glass_defaultIcon`, 80% white
 (`DarkThemeResourceProvider.java:89`), composited over that fill. Still glass:
 PhotoViewer's zero-fill rings (`BlurredBackgroundProviderImpl.java:333-344`).
-*(Established 2026-09-25, during `#interface-style`.)*
+*(Established 2026-09-25, during `#interface-style`; recorder palette corrected 2026-11-04, `#recorder-colors-fix`.)*
 
 ## BottomBuilder section cards are opt-in and isolated to Early Send
 
