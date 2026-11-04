@@ -220,6 +220,8 @@ Select text in a message and tap *Cite* to drop it into your input box as a quot
 
 <img height="180" alt="composer preview of quoted text pulled in from a message via Cite" src="docs/images/features/cite.png" />
 
+### Audio reply timestamps <!-- #voice-reply-timestamp -->
+
 ### Scheduled message triggers <!-- #reschedule --> <!-- #eventschedule --> <!-- #reschedule-order -->
 
 Selected scheduled messages show pick numbers, which *Send Now* follows; *Reschedule* spreads them from a base time and interval, in pick or current order. *Send on event* arms from the schedule picker or *Reschedule*: one trigger watches message type, text, or both, and sends early, each keeping its fallback schedule. Presets save setups. Chats nav ⋯ → *Message Triggers* lists armed triggers: tap to jump there; hold, swipe to select, then delete.
