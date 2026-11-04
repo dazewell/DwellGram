@@ -5053,6 +5053,12 @@ public class ChatActivityEnterView extends FrameLayout implements
         sizeNotifierLayout.addView(recordCircle, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM));
     }
 
+    // NagramX: draft restore creates the camera before setVideoDraft creates the recording controls.
+    public BlurredBackgroundColorProviderThemed getRecordingButtonColorProvider() {
+        createControlsView();
+        return controlsView.getRecordingButtonColorProvider();
+    }
+
     private void createControlsView() {
         if (controlsView != null) {
             return;

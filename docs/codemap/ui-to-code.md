@@ -547,7 +547,9 @@ The Buttons switch is read by two shared providers and a few targeted hooks, all
 The recording lock and view-once chips share their `Md3ButtonColorProvider` over
 `key_chat_messagePanelVoiceLockBackground` with the round-video recorder through
 `ControlsView.getRecordingButtonColorProvider` (`ChatActivityEnterView.java:1895`;
-`ChatActivity.java:12258`). The recorder forwards it to the flash/infinite row,
+`ChatActivity.java:12258`). The outer accessor initializes the lazy controls first
+(`ChatActivityEnterView.java:5057`): draft restore creates the camera before binding
+the draft (`ChatActivity.java:39875-39889`). The recorder forwards it to the flash/infinite row,
 zoom/flip controls and both front-flash slider backgrounds (`InstantCameraView.java:509-516`).
 The deleted-messages screen
 gives one to its page-down button over `key_chat_messagePanelBackground`
