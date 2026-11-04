@@ -337,6 +337,10 @@ The preview you get after recording a round video message has a playback cursor 
 
 The pause button and the view-once "(1)" toggle are larger and lifted slightly higher off the send button to prevent accidental sends.
 
+### Consistent recorder control colors <!-- #recorder-colors-fix -->
+
+The camera flip, zoom, flash and infinite recording controls in the video message recorder share the Pause and view-once colors. The front-flash brightness slider uses the same palette.
+
 ### Video message gestures <!-- #video-hold-send -->
 
 While a round video records hands-free or waits paused in its preview, tap it to pause or resume, or hold it until it buzzes and let go to send. Slide off to back out. While recording, swipe up or down to zoom and left or right to flip cameras. The hint above it shrinks after a few sends. N-Settings → Chat → Camera → *Video Message Gestures*, on by default.

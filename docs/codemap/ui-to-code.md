@@ -543,19 +543,21 @@ droplet `:1589`, redraw propagation `:1336`.
 
 The Buttons switch is read by two shared providers and a few targeted hooks, all flat under
 `applyButtons()`: opaque own theme colour, no stroke, no shadow.
-`ComposerGlassProvider` ROLE_BUTTON (`ChatActivity.java:4202`) feeds the side,
-action and channel buttons and the round-video recorder, which forwards it to
-its flash/infinite row and zoom chips (`ChatActivity.java:12068`;
-`InstantCameraView.java:418-447`, `:489-494`). The recording lock and view-once chips build
-their own `Md3ButtonColorProvider` over `key_chat_messagePanelVoiceLockBackground`
-(`ChatActivityEnterView.java:1840`); the deleted-messages screen
+`ComposerGlassProvider` ROLE_BUTTON feeds the side, action and channel buttons.
+The recording lock and view-once chips share their `Md3ButtonColorProvider` over
+`key_chat_messagePanelVoiceLockBackground` with the round-video recorder through
+`ControlsView.getRecordingButtonColorProvider` (`ChatActivityEnterView.java:1895`;
+`ChatActivity.java:12258`). The outer accessor initializes the lazy controls first
+(`ChatActivityEnterView.java:5057`): draft restore creates the camera before binding
+the draft (`ChatActivity.java:39875-39889`). The recorder forwards it to the flash/infinite row,
+zoom/flip controls and both front-flash slider backgrounds (`InstantCameraView.java:509-516`).
+The deleted-messages screen
 gives one to its page-down button over `key_chat_messagePanelBackground`
 (`AyuViewDeleted.java:503`). It skips `BlurredBackgroundProvider`, so
 Liquid Glass keeps the drawable's default stroke and shadow. The glyphs share
 `key_glass_defaultIcon`, the side buttons' tint (`ChatActivityBlurredRoundButton.java:169`);
-the recorder's hardcoded white/grey glyphs switch to it through
-`Md3ButtonColorProvider.glyphColor` (`InstantCameraView.java:667-670`;
-`Md3ButtonColorProvider.java:58-60`). The Dialogs story/camera sub-FAB, the
+the recorder's new-design glyphs use it in both button styles (`InstantCameraView.java:701-703`).
+The Dialogs story/camera sub-FAB, the
 only `isSubButton` `FragmentFloatingButton` (`DialogsActivity.java:4999`), keeps
 its opaque fill and drops its own stroke and shadow in place
 (`FragmentFloatingButton.java:80-92`); `Md3ButtonColorProvider.elevate` gives
@@ -583,7 +585,7 @@ moving: the comment and mute `0xFFD2D3D4` (`CommentButton.java:68`;
 `MuteButton.java:75`) is exactly the stories' `key_glass_defaultIcon`, 80% white
 (`DarkThemeResourceProvider.java:89`), composited over that fill. Still glass:
 PhotoViewer's zero-fill rings (`BlurredBackgroundProviderImpl.java:333-344`).
-*(Established 2026-09-25, during `#interface-style`.)*
+*(Established 2026-09-25, during `#interface-style`; recorder palette corrected 2026-11-04, `#recorder-colors-fix`.)*
 
 ## BottomBuilder section cards are opt-in and isolated to Early Send
 
