@@ -124,7 +124,7 @@ public class ChatsHelper extends BaseController {
         }
         chatActivity.hideActionMode();
         if (messageObject != null && (messageObject.messageOwner.id > 0 || messageObject.messageOwner.id < 0 && chatActivity.getCurrentEncryptedChat() != null)) {
-            chatActivity.showFieldPanelForReply(messageObject);
+            chatActivity.showFieldPanelForReplyWithAudioTimestamp(messageObject);
         }
         chatActivity.updatePinnedMessageView(true);
         chatActivity.updateVisibleRows();

@@ -6008,7 +6008,7 @@ public class ChatActivity extends BaseFragment implements
                             fragment.setDelegate(ChatActivity.this);
                             presentFragment(fragment);
                         } else {
-                            showFieldPanelForReply(getSlidingMessageObject());
+                            showFieldPanelForReplyWithAudioTimestamp(getSlidingMessageObject());
                         }
                     }
                     endTrackingX = slidingViewGetOffsetX();
@@ -16893,6 +16893,11 @@ public class ChatActivity extends BaseFragment implements
 
     public void showFieldPanelForReply(MessageObject messageObjectToReply) {
         showFieldPanel(true, messageObjectToReply, null, null, null, true, 0, null, false, 0, true);
+    }
+
+    // NagramX: restore and forced-reply paths share the plain helper, so explicit Reply actions opt in here.
+    public void showFieldPanelForReplyWithAudioTimestamp(MessageObject messageObjectToReply) {
+        showFieldPanelForReply(messageObjectToReply);
         MessageObject playingMessage = MediaController.getInstance().getPlayingMessageObject();
         if (chatActivityEnterView != null && playingMessage != null && messageObjectToReply != null
                 && playingMessage.currentAccount == currentAccount && messageObjectToReply.currentAccount == currentAccount
@@ -37158,7 +37163,7 @@ public class ChatActivity extends BaseFragment implements
                     fragment.setDelegate(this);
                     presentFragment(fragment);
                 } else {
-                    showFieldPanelForReply(selectedObject);
+                    showFieldPanelForReplyWithAudioTimestamp(selectedObject);
                 }
                 break;
             }
@@ -49014,7 +49019,7 @@ public class ChatActivity extends BaseFragment implements
             }
             clearSelectionMode();
             if (messageObject != null && (messageObject.messageOwner.id > 0 || messageObject.messageOwner.id < 0 && currentEncryptedChat != null)) {
-                showFieldPanelForReply(messageObject);
+                showFieldPanelForReplyWithAudioTimestamp(messageObject);
             }
         } else if (id == nkbtn_translate) {
             MessageTransKt.translateMessages(ChatActivity.this, getSelectedMessages());
