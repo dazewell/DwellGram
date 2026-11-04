@@ -16,6 +16,7 @@ import com.dazewell.gram.videonote.CameraMemo;
 import com.dazewell.gram.videonote.CameraMemoZoom;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
@@ -66,7 +67,7 @@ public class InstantZoomControlView extends FrameLayout {
             }
         };
         flip.setScaleType(ImageView.ScaleType.CENTER);
-        flip.setImageResource(R.drawable.camera_revert1);
+        flip.setImageDrawable(ApplicationLoader.applicationContext.getDrawable(R.drawable.camera_revert1));
         flip.setContentDescription(LocaleController.getString(R.string.AccDescrSwitchCamera));
         ScaleStateListAnimator.apply(flip);
 
