@@ -49,6 +49,10 @@ conflict.
 - **Fallback, not migration.** When a stored value's range, set or format
   changes, clamp or default it where it is read. The app must never crash on an
   absent, stale or unparseable stored value.
+- **Files over ~3,000 lines are grepped, never read whole** — by every role.
+  Read the hunk you need ±50 lines and find callers with grep. Known worst case:
+  `ChatActivity.java`, ~54,000 lines; whole-file reads of it burn the session.
+  Check with `(Get-Content <file>).Count` when unsure.
 - **No drive-by work.** No refactors, reformatting or unrelated cleanups; they
   widen the diff and cost the next upstream merge. Report them instead.
 
@@ -154,8 +158,8 @@ the cap is checked when a doc changes — not the corpus total, which is
 irrelevant while files load on demand.
 
 - **Always-on** (`AGENTS.md` + `CLAUDE.md` + the running agent file): **≤ 40 KB**.
-  Today 38 KB.
-- **Typical change** (always-on + `nagramx-workflow`): **≤ 60 KB**. Today 58 KB.
+  Today 39 KB.
+- **Typical change** (always-on + `nagramx-workflow`): **≤ 60 KB**. Today 59 KB.
 - Each skill body stays within Anthropic's 10–20 KB guidance. `nagramx-branch-flow`
   (20.5 KB) and `nagramx-process-lifecycle` (20.5 KB) sit just over and are not to
   grow; anything added to either buys its room by cutting.

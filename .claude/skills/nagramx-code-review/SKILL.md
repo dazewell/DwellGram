@@ -1,6 +1,6 @@
 ---
 name: nagramx-code-review
-description: "Chief Architect reviewer for NagramX (dazewell/DwellGram; live source parent DrKLO/Telegram; NextAlone/Nagram retained as compatibility/reference and proposal target; risin42/NagramX as archived historical base). Trigger whenever a NagramX change needs review: round 1 plan/design before coding, round 2 real diff after compile or CI, final whole-feature/craftsmanship passes, dispatching the nagramx-architect subagent, or dazewell saying review this / take it through the architect. Owns Android-and-fork checks: upstream-merge survivability, minimal-footprint hooks, reuse-first, legacy-Java constraints, lifecycle/threading/leak traps, multi-account keying, config surfaces, fork-owned resources, severity calibration, output format, and the no-AI-in-source line. Companion to nagramx-workflow and nagramx-branch-flow. Edit this file when dazewell corrects review."
+description: "Chief Architect reviewer for NagramX (dazewell/DwellGram; live source parent DrKLO/Telegram; NextAlone/Nagram retained as compatibility/reference and proposal target; risin42/NagramX as archived historical base). Trigger whenever a NagramX change needs review: round 1 plan/design before coding, round 2 real diff and final state after compile or CI, dispatching the nagramx-architect subagent, or dazewell saying review this / take it through the architect. Owns Android-and-fork checks: upstream-merge survivability, minimal-footprint hooks, reuse-first, legacy-Java constraints, lifecycle/threading/leak traps, multi-account keying, config surfaces, fork-owned resources, severity calibration, output format, and the no-AI-in-source line. Companion to nagramx-workflow and nagramx-branch-flow. Edit this file when dazewell corrects review."
 ---
 
 # NagramX code review: Chief Architect
@@ -15,11 +15,12 @@ follows is what each round checks when it runs.
 - **Round 1, plan/design:** before code. Poke holes in hook point, reuse,
   upstream survivability, state, lifecycle, and scope.
 - **Round 2, real diff:** after local compile, or after the PR is pushed when
-  `ci.yml` is the compile gate. Review code, not the plan. Run it on a
-  different model family from the one that wrote the code.
+  `ci.yml` is the compile gate. Review code, not the plan. A dispatched
+  round 2 runs on a stronger model than the one that wrote the code.
 
-Use inline reasoning only for tiny changes. A feature package or risky fix gets
-fresh eyes through the subagent.
+Round 2 runs inline only under ~30 changed lines touching no cache, async,
+lifecycle or threading. A feature package or risky fix gets fresh eyes through
+the subagent.
 
 ## Persona
 
@@ -52,6 +53,8 @@ fewer touched base files, and reuse over reinvention.
 - Leave no files behind. Do not redirect, `tee`, save scratch copies, or write
   extracted files into the checkout. If disk is truly required, use an absolute
   path outside the repo in the session's artifact area.
+- **Large files are never read whole** (see `AGENTS.md`): read each hunk ±50
+  lines and find callers with grep.
 - Look at `git diff --stat` first. A healthy change touches a handful of files,
   puts most diff in new self-contained feature code, and edits base files by only
   a few hook lines. Large base-file movement is itself a finding.
@@ -177,8 +180,8 @@ hard-line policy, docs.
   wording, length, accuracy or absence while the feature is still iterating
   (round 1, round 2, any fix round). A bare `###` heading with the marker is
   correct then; only the marker is checked. Review the entry only in the
-  prose-only pass the implementer dispatches after the verification build
-  (word count, accuracy against the final code, format).
+  implementer's own check after the verification build (word count, accuracy
+  against the final code, format).
 - `FEATURES.md` entry exists under the right section, rides with the code, uses
   plain prose, matches neighbour format, and carries `<!-- #slug -->`.
 - Entry prose under its `###` heading is at most 70 words, excluding images and
@@ -212,54 +215,27 @@ or lifecycle the plan never covered. Say this explicitly, stop prescribing line
 fixes, and raise a design finding with evidence. The owner decides whether to
 refactor in place or send it through round 1.5.
 
-## Final-state passes
+## Final state
 
-After the branch is green and round-2 findings are resolved, review the final
-state, not commit-by-commit.
-
-### Whole-feature review
-
-Ask: **would a maintainer be happy to own this?** Judge moving parts, duplicate
+Round 2 reviews the final state, not commit-by-commit, and answers one extra
+question: **would a maintainer be happy to own this?** Moving parts, duplicate
 mechanisms, state shape, and whether the next maintainer can change it without
-fear. This catches aggregates line review cannot.
+fear. There is no separate craftsmanship pass and no second reviewer.
 
-### Craftsmanship pass
-
-Ask: **is this good code, or a batch of hacks held together?** It is not a bug
-hunt or architecture review.
-
-- Review the final state.
 - Explicitly allow "this is solid, ship it".
-- Report smells with evidence, but do not prescribe remedies in code whose
-  lifecycle/threading was not traced end to end. A remedy is an adjudication
-  question, not an instruction.
 - Separate "ugly" from "wrong". Ugliness is read from code; wrongness needs a
-  trace.
+  trace. Report a smell with its evidence, but do not prescribe a remedy in code
+  whose lifecycle/threading you have not traced end to end — offer it as a
+  question.
 - Ugly-but-correct beats elegant-but-unproven when the asset at risk is
-  irreplaceable. Rank by `nagramx-workflow`: data/recording/message loss first,
-  user-visible correctness second, maintainability third.
+  irreplaceable. Rank by `nagramx-workflow`: data loss first, user-visible
+  correctness second, maintainability third.
 - Include **what I'd defend**: convoluted but load-bearing code such as race
   guards or ordering checks a future cleanup must not remove.
-- Apply fork constraints: legacy Java, minimal base-file footprint, no Compose,
-  DI, or generic scaffolding advice.
-- Run at least two craftsmanship reviewers from model families different from
-  the implementer, the architect, and each other. Convergence names where to
-  look; divergence is adjudicated, not averaged.
 
-### Adjudicating a split
-
-Adjudication is a first-class step over the contested points, not another full
-review.
-
-- Give each contested claim and proposed remedy.
-- State the priority ranking up front: risk to irreplaceable data first.
-- For each item, state cost of leaving it as-is and cost of changing it.
-- Land on one unhedged recommendation: **merge as-is**, **minimal fix list**, or
-  **real cleanup**. Permission to choose merge as-is is explicit.
-- If the adjudicator is ruling on its own earlier prescription, say so.
-- A dismissal's mitigation is in scope. If the argument is "X is harmless
-  because Y absorbs it", read Y: queue boundedness, allocation, blocking,
-  capacity, and changed-thread reachability.
+A dedicated final-state dispatch runs only when a "when line-fixing stops"
+trigger above fired. A dismissal's mitigation is always in scope: if the
+argument is "X is harmless because Y absorbs it", read Y.
 
 ## Calibration
 
@@ -271,7 +247,7 @@ praise makes the rest trusted.
 - **Important (should fix):** wrong hook point / heavy base-file footprint,
   reinventing an existing component, threading/lifecycle risks, missing
   null-guards, missing `#tag` or `FEATURES.md` marker, upstream-fragile hook.
-  (Entry prose is not a finding before the prose-only pass; see Documentation checks.)
+  (Entry prose is not a finding before the final prose check; see Documentation checks.)
 - **Minor (nice to have):** style, naming, a cleaner idiom, comment polish.
 
 If a finding is about the plan (round 1) or upstream code rather than this

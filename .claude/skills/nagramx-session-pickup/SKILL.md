@@ -290,9 +290,8 @@ whole process exists to prevent.
 
 **Equally, do not re-review the finished parts** *during reconstruction*. A
 fresh crop of Minor observations on already-reviewed code is a cost, not
-thoroughness. This does not excuse the change from the whole-feature and
-craftsmanship passes `nagramx-workflow` step 5 requires on the **final** state —
-those read the accumulation, including how the inherited code and your new work
+thoroughness. This does not excuse the change from round 2 on the **final**
+state that `nagramx-workflow` step 5 requires — it reads the accumulation, including how the inherited code and your new work
 interact, which is exactly what a resumed change is most likely to get wrong.
 
 ## 5. Confirm before you build

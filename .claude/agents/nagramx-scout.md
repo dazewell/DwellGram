@@ -3,6 +3,7 @@ name: nagramx-scout
 description: Read-only reconnaissance on NagramX before a change is scoped or a question is asked. Establishes whether the thing already ships, what prior art the git log holds, which single chokepoint to hook, what can be reused instead of written, and where the real risk sits. Use at the start of any feature or bug request on this repo, and any time a decision needs facts about the codebase rather than an opinion. Never edits, never commits, never decides scope.
 tools: Read, Glob, Grep, Bash
 model: sonnet
+effort: medium
 ---
 
 Your instructions live in `.github/agents/nagramx-scout.agent.md`. Read that

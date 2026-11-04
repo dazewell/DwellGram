@@ -38,23 +38,36 @@ Dispatch them with the `task` tool. Give each one an objective, the output
 format you want, and explicit boundaries — a vague delegation comes back as a
 summary you cannot act on. Run independent ones in parallel.
 
+**Every dispatch is a cold start** that re-reads its agent file and skill before
+touching code, and AI quota is limited. Spend them deliberately, on these
+models, passing `model`/`effort` on the dispatch where the tool takes them:
+
+| Dispatch | Model | Effort |
+|---|---|---|
+| scout, ux | Sonnet | medium |
+| architect round 1 / 1.5 | Sonnet | medium |
+| architect round 2 | Opus (its default) | high |
+
+Never a fresh dispatch for something you can settle with one grep.
+
 Use a general read-only subagent for any search whose *output* you won't reuse —
 "where is this string set", "which call sites touch this field". Keep the
 answer, discard the logs.
 
-## Read these first, every time
+## What to read, and what to grep
 
-Do not work from memory. These beat anything summarised here:
+Do not work from memory, and do not read wholesale either: everything you read
+is paid for again on every later turn.
 
-- `AGENTS.md` — the repo's facts and hard rules.
-- `.claude/skills/nagramx-workflow/SKILL.md` — what a change looks like: hook
-  points, config surfaces, the gate, the `FEATURES.md` entry, the PR step.
-- `.claude/skills/nagramx-branch-flow/SKILL.md` — branch naming, the `#<slug>`
-  tag, append-only, the CI and staging builds.
-- `.claude/skills/nagramx-process-lifecycle/SKILL.md` — the contract for any
-  process you start.
-- `FEATURES.md` — what already ships. Check before treating anything as new.
-- `docs/codemap/` — UI→code map, upstream traps, disproven hypotheses.
+- `AGENTS.md` is already loaded. Load `nagramx-workflow` once per session — it
+  has the hook points, config surfaces, gate and PR step. Load the others only
+  when their step arrives: `nagramx-branch-flow` before the first push,
+  `nagramx-process-lifecycle` before you start a process. Never re-read a skill
+  already in context; after a compaction re-read only the section you need.
+- `FEATURES.md` (what already ships) and `docs/codemap/` (UI→code map, upstream
+  traps, disproven hypotheses; ~380 KB): **grep** them for the slug, the feature
+  words and the files you will touch, then read the hits. Never read either
+  whole.
 
 ## How you run a change
 
@@ -68,8 +81,9 @@ want?"* into *"this overlaps `#hide-last-message`, the hook is
 
 **If it already ships, stop and say so.** That is a good outcome.
 
-For a user-visible change, run `nagramx-ux` next, so your questions are about
-real design forks rather than mechanics.
+For a change that adds or alters a user-visible surface, run `nagramx-ux` next,
+so your questions are about real design forks rather than mechanics. A bug fix
+restoring intended behaviour skips it: the intended behaviour is the spec.
 
 ### 2. Plan, and review the plan — proportionally
 
@@ -201,8 +215,9 @@ User-visible ⇒ the `FEATURES.md` entry ships in the same PR, under the right
 `## section`, with a `### Feature name` heading marked `<!-- #slug -->`.
 **Write the prose last**: until dazewell has passed the verification build,
 carry a bare heading with the marker and no prose (all `ci` checks). Then write
-and count the entry against the final code, send it through a prose-only
-`nagramx-architect` pass, and never merge with the stub bare.
+and count the entry against the final code, check it yourself (word count,
+every sentence true against the code, neighbour format; no subagent), and
+never merge with the stub bare.
 
 **70 words, hard ceiling — count them.** Prose under the heading; images and
 shortcut tables excluded. Most entries are ~35. Two beats: what it does and
@@ -235,6 +250,14 @@ gh pr create --base dev --head <YYYY-MM-DD>_<slug> --title "<title>" --body "<bo
 
 The PR body states the exact gate command and its result.
 
+**Waiting on CI or an APK costs quota too**, because every wake-up re-sends the
+whole conversation. Wait in **one** background command that exits only when the
+run finishes — `gh run watch <run-id> --exit-status`, run in the background so
+its output stays out of context, or a Monitor whose until-loop prints nothing
+until the end. Typical durations: `ci.yml` ~3.5 min, APK ~11 min; give up at
+about twice that and report. Never poll every 30–60 s, and never stream a
+watcher's output.
+
 Opening the PR requests no review. The Copilot review is billed and you request
 it yourself, once the head deserves one — step 10.
 
@@ -259,10 +282,21 @@ gh api graphql -f query=$m -F id=<PRRT_...>
 ### 10. Round 2, the Copilot review, and the APK
 
 Once it compiles — or once CI has gated it — take the **real diff** back to
-`nagramx-architect` for round 2. Run it on a **different model family** from the
-one you implemented with: a model tends to be blind to its own mistakes in the
-same places, and you are the one who wrote this code, so you are the worst
-available judge of it.
+`nagramx-architect` for round 2. A dispatched round 2 runs on a **different,
+stronger model** than the one you implemented with: a model tends to be blind to its own mistakes
+in the same places, and you are the one who wrote this code, so you are the
+worst available judge of it.
+
+Round 2 reads the **final state**, not just the latest commit, and also answers
+"would a maintainer be happy to own this?" — there is no separate whole-feature
+or craftsmanship dispatch unless a `nagramx-code-review` "when line-fixing
+stops" trigger fired.
+
+**A small diff gets round 2 inline.** Under ~30 changed lines of code that touch
+no cache, async work, lifecycle or threading, review it yourself against the
+`nagramx-code-review` checklist and say "round 2 inline" in the handback.
+The stronger-model rule binds only dispatched reviews; anything larger or
+riskier goes to the architect.
 
 Verify each finding before implementing it — a reviewer can be wrong for *this*
 codebase, and a suggestion may break an existing flow or ignore a legacy-API
@@ -321,34 +355,13 @@ report an absent run as absent.
 
 ## Diagnostics, when reachability is in question
 
-If the change adds a decision point that determines whether something is shown,
-or which of several paths presents the same screen, instrument it. So does one
-whose effect is gated on lifecycle state you never watched happen — a dialog
-still showing, a view not yet destroyed. A feature that passed a compile
-gate, a Copilot review and two architect rounds still shipped unreachable
-once, because every one of those reasons about the diff and none can see the
-device state that picks the branch.
-
-- **Log only what identifies the path** — booleans, enum and state names, ids,
-  counts. Never message text, a contact's name or number, or a token. If a value
-  cannot be logged safely, log that the branch was taken instead.
-- **`Log.e`/`Log.i`/`Log.w` only** — see `AGENTS.md` for why `Log.d` vanishes
-  from the build that actually reaches the device.
-- **Instrument where you are uncertain, not inside the path you expect.** A
-  probe in an assumed path yields silence when the assumption is wrong, and
-  silence is indistinguishable from broken tooling. When the question is "which
-  path ran", log a stack trace at the observed symptom —
-  `Log.e(TAG, "<label>", new Throwable())` — rather than a boolean where you
-  believe it came from.
-- **Own commit, single tag literal embedded in the log message text itself**
-  (e.g. `NAX_SMOKE_<slug>`), written verbatim in the PR body. A tag that lives
-  only in a commit message is a check against nothing, because verification
-  greps the tree for that string.
-- **It comes back out as a new commit**, never folded into a feature commit, and
-  before the branch lands. Confirm the literal is gone from the tree, not just
-  from the history.
-
-This is proportional: a change with no user-visible surface earns none of it.
+If the change adds a decision point that decides whether something is shown or
+which path presents it, or its effect is gated on lifecycle state you never
+watched happen, instrument it: review reasons about the diff and cannot see the
+device state that picks the branch. The rules (what may be logged, `Log.e/i/w`
+only, the `NAX_SMOKE_<slug>` literal, removal in its own commit) are in
+`.claude/skills/nagramx-workflow/diagnostics.md`. Proportional: no user-visible
+surface, no probes.
 
 ## What you never do
 

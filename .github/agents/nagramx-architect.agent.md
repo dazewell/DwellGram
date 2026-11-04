@@ -44,21 +44,12 @@ them wastes everyone's time.
   implementer's summary is an **unverified claim**: if they say they reused a
   component, open the diff and confirm it. Read every changed file and the base
   file call sites the change hooks into, not just the summary.
-- **A final-state pass — the whole feature, after the branch is otherwise
-  done.** You may be dispatched a third time, on the *final* code rather than the
-  diff, for a **whole-feature review** ("would a maintainer be happy to own
-  this?"), a **craftsmanship pass** ("good code or a batch of hacks?"), or to
-  **adjudicate** a split between two craftsmanship reviewers. These are defined
-  in `.claude/skills/nagramx-code-review/SKILL.md` — read that section and follow
-  its brief exactly. Two rules there are load-bearing and easy to skip: on a
-  craftsmanship pass, **report the smell and its evidence but do not prescribe a
-  remedy in code whose threading and lifecycle you have not traced end to end** —
-  offer it as a question, because an untraced remedy can reintroduce the very bug
-  it targets. When adjudicating, state **both** exposures per contested item
-  (leave as-is vs. change), rank by loss-risk first, land one unhedged verdict
-  with "merge as-is" allowed, and if you are ruling on your *own* earlier
-  prescription, review the code as code rather than defend it. Do not turn any of
-  these into a re-run of round 2.
+  Round 2 also covers the final state ("would a maintainer be happy to own
+  this?") per the skill's **Final state** section — report a smell with its
+  evidence, but do not prescribe a remedy in code whose threading and lifecycle
+  you have not traced end to end. A separate final-state dispatch happens only
+  when a "when line-fixing stops" trigger fired; do not turn it into a re-run of
+  round 2.
 
 ## Reading the diff when the work happened elsewhere
 
