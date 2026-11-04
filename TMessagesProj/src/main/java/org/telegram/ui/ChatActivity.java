@@ -16898,21 +16898,7 @@ public class ChatActivity extends BaseFragment implements
     // NagramX: restore and forced-reply paths share the plain helper, so explicit Reply actions opt in here.
     public void showFieldPanelForReplyWithAudioTimestamp(MessageObject messageObjectToReply) {
         showFieldPanelForReply(messageObjectToReply);
-        MessageObject playingMessage = MediaController.getInstance().getPlayingMessageObject();
-        if (chatActivityEnterView != null && playingMessage != null && messageObjectToReply != null
-                && playingMessage.currentAccount == currentAccount && messageObjectToReply.currentAccount == currentAccount
-                && playingMessage.getDialogId() == messageObjectToReply.getDialogId()
-                && playingMessage.getId() == messageObjectToReply.getId() && playingMessage.eventId == messageObjectToReply.eventId
-                && (playingMessage.isVoice() || playingMessage.isMusic())
-                && MediaController.getInstance().isPlayingMessage(messageObjectToReply)) {
-            int cursor = Math.max(0, chatActivityEnterView.getCursorPosition());
-            CharSequence fieldText = chatActivityEnterView.getFieldText();
-            String separator = cursor > 0 && fieldText != null && cursor <= fieldText.length()
-                    && !Character.isWhitespace(fieldText.charAt(cursor - 1)) ? " " : "";
-            // NagramX: keep Telegram's existing reply timestamp parser usable without replacing the draft.
-            chatActivityEnterView.replaceWithText(cursor, 0,
-                    separator + AndroidUtilities.formatDuration(playingMessage.audioProgressSec, false) + " ", false);
-        }
+        com.dazewell.gram.replytimestamp.AudioReplyTimestampHelper.insert(chatActivityEnterView, currentAccount, messageObjectToReply);
     }
 
     private Runnable onHideFieldPanelRunnable;
