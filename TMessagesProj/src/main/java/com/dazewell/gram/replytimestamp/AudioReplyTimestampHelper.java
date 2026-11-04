@@ -19,6 +19,9 @@ public final class AudioReplyTimestampHelper {
         if (playingMessage == null || playingMessage.currentAccount != account || replyMessage.currentAccount != account
                 || playingMessage.getDialogId() != replyMessage.getDialogId()
                 || playingMessage.getId() != replyMessage.getId() || playingMessage.eventId != replyMessage.eventId
+                || playingMessage.getChatMode() != replyMessage.getChatMode()
+                || MessageObject.getQuickReplyId(account, playingMessage.messageOwner) !=
+                MessageObject.getQuickReplyId(account, replyMessage.messageOwner)
                 || !playingMessage.isVoice() && !playingMessage.isMusic()
                 || !mediaController.isPlayingMessage(replyMessage)) {
             return;
