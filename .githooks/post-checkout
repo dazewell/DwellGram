@@ -43,6 +43,19 @@ else
   fi
 fi
 
+# Codex reads skills only from .agents/skills. Link it to .claude/skills so
+# both tools read one copy; a copy goes stale. A junction on Windows, since it
+# needs no admin or Developer Mode, a symlink elsewhere.
+top="$(git rev-parse --show-toplevel)"
+if [ ! -e "$top/.agents/skills" ] && [ -d "$top/.claude/skills" ]; then
+  mkdir -p "$top/.agents"
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+      MSYS_NO_PATHCONV=1 cmd /c mklink /J "$(cygpath -w "$top/.agents/skills")" "$(cygpath -w "$top/.claude/skills")" >/dev/null ;;
+    *) ln -s ../.claude/skills "$top/.agents/skills" ;;
+  esac || echo "post-checkout: could not link .agents/skills; Codex will not see the skills." >&2
+fi
+
 [ "${NAX_NO_MEDIA_SUBMODULE:-}" = "1" ] && exit 0
 
 script="$(git rev-parse --show-toplevel)/.github/scripts/ensure-media-submodule.sh"

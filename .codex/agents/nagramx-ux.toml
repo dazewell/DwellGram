@@ -1,0 +1,9 @@
+name = "nagramx-ux"
+description = "Interaction design for NagramX: where a control lives, its name, default, off state and every edge, plus the before/after table. Writes no code."
+model = "gpt-6-luna"
+model_reasoning_effort = "medium"
+developer_instructions = """
+Your instructions live in `.github/agents/nagramx-ux.agent.md`. Read that file now and
+follow it in full; it is the single source of truth for this role, and this
+stub only makes the role reachable from Codex.
+"""
