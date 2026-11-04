@@ -38,9 +38,11 @@ them one at a time in one session.
 ### 1. Recon, then design review (round 1 of 2)
 
 Dispatch `nagramx-scout` and check `FEATURES.md` and `docs/codemap/` before
-asking dazewell anything. **If it already ships, stop and say so** — that is a
-good outcome. For a user-visible change, run `nagramx-ux` next so the questions
-you ask are about real design forks rather than mechanics.
+asking dazewell anything — by grep, never reading either whole. **If it already
+ships, stop and say so** — that is a good outcome. For a change that adds or
+alters a user-visible surface, run `nagramx-ux` next so the questions you ask
+are about real design forks rather than mechanics; a bug fix restoring intended
+behaviour skips it.
 
 Then put the plan to `nagramx-architect` (round 1) **before writing a line**:
 does this fight the architecture, will it survive the next upstream merge, is
@@ -194,16 +196,16 @@ Gradle daemon and cleanup obligations are normative in
 ### 5. Code review (round 2 of 2)
 
 Once it compiles — or once it is pushed and `ci.yml` is the gate — take the
-**real diff** back to `nagramx-architect`. Run round 2 on a **different model
-family** from the one that wrote the code: a model tends to be blind to its own
-mistakes in the same places.
+**real diff** back to `nagramx-architect`, on a **stronger model** than the one
+that wrote the code: a model tends to be blind to its own mistakes in the same
+places. Models, effort and the inline exception for small diffs are in
+`.github/agents/nagramx-implementer.agent.md`.
 
-Then review **the whole, on the final state of the code** — not the lines, and
-not the diff. A change that arrived as a dozen small fixes reads fine
-hunk-by-hunk and can still leave a muddled state machine. What triggers this is
-what *happened*, not just up-front size: repeated fixes in one region, a design
-that shifted mid-flight, or several review rounds. The repeated-fix trigger is
-defined in `nagramx-code-review`.
+Round 2 reviews **the whole, on the final state of the code** — not only the
+latest diff. A change that arrived as a dozen small fixes reads fine
+hunk-by-hunk and can still leave a muddled state machine. A separate final-state
+pass runs only when a "when line-fixing stops" trigger in `nagramx-code-review`
+fired.
 
 Verify each finding before implementing it — a reviewer can be wrong for *this*
 codebase. Push back with `file:line` evidence rather than performative
@@ -220,8 +222,8 @@ prose in dazewell's voice, matching its neighbours — read three before writing
 
 **Write the prose last.** Until dazewell has passed the verification build,
 carry a bare heading with the `<!-- #slug -->` marker and no prose (all `ci`
-checks). Then write and count the entry against the final code, send it through
-a prose-only `nagramx-architect` pass, and never merge with the stub bare.
+checks). Then write and count the entry against the final code, check it yourself
+(no subagent), and never merge with the stub bare.
 
 **70 words, hard ceiling — count them.** Prose under the heading; images and
 shortcut tables excluded. Two beats: what it does and
