@@ -1,0 +1,10 @@
+# Codex project config for NagramX. Thin on purpose: every instruction lives in
+# AGENTS.md, .claude/skills (which Codex reads through the .agents/skills link
+# that .githooks/post-checkout makes) and .github/agents. Add nothing here that
+# says how to work; only which model runs it.
+#
+# The main session is the implementer (AGENTS.md sends it to
+# .github/agents/nagramx-implementer.agent.md). Subagents pin their own model
+# and effort in .codex/agents/*.toml.
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"

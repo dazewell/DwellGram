@@ -24,3 +24,5 @@ docs/screenshots/*
 
 # Compiled bytecode cache left behind by running Tools/scripts/*.py.
 __pycache__/
+# Codex skills link, made by .githooks/post-checkout
+/.agents/

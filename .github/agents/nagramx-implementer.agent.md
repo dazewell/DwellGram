@@ -44,9 +44,14 @@ models, passing `model`/`effort` on the dispatch where the tool takes them:
 
 | Dispatch | Model | Effort |
 |---|---|---|
+| you, the implementer | Sonnet | high |
+| a throwaway search (below) | Haiku | low |
 | scout, ux | Sonnet | medium |
-| architect round 1 / 1.5 | Sonnet | medium |
+| architect round 1 / 1.5 | Sonnet | high |
 | architect round 2 | Opus (its default) | high |
+
+On another vendor's tool, read Sonnet as its mid-tier model and Opus as its
+strongest.
 
 Never a fresh dispatch for something you can settle with one grep.
 

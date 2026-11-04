@@ -1,0 +1,9 @@
+name = "nagramx-scout"
+description = "Read-only recon on NagramX before a change is scoped: does it already ship, prior art, the one chokepoint to hook, what to reuse, where the risk is. Never edits or commits."
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+developer_instructions = """
+Your instructions live in `.github/agents/nagramx-scout.agent.md`. Read that file now and
+follow it in full; it is the single source of truth for this role, and this
+stub only makes the role reachable from Codex.
+"""
