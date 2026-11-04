@@ -23,11 +23,14 @@ public final class AudioReplyTimestampHelper {
                 || !mediaController.isPlayingMessage(replyMessage)) {
             return;
         }
+        // A paused seek updates the player before the whole-second progress timer resumes.
+        long progressMs = mediaController.getProgressMs(playingMessage);
+        int progressSeconds = progressMs >= 0 ? (int) (progressMs / 1000L) : playingMessage.audioProgressSec;
         int cursor = Math.max(0, enterView.getCursorPosition());
         CharSequence fieldText = enterView.getFieldText();
         String separator = cursor > 0 && fieldText != null && cursor <= fieldText.length()
                 && !Character.isWhitespace(fieldText.charAt(cursor - 1)) ? " " : "";
         enterView.replaceWithText(cursor, 0,
-                separator + AndroidUtilities.formatDuration(playingMessage.audioProgressSec, false) + " ", false);
+                separator + AndroidUtilities.formatDuration(progressSeconds, false) + " ", false);
     }
 }

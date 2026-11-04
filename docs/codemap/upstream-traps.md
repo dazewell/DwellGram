@@ -2920,3 +2920,14 @@ regenerates the shadowed bitmap, which the shrinking middle droplet relies on.
 Pinning or unpinning updates the chat's pin map and leaves the flag on already-loaded `MessageObject`s untouched. A success from `MessagesController.pinMessage` reaches `MessagesStorage.updatePinnedMessages` (`MessagesController.java:9791`), and that only posts `didLoadPinnedMessages`. `ChatActivity` handles that notification by editing `pinnedMessageIds` / `pinnedMessageObjects` (`ChatActivity.java:26155`). Nothing writes `messageOwner.pinned` back. To know whether a message is pinned now, do what upstream's `allowUnpin` does: check `pinnedMessageObjects.containsKey(id)` with the `mergeDialogId` guard (`ChatActivity.java:34002`). Also exclude the modes upstream's `allowPin` rules out, because scheduled, quick-reply and saved ids are separate id spaces that collide with real pins. The selection-bar Unpin uses this check through `nkIsSelectionPinned` (`ChatActivity.java:49121`).
 
 *(Established 2026-10-31, `#unpin-stale-fix`, PR 585.)*
+
+## A paused audio seek does not refresh `audioProgressSec`
+
+The playback timer updates `audioProgressSec` from the player's current position only while
+`!isPaused` (`MediaController.java:1675-1710`). `seekToProgress` still moves the player while paused
+and updates `audioProgress` and `lastProgress`, but it does not update `audioProgressSec`
+(`MediaController.java:2700-2715`). Code that needs the position at the moment of a user action must
+read `getProgressMs` (`MediaController.java:2767-2780`) and use the cached seconds only when no player
+position is available.
+
+*(Established 2026-11-04, `#voice-reply-timestamp`, PR 588.)*
