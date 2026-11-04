@@ -282,8 +282,8 @@ gh api graphql -f query=$m -F id=<PRRT_...>
 ### 10. Round 2, the Copilot review, and the APK
 
 Once it compiles — or once CI has gated it — take the **real diff** back to
-`nagramx-architect` for round 2. It runs on a **different, stronger model**
-than the one you implemented with: a model tends to be blind to its own mistakes
+`nagramx-architect` for round 2. A dispatched round 2 runs on a **different,
+stronger model** than the one you implemented with: a model tends to be blind to its own mistakes
 in the same places, and you are the one who wrote this code, so you are the
 worst available judge of it.
 
@@ -295,7 +295,8 @@ stops" trigger fired.
 **A small diff gets round 2 inline.** Under ~30 changed lines of code that touch
 no cache, async work, lifecycle or threading, review it yourself against the
 `nagramx-code-review` checklist and say "round 2 inline" in the handback.
-Anything larger or riskier goes to the architect.
+The stronger-model rule binds only dispatched reviews; anything larger or
+riskier goes to the architect.
 
 Verify each finding before implementing it — a reviewer can be wrong for *this*
 codebase, and a suggestion may break an existing flow or ignore a legacy-API

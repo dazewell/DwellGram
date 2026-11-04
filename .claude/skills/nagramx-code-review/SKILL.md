@@ -15,8 +15,8 @@ follows is what each round checks when it runs.
 - **Round 1, plan/design:** before code. Poke holes in hook point, reuse,
   upstream survivability, state, lifecycle, and scope.
 - **Round 2, real diff:** after local compile, or after the PR is pushed when
-  `ci.yml` is the compile gate. Review code, not the plan. Run it on a
-  stronger model than the one that wrote the code.
+  `ci.yml` is the compile gate. Review code, not the plan. A dispatched
+  round 2 runs on a stronger model than the one that wrote the code.
 
 Round 2 runs inline only under ~30 changed lines touching no cache, async,
 lifecycle or threading. A feature package or risky fix gets fresh eyes through
