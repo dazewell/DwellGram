@@ -12254,7 +12254,8 @@ public class ChatActivity extends BaseFragment implements
             }
         });
         instantCameraView.setClipToPadding(false);
-        instantCameraView.setButtonsBackground(glassBackgroundDrawableFactory, blurredBackgroundColorProvider);
+        // NagramX: flash, zoom and the brightness slider share the pause/once controls' palette.
+        instantCameraView.setButtonsBackground(glassBackgroundDrawableFactory, chatActivityEnterView.controlsView.getRecordingButtonColorProvider());
 
         int index = contentView.indexOfChild(chatInputViewsContainer);
         if (index < 0) {

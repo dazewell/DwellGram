@@ -1891,12 +1891,17 @@ public class ChatActivityEnterView extends FrameLayout implements
         private BlurredBackgroundDrawable lockBackgroundDrawable;
         private BlurredBackgroundDrawable periodBackgroundDrawable;
 
-        public void setBlurredBackgroundFactory(BlurredBackgroundDrawableViewFactory factory) {
-            useGlassDesign = true;
-
+        // NagramX: the camera overlay shares this provider so its controls follow the pause/once palette and theme refresh.
+        public BlurredBackgroundColorProviderThemed getRecordingButtonColorProvider() {
             if (colorProvider == null) {
                 colorProvider = new com.dazewell.gram.ui.Md3ButtonColorProvider(resourcesProvider, Theme.key_chat_messagePanelVoiceLockBackground); // NagramX: the lock and view-once chips follow Interface Style's Buttons switch
             }
+            return colorProvider;
+        }
+
+        public void setBlurredBackgroundFactory(BlurredBackgroundDrawableViewFactory factory) {
+            useGlassDesign = true;
+            getRecordingButtonColorProvider();
 
             lockBackgroundDrawable = factory.create(this, colorProvider);
             lockBackgroundDrawable.setRadius(dp(22));

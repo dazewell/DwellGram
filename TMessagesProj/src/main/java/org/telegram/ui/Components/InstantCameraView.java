@@ -700,7 +700,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
     private int glyphColor(boolean dark) {
         final int stock = dark ? Color.WHITE : ColorUtils.blendARGB(Color.WHITE, Color.BLACK, 0.6f);
-        return isNewDesign ? com.dazewell.gram.ui.Md3ButtonColorProvider.glyphColor(resourcesProvider, stock) : stock; // NagramX: MD3 Buttons share one glyph tint; the story recorder's legacy flash can't follow it
+        return isNewDesign ? Theme.getColor(Theme.key_glass_defaultIcon, resourcesProvider) : stock; // NagramX: match pause/once in both button styles; the legacy story flash keeps its own tint
     }
 
     // NagramX: the flash glyphs are single-channel lotties, so RLottieDrawable draws them as a bare alpha
@@ -734,8 +734,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         // or a wedge of the light/dark panel shows through at the seam. Hardcoding the physical right side
         // is safe because android:supportsRtl="false" in AndroidManifest.xml:120 keeps this row from
         // mirroring.
-        final int fillColor = dark ? Color.WHITE : Color.BLACK;
-        final int glyphOnColor = dark ? Color.BLACK : Color.WHITE;
+        // NagramX: the selected state follows view-once too, rather than a hardcoded black/white inversion.
+        final int fillColor = isNewDesign ? Theme.getColor(Theme.key_chat_messagePanelVoiceBackground, resourcesProvider) : dark ? Color.WHITE : Color.BLACK;
+        final int glyphOnColor = isNewDesign ? Color.WHITE : dark ? Color.BLACK : Color.WHITE;
         infiniteButton.setBackground(on ? Theme.createRoundRectDrawable(0, dp(21), dp(21), 0, fillColor) : null);
         applyGlyphColor(infiniteButton, on ? glyphOnColor : glyphColor(dark));
         infiniteButton.setContentDescription(LocaleController.getString(on ? R.string.AccDescrInfiniteRecordingOff : R.string.AccDescrInfiniteRecordingOn));
