@@ -171,6 +171,11 @@ history stays greppable without carrying the story.
 `FEATURES.md` is what already ships — check it before treating anything as new.
 `docs/codemap/` is the UI→code map, upstream traps and disproven hypotheses.
 
+**Driving a change, on any tool:** your role is
+`.github/agents/nagramx-implementer.agent.md` — read it first if your tool did
+not load it as your agent. A subagent it names that your tool lacks: read that
+role's `.github/agents/` file and do the step yourself.
+
 **One change = one branch = one session.** Use subagents for recon, design and
 review; do not spawn a child session per change. The rationale, and the narrow
 exceptions, are in `nagramx-workflow`.
