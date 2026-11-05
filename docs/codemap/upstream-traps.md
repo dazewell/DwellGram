@@ -2921,6 +2921,16 @@ Pinning or unpinning updates the chat's pin map and leaves the flag on already-l
 
 *(Established 2026-10-31, `#unpin-stale-fix`, PR 585.)*
 
+## Voice layout can shrink a caller's bubble width
+
+The `TYPE_VOICE` branch chooses the row budget in `ChatMessageCell.java:9223-9225`,
+but `createDocumentLayout` replaces `backgroundWidth` with a duration-label-based
+width at `ChatMessageCell.java:12997`. Restore the chosen width after that call
+(`ChatMessageCell.java:9228`) to keep even short voice notes wide. The waveform
+then takes its width from the bubble in `updateSeekBarWaveformWidth`.
+
+*(Established 2026-11-04, `#voice-message-width`.)*
+
 ## A paused audio seek does not refresh `audioProgressSec`
 
 The playback timer updates `audioProgressSec` from the player's current position only while
