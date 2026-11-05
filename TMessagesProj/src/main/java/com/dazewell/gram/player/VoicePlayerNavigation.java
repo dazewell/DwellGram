@@ -4,10 +4,12 @@ import android.os.Bundle;
 
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.UserConfig;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.LaunchActivity;
+import org.telegram.ui.Components.Forum.ForumUtilities;
 
 public final class VoicePlayerNavigation {
 
@@ -34,8 +36,9 @@ public final class VoicePlayerNavigation {
                 && chat.getCurrentAccount() == account
                 && chat.getDialogId() == dialogId
                 && chat.getChatMode() == 0
-                && !chat.isThreadChat()
-                && chat.getTopicId() == topicId) {
+                && (chat.getTopicId() == 0
+                        ? !chat.isThreadChat()
+                        : chat.getTopicId() == topicId)) {
             chat.scrollToMessageId(messageId, 0, false, 0, true, 0);
         } else {
             Bundle args = new Bundle();
@@ -46,12 +49,10 @@ public final class VoicePlayerNavigation {
             } else {
                 args.putLong("chat_id", -dialogId);
             }
-            if (topicId != 0) {
-                args.putLong("topic_id", topicId);
-            }
             args.putInt("message_id", messageId);
             ChatActivity chat = new ChatActivity(args);
             chat.setCurrentAccount(account);
+            ForumUtilities.applyTopic(chat, MessagesStorage.TopicKey.of(dialogId, topicId));
             if (useCurrentLayout) {
                 if (launchActivity == null) {
                     return;

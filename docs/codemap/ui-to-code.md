@@ -1460,9 +1460,11 @@ The chat's compact player row click is handled by `FragmentContextView`; voice
 messages branch to `VoicePlayerNavigation.open`
 (`org/telegram/ui/Components/FragmentContextView.java:829`). The helper
 switches to the message's account before opening the chat
-(`com/dazewell/gram/player/VoicePlayerNavigation.java:23`, `:28`), and only
+(`com/dazewell/gram/player/VoicePlayerNavigation.java:25`, `:30`), and only
 scrolls in-place when the current fragment is a matching root chat or topic
-(`com/dazewell/gram/player/VoicePlayerNavigation.java:33`, `:38`). Topic lists
+(`com/dazewell/gram/player/VoicePlayerNavigation.java:35`, `:39`, `:41`). A new
+chat gets forum topic state through `ForumUtilities.applyTopic`
+(`com/dazewell/gram/player/VoicePlayerNavigation.java:53`, `:55`). Topic lists
 implement `ChatActivityInterface`, whose default `scrollToMessageId` is empty
 (`org/telegram/ui/Components/ChatActivityInterface.java:24`), so the interface
 alone does not prove a fragment can scroll to a message.
