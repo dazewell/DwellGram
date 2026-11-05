@@ -103,6 +103,15 @@ public final class ComposerToolbarLayout extends FrameLayout {
      * inserts on the wrong side of it.
      */
     private View pinnedLeadingView;
+    private View cursorTouchTarget;
+    private final int[] cursorRootLocation = new int[2];
+    private View.OnTouchListener cursorTouchListener;
+    private boolean cursorGesture;
+
+    public void setCursorTouchTarget(View target, View.OnTouchListener listener) {
+        cursorTouchTarget = target;
+        cursorTouchListener = listener;
+    }
     private Runnable configurationLongPress;
     private boolean configurationLongPressTriggered;
     private float configurationLongPressX;
@@ -199,6 +208,31 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
+        // Cursor owns DOWN before editor-hold, scrolling and expand-swipe timers can arm.
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            cursorGesture = cursorTouchTarget != null && cursorTouchTarget.isShown()
+                    && cursorTouchTarget.getGlobalVisibleRect(controlsHitRect);
+            if (cursorGesture) {
+                // Global visible bounds are root-relative; raw touches include the window's screen offset.
+                cursorTouchTarget.getRootView().getLocationOnScreen(cursorRootLocation);
+                controlsHitRect.offset(cursorRootLocation[0], cursorRootLocation[1]);
+                cursorGesture = controlsHitRect.contains((int) event.getRawX(), (int) event.getRawY());
+            }
+        }
+        if (cursorGesture) {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                removeCallbacks(configurationLongPressRunnable);
+                configurationLongPressTriggered = verticalSwipeArmed = verticalSwipeTriggered = false;
+                // Stream ownership outlives controller cancellation, including a draft changing mid-drag.
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
+            }
+            cursorTouchListener.onTouch(cursorTouchTarget, event);
+            if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                cursorGesture = false;
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
+            }
+            return true;
+        }
         // A committed swipe owns the rest of the gesture; the children already got their CANCEL.
         if (verticalSwipeTriggered && event.getActionMasked() != MotionEvent.ACTION_DOWN) {
             return true;
@@ -282,6 +316,8 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     @Override
     protected void onDetachedFromWindow() {
+        if (cursorGesture && getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
+        cursorGesture = false;
         removeCallbacks(configurationLongPressRunnable);
         super.onDetachedFromWindow();
     }
