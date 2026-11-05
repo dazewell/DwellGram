@@ -20,23 +20,6 @@ final class ComposerCursorNavigation {
         for (int i = iterator.first(); i != BreakIterator.DONE; i = iterator.next()) {
             boundaries[i] = true;
         }
-        // Older platform Unicode tables predate joined emoji. These rules only remove boundaries.
-        int regionalCount = 0;
-        for (int i = 0; i < value.length();) {
-            int cp = value.codePointAt(i);
-            if (i > 0) {
-                int before = value.codePointBefore(i);
-                int type = Character.getType(cp);
-                if (cp == 0x200d || before == 0x200d || type == Character.NON_SPACING_MARK
-                        || type == Character.COMBINING_SPACING_MARK || type == Character.ENCLOSING_MARK
-                        || cp >= 0x1f3fb && cp <= 0x1f3ff || cp >= 0xe0020 && cp <= 0xe007f
-                        || regional(cp) && regional(before) && regionalCount % 2 == 1) {
-                    boundaries[i] = false;
-                }
-            }
-            regionalCount = regional(cp) ? regionalCount + 1 : 0;
-            i += Character.charCount(cp);
-        }
         if (text instanceof Spanned) {
             Spanned spans = (Spanned) text;
             for (ReplacementSpan span : spans.getSpans(0, text.length(), ReplacementSpan.class)) {
@@ -48,10 +31,6 @@ final class ComposerCursorNavigation {
             }
         }
         boundaries[0] = boundaries[text.length()] = true;
-    }
-
-    private static boolean regional(int cp) {
-        return cp >= 0x1f1e6 && cp <= 0x1f1ff;
     }
 
     int move(Layout layout, int focus, int direction) {
