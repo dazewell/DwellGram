@@ -996,4 +996,8 @@
     <string name="ComposerCursorSelectRight">Extend selection right</string>
     <string name="ComposerCursorSelectUp">Extend selection up</string>
     <string name="ComposerCursorSelectDown">Extend selection down</string>
+    <string name="ComposerLayoutButtonsTab">Buttons</string>
+    <string name="ComposerLayoutPanelTab">Panel</string>
+    <string name="ComposerCursorSensitivity">Cursor sensitivity</string>
+    <string name="ComposerCursorSensitivityInfo">Higher sensitivity moves the cursor farther as you drag.</string>
 </resources>

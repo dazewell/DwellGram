@@ -1356,10 +1356,11 @@ then keeps the whole stream until UP/CANCEL even outside the button.
 `ChatActivityEnterView.java:2955` creates the per-composer controller with the chat
 fragment root, `:7358` binds the editor, and `:8675` tears it down. The spotlight
 belongs to that root's draw-only overlay; it requires no ChatActivity drawing hook.
-Cursor has one drag-based movement behavior and no movement setting.
+Cursor uses drag-based movement; its sensitivity is adjustable in the Buttons tab
+(`ComposerLayoutActivity.java:714`, `ComposerCursorController.java:272`).
 
 The clear input region follows the painted surface, not the transparent editor:
-`ComposerCursorController.java:377` copies the glass drawable's outline, while
+`ComposerCursorController.java:381` copies the glass drawable's outline, while
 `ComposerMd3Surface.java:715` records the exact field path it just painted and
 `:144` copies it for the overlay. The path resets at each surface draw (`:419`),
 so floating, docked, folded and expanded geometry do not need separate guesses.

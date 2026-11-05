@@ -1702,6 +1702,8 @@ object NaConfig {
             ConfigItem.configTypeInt,
             100 // percent; slider range 75..125 in 5% steps (see ComposerLayoutActivity)
         )
+    val composerCursorSensitivity =
+        addConfig("ComposerCursorSensitivity", ConfigItem.configTypeInt, 100)
     val composerKeyboardGap =
         addConfig(
             "ComposerKeyboardGap",
