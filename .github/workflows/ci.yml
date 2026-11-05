@@ -21,6 +21,8 @@ on:
       - '.claude/**'
       - '.github/agents/**'
       - '.github/skills/**'
+      - '.codex/**'
+      - '.opencode/**'
   pull_request:
     types: [opened, reopened, synchronize]
     paths-ignore:
@@ -30,6 +32,8 @@ on:
       - '.claude/**'
       - '.github/agents/**'
       - '.github/skills/**'
+      - '.codex/**'
+      - '.opencode/**'
 
 # Keep only the latest run per branch/PR; supersede an older in-flight one.
 concurrency:
