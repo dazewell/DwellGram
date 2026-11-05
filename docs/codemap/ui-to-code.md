@@ -1453,3 +1453,18 @@ so the margin is recomputed from the visible items after upstream's block
 (`ChatActivity.java:20298`).
 
 *(Established 2026-10-07.)*
+
+## Compact voice player taps return to their source message
+
+The chat's compact player row click is handled by `FragmentContextView`; voice
+messages branch to `VoicePlayerNavigation.open`
+(`org/telegram/ui/Components/FragmentContextView.java:829`). The helper
+switches to the message's account before opening the chat
+(`com/dazewell/gram/player/VoicePlayerNavigation.java:23`, `:28`), and only
+scrolls in-place when the current fragment is a matching root chat or topic
+(`com/dazewell/gram/player/VoicePlayerNavigation.java:33`, `:38`). Topic lists
+implement `ChatActivityInterface`, whose default `scrollToMessageId` is empty
+(`org/telegram/ui/Components/ChatActivityInterface.java:24`), so the interface
+alone does not prove a fragment can scroll to a message.
+
+*(Established 2026-11-05, PR #597.)*
