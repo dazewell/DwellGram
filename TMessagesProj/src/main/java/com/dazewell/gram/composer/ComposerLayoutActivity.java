@@ -92,12 +92,14 @@ public class ComposerLayoutActivity extends BaseFragment {
     private static final int TYPE_STYLE = 9;
     /** The fullscreen-input swipe switch (#fullscreen-input). */
     private static final int TYPE_SWIPE_EXPAND = 10;
+    private static final int TYPE_CURSOR_MOVEMENT = 11;
     /** Sentinel "zones" for the slider groups, so one header/footer lookup serves all of them. */
     private static final int GROUP_SCALE = -1;
     private static final int GROUP_KEYBOARD_GAP = -2;
     private static final int GROUP_TEXT_SIZE = -3;
     private static final int GROUP_STYLE = -4;
     private static final int GROUP_SWIPE_EXPAND = -5;
+    private static final int GROUP_CURSOR = -6;
 
     /** The clamp ChatActivityEnterView.getInputTextSizeDp() applies, and NaConfig.inputTextSize's default. */
     private static final int TEXT_SIZE_MIN = 14;
@@ -349,6 +351,8 @@ public class ComposerLayoutActivity extends BaseFragment {
         // Right above the zones: with the swipe on, the expand button is the one most worth hiding.
         items.add(new Item(TYPE_SWIPE_EXPAND, GROUP_SWIPE_EXPAND, null));
         items.add(new Item(TYPE_INFO, GROUP_SWIPE_EXPAND, null));
+        items.add(new Item(TYPE_CURSOR_MOVEMENT, GROUP_CURSOR, null));
+        items.add(new Item(TYPE_INFO, GROUP_CURSOR, null));
         for (int zone : ZONE_ORDER) {
             items.add(new Item(TYPE_HEADER, zone, null));
             List<String> keys = zones.get(zone);
@@ -517,7 +521,7 @@ public class ComposerLayoutActivity extends BaseFragment {
             // tap-toggle to fire; everything else (headers, footers, placeholders, the scale slider)
             // has no click behaviour, so it can stay disabled as before.
             final int type = baseType(holder.getItemViewType());
-            return type == TYPE_BUTTON || type == TYPE_STYLE || type == TYPE_SWIPE_EXPAND;
+            return type == TYPE_BUTTON || type == TYPE_STYLE || type == TYPE_SWIPE_EXPAND || type == TYPE_CURSOR_MOVEMENT;
         }
 
         @Override
@@ -572,6 +576,12 @@ public class ComposerLayoutActivity extends BaseFragment {
                     styleCell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                     styleCell.setOnClickListener(ComposerLayoutActivity.this::showComposerStyleMenu);
                     view = styleCell;
+                    break;
+                case TYPE_CURSOR_MOVEMENT:
+                    org.telegram.ui.Cells.TextSettingsCell cursorCell = new org.telegram.ui.Cells.TextSettingsCell(context);
+                    cursorCell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    cursorCell.setOnClickListener(ComposerLayoutActivity.this::showCursorMovementMenu);
+                    view = cursorCell;
                     break;
                 case TYPE_SWIPE_EXPAND:
                     org.telegram.ui.Cells.TextCheckCell swipeCell = new org.telegram.ui.Cells.TextCheckCell(context);
@@ -679,6 +689,11 @@ public class ComposerLayoutActivity extends BaseFragment {
                     ((org.telegram.ui.Cells.TextCheckCell) holder.itemView).setTextAndCheck(
                             LocaleController.getString(R.string.ComposerSwipeExpand), NaConfig.INSTANCE.getComposerSwipeExpand().Bool(), false);
                     break;
+                case TYPE_CURSOR_MOVEMENT:
+                    ((org.telegram.ui.Cells.TextSettingsCell) holder.itemView).setTextAndValue(
+                            LocaleController.getString(R.string.ComposerCursorMovement),
+                            cursorMovementName(ComposerCursorController.movementMode()), false);
+                    break;
                 default:
                     ComposerButtons.Button button = ComposerButtons.get(item.key);
                     ButtonRowCell cell = (ButtonRowCell) holder.itemView;
@@ -714,6 +729,8 @@ public class ComposerLayoutActivity extends BaseFragment {
                 return LocaleController.getString(R.string.ComposerStyleInfo);
             case GROUP_SWIPE_EXPAND:
                 return LocaleController.getString(R.string.ComposerSwipeExpandInfo);
+            case GROUP_CURSOR:
+                return LocaleController.getString(R.string.ComposerCursorMovementInfo);
             case ComposerButtons.ZONE_START:
                 return LocaleController.getString(R.string.ComposerZoneLeadingInfo);
             case ComposerButtons.ZONE_MIDDLE:
@@ -762,6 +779,23 @@ public class ComposerLayoutActivity extends BaseFragment {
                     previewCell.applyTheme();
                 }
             }
+            return kotlin.Unit.INSTANCE;
+        });
+        builder.show();
+    }
+
+    private static String cursorMovementName(int mode) {
+        return LocaleController.getString(mode == ComposerCursorController.TRACKPAD
+                ? R.string.ComposerCursorTrackpad : R.string.ComposerCursorJoystick);
+    }
+
+    private void showCursorMovementMenu(View anchor) {
+        String[] names = {cursorMovementName(0), cursorMovementName(1)};
+        tw.nekomimi.nekogram.ui.PopupBuilder builder = new tw.nekomimi.nekogram.ui.PopupBuilder(anchor);
+        builder.setItems(names, (index, name) -> {
+            NaConfig.INSTANCE.getComposerCursorMovement().setConfigInt(index);
+            int position = rowPosition(TYPE_CURSOR_MOVEMENT, GROUP_CURSOR);
+            if (adapter != null && position >= 0) adapter.notifyItemChanged(position);
             return kotlin.Unit.INSTANCE;
         });
         builder.show();

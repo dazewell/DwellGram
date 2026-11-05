@@ -1684,6 +1684,8 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    val composerCursorMovement =
+        addConfig("ComposerCursorMovement", ConfigItem.configTypeInt, 0)
     val composerToolbarLayout =
         addConfig(
             "ComposerToolbarLayout",

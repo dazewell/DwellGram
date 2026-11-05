@@ -717,6 +717,8 @@ public class ChatActivityEnterView extends FrameLayout implements
     private com.dazewell.gram.ui.ComposerToolbarLayout composerToolbar;
     private com.dazewell.gram.composer.ComposerInlineRest composerInlineRest;
     private com.dazewell.gram.composer.ComposerFormattingActions composerFormattingActions;
+    // NagramX: cursor gestures stay local to this composer and never take input focus.
+    private com.dazewell.gram.composer.ComposerCursorController composerCursor;
     private boolean toolbarReplacementVisible;
     private boolean composerExitHeld;
     private boolean inputPrimarySuppressed;
@@ -2948,6 +2950,10 @@ public class ChatActivityEnterView extends FrameLayout implements
                 }
             });
             composerFormattingActions = new com.dazewell.gram.composer.ComposerFormattingActions(this, composerToolbar, resourcesProvider, isChat);
+            // NagramX: a chat-root overlay dims app content without adding a keyboard/window surface.
+            if (parentFragment != null && parentFragment.getFragmentView() != null) {
+                composerCursor = new com.dazewell.gram.composer.ComposerCursorController(this, composerToolbar, parentFragment.getFragmentView(), resourcesProvider);
+            }
             messageEditTextContainer.addView(composerToolbar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, composerToolbarHeight(), Gravity.BOTTOM));
             // NagramX (#composer-inline-rest): made before the send column, whose bottom margin it decides.
             composerInlineRest = com.dazewell.gram.composer.ComposerInlineRest.createIfEnabled(composerToolbar, parentFragment != null, () -> {
@@ -7348,6 +7354,8 @@ public class ChatActivityEnterView extends FrameLayout implements
             messageEditText.setLocalePreferredLineHeightForMinimumUsed(false);
         }
         messageEditText.pasteUrlAsLink = true; // NagramX: paste a URL over a selection to link it
+        // NagramX: binding here also handles lazily created input fields.
+        if (composerCursor != null) composerCursor.bind(messageEditText);
         messageEditText.setDelegate(new EditTextCaption.EditTextCaptionDelegate() {
             @Override
             public void onSpansChanged() {
@@ -8663,6 +8671,8 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public void onDestroy() {
+        // NagramX: invalidate held gestures before the editor and chat root are torn down.
+        if (composerCursor != null) composerCursor.destroy();
         if (composerFormattingActions != null) {
             composerFormattingActions.onDestroy();
         }

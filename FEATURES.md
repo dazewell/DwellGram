@@ -142,6 +142,8 @@ The button row under the compose box is yours to arrange via chat settings. You 
 
 The attach paperclip remains visible on the toolbar even when the field is full of text, rather than swapping into the header overflow menu.
 
+### Cursor <!-- #composer-cursor -->
+
 ### Cut, Copy, Paste buttons <!-- #composer-clipboard-actions -->
 
 Cut, Copy, and Paste are available as composer toolbar buttons, added through the layout editor.
