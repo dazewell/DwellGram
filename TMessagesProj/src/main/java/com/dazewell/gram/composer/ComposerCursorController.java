@@ -2,6 +2,7 @@ package com.dazewell.gram.composer;
 
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
@@ -11,7 +12,6 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.os.SystemClock;
 import android.text.Editable;
 import android.text.Selection;
 import android.text.TextWatcher;
@@ -30,20 +30,14 @@ import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.EditTextCaption;
+import org.telegram.ui.Components.chat.ChatInputViewsContainer;
 
 import com.dazewell.gram.ui.ComposerToolbarLayout;
 
-import xyz.nextalone.nagram.NaConfig;
-
 /** One composer's UI-thread gesture, selection and draw-only spotlight state. */
 public final class ComposerCursorController {
-    public static final int JOYSTICK = 0;
-    public static final int TRACKPAD = 1;
-    private static final int DEAD_ZONE_DP = 8;
-    private static final int FULL_SPEED_DP = 48;
     private static final int CHARACTER_STEP_DP = 12;
     private static final int LINE_STEP_DP = 24;
-    private static final int FRAME_MS = 16;
     private static final int[] ACTION_LABELS = {
             R.string.ComposerCursorLeft, R.string.ComposerCursorRight,
             R.string.ComposerCursorUp, R.string.ComposerCursorDown,
@@ -59,11 +53,11 @@ public final class ComposerCursorController {
     private EditTextCaption field;
     private ComposerCursorNavigation navigation;
     private boolean destroyed, pending, active, selecting, tapWaiting;
-    private int generation, pointer = -1, mode, anchor, focus, axis = -1;
-    private float downX, downY, lastX, lastY, dx, dy, remainder;
+    private int generation, pointer = -1, anchor, focus, axis = -1;
+    private float downX, downY, lastX, lastY, remainder;
     private float tapX, tapY;
-    private long downTime, lastFrame, tapTime;
-    private Runnable holdCallback, repeatCallback, hintCallback;
+    private long downTime, tapTime;
+    private Runnable holdCallback, hintCallback;
     private final Rect hitRect = new Rect();
     private int iconColor, selectorColor;
     private boolean colorsApplied;
@@ -151,14 +145,6 @@ public final class ComposerCursorController {
         refresh();
     }
 
-    public static int movementMode() {
-        try {
-            return NaConfig.INSTANCE.getComposerCursorMovement().Int() == TRACKPAD ? TRACKPAD : JOYSTICK;
-        } catch (RuntimeException ignored) {
-            return JOYSTICK;
-        }
-    }
-
     public void bind(EditTextCaption editor) {
         cancel();
         if (field != null) {
@@ -215,7 +201,6 @@ public final class ComposerCursorController {
             cancel();
             if (!available()) return true;
             snapshot(second);
-            mode = movementMode();
             pointer = event.getPointerId(0);
             downX = lastX = event.getRawX();
             downY = lastY = event.getRawY();
@@ -242,10 +227,10 @@ public final class ComposerCursorController {
         if (action == MotionEvent.ACTION_MOVE) {
             float x = event.getX(index) + event.getRawX() - event.getX();
             float y = event.getY(index) + event.getRawY() - event.getY();
-            dx = x - downX;
-            dy = y - downY;
+            float dx = x - downX;
+            float dy = y - downY;
             if (pending && Math.hypot(dx, dy) > ViewConfiguration.get(button.getContext()).getScaledTouchSlop()) activate();
-            if (active && mode == TRACKPAD) track(x - lastX, y - lastY);
+            if (active) track(x - lastX, y - lastY);
             if (active || !pending) {
                 lastX = x;
                 lastY = y;
@@ -282,43 +267,6 @@ public final class ComposerCursorController {
         spotlight.setBounds(0, 0, root.getWidth(), root.getHeight());
         root.getOverlay().add(spotlight);
         refresh();
-        lastFrame = SystemClock.uptimeMillis();
-        final int token = generation;
-        repeatCallback = new Runnable() {
-            @Override public void run() {
-                if (token != generation || !active) return;
-                if (!available() || !button.isShown() || !enterView.hasWindowFocus()) {
-                    cancel();
-                    return;
-                }
-                long now = SystemClock.uptimeMillis();
-                float seconds = Math.min(0.05f, (now - lastFrame) / 1000f);
-                lastFrame = now;
-                if (mode == JOYSTICK) joystick(seconds);
-                button.postDelayed(this, FRAME_MS);
-            }
-        };
-        button.postDelayed(repeatCallback, FRAME_MS);
-    }
-
-    private void joystick(float seconds) {
-        boolean horizontal = Math.abs(dx) >= Math.abs(dy);
-        float distance = horizontal ? dx : dy;
-        if (Math.abs(distance) <= AndroidUtilities.dp(DEAD_ZONE_DP)) {
-            remainder = 0;
-            axis = -1;
-            return;
-        }
-        int direction = horizontal ? (distance < 0 ? 0 : 1) : (distance < 0 ? 2 : 3);
-        if (axis != direction) remainder = 0;
-        axis = direction;
-        float strength = Math.min(1f, (Math.abs(distance) - AndroidUtilities.dp(DEAD_ZONE_DP))
-                / (float) AndroidUtilities.dp(FULL_SPEED_DP - DEAD_ZONE_DP));
-        remainder += (2f + strength * (horizontal ? 18f : 6f)) * seconds;
-        while (remainder >= 1f) {
-            move(direction);
-            remainder -= 1f;
-        }
     }
 
     private void track(float x, float y) {
@@ -350,14 +298,13 @@ public final class ComposerCursorController {
         pending = active = tapWaiting = false;
         pointer = -1;
         axis = -1;
-        remainder = dx = dy = 0;
+        remainder = 0;
         navigation = null;
         if (button != null) {
             if (holdCallback != null) button.removeCallbacks(holdCallback);
-            if (repeatCallback != null) button.removeCallbacks(repeatCallback);
             if (hintCallback != null) button.removeCallbacks(hintCallback);
         }
-        holdCallback = repeatCallback = hintCallback = null;
+        holdCallback = hintCallback = null;
         root.getOverlay().remove(spotlight);
         refresh();
     }
@@ -371,49 +318,78 @@ public final class ComposerCursorController {
     private final class Spotlight extends Drawable {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Path path = new Path();
+        private final Path inputPath = new Path();
+        private final Path buttonPath = new Path();
+        private final Path holes = new Path();
+        private final Matrix toRoot = new Matrix();
         private final Rect visible = new Rect();
         private final RectF cutout = new RectF();
-        private final int[] location = new int[2];
+        private final RectF inputBounds = new RectF();
+        private final RectF buttonBounds = new RectF();
 
         @Override public void draw(Canvas canvas) {
             if (!active || field == null) return;
-            root.getLocationOnScreen(location);
-            int rootX = location[0], rootY = location[1];
-            if (!root.getGlobalVisibleRect(visible)) return;
-            visible.offset(-rootX, -rootY);
+            if (!root.getLocalVisibleRect(visible) || !inputPath()) return;
+            inputPath.computeBounds(inputBounds, true);
+            if (!button.getLocalVisibleRect(hitRect) || !mapToRoot(button)) return;
+            cutout.set(hitRect);
+            buttonPath.rewind();
+            buttonPath.addRoundRect(cutout, AndroidUtilities.dp(8), AndroidUtilities.dp(8), Path.Direction.CW);
+            buttonPath.transform(toRoot);
+            buttonPath.computeBounds(buttonBounds, true);
+            // Overlapping cutouts must stay clear rather than cancel each other under EVEN_ODD.
+            holes.op(inputPath, buttonPath, Path.Op.UNION);
             int save = canvas.save();
             canvas.clipRect(visible);
             path.rewind();
             path.setFillType(Path.FillType.EVEN_ODD);
             path.addRect(visible.left, visible.top, visible.right, visible.bottom, Path.Direction.CW);
-            cutout(field, rootX, rootY);
-            cutout(button, rootX, rootY);
+            path.addPath(holes);
             // A neutral scrim keeps its contrast against both light and dark chat themes.
             paint.setColor(Theme.isCurrentThemeDark() ? 0x99000000 : 0x66000000);
             canvas.drawPath(path, paint);
-            if (button.getGlobalVisibleRect(hitRect)) {
-                hitRect.offset(-rootX, -rootY);
-                String label = LocaleController.getString(selecting ? R.string.ComposerCursorSelecting : R.string.ComposerCursorMoving);
-                paint.setTextSize(AndroidUtilities.dp(12));
-                float width = paint.measureText(label) + AndroidUtilities.dp(16);
-                float left = Math.max(visible.left, Math.min(hitRect.centerX() - width / 2, visible.right - width));
-                int upperEdge = hitRect.top;
-                if (field.getGlobalVisibleRect(hitRect)) upperEdge = Math.min(upperEdge, hitRect.top - rootY);
-                float top = Math.max(visible.top, upperEdge - AndroidUtilities.dp(30));
-                cutout.set(left, top, left + width, top + AndroidUtilities.dp(24));
-                paint.setColor(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider));
-                canvas.drawRoundRect(cutout, AndroidUtilities.dp(8), AndroidUtilities.dp(8), paint);
-                paint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
-                canvas.drawText(label, left + AndroidUtilities.dp(8), top + AndroidUtilities.dp(16), paint);
-            }
+            String label = LocaleController.getString(selecting ? R.string.ComposerCursorSelecting : R.string.ComposerCursorMoving);
+            paint.setTextSize(AndroidUtilities.dp(12));
+            float width = paint.measureText(label) + AndroidUtilities.dp(16);
+            float left = Math.max(visible.left, Math.min(buttonBounds.centerX() - width / 2, visible.right - width));
+            float upperEdge = Math.min(buttonBounds.top, inputBounds.top);
+            float top = Math.max(visible.top, upperEdge - AndroidUtilities.dp(30));
+            cutout.set(left, top, left + width, top + AndroidUtilities.dp(24));
+            paint.setColor(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider));
+            canvas.drawRoundRect(cutout, AndroidUtilities.dp(8), AndroidUtilities.dp(8), paint);
+            paint.setColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
+            canvas.drawText(label, left + AndroidUtilities.dp(8), top + AndroidUtilities.dp(16), paint);
             canvas.restoreToCount(save);
         }
 
-        private void cutout(View view, int rootX, int rootY) {
-            if (!view.getGlobalVisibleRect(hitRect)) return;
-            hitRect.offset(-rootX, -rootY);
-            cutout.set(hitRect);
-            path.addRoundRect(cutout, AndroidUtilities.dp(8), AndroidUtilities.dp(8), Path.Direction.CW);
+        private boolean inputPath() {
+            View ancestor = enterView;
+            while (!(ancestor instanceof ChatInputViewsContainer)) {
+                if (!(ancestor.getParent() instanceof View)) return false;
+                ancestor = (View) ancestor.getParent();
+            }
+            ChatInputViewsContainer host = (ChatInputViewsContainer) ancestor;
+            if (!host.drawInputBackground || !mapToRoot(host)) return false;
+            if (host.md3Surface != null) {
+                if (!host.md3Surface.copyInputFieldPath(inputPath)) return false;
+            } else {
+                if (host.blurredBackgroundDrawable == null || host.blurredBackgroundDrawable.getAlpha() == 0) return false;
+                inputPath.set(host.blurredBackgroundDrawable.getPath());
+            }
+            inputPath.transform(toRoot);
+            return !inputPath.isEmpty();
+        }
+
+        private boolean mapToRoot(View view) {
+            toRoot.reset();
+            while (view != root) {
+                if (!(view.getParent() instanceof View)) return false;
+                View parent = (View) view.getParent();
+                toRoot.postConcat(view.getMatrix());
+                toRoot.postTranslate(view.getLeft() - parent.getScrollX(), view.getTop() - parent.getScrollY());
+                view = parent;
+            }
+            return true;
         }
 
         @Override public void setAlpha(int alpha) { }

@@ -7,7 +7,7 @@ import android.text.style.ReplacementSpan;
 
 import java.util.Locale;
 
-/** Visual navigation with grapheme and inline-image boundaries shared by both gesture modes. */
+/** Visual navigation with grapheme and inline-image boundaries for composer gestures. */
 final class ComposerCursorNavigation {
     private final boolean[] boundaries;
     private float desiredX = Float.NaN;

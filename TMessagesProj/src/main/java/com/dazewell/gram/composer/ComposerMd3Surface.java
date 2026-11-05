@@ -138,6 +138,13 @@ public final class ComposerMd3Surface {
     private final Path islandPath = new Path();
     private float frostTopRadius = -1, frostBottomRadius = -1;
     private final RectF sendSlot = new RectF();
+    private final Path inputFieldPath = new Path();
+
+    // The spotlight copies what this frame painted, including the fold and expanded-field geometry.
+    public boolean copyInputFieldPath(Path out) {
+        out.set(inputFieldPath);
+        return !out.isEmpty();
+    }
     private float touchShiftX, touchShiftY;
     private float appliedShiftX, appliedShiftY;
 
@@ -409,6 +416,7 @@ public final class ComposerMd3Surface {
      */
     public void draw(Canvas canvas, int width, int height, Rect pill, float pillTranslation, int pillAlpha,
                      float toolsInset, boolean drawPill, Rect underKeyboard) {
+        inputFieldPath.rewind();
         if (pill.isEmpty()) {
             island.setEmpty();
             barVisible = false;
@@ -703,6 +711,9 @@ public final class ComposerMd3Surface {
         if (drawPill && inputFactor > 0) {
             rect.set(fieldLeft, pill.top + topViewHeight + dp(FIELD_INSET), fieldRight, pill.bottom - dp(FIELD_INSET));
             final float fieldRadius = Math.min(fieldRadius(), rect.height() / 2f);
+            if (alpha > 0 && !rect.isEmpty()) {
+                inputFieldPath.addRoundRect(rect, fieldRadius, fieldRadius, Path.Direction.CW);
+            }
             fillPaint.setColor(Theme.multAlpha(fieldOverlay(), alpha * inputFactor));
             canvas.drawRoundRect(rect, fieldRadius, fieldRadius, fillPaint);
         }

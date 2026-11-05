@@ -985,10 +985,6 @@
     <string name="PinnedSettingsUnpinned">Unpinned from Settings</string>
     <string name="PinnedSettingsFull">Settings is full. Unpin one first.</string>
     <string name="ComposerCursor">Cursor</string>
-    <string name="ComposerCursorMovement">Cursor movement</string>
-    <string name="ComposerCursorJoystick">Joystick</string>
-    <string name="ComposerCursorTrackpad">Trackpad</string>
-    <string name="ComposerCursorMovementInfo">Joystick moves continuously while held away from the center. Trackpad moves only as you drag. Add Cursor from Hidden below.</string>
     <string name="ComposerCursorHint">Hold and drag to move the cursor. Double-tap and hold to select.</string>
     <string name="ComposerCursorMoving">Move cursor</string>
     <string name="ComposerCursorSelecting">Select text</string>

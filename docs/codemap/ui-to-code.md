@@ -1350,14 +1350,25 @@ looks right in the code and is still reversed on the device.
 
 Cursor is registered as `KIND_CORE`, initially Hidden (`ComposerButtons.java:101`).
 It must not be `KIND_ACTION`: `ComposerFormattingActions.java:58` automatically
-creates those controls. `ComposerToolbarLayout.java:213` captures Cursor's DOWN
+creates those controls. `ComposerToolbarLayout.java:212` captures Cursor's DOWN
 before the layout-editor timer, middle-row scrolling or fullscreen swipe can arm,
 then keeps the whole stream until UP/CANCEL even outside the button.
 `ChatActivityEnterView.java:2955` creates the per-composer controller with the chat
-fragment root, `:7359` binds the editor, and `:8676` tears it down. The spotlight
+fragment root, `:7358` binds the editor, and `:8675` tears it down. The spotlight
 belongs to that root's draw-only overlay; it requires no ChatActivity drawing hook.
-The movement selector is built by `ComposerLayoutActivity.java:354` alongside the
-existing toolbar settings.
+Cursor has one drag-based movement behavior and no movement setting.
+
+The clear input region follows the painted surface, not the transparent editor:
+`ComposerCursorController.java:377` copies the glass drawable's outline, while
+`ComposerMd3Surface.java:715` records the exact field path it just painted and
+`:144` copies it for the overlay. The path resets at each surface draw (`:419`),
+so floating, docked, folded and expanded geometry do not need separate guesses.
+
+DOWN-time interception ownership matters for rightward drags: the toolbar's
+parent request reaches `ActionBarLayout.java:1070`, which clears swipe-back
+tracking through `onTouchEvent(null)` (`:1548`). Keep ownership until the stream's
+UP/CANCEL or detach; canceling movement after a text edit must not re-enable
+navigation halfway through that stream.
 
 *(Established 2026-11-04, #composer-cursor.)*
 
