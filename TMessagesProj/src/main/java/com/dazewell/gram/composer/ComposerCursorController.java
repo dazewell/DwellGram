@@ -213,7 +213,6 @@ public final class ComposerCursorController {
                     && Math.hypot(event.getRawX() - tapX, event.getRawY() - tapY)
                     <= ViewConfiguration.get(button.getContext()).getScaledDoubleTapSlop();
             cancel();
-            android.util.Log.i("NagramX", "NAX_SMOKE_composer-cursor PATH_DOWN enabled=" + available() + " selection=" + second);
             if (!available()) return true;
             snapshot(second);
             mode = movementMode();
@@ -277,7 +276,6 @@ public final class ComposerCursorController {
     }
 
     private void activate() {
-        android.util.Log.i("NagramX", "NAX_SMOKE_composer-cursor PATH_ACTIVE mode=" + mode + " selection=" + selecting);
         pending = false;
         active = true;
         button.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
@@ -348,7 +346,6 @@ public final class ComposerCursorController {
     }
 
     private void cancel() {
-        if (pending || active) android.util.Log.i("NagramX", "NAX_SMOKE_composer-cursor END active=" + active);
         generation++;
         pending = active = tapWaiting = false;
         pointer = -1;

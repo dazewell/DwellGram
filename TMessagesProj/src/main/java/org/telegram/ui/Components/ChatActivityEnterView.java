@@ -2954,7 +2954,6 @@ public class ChatActivityEnterView extends FrameLayout implements
             if (parentFragment != null && parentFragment.getFragmentView() != null) {
                 composerCursor = new com.dazewell.gram.composer.ComposerCursorController(this, composerToolbar, parentFragment.getFragmentView(), resourcesProvider);
             }
-            android.util.Log.i("NagramX", "NAX_SMOKE_composer-cursor BEGIN scenario=cursor-reachability build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING + " package=" + org.telegram.messenger.BuildConfig.APPLICATION_ID + " account=" + currentAccount); // NagramX: temporary smoke identity, with no draft content.
             messageEditTextContainer.addView(composerToolbar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, composerToolbarHeight(), Gravity.BOTTOM));
             // NagramX (#composer-inline-rest): made before the send column, whose bottom margin it decides.
             composerInlineRest = com.dazewell.gram.composer.ComposerInlineRest.createIfEnabled(composerToolbar, parentFragment != null, () -> {
