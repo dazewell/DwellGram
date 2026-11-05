@@ -2923,11 +2923,14 @@ Pinning or unpinning updates the chat's pin map and leaves the flag on already-l
 
 ## Voice layout can shrink a caller's bubble width
 
-The `TYPE_VOICE` branch chooses the row budget in `ChatMessageCell.java:9223-9225`,
+The `TYPE_VOICE` branch chooses the row budget in `ChatMessageCell.java:9223-9226`,
 but `createDocumentLayout` replaces `backgroundWidth` with a duration-label-based
-width at `ChatMessageCell.java:12997`. Restore the chosen width after that call
-(`ChatMessageCell.java:9228`) to keep even short voice notes wide. The waveform
+width at `ChatMessageCell.java:12998`. Restore the chosen width after that call
+(`ChatMessageCell.java:9229`) to keep even short voice notes wide. The waveform
 then takes its width from the bubble in `updateSeekBarWaveformWidth`.
+Outgoing bubbles need a permanent selection gutter: `updateTranslation` only
+adds the checkbox translation to incoming bubbles or wide code
+(`ChatMessageCell.java:27545-27547`).
 
 *(Established 2026-11-04, `#voice-message-width`.)*
 

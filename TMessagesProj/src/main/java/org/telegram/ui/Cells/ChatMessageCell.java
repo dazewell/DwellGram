@@ -9222,7 +9222,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 }
                 // NagramX: give voice seeking nearly the full row, keeping room for avatars and side actions.
                 int voiceRowWidth = AndroidUtilities.isTablet() ? Math.min(getParentWidth(), AndroidUtilities.getMinTabletSide()) : getParentWidth();
-                backgroundWidth = maxWidth = Math.max(dp(1), voiceRowWidth - dp(24 + (isSideMenued ? ChatActivity.SIDE_MENU_WIDTH : drawAvatar ? 52 : 0) + (drawSideButton != 0 ? 40 : 0)));
+                // NagramX: outgoing bubbles stay anchored during selection, so keep the checkbox's 35dp gutter clear.
+                backgroundWidth = maxWidth = Math.max(dp(1), voiceRowWidth - dp(24 + (messageObject.isOutOwner() ? 35 : 0) + (isSideMenued ? ChatActivity.SIDE_MENU_WIDTH : drawAvatar ? 52 : 0) + (drawSideButton != 0 ? 40 : 0)));
                 createDocumentLayout(backgroundWidth, messageObject);
                 // NagramX: the document layout shrinks to the duration label; keep short recordings wide too.
                 backgroundWidth = maxWidth;
