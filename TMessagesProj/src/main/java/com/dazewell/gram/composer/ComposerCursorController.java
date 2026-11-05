@@ -110,7 +110,7 @@ public final class ComposerCursorController {
                 if (visibility != VISIBLE && spotlight != null) cancel();
             }
         };
-        button.setImageResource(R.drawable.baseline_gps_fixed_24);
+        button.setImageResource(R.drawable.composer_trackball);
         button.setContentDescription(LocaleController.getString(R.string.ComposerCursor));
         button.setFocusable(false);
         button.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
@@ -269,6 +269,10 @@ public final class ComposerCursorController {
         refresh();
     }
 
+    static int sensitivity() {
+        return Math.max(50, Math.min(200, xyz.nextalone.nagram.NaConfig.INSTANCE.getComposerCursorSensitivity().Int()));
+    }
+
     private void track(float x, float y) {
         if (x == 0 && y == 0) return;
         boolean horizontal = Math.abs(x) >= Math.abs(y);
@@ -276,7 +280,7 @@ public final class ComposerCursorController {
         if (axis != nextAxis) remainder = 0;
         axis = nextAxis;
         remainder += horizontal ? x : y;
-        int threshold = AndroidUtilities.dp(horizontal ? CHARACTER_STEP_DP : LINE_STEP_DP);
+        float threshold = AndroidUtilities.dp(horizontal ? CHARACTER_STEP_DP : LINE_STEP_DP) * 100f / sensitivity();
         while (Math.abs(remainder) >= threshold) {
             move(horizontal ? (remainder < 0 ? 0 : 1) : (remainder < 0 ? 2 : 3));
             remainder -= Math.copySign(threshold, remainder);

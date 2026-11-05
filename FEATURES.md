@@ -126,7 +126,7 @@ Send and the mic sit at the end of the composer's button row. Under Liquid Glass
 
 ### Docked composer <!-- #docked-composer -->
 
-The Material Design 3 composer can run as a flat panel edge to edge along the bottom, resting straight on the keyboard instead of floating as an island. The field, reply strip and selection buttons share one corner radius. Pick *Composer style* → Floating or Docked at the top of Chat settings → Composer Toolbar, where the preview shows it. Defaults to Floating.
+The Material Design 3 composer can run as a flat panel edge to edge along the bottom, resting straight on the keyboard instead of floating as an island. The field, reply strip and selection buttons share one corner radius. Pick *Composer style* → Floating or Docked under Chat settings → Composer Toolbar → Panel, where the preview shows it. Defaults to Floating.
 
 ### One-row composer at rest <!-- #composer-inline-rest --> <!-- #glass-composer-fold -->
 
@@ -134,7 +134,7 @@ With the keyboard down and the compose box empty, the composer folds into one ro
 
 ### Composer toolbar layout editor <!-- #composer-layout --> <!-- #composer-layout-tap-toggle --> <!-- #composer-leading-2slot -->
 
-The button row under the compose box is yours to arrange via chat settings. You can place any action in any zone (Leading, Scrolling, Trailing, Hidden). The Leading zone is capped at two slots. Tapping a row in Hidden or Scrolling toggles it straight to the other section without dragging. Hold any button on the live toolbar for about one second to open this editor directly.
+Arrange the button row under Chat settings → Composer Toolbar → Buttons, with the preview pinned above. Place actions in Leading, Scrolling, Trailing or Hidden; Leading holds two. Tap a row in Hidden or Scrolling to move it between those sections. Hold a live toolbar button for about one second to open the editor. Panel settings are on a separate tab.
 
 <img height="260" alt="layout editor listing draggable toolbar buttons under a Leading zone capped at two slots, a drop hint, and the start of the Scrolling zone" src="docs/images/features/composer-layout-zones.png" />
 
@@ -144,7 +144,7 @@ The attach paperclip remains visible on the toolbar even when the field is full 
 
 ### Cursor <!-- #composer-cursor -->
 
-Cursor moves the caret and adjusts text selections by dragging, while keeping the whole input highlighted. Add it through Chat settings → Composer Toolbar. Hidden by default.
+Cursor moves the caret and adjusts text selections by dragging, while keeping the whole input highlighted. Add it and adjust its sensitivity from 50% to 200% under Chat settings → Composer Toolbar → Buttons. Cursor is hidden by default; sensitivity defaults to 100%.
 
 ### Cut, Copy, Paste buttons <!-- #composer-clipboard-actions -->
 
@@ -188,7 +188,7 @@ The floating send-column layout is gone. The glass-fill helper stays with the cl
 
 ### Message input text size <!-- #input-text-size --> <!-- #composer-emoji-scale -->
 
-The text you type in the compose box has its own size, separate from chat bubbles. Set it with the Message input text size slider at the top of Chat settings → Composer Toolbar, where the preview shows sample text at the chosen size. Custom animated emoji scale with it. Defaults to 18.
+The text you type in the compose box has its own size, separate from chat bubbles. Set it with the Message input text size slider under Chat settings → Composer Toolbar → Panel, where the preview shows sample text at the chosen size. Custom animated emoji scale with it. Defaults to 18.
 
 ### Physical keyboard hotkeys <!-- #keyboard-hotkeys -->
 

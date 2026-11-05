@@ -98,7 +98,7 @@ public final class ComposerButtons {
         register(new Button(COPY, R.string.Copy, R.drawable.msg_copy_solar, KIND_CLIPBOARD, ZONE_HIDDEN, android.R.id.copy));
         register(new Button(PASTE, R.string.Paste, R.drawable.baseline_content_paste_24, KIND_CLIPBOARD, ZONE_HIDDEN, android.R.id.paste));
         register(new Button(TEMPLATES, R.string.TemplateMessagesButton, R.drawable.flash_on_solar, KIND_ACTION, ZONE_HIDDEN, 0));
-        register(new Button(CURSOR, R.string.ComposerCursor, R.drawable.baseline_gps_fixed_24, KIND_CORE, ZONE_HIDDEN, 0));
+        register(new Button(CURSOR, R.string.ComposerCursor, R.drawable.composer_trackball, KIND_CORE, ZONE_HIDDEN, 0));
 
         register(new Button("mono", R.string.Mono, R.drawable.formatting_code, KIND_FORMAT, ZONE_HIDDEN, R.id.menu_mono));
         register(new Button("bold", R.string.Bold, R.drawable.formatting_bold, KIND_FORMAT, ZONE_HIDDEN, R.id.menu_bold));

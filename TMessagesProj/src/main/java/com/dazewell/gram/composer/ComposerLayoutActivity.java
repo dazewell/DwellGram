@@ -92,12 +92,16 @@ public class ComposerLayoutActivity extends BaseFragment {
     private static final int TYPE_STYLE = 9;
     /** The fullscreen-input swipe switch (#fullscreen-input). */
     private static final int TYPE_SWIPE_EXPAND = 10;
+    private static final int TYPE_SENSITIVITY = 11;
     /** Sentinel "zones" for the slider groups, so one header/footer lookup serves all of them. */
     private static final int GROUP_SCALE = -1;
     private static final int GROUP_KEYBOARD_GAP = -2;
     private static final int GROUP_TEXT_SIZE = -3;
     private static final int GROUP_STYLE = -4;
     private static final int GROUP_SWIPE_EXPAND = -5;
+    private static final int GROUP_SENSITIVITY = -6;
+    private static final int TAB_HEIGHT = 44;
+    private boolean panelTab;
 
     /** The clamp ChatActivityEnterView.getInputTextSizeDp() applies, and NaConfig.inputTextSize's default. */
     private static final int TEXT_SIZE_MIN = 14;
@@ -164,6 +168,7 @@ public class ComposerLayoutActivity extends BaseFragment {
     private ListAdapter adapter;
     private ItemTouchHelper itemTouchHelper;
     private PreviewCell previewCell;
+    private org.telegram.ui.Components.ScrollSlidingTextTabStrip tabStrip;
 
     private final ArrayList<Item> items = new ArrayList<>();
     private List<List<String>> lastSaved;
@@ -271,7 +276,7 @@ public class ComposerLayoutActivity extends BaseFragment {
         listView.setVerticalScrollBarEnabled(false);
         itemTouchHelper = new ItemTouchHelper(new TouchHelperCallback());
         itemTouchHelper.attachToRecyclerView(listView);
-        frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, 0, previewHeight(), 0, 0));
+        frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, 0, previewHeight() + TAB_HEIGHT, 0, 0));
         listView.setAdapter(adapter = new ListAdapter(context));
         // Adopt the same rounded grouped-card treatment every other settings page uses. The one-arg
         // overload resolves to setSections(dp(12), dp(16), true) and the default section-exclusion
@@ -284,6 +289,28 @@ public class ComposerLayoutActivity extends BaseFragment {
         // it has to stay on screen while the user works down a twenty-row list.
         previewCell = new PreviewCell(context);
         frameLayout.addView(previewCell, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, previewHeight(), Gravity.TOP | Gravity.LEFT));
+        org.telegram.ui.Components.ScrollSlidingTextTabStrip tabs = new org.telegram.ui.Components.ScrollSlidingTextTabStrip(context, getResourceProvider());
+        tabs.setUseSameWidth(true);
+        tabs.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+        tabs.setColors(Theme.key_profile_tabSelectedLine, Theme.key_profile_tabSelectedText, Theme.key_profile_tabText, Theme.key_profile_tabSelector);
+        tabs.setDelegate(new org.telegram.ui.Components.ScrollSlidingTextTabStrip.ScrollSlidingTabStripDelegate() {
+            @Override public void onPageSelected(int page, boolean forward) {
+                if (panelTab == (page == 1)) return;
+                persist();
+                panelTab = page == 1;
+                buildItems(lastSaved);
+                adapter.notifyDataSetChanged();
+                listView.scrollToPosition(0);
+                updatePreview();
+            }
+            @Override public void onPageScrolled(float progress) { }
+        });
+        tabs.addTextTab(0, LocaleController.getString(R.string.ComposerLayoutButtonsTab));
+        tabs.addTextTab(1, LocaleController.getString(R.string.ComposerLayoutPanelTab));
+        tabs.finishAddingTabs();
+        tabs.setInitialTabId(panelTab ? 1 : 0);
+        frameLayout.addView(tabs, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, TAB_HEIGHT, Gravity.TOP | Gravity.LEFT, 0, previewHeight(), 0, 0));
+        tabStrip = tabs;
         updatePreview();
 
         return fragmentView;
@@ -297,6 +324,13 @@ public class ComposerLayoutActivity extends BaseFragment {
         // The capsule grows with the scale, so the pinned preview and the space the list leaves for
         // it are re-applied together - a stale margin would either clip the panel or float the list.
         int height = dp(previewHeight());
+        if (tabStrip != null) {
+            FrameLayout.LayoutParams tabParams = (FrameLayout.LayoutParams) tabStrip.getLayoutParams();
+            if (tabParams.topMargin != height) {
+                tabParams.topMargin = height;
+                tabStrip.setLayoutParams(tabParams);
+            }
+        }
         ViewGroup.LayoutParams previewParams = previewCell.getLayoutParams();
         if (previewParams != null && previewParams.height != height) {
             previewParams.height = height;
@@ -304,8 +338,8 @@ public class ComposerLayoutActivity extends BaseFragment {
         }
         if (listView != null && listView.getLayoutParams() instanceof FrameLayout.LayoutParams) {
             FrameLayout.LayoutParams listParams = (FrameLayout.LayoutParams) listView.getLayoutParams();
-            if (listParams.topMargin != height) {
-                listParams.topMargin = height;
+            if (listParams.topMargin != height + dp(TAB_HEIGHT)) {
+                listParams.topMargin = height + dp(TAB_HEIGHT);
                 listView.setLayoutParams(listParams);
             }
         }
@@ -327,49 +361,53 @@ public class ComposerLayoutActivity extends BaseFragment {
 
     private void buildItems(List<List<String>> zones) {
         items.clear();
-        // Sits above the zone list so the size controls are the first thing under the preview, rather
-        // than something the user only finds after scrolling past twenty draggable rows. Each slider
-        // is titled: two unlabelled percentage bars stacked together are indistinguishable, and
-        // SlideIntChooseView.setLabel() only feeds the accessibility description, never the screen.
-        // The composer's shape comes first: it changes the whole preview, not one part of it. Of the
-        // sliders, text size leads because the field sits above the toolbar in the preview.
-        if (InterfaceStyleController.applyComposer()) {
-            items.add(new Item(TYPE_STYLE, GROUP_STYLE, null));
-            items.add(new Item(TYPE_INFO, GROUP_STYLE, null));
-        }
-        items.add(new Item(TYPE_SLIDER_HEADER, GROUP_TEXT_SIZE, null));
-        items.add(new Item(TYPE_TEXT_SIZE, GROUP_TEXT_SIZE, null));
-        items.add(new Item(TYPE_INFO, GROUP_TEXT_SIZE, null));
-        items.add(new Item(TYPE_SLIDER_HEADER, GROUP_SCALE, null));
-        items.add(new Item(TYPE_SCALE, GROUP_SCALE, null));
-        items.add(new Item(TYPE_INFO, GROUP_SCALE, null));
-        items.add(new Item(TYPE_SLIDER_HEADER, GROUP_KEYBOARD_GAP, null));
-        items.add(new Item(TYPE_KEYBOARD_GAP, GROUP_KEYBOARD_GAP, null));
-        items.add(new Item(TYPE_INFO, GROUP_KEYBOARD_GAP, null));
-        // Right above the zones: with the swipe on, the expand button is the one most worth hiding.
-        items.add(new Item(TYPE_SWIPE_EXPAND, GROUP_SWIPE_EXPAND, null));
-        items.add(new Item(TYPE_INFO, GROUP_SWIPE_EXPAND, null));
-        for (int zone : ZONE_ORDER) {
-            items.add(new Item(TYPE_HEADER, zone, null));
-            List<String> keys = zones.get(zone);
-            for (String key : keys) {
-                items.add(new Item(TYPE_BUTTON, zone, key));
+        if (panelTab) {
+            if (InterfaceStyleController.applyComposer()) {
+                items.add(new Item(TYPE_STYLE, GROUP_STYLE, null));
+                items.add(new Item(TYPE_INFO, GROUP_STYLE, null));
             }
-            // Leading never gets a placeholder row, even under capacity: its header already says
-            // how many buttons it holds, and its header row itself is a valid drop target, so a
-            // dedicated empty-slot row would just be a second way to say the same thing.
-            if (zone != ComposerButtons.ZONE_START && keys.isEmpty()) {
-                items.add(new Item(TYPE_PLACEHOLDER, zone, null));
+            items.add(new Item(TYPE_SLIDER_HEADER, GROUP_TEXT_SIZE, null));
+            items.add(new Item(TYPE_TEXT_SIZE, GROUP_TEXT_SIZE, null));
+            items.add(new Item(TYPE_INFO, GROUP_TEXT_SIZE, null));
+            items.add(new Item(TYPE_SLIDER_HEADER, GROUP_SCALE, null));
+            items.add(new Item(TYPE_SCALE, GROUP_SCALE, null));
+            items.add(new Item(TYPE_INFO, GROUP_SCALE, null));
+            items.add(new Item(TYPE_SLIDER_HEADER, GROUP_KEYBOARD_GAP, null));
+            items.add(new Item(TYPE_KEYBOARD_GAP, GROUP_KEYBOARD_GAP, null));
+            items.add(new Item(TYPE_INFO, GROUP_KEYBOARD_GAP, null));
+            items.add(new Item(TYPE_SWIPE_EXPAND, GROUP_SWIPE_EXPAND, null));
+            items.add(new Item(TYPE_INFO, GROUP_SWIPE_EXPAND, null));
+        } else {
+            items.add(new Item(TYPE_SLIDER_HEADER, GROUP_SENSITIVITY, null));
+            items.add(new Item(TYPE_SENSITIVITY, GROUP_SENSITIVITY, null));
+            items.add(new Item(TYPE_INFO, GROUP_SENSITIVITY, null));
+            for (int zone : ZONE_ORDER) {
+                items.add(new Item(TYPE_HEADER, zone, null));
+                List<String> keys = zones.get(zone);
+                for (String key : keys) {
+                    items.add(new Item(TYPE_BUTTON, zone, key));
+                }
+                // Leading never gets a placeholder row, even under capacity: its header already says
+                // how many buttons it holds, and its header row itself is a valid drop target, so a
+                // dedicated empty-slot row would just be a second way to say the same thing.
+                if (zone != ComposerButtons.ZONE_START && keys.isEmpty()) {
+                    items.add(new Item(TYPE_PLACEHOLDER, zone, null));
+                }
+                // Every zone is closed by its own footer, which both explains the zone and draws the
+                // shadow that separates it from the next one.
+                items.add(new Item(TYPE_INFO, zone, null));
             }
-            // Every zone is closed by its own footer, which both explains the zone and draws the
-            // shadow that separates it from the next one.
-            items.add(new Item(TYPE_INFO, zone, null));
         }
     }
 
     /** Rebuilds the four zone lists from the current flat order, taking each button's zone from the
      * header above it so the model always matches what the user sees. */
     private List<List<String>> collect() {
+        if (panelTab) {
+            List<List<String>> saved = new ArrayList<>(lastSaved.size());
+            for (List<String> zone : lastSaved) saved.add(new ArrayList<>(zone));
+            return saved;
+        }
         List<List<String>> zones = new ArrayList<>(ComposerButtons.ZONE_COUNT);
         for (int i = 0; i < ComposerButtons.ZONE_COUNT; i++) {
             zones.add(new ArrayList<>());
@@ -492,6 +530,7 @@ public class ComposerLayoutActivity extends BaseFragment {
         NaConfig.INSTANCE.getComposerKeyboardGap().setConfigInt(0);
         NaConfig.INSTANCE.getInputTextSize().setConfigInt(TEXT_SIZE_DEFAULT);
         NaConfig.INSTANCE.getComposerSwipeExpand().setConfigBool(true);
+        NaConfig.INSTANCE.getComposerCursorSensitivity().setConfigInt(100);
         lastSaved = ComposerLayout.snapshot();
         buildItems(lastSaved);
         if (adapter != null) {
@@ -560,6 +599,7 @@ public class ComposerLayoutActivity extends BaseFragment {
                 case TYPE_SCALE:
                 case TYPE_KEYBOARD_GAP:
                 case TYPE_TEXT_SIZE:
+                case TYPE_SENSITIVITY:
                     view = new SlideIntChooseView(context, null);
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                     break;
@@ -668,6 +708,14 @@ public class ComposerLayoutActivity extends BaseFragment {
                     });
                     textSizeView.setMinValueAllowed(TEXT_SIZE_MIN);
                     break;
+                case TYPE_SENSITIVITY:
+                    SlideIntChooseView sensitivityView = (SlideIntChooseView) holder.itemView;
+                    sensitivityView.setLabel(LocaleController.getString(R.string.ComposerCursorSensitivity));
+                    sensitivityView.set(ComposerCursorController.sensitivity(), SlideIntChooseView.Options.make(0,
+                            new int[]{50, 75, 100, 125, 150, 175, 200}, 1, (type, value) -> value + "%"),
+                            value -> NaConfig.INSTANCE.getComposerCursorSensitivity().setConfigInt(value));
+                    sensitivityView.setMinValueAllowed(50);
+                    break;
                 case TYPE_SLIDER_HEADER:
                     ((HeaderCell) holder.itemView).setText(LocaleController.getString(sliderHeaderText(item.zone)));
                     break;
@@ -704,6 +752,8 @@ public class ComposerLayoutActivity extends BaseFragment {
 
     private static CharSequence footerText(int zone) {
         switch (zone) {
+            case GROUP_SENSITIVITY:
+                return LocaleController.getString(R.string.ComposerCursorSensitivityInfo);
             case GROUP_SCALE:
                 return LocaleController.getString(R.string.ComposerScaleInfo);
             case GROUP_KEYBOARD_GAP:
@@ -729,6 +779,8 @@ public class ComposerLayoutActivity extends BaseFragment {
      * two slider groups, but stopped being able to tell four apart. */
     private static int sliderHeaderText(int zone) {
         switch (zone) {
+            case GROUP_SENSITIVITY:
+                return R.string.ComposerCursorSensitivity;
             case GROUP_KEYBOARD_GAP:
                 return R.string.ComposerKeyboardGap;
             case GROUP_TEXT_SIZE:
@@ -1542,7 +1594,7 @@ public class ComposerLayoutActivity extends BaseFragment {
     }
 
     private static boolean isSliderRowType(int type) {
-        return type == TYPE_SCALE || type == TYPE_KEYBOARD_GAP || type == TYPE_TEXT_SIZE;
+        return type == TYPE_SCALE || type == TYPE_KEYBOARD_GAP || type == TYPE_TEXT_SIZE || type == TYPE_SENSITIVITY;
     }
 
     // getItemViewType() shifts slider rows by generation * STRIDE so a theme flip forces a real
@@ -1610,6 +1662,9 @@ public class ComposerLayoutActivity extends BaseFragment {
                 if (previewCell != null) {
                     previewCell.applyTheme();
                 }
+                if (tabStrip != null) {
+                    tabStrip.updateColors();
+                }
             }
 
             @Override
@@ -1627,6 +1682,7 @@ public class ComposerLayoutActivity extends BaseFragment {
             }
         };
 
+        descriptions.add(new ThemeDescription(tabStrip, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundWhite));
         descriptions.add(new ThemeDescription(fragmentView, ThemeDescription.FLAG_BACKGROUND, null, null, null, null, Theme.key_windowBackgroundGray));
         descriptions.add(new ThemeDescription(listView, ThemeDescription.FLAG_CELLBACKGROUNDCOLOR, new Class[]{HeaderCell.class, ButtonRowCell.class, PlaceholderCell.class, org.telegram.ui.Cells.TextSettingsCell.class, org.telegram.ui.Cells.TextCheckCell.class}, null, null, null, Theme.key_windowBackgroundWhite));
         descriptions.add(new ThemeDescription(listView, 0, new Class[]{org.telegram.ui.Cells.TextCheckCell.class}, new String[]{"textView"}, null, null, null, Theme.key_windowBackgroundWhiteBlackText));
