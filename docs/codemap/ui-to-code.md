@@ -1350,7 +1350,7 @@ looks right in the code and is still reversed on the device.
 
 Cursor is registered as `KIND_CORE`, initially Hidden (`ComposerButtons.java:101`).
 It must not be `KIND_ACTION`: `ComposerFormattingActions.java:58` automatically
-creates those controls. `ComposerToolbarLayout.java:212` captures Cursor's DOWN
+creates those controls. `ComposerToolbarLayout.java:213` captures Cursor's DOWN
 before the layout-editor timer, middle-row scrolling or fullscreen swipe can arm,
 then keeps the whole stream until UP/CANCEL even outside the button.
 `ChatActivityEnterView.java:2955` creates the per-composer controller with the chat
@@ -1369,6 +1369,9 @@ parent request reaches `ActionBarLayout.java:1070`, which clears swipe-back
 tracking through `onTouchEvent(null)` (`:1548`). Keep ownership until the stream's
 UP/CANCEL or detach; canceling movement after a text edit must not re-enable
 navigation halfway through that stream.
+Its visible hit rectangle is translated from root to screen coordinates before
+comparison with raw touches (`ComposerToolbarLayout.java:217`), including when
+the app window is offset in split-screen or freeform mode.
 
 *(Established 2026-11-04, #composer-cursor.)*
 

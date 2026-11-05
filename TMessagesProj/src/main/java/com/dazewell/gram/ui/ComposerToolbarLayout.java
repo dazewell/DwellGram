@@ -104,6 +104,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
      */
     private View pinnedLeadingView;
     private View cursorTouchTarget;
+    private final int[] cursorRootLocation = new int[2];
     private View.OnTouchListener cursorTouchListener;
     private boolean cursorGesture;
 
@@ -210,8 +211,13 @@ public final class ComposerToolbarLayout extends FrameLayout {
         // Cursor owns DOWN before editor-hold, scrolling and expand-swipe timers can arm.
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
             cursorGesture = cursorTouchTarget != null && cursorTouchTarget.isShown()
-                    && cursorTouchTarget.getGlobalVisibleRect(controlsHitRect)
-                    && controlsHitRect.contains((int) event.getRawX(), (int) event.getRawY());
+                    && cursorTouchTarget.getGlobalVisibleRect(controlsHitRect);
+            if (cursorGesture) {
+                // Global visible bounds are root-relative; raw touches include the window's screen offset.
+                cursorTouchTarget.getRootView().getLocationOnScreen(cursorRootLocation);
+                controlsHitRect.offset(cursorRootLocation[0], cursorRootLocation[1]);
+                cursorGesture = controlsHitRect.contains((int) event.getRawX(), (int) event.getRawY());
+            }
         }
         if (cursorGesture) {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
