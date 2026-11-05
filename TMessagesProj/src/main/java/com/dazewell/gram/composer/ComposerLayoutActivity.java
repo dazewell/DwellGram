@@ -496,6 +496,7 @@ public class ComposerLayoutActivity extends BaseFragment {
         NaConfig.INSTANCE.getComposerKeyboardGap().setConfigInt(0);
         NaConfig.INSTANCE.getInputTextSize().setConfigInt(TEXT_SIZE_DEFAULT);
         NaConfig.INSTANCE.getComposerSwipeExpand().setConfigBool(true);
+        NaConfig.INSTANCE.getComposerCursorMovement().setConfigInt(ComposerCursorController.JOYSTICK);
         lastSaved = ComposerLayout.snapshot();
         buildItems(lastSaved);
         if (adapter != null) {
