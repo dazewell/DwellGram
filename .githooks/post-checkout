@@ -44,15 +44,23 @@ else
 fi
 
 # Codex reads skills only from .agents/skills. Link it to .claude/skills so
-# both tools read one copy; a copy goes stale. A junction on Windows, since it
-# needs no admin or Developer Mode, a symlink elsewhere.
+# every tool reads one copy; a copy goes stale. A junction on Windows, since it
+# needs no admin or Developer Mode, a symlink elsewhere. A copy or a dangling
+# link already there is reported, never deleted: it may hold work.
 top="$(git rev-parse --show-toplevel)"
-if [ ! -e "$top/.agents/skills" ] && [ -d "$top/.claude/skills" ]; then
+link="$top/.agents/skills"
+if [ ! -d "$top/.claude/skills" ]; then
+  :
+elif [ -L "$link" ]; then
+  [ -e "$link" ] || echo "post-checkout: .agents/skills is a dangling link; delete it and check out again so Codex sees the skills." >&2
+elif [ -e "$link" ]; then
+  echo "post-checkout: .agents/skills is a copy, not a link to .claude/skills, so Codex reads stale skills. Move it away and check out again." >&2
+else
   mkdir -p "$top/.agents"
   case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-      MSYS_NO_PATHCONV=1 cmd /c mklink /J "$(cygpath -w "$top/.agents/skills")" "$(cygpath -w "$top/.claude/skills")" >/dev/null ;;
-    *) ln -s ../.claude/skills "$top/.agents/skills" ;;
+      MSYS_NO_PATHCONV=1 cmd /c mklink /J "$(cygpath -w "$link")" "$(cygpath -w "$top/.claude/skills")" >/dev/null ;;
+    *) ln -s ../.claude/skills "$link" ;;
   esac || echo "post-checkout: could not link .agents/skills; Codex will not see the skills." >&2
 fi
 
