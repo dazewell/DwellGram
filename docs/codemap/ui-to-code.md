@@ -1350,11 +1350,11 @@ looks right in the code and is still reversed on the device.
 
 Cursor is registered as `KIND_CORE`, initially Hidden (`ComposerButtons.java:101`).
 It must not be `KIND_ACTION`: `ComposerFormattingActions.java:58` automatically
-creates those controls. `ComposerToolbarLayout.java:212` captures Cursor's DOWN
+creates those controls. `ComposerToolbarLayout.java:213` captures Cursor's DOWN
 before the layout-editor timer, middle-row scrolling or fullscreen swipe can arm,
 then keeps the whole stream until UP/CANCEL even outside the button.
 `ChatActivityEnterView.java:2955` creates the per-composer controller with the chat
-fragment root, `:7358` binds the editor, and `:8675` tears it down. The spotlight
+fragment root, `:7359` binds the editor, and `:8676` tears it down. The spotlight
 belongs to that root's draw-only overlay; it requires no ChatActivity drawing hook.
 The movement selector is built by `ComposerLayoutActivity.java:354` alongside the
 existing toolbar settings.

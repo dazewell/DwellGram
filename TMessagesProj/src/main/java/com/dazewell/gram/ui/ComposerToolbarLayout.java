@@ -117,6 +117,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
     private float configurationLongPressY;
     private final Rect controlsHitRect = new Rect();
     private final Runnable configurationLongPressRunnable = () -> {
+        android.util.Log.i("NagramX", "NAX_SMOKE_composer-cursor COMPETING_LAYOUT_HOLD");
         configurationLongPressTriggered = true;
         if (configurationLongPress != null) {
             configurationLongPress.run();
@@ -271,6 +272,7 @@ public final class ComposerToolbarLayout extends FrameLayout {
                     } else if (Math.abs(dy) > AndroidUtilities.dp(VERTICAL_SWIPE_DP) && Math.abs(dy) > VERTICAL_SWIPE_DOMINANCE * dx) {
                         verticalSwipeArmed = false;
                         verticalSwipeTriggered = true;
+                        android.util.Log.i("NagramX", "NAX_SMOKE_composer-cursor COMPETING_EXPAND_SWIPE");
                         removeCallbacks(configurationLongPressRunnable);
                         // the control under the finger must not fire its click on the UP we are about to swallow
                         MotionEvent cancel = MotionEvent.obtain(event);
