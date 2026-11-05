@@ -824,8 +824,12 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
             } else if (currentStyle == STYLE_AUDIO_PLAYER) {
                 MessageObject messageObject = MediaController.getInstance().getPlayingMessageObject();
                 if (fragment != null && messageObject != null) {
-                    // NagramX: voice playback should return to its message; music still opens the full player.
-                    if (messageObject.isMusic()) {
+                    // NagramX: voice playback returns to its message while the original player routing stays intact for other media.
+                    if (messageObject.isVoice()) {
+                        com.dazewell.gram.player.VoicePlayerNavigation.open(fragment, messageObject);
+                        return;
+                    }
+                    if (messageObject.isMusic() || messageObject.isVoice()) {
                         final Activity activity = AndroidUtilities.findActivity(getContext());
                         if (activity instanceof LaunchActivity) {
                             new AudioPlayerAlert(activity, resourcesProvider).show();
