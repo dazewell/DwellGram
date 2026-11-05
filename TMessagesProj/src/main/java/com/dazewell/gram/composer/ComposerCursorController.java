@@ -222,7 +222,6 @@ public final class ComposerCursorController {
             downY = lastY = event.getRawY();
             downTime = event.getEventTime();
             pending = true;
-            disallowInterception(true);
             final int token = generation;
             holdCallback = () -> {
                 if (token == generation && pending && available()) activate();
@@ -275,10 +274,6 @@ public final class ComposerCursorController {
             }
         }
         return true;
-    }
-
-    private void disallowInterception(boolean disallow) {
-        if (button.getParent() != null) button.getParent().requestDisallowInterceptTouchEvent(disallow);
     }
 
     private void activate() {
@@ -364,7 +359,6 @@ public final class ComposerCursorController {
             if (holdCallback != null) button.removeCallbacks(holdCallback);
             if (repeatCallback != null) button.removeCallbacks(repeatCallback);
             if (hintCallback != null) button.removeCallbacks(hintCallback);
-            disallowInterception(false);
         }
         holdCallback = repeatCallback = hintCallback = null;
         root.getOverlay().remove(spotlight);

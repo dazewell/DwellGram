@@ -218,10 +218,13 @@ public final class ComposerToolbarLayout extends FrameLayout {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 removeCallbacks(configurationLongPressRunnable);
                 configurationLongPressTriggered = verticalSwipeArmed = verticalSwipeTriggered = false;
+                // Stream ownership outlives controller cancellation, including a draft changing mid-drag.
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
             }
             cursorTouchListener.onTouch(cursorTouchTarget, event);
             if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
                 cursorGesture = false;
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
             }
             return true;
         }
@@ -309,6 +312,8 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     @Override
     protected void onDetachedFromWindow() {
+        if (cursorGesture && getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
+        cursorGesture = false;
         removeCallbacks(configurationLongPressRunnable);
         super.onDetachedFromWindow();
     }
