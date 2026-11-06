@@ -1357,10 +1357,17 @@ then keeps the whole stream until UP/CANCEL even outside the button.
 fragment root, `:7358` binds the editor, and `:8675` tears it down. The spotlight
 belongs to that root's draw-only overlay; it requires no ChatActivity drawing hook.
 Cursor uses drag-based movement; its sensitivity is adjustable in the Buttons tab
-(`ComposerLayoutActivity.java:714`, `ComposerCursorController.java:272`).
+(`ComposerLayoutActivity.java:714`, `ComposerCursorController.java:280`).
+
+A stationary second tap selects the word at the caret on UP
+(`ComposerCursorController.java:242`); holding or dragging the second tap keeps
+the existing anchored selection gesture. `ComposerCursorNavigation.java:37`
+uses ICU word boundaries and expands them to its grapheme/replacement-span
+boundaries. Whitespace and punctuation do not select a range; a caret directly
+after a word selects that word. *(Extended 2026-11-06, #composer-cursor-word.)*
 
 The clear input region follows the painted surface, not the transparent editor:
-`ComposerCursorController.java:381` copies the glass drawable's outline, while
+`ComposerCursorController.java:389` copies the glass drawable's outline, while
 `ComposerMd3Surface.java:715` records the exact field path it just painted and
 `:144` copies it for the overlay. The path resets at each surface draw (`:419`),
 so floating, docked, folded and expanded geometry do not need separate guesses.

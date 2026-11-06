@@ -985,7 +985,7 @@
     <string name="PinnedSettingsUnpinned">Unpinned from Settings</string>
     <string name="PinnedSettingsFull">Settings is full. Unpin one first.</string>
     <string name="ComposerCursor">Cursor</string>
-    <string name="ComposerCursorHint">Hold and drag to move the cursor. Double-tap and hold to select.</string>
+    <string name="ComposerCursorHint">Hold and drag to move the cursor. Double-tap to select a word, or double-tap and hold to select by dragging.</string>
     <string name="ComposerCursorMoving">Move cursor</string>
     <string name="ComposerCursorSelecting">Select text</string>
     <string name="ComposerCursorLeft">Move cursor left</string>

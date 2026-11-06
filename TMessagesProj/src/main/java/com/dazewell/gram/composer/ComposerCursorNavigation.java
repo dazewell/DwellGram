@@ -9,11 +9,12 @@ import java.util.Locale;
 
 /** Visual navigation with grapheme and inline-image boundaries for composer gestures. */
 final class ComposerCursorNavigation {
+    private final String value;
     private final boolean[] boundaries;
     private float desiredX = Float.NaN;
 
     ComposerCursorNavigation(CharSequence text) {
-        String value = text.toString();
+        value = text.toString();
         boundaries = new boolean[value.length() + 1];
         BreakIterator iterator = BreakIterator.getCharacterInstance(Locale.getDefault());
         iterator.setText(value);
@@ -31,6 +32,34 @@ final class ComposerCursorNavigation {
             }
         }
         boundaries[0] = boundaries[text.length()] = true;
+    }
+
+    int[] wordAt(int offset) {
+        offset = Math.max(0, Math.min(value.length(), offset));
+        if (value.isEmpty()) return null;
+        BreakIterator iterator = BreakIterator.getWordInstance(Locale.getDefault());
+        iterator.setText(value);
+        int start = iterator.preceding(offset == value.length() ? offset : offset + 1);
+        int end = iterator.following(start);
+        // At the end of a word, prefer that word over the following space or punctuation.
+        if (!hasWord(start, end) && offset == start && start > 0) {
+            end = start;
+            start = iterator.preceding(start);
+        }
+        if (!hasWord(start, end)) return null;
+        // Word boundaries must not split graphemes or inline replacement spans either.
+        while (start > 0 && !boundaries[start]) start--;
+        while (end < value.length() && !boundaries[end]) end++;
+        return new int[] { start, end };
+    }
+
+    private boolean hasWord(int start, int end) {
+        for (int i = start; i < end; i += Character.charCount(value.codePointAt(i))) {
+            if (Character.isLetterOrDigit(value.codePointAt(i))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     int move(Layout layout, int focus, int direction) {
