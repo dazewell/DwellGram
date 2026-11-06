@@ -10,6 +10,8 @@ Extra bits I've added on top of [NagramX](https://github.com/risin42/NagramX). M
 
 ## Chats and privacy
 
+### Direct message search filters <!-- #dm-search-filters -->
+
 ### Per-chat time zones <!-- #timezones -->
 
 Set a time zone for any personal chat or group from its profile edit view. The chat header and contacts list then show the peer's local time as a clock pill; tap it for a time converter you can drop into the message box as a formatted line. Scheduling a message to a chat with a zone set adds *My time* / *Peer's time* tabs to the picker.

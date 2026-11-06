@@ -3885,6 +3885,8 @@ public class ChatActivity extends BaseFragment implements
 
     @Override
     public void onFragmentDestroy() {
+        // NagramX: disposal may happen without the search field collapsing first.
+        if (supportsDmSearchFilters()) getMediaDataController().closeDmSearch(classGuid, dialog_id);
         super.onFragmentDestroy();
         AndroidUtilities.cancelRunOnUIThread(finalizeRoundVideoOnPauseRunnable); // NagramX (#video-pause-grace)
         // NagramX (#remember-send-action): only clears the slot if it still belongs to this chat, and only
@@ -11954,6 +11956,32 @@ public class ChatActivity extends BaseFragment implements
         tagSelector.setTranslationY(contentPanTranslation + (actionBarSearchTags != null ? actionBarSearchTags.getCurrentHeight() : 0));
     }
 
+    // NagramX: filter state belongs to the current chat's search session.
+    private com.dazewell.gram.search.DmSearchFilters dmSearchFilters;
+
+    private boolean supportsDmSearchFilters() {
+        return currentUser != null && currentEncryptedChat == null && !UserObject.isUserSelf(currentUser)
+                && !currentUser.bot && chatMode == 0 && threadMessageId == 0;
+    }
+
+    private void addDmSearchFilters(ItemOptions popup) {
+        if (!supportsDmSearchFilters()) return;
+        if (dmSearchFilters == null) dmSearchFilters = new com.dazewell.gram.search.DmSearchFilters();
+        dmSearchFilters.addOptions(popup, this, themeDelegate, getUserConfig().getCurrentUser(), currentUser,
+                searchingType != null, (sender, dates, clearType) -> {
+                    searchingUserMessages = sender;
+                    if (clearType) searchingType = null;
+                    getMediaDataController().setDmSearchCriteria(classGuid, dialog_id, dates, () -> {
+                        if (searching && getParentActivity() != null) {
+                            showDialog(new AlertDialog.Builder(getParentActivity(), themeDelegate)
+                                    .setMessage(LocaleController.getString(R.string.DmSearchTermRequired))
+                                    .setPositiveButton(LocaleController.getString(R.string.OK), null).create());
+                        }
+                    });
+                    searchItemListener.onSearchPressed(searchItem.getSearchField());
+                });
+    }
+
     private ArrayList<Pair<String, TLRPC.MessagesFilter>> searchFilters = new ArrayList<>() {{
         add(Pair.create(getString(R.string.FilterAllChatsShort), null));
         add(Pair.create(getString(R.string.SharedMediaTab2), new TLRPC.TL_inputMessagesFilterPhotoVideo()));
@@ -12116,6 +12144,8 @@ public class ChatActivity extends BaseFragment implements
                         filterPopup.putCheck();
                     }
                 }
+                // NagramX: keep the date and sender filters beside existing message-type choices.
+                addDmSearchFilters(filterPopup);
                 filterPopup.show();
             });
         }
@@ -42933,6 +42963,12 @@ public class ChatActivity extends BaseFragment implements
 
         @Override
         public void onSearchCollapse() {
+            // NagramX: queued results must not restore a closed search.
+            if (supportsDmSearchFilters()) {
+                getMediaDataController().closeDmSearch(classGuid, dialog_id);
+                dmSearchFilters = null;
+                searchingType = null;
+            }
             searching = false;
             updatePagedownButtonVisibility(true);
             updateSearchUpDownButtonVisibility(true);
@@ -43046,7 +43082,8 @@ public class ChatActivity extends BaseFragment implements
             if (translateItem != null)
                 translateItem.setVisibility(View.VISIBLE);
             searchItemVisible = false;
-            getMediaDataController().clearFoundMessageObjects();
+            // NagramX: an older DM must not clear a newer search owned by this account controller.
+            if (!supportsDmSearchFilters()) getMediaDataController().clearFoundMessageObjects();
             if (searchType == SEARCH_CHANNEL_POSTS) {
                 HashtagSearchController.getInstance(currentAccount).clearSearchResults(SEARCH_CHANNEL_POSTS);
             } else {
@@ -43135,7 +43172,8 @@ public class ChatActivity extends BaseFragment implements
             boolean hashtags = false;
             boolean channelHashtags = false;
             searchingQuery = editText != null ? editText.getText().toString() : searchingQuery;
-            if (!TextUtils.isEmpty(searchingQuery) && (searchingQuery.startsWith("$") || searchingQuery.startsWith("#"))) {
+            // NagramX: hashtag navigation cannot bypass selected DM constraints.
+            if (!(supportsDmSearchFilters() && (searchingType != null || dmSearchFilters != null && dmSearchFilters.active())) && !TextUtils.isEmpty(searchingQuery) && (searchingQuery.startsWith("$") || searchingQuery.startsWith("#"))) {
                 hashtags = true;
                 createSearchHashtagViewsIfNeeded();
                 if (searchingQuery.contains("@")) {

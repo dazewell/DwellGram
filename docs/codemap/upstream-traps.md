@@ -2944,3 +2944,12 @@ read `getProgressMs` (`MediaController.java:2767-2780`) and use the cached secon
 position is available.
 
 *(Established 2026-11-04, `#voice-reply-timestamp`, PR 588.)*
+
+## The chat search calendar is a jump picker
+
+`AlertsCreator.createCalendarPickerDialog` builds a jump-to-date control and hardcodes
+its action label to `JumpToDate` (`AlertsCreator.java:6708`, `:6843`). A date filter
+needs a separate picker flow; reusing this helper would label filtering as navigation.
+The date-component picker at `AlertsCreator.java:4072` accepts a caller-owned title.
+
+*(Established 2026-11-06, `#dm-search-filters`.)*
