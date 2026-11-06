@@ -239,10 +239,18 @@ public final class ComposerCursorController {
         }
         if (action == MotionEvent.ACTION_UP) {
             boolean quickTap = pending && event.getEventTime() - downTime < ViewConfiguration.getLongPressTimeout();
+            boolean selectWord = quickTap && selecting;
+            int[] word = selectWord ? navigation.wordAt(focus) : null;
             float x = event.getRawX(), y = event.getRawY();
             long time = event.getEventTime();
             cancel();
-            if (quickTap) {
+            if (selectWord) {
+                if (word != null) {
+                    Selection.setSelection(field.getText(), word[0], word[1]);
+                    field.bringPointIntoView(word[1]);
+                    field.invalidate();
+                }
+            } else if (quickTap) {
                 tapWaiting = true;
                 tapX = x;
                 tapY = y;
