@@ -432,6 +432,10 @@ In English, a person's status reads **seen at 14:05** or **seen Oct 03 at 14:05*
 
 When music, a voice message or a round video plays in a chat with a pinned message, the two bars share one row: a shortened pinned message on the left, the player on the right, its progress line across both. Chat Settings → Combine pinned message with player, off by default.
 
+### Open a voice message from the player <!-- #voice-player-message -->
+
+Tapping the compact player while a voice message plays returns to that message, even after switching chats. Music playback still opens the full player.
+
 ### Chat photo header background <!-- #header-avatar-bg -->
 
 A chat can show its photo behind the Material Design 3 chat header and pinned bar. The chat's ⋮ menu → *Header background* opens a sheet to position the photo and set opacity, blur, tint, gradient and scrim. Status bar icons follow the photo; *Header text* and *Pinned bar text* (also the player's) pick light or dark text per theme. Off by default; in Glass the sheet links to Interface Style.
