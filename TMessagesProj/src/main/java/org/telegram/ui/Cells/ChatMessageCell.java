@@ -12314,6 +12314,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
 
     @Override
     protected boolean onLongPress() {
+        // NagramX: selection mode can reject the cancellation normally sent after a long press.
+        if (documentAttachType == DOCUMENT_ATTACH_TYPE_AUDIO && useSeekBarWaveform && seekBarWaveform.isDragging()) {
+            seekBarWaveform.onTouch(MotionEvent.ACTION_CANCEL, 0, 0);
+        }
         // NagramX: long-press on the transcribe ("A") button drops a stuck attempt and opens the retry-with-provider picker
         if (useTranscribeButton && transcribeButton != null && transcribeButton.isPressed()
                 && currentMessageObject != null
