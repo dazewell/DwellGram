@@ -4558,7 +4558,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 if (documentAttachType != DOCUMENT_ATTACH_TYPE_AUDIO && (buttonState == 0 || buttonState == 1 || buttonState == 2)) {
                     area = x >= buttonX - dp(12) && x <= buttonX - dp(12) + backgroundWidth && y >= (drawInstantView ? buttonY : namesOffset + mediaOffsetY) && y <= (drawInstantView ? buttonY + side : namesOffset + mediaOffsetY + dp(82));
                 } else {
-                    area = x >= buttonX && x <= buttonX + side && y >= buttonY && y <= buttonY + side;
+                    // NagramX: voice button hit bounds must cover its full 44dp drawing.
+                    int buttonSide = documentAttachType == DOCUMENT_ATTACH_TYPE_AUDIO ? dp(44) : side;
+                    area = x >= buttonX && x <= buttonX + buttonSide && y >= buttonY && y <= buttonY + buttonSide;
                 }
             }
             if (event.getAction() == MotionEvent.ACTION_DOWN) {

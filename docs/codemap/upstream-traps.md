@@ -2940,7 +2940,10 @@ adds the checkbox translation to incoming bubbles or wide code
 the button hit area. Voice waveform taps must not call `didPressButton`
 (`ChatMessageCell.java:4539`), and the bubble-wide hit area must exclude voice
 messages (`ChatMessageCell.java:4558`). Holding the waveform allows long press
-until seeking starts (`ChatMessageCell.java:4543`). Waveform dragging still
+until seeking starts (`ChatMessageCell.java:4543`). Voice button hit bounds match
+the 44dp drawing (`ChatMessageCell.java:4562`, `:14182`). Long press cancels the
+waveform before selection can block touch cancellation (`ChatMessageCell.java:12320`).
+Waveform dragging still
 seeks and blocks parent interception (`SeekBarWaveform.java:161-177`), so swipe
 to reply starts in the surrounding bubble space.
 
