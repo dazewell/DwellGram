@@ -2934,6 +2934,18 @@ adds the checkbox translation to incoming bubbles or wide code
 
 *(Established 2026-11-04, `#voice-message-width`.)*
 
+## Wide voice bubbles have two playback touch paths
+
+`ChatMessageCell.checkAudioMotionEvent` handles waveform taps separately from
+the button hit area. Voice waveform taps must not call `didPressButton`
+(`ChatMessageCell.java:4539`), and the bubble-wide hit area must exclude voice
+messages (`ChatMessageCell.java:4558`). Holding the waveform allows long press
+until seeking starts (`ChatMessageCell.java:4543`). Waveform dragging still
+seeks and blocks parent interception (`SeekBarWaveform.java:161-177`), so swipe
+to reply starts in the surrounding bubble space.
+
+*(Established 2026-11-07, `#voice-message-touch-fix`.)*
+
 ## A paused audio seek does not refresh `audioProgressSec`
 
 The playback timer updates `audioProgressSec` from the player's current position only while

@@ -226,7 +226,7 @@ Select text in a message and tap *Cite* to drop it into your input box as a quot
 
 ### Audio reply timestamps <!-- #voice-reply-timestamp -->
 
-### Wider voice messages <!-- #voice-message-width -->
+### Wider voice messages <!-- #voice-message-width --> <!-- #voice-message-touch-fix -->
 
 Voice messages stretch across most of the chat width, even for short recordings. Outgoing messages leave extra room for selection checkboxes. Transcriptions use the same width as playback. Always on.
 

@@ -4536,10 +4536,14 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (result) {
             if (!useSeekBarWaveform && event.getAction() == MotionEvent.ACTION_DOWN) {
                 getParent().requestDisallowInterceptTouchEvent(true);
-            } else if (useSeekBarWaveform && !seekBarWaveform.isStartDraging() && event.getAction() == MotionEvent.ACTION_UP) {
+            } else if (documentAttachType != DOCUMENT_ATTACH_TYPE_AUDIO && useSeekBarWaveform && !seekBarWaveform.isStartDraging() && event.getAction() == MotionEvent.ACTION_UP) { // NagramX: voice playback belongs to the button, not waveform taps.
                 didPressButton(true, false);
             }
-            disallowLongPress = true;
+            // NagramX: holding a voice waveform should still open the message's reaction menu.
+            disallowLongPress = documentAttachType != DOCUMENT_ATTACH_TYPE_AUDIO || !useSeekBarWaveform || seekBarWaveform.isStartDraging();
+            if (disallowLongPress) {
+                cancelCheckLongPress();
+            }
             invalidate();
         } else {
             int side = dp(36);
@@ -4550,7 +4554,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 area2 = x >= buttonX + offset && x <= buttonX + offset + side && y >= buttonY + offset && y <= buttonY + offset + side;
             }
             if (!area2 && (currentMessageObject == null || !currentMessageObject.hasMediaSpoilers() || currentMessageObject.isVoice() || currentMessageObject.isMediaSpoilersRevealed)) {
-                if (buttonState == 0 || buttonState == 1 || buttonState == 2) {
+                // NagramX: wide voice bubbles need room for reactions and swipe to reply outside the button.
+                if (documentAttachType != DOCUMENT_ATTACH_TYPE_AUDIO && (buttonState == 0 || buttonState == 1 || buttonState == 2)) {
                     area = x >= buttonX - dp(12) && x <= buttonX - dp(12) + backgroundWidth && y >= (drawInstantView ? buttonY : namesOffset + mediaOffsetY) && y <= (drawInstantView ? buttonY + side : namesOffset + mediaOffsetY + dp(82));
                 } else {
                     area = x >= buttonX && x <= buttonX + side && y >= buttonY && y <= buttonY + side;
