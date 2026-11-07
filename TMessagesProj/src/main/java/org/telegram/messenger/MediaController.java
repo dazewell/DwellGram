@@ -2018,6 +2018,8 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 long did = (Long) args[0];
                 if (did == messageObject.getDialogId()) {
                     ArrayList<MessageObject> arr = (ArrayList<MessageObject>) args[1];
+                    // NagramX: Back-to-back only drops arrivals once anything else has landed after the queue
+                    arr = com.dazewell.gram.player.VoiceChain.filterNew(account, did, arr, voiceMessagesPlaylist, m -> (m.isVoice() || m.isRoundVideo()) && !m.isVoiceOnce() && !m.isRoundOnce() && (!voiceMessagesPlaylistUnread || m.isContentUnread() && !m.isOut()));
                     for (int a = 0; a < arr.size(); a++) {
                         messageObject = arr.get(a);
                         if ((messageObject.isVoice() || messageObject.isRoundVideo()) && !messageObject.isVoiceOnce() && !messageObject.isRoundOnce() && (!voiceMessagesPlaylistUnread || messageObject.isContentUnread() && !messageObject.isOut())) {
@@ -4109,7 +4111,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                                 if (!playlist.isEmpty() && (playlist.size() > 1 || !messageObject.isVoice())) {
                                     playNextMessageWithoutOrder(true);
                                 } else {
-                                    if (NaConfig.INSTANCE.getDontAutoPlayNextVoice().Bool()) {
+                                    if (com.dazewell.gram.player.VoiceChain.isNever()) {
                                     MediaController.getInstance().cleanupPlayer(true, true);
                                 }
                                 cleanupPlayer(true, hasNoNextVoiceOrRoundVideoMessage(), messageObject.isVoice(), false);}

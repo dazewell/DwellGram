@@ -309,6 +309,8 @@ The hint that explains how to switch between voice and round-video recording app
 
 A button in the player bar cycles how round video messages play — play once, play all, or repeat one.
 
+### Back-to-back voice auto-play <!-- #back-to-back-voice -->
+
 ### Mute video messages <!-- #video-mute -->
 
 A mute button next to the playback-mode toggle silences round video messages.

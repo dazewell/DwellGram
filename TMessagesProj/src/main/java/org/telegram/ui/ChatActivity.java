@@ -39005,7 +39005,8 @@ public class ChatActivity extends BaseFragment implements
                 }
             }
         }
-        return messageObjects;
+        // NagramX: Back-to-back only stops the queue at the first message that isn't in it
+        return com.dazewell.gram.player.VoiceChain.trim(messages, messageObjects, mergeDialogId, forwardEndReached[0]);
     }
 
     private void alertUserOpenError(MessageObject message) {

@@ -24,6 +24,11 @@ object NaConfig {
     const val VIDEO_PLAY_ALL = 1
     const val VIDEO_REPEAT_ONE = 2
 
+    // Auto-play of the next voice / video message (see autoPlayNextVoice)
+    const val AUTO_PLAY_NEXT_ALWAYS = 0
+    const val AUTO_PLAY_NEXT_BACK_TO_BACK = 1
+    const val AUTO_PLAY_NEXT_NEVER = 2
+
     @Volatile
     private var initialized = false
 
@@ -1070,11 +1075,13 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
-    val dontAutoPlayNextVoice =
+    // Replaces the old DontAutoPlayNextVoice bool under a new key; a bool stored under the
+    // old key can't be read as an int, and that toggle is not carried over.
+    val autoPlayNextVoice =
         addConfig(
-            "DontAutoPlayNextVoice",
-            ConfigItem.configTypeBool,
-            false
+            "AutoPlayNextVoice",
+            ConfigItem.configTypeInt,
+            AUTO_PLAY_NEXT_ALWAYS
         )
     val videoMessagesPlayMode =
         addConfig(
