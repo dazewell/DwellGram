@@ -351,6 +351,9 @@ public class MediaDataController extends BaseController {
     private boolean[] emojiStatusesFetching = new boolean[4];
 
     public void cleanup() {
+        // NagramX: an account slot must not retain a closed search's bounds or callback.
+        dmSearchSession.close();
+        invalidateDmSearchRequests();
         for (int a = 0; a < recentStickers.length; a++) {
             if (recentStickers[a] != null) {
                 recentStickers[a].clear();
@@ -3727,6 +3730,12 @@ public class MediaDataController extends BaseController {
     private boolean loadingSearchLocal;
     private boolean loadedPredirectedSearchLocal;
 
+    // NagramX: deletion needs the search owner even when its message is not in cached history.
+    public void removeDmSearchMessages(int guid, long dialogId, ArrayList<Integer> ids) {
+        if (!dmSearchPager.owns(guid, dialogId)) return;
+        dmSearchPager.removeMessages(guid, dialogId, ids);
+    }
+
     public void removeMessageFromResults(int id) {
         for (int i = 0; i < searchResultMessages.size(); ++i) {
             MessageObject m = searchResultMessages.get(i);
@@ -3815,6 +3824,7 @@ public class MediaDataController extends BaseController {
     }
 
     public int getMask() {
+        if (dmSearchPager.active()) return dmSearchPager.mask();
         int mask = 0;
         if (lastReturnedNum < searchResultMessages.size() - 1 || !messagesSearchEndReached[0] || !messagesSearchEndReached[1]) {
             mask |= 1;
@@ -3839,6 +3849,109 @@ public class MediaDataController extends BaseController {
         return searchServerResultMessagesMap[mergeDialog ? 1 : 0].indexOfKey(messageId) >= 0;
     }
 
+    // NagramX: each account owns its search bounds and invalidates queued callbacks on close.
+    private final com.dazewell.gram.search.DmSearchPager dmSearchPager = new com.dazewell.gram.search.DmSearchPager(currentAccount);
+    private final com.dazewell.gram.search.DmSearchSession dmSearchSession = new com.dazewell.gram.search.DmSearchSession();
+
+    public boolean isDmSearchActive(int guid) {
+        return dmSearchPager.active(guid);
+    }
+
+    public boolean isDmSearchCountComplete(int guid) {
+        return !dmSearchPager.active(guid) || dmSearchPager.complete();
+    }
+
+    public boolean isDmSearchPageLoading(int guid) {
+        return dmSearchPager.active(guid) && dmSearchPager.loading();
+    }
+
+    private boolean searchDmMessages(String query, long dialogId, int guid, int direction, long replyMessageId,
+                                    TLRPC.User user, boolean jump, TLRPC.MessagesFilter filter) {
+        if (query == null && dmSearchPager.active() && !dmSearchPager.owns(guid, dialogId)) return true;
+        if (query == null && dmSearchPager.owns(guid, dialogId)) {
+            dmSearchPager.navigate(direction, jump);
+            return true;
+        }
+        com.dazewell.gram.search.DmSearchSession.Snapshot state = dmSearchSession.peek(guid, dialogId);
+        if (query == null || state == null || dialogId <= 0 || replyMessageId != 0
+                || user == null && state.criteria.minDate == 0 && state.criteria.maxDate == 0) {
+            dmSearchPager.close();
+            return false;
+        }
+        invalidateDmSearchRequests();
+        final com.dazewell.gram.search.DmSearchSession.Snapshot owner = dmSearchSession.begin(guid, dialogId);
+        lastGuid = guid;
+        lastDialogId = dialogId;
+        lastMergeDialogId = 0;
+        lastSearchQuery = query;
+        lastSearchUser = user;
+        lastSearchFilter = filter;
+        clearFoundMessageObjects();
+        searchServerResultMessagesMap[0].clear();
+        searchServerResultMessagesMap[1].clear();
+        dmSearchPager.start(guid, dialogId, query, filter, owner.criteria, user == null ? 0 : user.id, jump,
+                new com.dazewell.gram.search.DmSearchPager.Listener() {
+                    @Override
+                    public void loading() {
+                        if (dmSearchSession.isCurrent(owner)) getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsLoading, guid);
+                    }
+
+                    @Override
+                    public void updated(boolean jumpNow, boolean resultsChanged) {
+                        if (!dmSearchSession.isCurrent(owner)) return;
+                        // NagramX: navigating cached matches must not rebuild the entire result collection.
+                        if (resultsChanged) {
+                            searchServerResultMessages.clear();
+                            searchServerResultMessages.addAll(dmSearchPager.matches());
+                            searchServerResultMessagesMap[0].clear();
+                            for (MessageObject message : searchServerResultMessages) searchServerResultMessagesMap[0].put(message.getId(), message);
+                            updateSearchResults();
+                        }
+                        lastReturnedNum = dmSearchPager.position();
+                        int id = searchResultMessages.isEmpty() ? 0 : searchResultMessages.get(lastReturnedNum).getId();
+                        getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, id, getMask(), dialogId, lastReturnedNum, getSearchCount(), jumpNow);
+                    }
+
+                    @Override
+                    public void failed(boolean emptyQuery) {
+                        if (!dmSearchSession.isCurrent(owner)) return;
+                        getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, 0, getMask(), dialogId, lastReturnedNum, -1, true);
+                        if (emptyQuery && owner.emptyQueryRejected != null) owner.emptyQueryRejected.run();
+                        else if (owner.requestFailed != null) owner.requestFailed.run();
+                    }
+                });
+        return true;
+    }
+
+    public void setDmSearchCriteria(int guid, long dialogId, com.dazewell.gram.search.DmSearchCriteria criteria, Runnable emptyQueryRejected, Runnable requestFailed) {
+        dmSearchSession.configure(guid, dialogId, criteria, emptyQueryRejected, requestFailed);
+        invalidateDmSearchRequests();
+    }
+
+    public void closeDmSearch(int guid, long dialogId) {
+        if (dmSearchSession.owns(guid, dialogId)) {
+            dmSearchSession.close();
+            invalidateDmSearchRequests();
+            clearFoundMessageObjects();
+        }
+    }
+
+    private void invalidateDmSearchRequests() {
+        dmSearchPager.close();
+        ++lastReqId;
+        if (reqId != 0) {
+            getConnectionsManager().cancelRequest(reqId, true);
+            reqId = 0;
+        }
+        if (mergeReqId != 0) {
+            getConnectionsManager().cancelRequest(mergeReqId, true);
+            mergeReqId = 0;
+        }
+        loadingMoreSearchMessages = false;
+        loadingSearchLocal = false;
+        loadedPredirectedSearchLocal = false;
+    }
+
     public void searchMessagesInChat(String query, long dialogId, long mergeDialogId, int guid, int direction, long replyMessageId, TLRPC.User user, TLRPC.Chat chat, ReactionsLayoutInBubble.VisibleReaction reaction, TLRPC.MessagesFilter filter) {
         searchMessagesInChat(query, dialogId, mergeDialogId, guid, direction, replyMessageId, false, user, chat, true, reaction, filter);
     }
@@ -3848,6 +3961,7 @@ public class MediaDataController extends BaseController {
             return;
         }
         lastReturnedNum = index;
+        if (dmSearchPager.active(guid)) dmSearchPager.selectPosition(index);
         MessageObject messageObject = searchResultMessages.get(lastReturnedNum);
         getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, messageObject.getId(), getMask(), messageObject.getDialogId(), lastReturnedNum, getSearchCount(), true);
     }
@@ -3857,6 +3971,7 @@ public class MediaDataController extends BaseController {
     }
 
     public int getSearchCount() {
+        if (dmSearchPager.active()) return dmSearchPager.matches().size();
         if (searchServerResultMessages.isEmpty()) {
             return Math.max(Math.max(messagesSearchCount[0] + messagesSearchCount[1], messagesLocalSearchCount), searchServerResultMessages.size());
         }
@@ -3864,6 +3979,7 @@ public class MediaDataController extends BaseController {
     }
 
     public void setSearchedPosition(int index) {
+        if (dmSearchPager.active()) dmSearchPager.selectPosition(index);
         if (index < 0 || index >= searchResultMessages.size()) {
             return;
         }
@@ -3871,10 +3987,12 @@ public class MediaDataController extends BaseController {
     }
 
     public boolean searchEndReached() {
+        if (dmSearchPager.active()) return dmSearchPager.complete();
         return messagesSearchEndReached[0] && lastMergeDialogId == 0 && messagesSearchEndReached[1] || (loadingSearchLocal || loadedPredirectedSearchLocal);
     }
 
     public void loadMoreSearchMessages(boolean fromList) {
+        if (dmSearchPager.active()) { dmSearchPager.loadMore(); return; }
         if (loadingMoreSearchMessages || reqId != 0 || messagesSearchEndReached[0] && lastMergeDialogId == 0 && messagesSearchEndReached[1]) {
             return;
         }
@@ -3886,10 +4004,14 @@ public class MediaDataController extends BaseController {
     }
 
     public boolean isSearchLoading() {
-        return reqId != 0;
+        return dmSearchPager.active() ? dmSearchPager.loading() : reqId != 0;
     }
 
     public void searchMessagesInChat(String query, long dialogId, long mergeDialogId, int guid, int direction, long replyMessageId, boolean internal, TLRPC.User user, TLRPC.Chat chat, boolean jumpToMessage, ReactionsLayoutInBubble.VisibleReaction reaction, TLRPC.MessagesFilter filter) {
+        // NagramX: private-chat sender matches need a raw-page cursor independent of matched ids.
+        if (searchDmMessages(query, dialogId, guid, direction, replyMessageId, user, jumpToMessage, filter)) return;
+        // NagramX: cached navigation must leave the same owner's pending local-tag callback valid.
+        final com.dazewell.gram.search.DmSearchSession.Snapshot dmSearch = dmSearchSession.enter(guid, dialogId);
         int max_id = 0;
         long queryWithDialog = dialogId;
         boolean firstQuery = !internal;
@@ -3960,6 +4082,8 @@ public class MediaDataController extends BaseController {
             searchServerResultMessagesMap[1].clear();
             getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsLoading, guid);
         }
+        // NagramX: only a new request supersedes same-owner asynchronous search work.
+        final int currentReqId = ++lastReqId;
         final boolean isHashtag = query != null && (query.trim().startsWith("#") || query.trim().startsWith("$"));
         if (messagesSearchEndReached[0] && !messagesSearchEndReached[1] && mergeDialogId != 0) {
             queryWithDialog = mergeDialogId;
@@ -3972,6 +4096,9 @@ public class MediaDataController extends BaseController {
                 }
                 TLRPC.TL_messages_search req = new TLRPC.TL_messages_search();
                 req.peer = inputPeer;
+                // NagramX: the same captured bounds apply to the merge probe and every page.
+                req.min_date = dmSearch.criteria.minDate;
+                req.max_date = dmSearch.criteria.maxDate;
                 lastMergeDialogId = mergeDialogId;
                 req.limit = 1;
                 req.q = query;
@@ -3997,7 +4124,7 @@ public class MediaDataController extends BaseController {
                 }
                 req.filter = Objects.requireNonNullElseGet(filter, TLRPC.TL_inputMessagesFilterEmpty::new);
                 mergeReqId = getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
-                    if (lastMergeDialogId == mergeDialogId) {
+                    if (currentReqId == lastReqId && dmSearchSession.isCurrent(dmSearch) && lastMergeDialogId == mergeDialogId) {
                         mergeReqId = 0;
                         if (response != null) {
                             TLRPC.messages_Messages res = (TLRPC.messages_Messages) response;
@@ -4034,6 +4161,9 @@ public class MediaDataController extends BaseController {
         req.limit = 21;
         req.q = query != null ? query : "";
         req.offset_id = max_id;
+        // NagramX: controller-owned pagination retains this search's immutable bounds.
+        req.min_date = dmSearch.criteria.minDate;
+        req.max_date = dmSearch.criteria.maxDate;
         if (user != null) {
             req.from_id = MessagesController.getInputPeer(user);
             req.flags |= 1;
@@ -4043,7 +4173,6 @@ public class MediaDataController extends BaseController {
         }
         loadingSearchLocal = false;
         loadedPredirectedSearchLocal = false;
-        int currentReqId = ++lastReqId;
         final boolean isSaved = dialogId == getUserConfig().getClientUserId();
         if (isSaved && reaction != null && firstQuery) {
             lastReturnedNum = 0;
@@ -4056,7 +4185,7 @@ public class MediaDataController extends BaseController {
             loadingSearchLocal = true;
             loadedPredirectedSearchLocal = false;
             getMessagesStorage().searchSavedByTag(reaction.toTLReaction(), lastReplyMessageId, query, 300, searchLocalResultMessages == null ? 0 : searchLocalResultMessages.size(), (messages, users, chats, emojis) -> {
-                if (currentReqId == lastReqId) {
+                if (currentReqId == lastReqId && dmSearchSession.isCurrent(dmSearch)) {
                     loadedPredirectedSearchLocal = messages.size() == predictedCount;
                     loadingSearchLocal = false;
                     getMessagesController().putUsers(users, true);
@@ -4102,10 +4231,22 @@ public class MediaDataController extends BaseController {
                 }
             }
             AndroidUtilities.runOnUIThread(() -> {
-                if (currentReqId == lastReqId) {
+                if (currentReqId == lastReqId && dmSearchSession.isCurrent(dmSearch)) {
                     reqId = 0;
                     if (!jumpToMessage) {
                         loadingMoreSearchMessages = false;
+                    }
+                    // NagramX: errors finish loading without reporting a successful zero-result search.
+                    if (response == null && (dmSearch.emptyQueryRejected != null || dmSearch.requestFailed != null)) {
+                        loadingMoreSearchMessages = false;
+                        final boolean emptyQueryRejected = TextUtils.isEmpty(req.q) && error != null
+                                && ("SEARCH_QUERY_EMPTY".equals(error.text) || "QUERY_EMPTY".equals(error.text));
+                        getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, 0, getMask(), dialogId, lastReturnedNum, -1, true);
+                        if (emptyQueryRejected && dmSearch.emptyQueryRejected != null) {
+                            dmSearch.emptyQueryRejected.run();
+                        } else if (dmSearch.requestFailed != null) {
+                            dmSearch.requestFailed.run();
+                        }
                     }
                     if (response != null) {
                         TLRPC.messages_Messages res = (TLRPC.messages_Messages) response;
@@ -4120,6 +4261,10 @@ public class MediaDataController extends BaseController {
                         getMessagesController().putUsers(res.users, false);
                         getMessagesController().putChats(res.chats, false);
                         Runnable done = () -> {
+                            // NagramX: reply loading can finish after another search has taken ownership.
+                            if (currentReqId != lastReqId || !dmSearchSession.isCurrent(dmSearch)) {
+                                return;
+                            }
                             if (req.offset_id == 0 && queryWithDialogFinal == dialogId) {
                                 lastReturnedNum = 0;
                                 searchServerResultMessages.clear();

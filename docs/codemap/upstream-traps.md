@@ -2959,3 +2959,82 @@ read `getProgressMs` (`MediaController.java:2767-2780`) and use the cached secon
 position is available.
 
 *(Established 2026-11-04, `#voice-reply-timestamp`, PR 588.)*
+
+## The chat search calendar is a jump picker
+
+`AlertsCreator.createCalendarPickerDialog` builds a jump-to-date control and hardcodes
+its action label to `JumpToDate` (`AlertsCreator.java:6708`, `:6843`). A date filter
+needs a separate picker flow; reusing this helper would label filtering as navigation.
+The date-component picker at `AlertsCreator.java:4072` accepts a caller-owned title.
+
+*(Established 2026-11-06, `#dm-search-filters`.)*
+
+## Search request fields do not establish private-chat sender support
+
+Telethon disables `from_id` for private peers and filters senders locally; it also
+documents failures when sender and type filters are combined
+([source](https://github.com/LonamiWebs/Telethon/blob/v1/telethon/client/messages.py#L97-L128)).
+The DM pager therefore omits the server sender filter (`DmSearchPager.java:176`),
+advances from raw message IDs before filtering (`:162`), and checks the sender
+locally (`:179`). Using the last displayed match as the cursor stalls on pages
+with no matches. These compatibility findings do not prove any particular
+device's empty-result response; observe the response before assigning its cause.
+
+*(Established 2026-11-06, `#dm-search-filters`.)*
+
+## Message search date bounds are exclusive
+
+Telegram documents `messages.search` dates as strictly greater than `min_date`
+and strictly smaller than `max_date`
+([method](https://core.telegram.org/method/messages.search)). A whole local day
+therefore needs midnight minus one second and the next local midnight, computed
+from the earliest valid start of each civil date (`DmSearchDates.java:26-31`). Checking only a
+day's duration misses the excluded first and last seconds.
+
+The pager sends only the upper bound (`DmSearchPager.java:172-173`) and checks
+both bounds locally (`:205-206`). This broadens retrieval without shifting the
+selected days, at the cost of scanning older pages. Compare raw response counts
+with local rejection counts before attributing an empty result to conversion.
+
+*(Established 2026-11-06, `#dm-search-filters`.)*
+
+## NumberPicker wrapping needs an item-count threshold
+
+After both limits are set, `NumberPicker.setWrapSelectorWheel` enables wrapping
+only when `allItemsCount` is non-null and the range reaches that threshold
+(`NumberPicker.java:643-651`). The date-range picker uses 12 for months and 28
+for days so February does not disable wrapping (`DmSearchFilters.java:148-151`).
+
+The inherited day-limit helper starts from the current day before changing month
+and year (`AlertsCreator.java:1708-1713`). On days 29–31, a shorter target month
+can normalize into the following month before its maximum is read. Restoring
+month/year with non-notifying `setValue` also leaves the initial day maximum.
+The feature refreshes it after restoration and month/year changes
+(`DmSearchFilters.java:153-156`) and rejects invalid tuples before storage
+(`:102`).
+
+*(Established 2026-11-06, `#dm-search-filters`.)*
+
+## Midnight gaps and cached navigation need separate handling
+
+Resolve each civil day's earliest valid start with `LocalDate.atStartOfDay`
+(`DmSearchDates.java:26-29`). Calendar normalization can carry a midnight gap's
+01:00 into the upper bound or choose the second midnight during an overlap,
+excluding selected-day messages and including next-day messages.
+
+Cached result navigation changes position, not the collection
+(`DmSearchPager.java:111`, `:116`). The controller rebuilds lists only when
+matches change (`MediaDataController.java:3903`): `updateSearchResults` searches
+the previous list for each match (`:3788`, `:3808`), so calling it on every arrow
+would add quadratic work to navigation.
+
+Deletion must also update the pager, including IDs still in flight. The chat's
+deletion chokepoint runs after the channel guard (`ChatActivity.java:29259-29262`)
+and passes the search owner and dialog through the account's controller
+(`MediaDataController.java:3734-3736`). The pager retains deleted IDs for the
+search generation and reconciles cached and pending positions
+(`DmSearchPager.java:125-149`), preventing an out-of-range navigation or a stale
+response restoring a removed hit. A batch publishes one collection update,
+avoiding a full rebuild for each deleted message.
+
+*(Established 2026-11-07, `#dm-search-filters`.)*

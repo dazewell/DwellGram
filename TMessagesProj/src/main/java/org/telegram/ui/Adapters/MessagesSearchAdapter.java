@@ -174,6 +174,11 @@ public class MessagesSearchAdapter extends RecyclerListView.SelectionAdapter imp
         } else {
             boolean hasMore = !MediaDataController.getInstance(currentAccount).searchEndReached();
             flickerCount = hasMore && loadedCount != 0 ? Utilities.clamp(MediaDataController.getInstance(currentAccount).getSearchCount() - loadedCount, 3, 0) : 0;
+            // NagramX: partial counts cannot predict remaining rows; stop the loader on failure or idle.
+            if (MediaDataController.getInstance(currentAccount).isDmSearchActive(fragment.getClassGuid())) {
+                flickerCount = !MediaDataController.getInstance(currentAccount).isDmSearchCountComplete(fragment.getClassGuid())
+                        && MediaDataController.getInstance(currentAccount).isSearchLoading() ? 1 : 0;
+            }
         }
 
         final int newItemsCount = getItemCount();
