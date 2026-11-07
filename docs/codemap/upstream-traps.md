@@ -2973,7 +2973,7 @@ Telegram documents `messages.search` dates as strictly greater than `min_date`
 and strictly smaller than `max_date`
 ([method](https://core.telegram.org/method/messages.search)). A whole local day
 therefore needs midnight minus one second and the next local midnight, computed
-with calendar arithmetic across DST (`DmSearchDates.java:18`). Checking only a
+with calendar arithmetic across DST (`DmSearchDates.java:33`). Checking only a
 day's duration misses the excluded first and last seconds.
 
 The pager sends only the upper bound (`DmSearchPager.java:144-145`) and checks
@@ -2988,11 +2988,14 @@ with local rejection counts before attributing an empty result to conversion.
 After both limits are set, `NumberPicker.setWrapSelectorWheel` enables wrapping
 only when `allItemsCount` is non-null and the range reaches that threshold
 (`NumberPicker.java:643-651`). The date-range picker uses 12 for months and 28
-for days so February does not disable wrapping (`DmSearchFilters.java:147-148`).
+for days so February does not disable wrapping (`DmSearchFilters.java:148-151`).
 
 The inherited day-limit helper starts from the current day before changing month
 and year (`AlertsCreator.java:1708-1713`). On days 29–31, a shorter target month
-can normalize into the following month before its maximum is read. Wrapping
-does not change that calculation; it is a separate date-picker limitation.
+can normalize into the following month before its maximum is read. Restoring
+month/year with non-notifying `setValue` also leaves the initial day maximum.
+The feature refreshes it after restoration and month/year changes
+(`DmSearchFilters.java:153-156`) and rejects invalid tuples before storage
+(`:102`).
 
 *(Established 2026-11-06, `#dm-search-filters`.)*

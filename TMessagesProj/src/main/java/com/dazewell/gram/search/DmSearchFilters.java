@@ -99,6 +99,7 @@ public final class DmSearchFilters {
                         2013 - year, 0, 0, selected.get(Calendar.DAY_OF_MONTH), selected.get(Calendar.MONTH),
                         selected.get(Calendar.YEAR), text(index == 0 ? R.string.DmSearchFrom : R.string.DmSearchTo),
                         false, (y, m, d) -> {
+                            if (!DmSearchDates.isValidDate(y, m, d)) return;
                             Calendar value = Calendar.getInstance();
                             value.clear();
                             value.set(y, m, d);
@@ -106,7 +107,7 @@ public final class DmSearchFilters {
                             update[0].run();
                         }).create();
                 picker[0].show();
-                wrapDateWheels(picker[0].getContainerView());
+                configureDateWheels(picker[0].getContainerView());
             });
         }
         layout.addView(error);
@@ -137,19 +138,35 @@ public final class DmSearchFilters {
         update[0].run();
     }
 
-    private static void wrapDateWheels(View view) {
+    private static void configureDateWheels(View view) {
+        NumberPicker[] fields = new NumberPicker[3];
+        collectDateWheels(view, fields);
+        NumberPicker day = fields[0], month = fields[1], year = fields[2];
+        if (day == null || month == null || year == null) return;
+        // The shared dialog restores values without notifying listeners, leaving January's day maximum.
+        // Keep day/month wrapping while recomputing the valid range after restoration and every change.
+        day.setAllItemsCount(28);
+        day.setWrapSelectorWheel(true);
+        month.setAllItemsCount(12);
+        month.setWrapSelectorWheel(true);
+        year.setWrapSelectorWheel(false);
+        Runnable refresh = () -> day.setMaxValue(DmSearchDates.daysInMonth(year.getValue(), month.getValue()));
+        month.setOnValueChangedListener((wheel, oldValue, newValue) -> refresh.run());
+        year.setOnValueChangedListener((wheel, oldValue, newValue) -> refresh.run());
+        refresh.run();
+    }
+
+    private static void collectDateWheels(View view, NumberPicker[] fields) {
         if (view instanceof NumberPicker) {
             NumberPicker wheel = (NumberPicker) view;
             int min = wheel.getMinValue(), max = wheel.getMaxValue();
-            if (min == 0 && max == 11 || min == 1 && max >= 28 && max <= 31) {
-                // The reused dialog exposes no field handles; complete day/month ranges identify the wheels.
-                // 28 keeps day wrapping enabled when the month changes to February.
-                wheel.setAllItemsCount(min == 0 ? 12 : 28);
-                wheel.setWrapSelectorWheel(true);
-            }
+            // The reused dialog exposes no handles; these complete ranges identify its three fields.
+            if (min == 1 && max >= 28 && max <= 31) fields[0] = wheel;
+            else if (min == 0 && max == 11) fields[1] = wheel;
+            else if (min == 2013 && max >= min) fields[2] = wheel;
         } else if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
-            for (int i = 0; i < group.getChildCount(); i++) wrapDateWheels(group.getChildAt(i));
+            for (int i = 0; i < group.getChildCount(); i++) collectDateWheels(group.getChildAt(i), fields);
         }
     }
 
