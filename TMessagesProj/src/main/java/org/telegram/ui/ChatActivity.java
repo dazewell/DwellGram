@@ -39005,8 +39005,9 @@ public class ChatActivity extends BaseFragment implements
                 }
             }
         }
-        // NagramX: Back-to-back only stops the queue at the first message that isn't in it
-        return com.dazewell.gram.player.VoiceChain.trim(messages, messageObjects, mergeDialogId, forwardEndReached[0]);
+        // NagramX: Back-to-back only stops the queue at the first message that isn't in it. Topic,
+        // thread and pinned views list a slice of the chat, so arrivals can't be judged against them.
+        return com.dazewell.gram.player.VoiceChain.trim(messages, messageObjects, mergeDialogId, forwardEndReached[0] && chatMode == MODE_DEFAULT && !isThreadChat());
     }
 
     private void alertUserOpenError(MessageObject message) {
