@@ -4001,9 +4001,8 @@ public class MediaDataController extends BaseController {
     public void searchMessagesInChat(String query, long dialogId, long mergeDialogId, int guid, int direction, long replyMessageId, boolean internal, TLRPC.User user, TLRPC.Chat chat, boolean jumpToMessage, ReactionsLayoutInBubble.VisibleReaction reaction, TLRPC.MessagesFilter filter) {
         // NagramX: private-chat sender matches need a raw-page cursor independent of matched ids.
         if (searchDmMessages(query, dialogId, guid, direction, replyMessageId, user, jumpToMessage, filter)) return;
-        // NagramX: invalidate even when navigation or an empty result returns before a request.
-        final com.dazewell.gram.search.DmSearchSession.Snapshot dmSearch = dmSearchSession.begin(guid, dialogId);
-        final int currentReqId = ++lastReqId;
+        // NagramX: cached navigation must leave the same owner's pending local-tag callback valid.
+        final com.dazewell.gram.search.DmSearchSession.Snapshot dmSearch = dmSearchSession.enter(guid, dialogId);
         int max_id = 0;
         long queryWithDialog = dialogId;
         boolean firstQuery = !internal;
@@ -4074,6 +4073,8 @@ public class MediaDataController extends BaseController {
             searchServerResultMessagesMap[1].clear();
             getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsLoading, guid);
         }
+        // NagramX: only a new request supersedes same-owner asynchronous search work.
+        final int currentReqId = ++lastReqId;
         final boolean isHashtag = query != null && (query.trim().startsWith("#") || query.trim().startsWith("$"));
         if (messagesSearchEndReached[0] && !messagesSearchEndReached[1] && mergeDialogId != 0) {
             queryWithDialog = mergeDialogId;
