@@ -33,6 +33,14 @@ public final class DmSearchFilters {
         return from != null || to != null || sender != null;
     }
 
+    public DmSearchCriteria immutableCriteria() {
+        return new DmSearchCriteria(boundary(from, false), boundary(to, true));
+    }
+
+    public TLRPC.User sender() {
+        return sender;
+    }
+
     public void addOptions(ItemOptions options, BaseFragment fragment, Theme.ResourcesProvider theme,
                            TLRPC.User self, TLRPC.User peer, boolean hasType, Listener listener) {
         options.addGap();
@@ -58,7 +66,7 @@ public final class DmSearchFilters {
     }
 
     private void publish(Listener listener, boolean clearType) {
-        listener.changed(sender, new DmSearchCriteria(boundary(from, false), boundary(to, true)), clearType);
+        listener.changed(sender, immutableCriteria(), clearType);
     }
 
     private void showDates(BaseFragment fragment, Theme.ResourcesProvider theme, Listener listener) {

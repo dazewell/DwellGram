@@ -11969,23 +11969,28 @@ public class ChatActivity extends BaseFragment implements
         if (dmSearchFilters == null) dmSearchFilters = new com.dazewell.gram.search.DmSearchFilters();
         dmSearchFilters.addOptions(popup, this, themeDelegate, getUserConfig().getCurrentUser(), currentUser,
                 searchingType != null, (sender, dates, clearType) -> {
-                    searchingUserMessages = sender;
                     if (clearType) searchingType = null;
-                    getMediaDataController().setDmSearchCriteria(classGuid, dialog_id, dates, () -> {
-                        if (searching && getParentActivity() != null) {
-                            showDialog(new AlertDialog.Builder(getParentActivity(), themeDelegate)
-                                    .setMessage(LocaleController.getString(R.string.DmSearchTermRequired))
-                                    .setPositiveButton(LocaleController.getString(R.string.OK), null).create());
-                        }
-                    }, () -> {
-                        if (searching && getParentActivity() != null) {
-                            showDialog(new AlertDialog.Builder(getParentActivity(), themeDelegate)
-                                    .setMessage(LocaleController.getString(R.string.ErrorOccurred))
-                                    .setPositiveButton(LocaleController.getString(R.string.OK), null).create());
-                        }
-                    });
                     searchItemListener.onSearchPressed(searchItem.getSearchField());
                 });
+    }
+
+    // NagramX: another chat can replace the controller session while this fragment retains its filters.
+    private void publishDmSearchCriteria() {
+        if (!supportsDmSearchFilters() || dmSearchFilters == null) return;
+        searchingUserMessages = dmSearchFilters.sender();
+        getMediaDataController().setDmSearchCriteria(classGuid, dialog_id, dmSearchFilters.immutableCriteria(), () -> {
+            if (searching && getParentActivity() != null) {
+                showDialog(new AlertDialog.Builder(getParentActivity(), themeDelegate)
+                        .setMessage(LocaleController.getString(R.string.DmSearchTermRequired))
+                        .setPositiveButton(LocaleController.getString(R.string.OK), null).create());
+            }
+        }, () -> {
+            if (searching && getParentActivity() != null) {
+                showDialog(new AlertDialog.Builder(getParentActivity(), themeDelegate)
+                        .setMessage(LocaleController.getString(R.string.ErrorOccurred))
+                        .setPositiveButton(LocaleController.getString(R.string.OK), null).create());
+            }
+        });
     }
 
     private ArrayList<Pair<String, TLRPC.MessagesFilter>> searchFilters = new ArrayList<>() {{
@@ -12139,6 +12144,11 @@ public class ChatActivity extends BaseFragment implements
                             return;
                         }
                         searchingType = filter.second;
+                        // NagramX: resubmission restores this DM's dates and sender after another search.
+                        if (supportsDmSearchFilters()) {
+                            searchItemListener.onSearchPressed(searchItem.getSearchField());
+                            return;
+                        }
                         getMediaDataController().clearFoundMessageObjects();
                         updateSearchButtons(0, 0, -1);
                         updateSearchUpDownButtonVisibility(true);
@@ -43181,6 +43191,8 @@ public class ChatActivity extends BaseFragment implements
 
         @Override
         public void onSearchPressed(EditText editText) {
+            // NagramX: every query submission must carry this fragment's retained criteria.
+            publishDmSearchCriteria();
             searchWas = true;
             updateSearchButtons(0, 0, -1);
 
