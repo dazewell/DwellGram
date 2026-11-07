@@ -2982,3 +2982,17 @@ selected days, at the cost of scanning older pages. Compare raw response counts
 with local rejection counts before attributing an empty result to conversion.
 
 *(Established 2026-11-06, `#dm-search-filters`.)*
+
+## NumberPicker wrapping needs an item-count threshold
+
+After both limits are set, `NumberPicker.setWrapSelectorWheel` enables wrapping
+only when `allItemsCount` is non-null and the range reaches that threshold
+(`NumberPicker.java:643-651`). The date-range picker uses 12 for months and 28
+for days so February does not disable wrapping (`DmSearchFilters.java:147-148`).
+
+The inherited day-limit helper starts from the current day before changing month
+and year (`AlertsCreator.java:1708-1713`). On days 29–31, a shorter target month
+can normalize into the following month before its maximum is read. Wrapping
+does not change that calculation; it is a separate date-picker limitation.
+
+*(Established 2026-11-06, `#dm-search-filters`.)*

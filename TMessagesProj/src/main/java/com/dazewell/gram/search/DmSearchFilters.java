@@ -2,6 +2,8 @@ package com.dazewell.gram.search;
 
 import android.content.DialogInterface;
 import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -15,6 +17,7 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.ItemOptions;
+import org.telegram.ui.Components.NumberPicker;
 
 import java.text.DateFormat;
 import java.util.Calendar;
@@ -103,6 +106,7 @@ public final class DmSearchFilters {
                             update[0].run();
                         }).create();
                 picker[0].show();
+                wrapDateWheels(picker[0].getContainerView());
             });
         }
         layout.addView(error);
@@ -131,6 +135,22 @@ public final class DmSearchFilters {
             if (picker[0] != null) picker[0].dismiss();
         });
         update[0].run();
+    }
+
+    private static void wrapDateWheels(View view) {
+        if (view instanceof NumberPicker) {
+            NumberPicker wheel = (NumberPicker) view;
+            int min = wheel.getMinValue(), max = wheel.getMaxValue();
+            if (min == 0 && max == 11 || min == 1 && max >= 28 && max <= 31) {
+                // The reused dialog exposes no field handles; complete day/month ranges identify the wheels.
+                // 28 keeps day wrapping enabled when the month changes to February.
+                wheel.setAllItemsCount(min == 0 ? 12 : 28);
+                wheel.setWrapSelectorWheel(true);
+            }
+        } else if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) wrapDateWheels(group.getChildAt(i));
+        }
     }
 
     private static Calendar copy(Calendar value) {
