@@ -3891,13 +3891,16 @@ public class MediaDataController extends BaseController {
                     }
 
                     @Override
-                    public void updated(boolean jumpNow) {
+                    public void updated(boolean jumpNow, boolean resultsChanged) {
                         if (!dmSearchSession.isCurrent(owner)) return;
-                        searchServerResultMessages.clear();
-                        searchServerResultMessages.addAll(dmSearchPager.matches());
-                        searchServerResultMessagesMap[0].clear();
-                        for (MessageObject message : searchServerResultMessages) searchServerResultMessagesMap[0].put(message.getId(), message);
-                        updateSearchResults();
+                        // NagramX: navigating cached matches must not rebuild the entire result collection.
+                        if (resultsChanged) {
+                            searchServerResultMessages.clear();
+                            searchServerResultMessages.addAll(dmSearchPager.matches());
+                            searchServerResultMessagesMap[0].clear();
+                            for (MessageObject message : searchServerResultMessages) searchServerResultMessagesMap[0].put(message.getId(), message);
+                            updateSearchResults();
+                        }
                         lastReturnedNum = dmSearchPager.position();
                         int id = searchResultMessages.isEmpty() ? 0 : searchResultMessages.get(lastReturnedNum).getId();
                         getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, id, getMask(), dialogId, lastReturnedNum, getSearchCount(), jumpNow);

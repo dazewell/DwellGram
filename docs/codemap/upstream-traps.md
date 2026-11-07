@@ -2973,7 +2973,7 @@ Telegram documents `messages.search` dates as strictly greater than `min_date`
 and strictly smaller than `max_date`
 ([method](https://core.telegram.org/method/messages.search)). A whole local day
 therefore needs midnight minus one second and the next local midnight, computed
-with calendar arithmetic across DST (`DmSearchDates.java:33`). Checking only a
+with calendar arithmetic across DST (`DmSearchDates.java:34`). Checking only a
 day's duration misses the excluded first and last seconds.
 
 The pager sends only the upper bound (`DmSearchPager.java:144-145`) and checks
@@ -2999,3 +2999,17 @@ The feature refreshes it after restoration and month/year changes
 (`:102`).
 
 *(Established 2026-11-06, `#dm-search-filters`.)*
+
+## Midnight gaps and cached navigation need separate handling
+
+Advance the civil date at noon before normalizing midnight
+(`DmSearchDates.java:27-31`). Otherwise a midnight gap can normalize to 01:00
+and carry that hour into the following day's upper bound.
+
+Cached result navigation changes position, not the collection
+(`DmSearchPager.java:109`, `:114`). The controller rebuilds lists only when
+matches change (`MediaDataController.java:3897`): `updateSearchResults` searches
+the previous list for each match (`:3782`, `:3802`), so calling it on every arrow
+would add quadratic work to navigation.
+
+*(Established 2026-11-07, `#dm-search-filters`.)*

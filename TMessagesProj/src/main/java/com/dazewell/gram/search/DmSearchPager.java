@@ -14,7 +14,7 @@ import java.util.HashSet;
 public final class DmSearchPager {
     public interface Listener {
         void loading();
-        void updated(boolean jump);
+        void updated(boolean jump, boolean resultsChanged);
         void failed(boolean emptyQuery);
     }
 
@@ -106,12 +106,12 @@ public final class DmSearchPager {
         if (direction == 2) {
             position = pendingPosition = Math.max(0, position - 1);
             pendingJump = false;
-            listener.updated(jump);
+            listener.updated(jump, false);
         } else if (direction == 1) {
             if (position + 1 < matches.size()) {
                 pendingPosition = ++position;
                 pendingJump = false;
-                listener.updated(jump);
+                listener.updated(jump, false);
             } else if (!complete) {
                 pendingPosition = matches.isEmpty() ? 0 : position + 1;
                 pendingJump = jump;
@@ -191,7 +191,7 @@ public final class DmSearchPager {
                 boolean jumpNow = pendingJump && pendingPosition < matches.size();
                 if (pendingPosition < matches.size()) position = pendingPosition;
                 if (jumpNow) pendingJump = false;
-                if (matches.size() > previousSize || complete) listener.updated(jumpNow);
+                if (matches.size() > previousSize || complete) listener.updated(jumpNow, matches.size() > previousSize);
                 if (active && token == generation && loading) {
                     // Yield between sequential raw pages; there is no scan cutoff or silent truncation.
                     AndroidUtilities.runOnUIThread(() -> fetch(token), 1000);
