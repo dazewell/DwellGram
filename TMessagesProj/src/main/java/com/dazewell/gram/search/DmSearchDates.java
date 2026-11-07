@@ -14,7 +14,8 @@ public final class DmSearchDates {
         day.set(Calendar.MILLISECOND, 0);
         // Advancing the local calendar preserves short and long daylight-saving days.
         if (end) day.add(Calendar.DAY_OF_MONTH, 1);
-        long seconds = day.getTimeInMillis() / 1000L - (end ? 1 : 0);
+        // messages.search excludes both bounds: include midnight and the day's last second.
+        long seconds = day.getTimeInMillis() / 1000L - (end ? 0 : 1);
         return (int) Math.max(0, Math.min(Integer.MAX_VALUE, seconds));
     }
 }
