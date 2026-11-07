@@ -90,6 +90,10 @@ public final class VoiceChain {
         ArrayList<MessageObject> result = new ArrayList<>();
         for (int i = 0; open && i < arrived.size(); i++) {
             MessageObject m = arrived.get(i);
+            // Saved deleted messages are posted as new on every history load; they are old.
+            if (m.isAyuDeleted()) {
+                continue;
+            }
             if (queues.test(m)) {
                 result.add(m);
             } else if (!isSynthetic(m)) {
