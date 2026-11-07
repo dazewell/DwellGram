@@ -3,8 +3,10 @@ package com.dazewell.gram.player;
 import org.telegram.messenger.MessageObject;
 import org.telegram.tgnet.TLRPC;
 
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 import xyz.nextalone.nagram.NaConfig;
 
@@ -18,10 +20,12 @@ import xyz.nextalone.nagram.NaConfig;
  */
 public final class VoiceChain {
 
-    // The playlist trim() last produced, identified by its tail, and whether a message arriving
-    // in that chat may still extend it. A different tail means someone else set the playlist
-    // (shared media, search) and filterNew leaves it alone.
-    private static WeakReference<MessageObject> tail;
+    // Every message trim() or filterNew queued, and whether a message arriving in that chat may
+    // still extend the queue. A playlist whose tail isn't one of them was set by someone else
+    // (shared media, search keep their own MessageObjects) and filterNew leaves it alone. A set
+    // rather than the tail alone, so deleting the queued tail doesn't hand the queue back to
+    // upstream's append-everything. MessageObject has no equals/hashCode, so this is identity.
+    private static Set<MessageObject> queued = Collections.newSetFromMap(new WeakHashMap<>());
     private static boolean open;
     private static int account;
     private static long dialogId;
@@ -64,7 +68,8 @@ public final class VoiceChain {
             }
         }
         ArrayList<MessageObject> result = kept < playlist.size() ? new ArrayList<>(playlist.subList(0, kept)) : playlist;
-        tail = new WeakReference<>(result.get(result.size() - 1));
+        queued = Collections.newSetFromMap(new WeakHashMap<>());
+        queued.addAll(result);
         open = !broken && forwardEndReached;
         account = start.currentAccount;
         dialogId = start.getDialogId();
@@ -81,11 +86,11 @@ public final class VoiceChain {
             return arrived;
         }
         MessageObject last = playlist.get(playlist.size() - 1);
-        if (tail == null || tail.get() != last) {
+        if (!queued.contains(last)) {
             return arrived;
         }
         // MediaController observes every account, and two accounts in one chat share its dialog
-        // id. Letting the other account's copy through would move the tail and drop this guard.
+        // id. The other account's copy is a separate MessageObject, so upstream would queue it twice.
         if (account != currentAccount || dialogId != did) {
             return new ArrayList<>();
         }
@@ -102,9 +107,7 @@ public final class VoiceChain {
                 open = false;
             }
         }
-        if (!result.isEmpty()) {
-            tail = new WeakReference<>(result.get(result.size() - 1));
-        }
+        queued.addAll(result);
         return result;
     }
 
