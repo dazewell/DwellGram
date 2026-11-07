@@ -79,8 +79,13 @@ public final class VoiceChain {
             return arrived;
         }
         MessageObject last = playlist.get(playlist.size() - 1);
-        if (tail == null || tail.get() != last || account != currentAccount || dialogId != did) {
+        if (tail == null || tail.get() != last) {
             return arrived;
+        }
+        // MediaController observes every account, and two accounts in one chat share its dialog
+        // id. Letting the other account's copy through would move the tail and drop this guard.
+        if (account != currentAccount || dialogId != did) {
+            return new ArrayList<>();
         }
         ArrayList<MessageObject> result = new ArrayList<>();
         for (int i = 0; open && i < arrived.size(); i++) {
