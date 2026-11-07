@@ -1000,4 +1000,18 @@
     <string name="ComposerLayoutPanelTab">Panel</string>
     <string name="ComposerCursorSensitivity">Cursor sensitivity</string>
     <string name="ComposerCursorSensitivityInfo">Higher sensitivity moves the cursor farther as you drag.</string>
+    <string name="DmSearchDateRangeMenu">Date range…</string>
+    <string name="DmSearchDateRange">Date range</string>
+    <string name="DmSearchSenderMenu">Sender…</string>
+    <string name="DmSearchSender">Sender</string>
+    <string name="DmSearchAnyone">Anyone</string>
+    <string name="DmSearchMe">Me</string>
+    <string name="DmSearchFrom">From</string>
+    <string name="DmSearchTo">To</string>
+    <string name="DmSearchAnyDate">Any date</string>
+    <string name="DmSearchApply">Apply</string>
+    <string name="DmSearchClearFilters">Clear filters</string>
+    <string name="DmSearchInvertedDates">From must be on or before To.</string>
+    <string name="DmSearchTermRequired">Enter a search term to search messages.</string>
+    <string name="DmSearchPartialResults">%1$s+ results</string>
 </resources>

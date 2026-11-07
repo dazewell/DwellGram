@@ -2944,3 +2944,58 @@ read `getProgressMs` (`MediaController.java:2767-2780`) and use the cached secon
 position is available.
 
 *(Established 2026-11-04, `#voice-reply-timestamp`, PR 588.)*
+
+## The chat search calendar is a jump picker
+
+`AlertsCreator.createCalendarPickerDialog` builds a jump-to-date control and hardcodes
+its action label to `JumpToDate` (`AlertsCreator.java:6708`, `:6843`). A date filter
+needs a separate picker flow; reusing this helper would label filtering as navigation.
+The date-component picker at `AlertsCreator.java:4072` accepts a caller-owned title.
+
+*(Established 2026-11-06, `#dm-search-filters`.)*
+
+## Search request fields do not establish private-chat sender support
+
+Telethon disables `from_id` for private peers and filters senders locally; it also
+documents failures when sender and type filters are combined
+([source](https://github.com/LonamiWebs/Telethon/blob/v1/telethon/client/messages.py#L97-L128)).
+The DM pager therefore omits the server sender filter (`DmSearchPager.java:148`),
+advances from raw message IDs before filtering (`:162`), and checks the sender
+locally (`:179`). Using the last displayed match as the cursor stalls on pages
+with no matches. These compatibility findings do not prove any particular
+device's empty-result response; observe the response before assigning its cause.
+
+*(Established 2026-11-06, `#dm-search-filters`.)*
+
+## Message search date bounds are exclusive
+
+Telegram documents `messages.search` dates as strictly greater than `min_date`
+and strictly smaller than `max_date`
+([method](https://core.telegram.org/method/messages.search)). A whole local day
+therefore needs midnight minus one second and the next local midnight, computed
+with calendar arithmetic across DST (`DmSearchDates.java:33`). Checking only a
+day's duration misses the excluded first and last seconds.
+
+The pager sends only the upper bound (`DmSearchPager.java:144-145`) and checks
+both bounds locally (`:177-178`). This broadens retrieval without shifting the
+selected days, at the cost of scanning older pages. Compare raw response counts
+with local rejection counts before attributing an empty result to conversion.
+
+*(Established 2026-11-06, `#dm-search-filters`.)*
+
+## NumberPicker wrapping needs an item-count threshold
+
+After both limits are set, `NumberPicker.setWrapSelectorWheel` enables wrapping
+only when `allItemsCount` is non-null and the range reaches that threshold
+(`NumberPicker.java:643-651`). The date-range picker uses 12 for months and 28
+for days so February does not disable wrapping (`DmSearchFilters.java:148-151`).
+
+The inherited day-limit helper starts from the current day before changing month
+and year (`AlertsCreator.java:1708-1713`). On days 29–31, a shorter target month
+can normalize into the following month before its maximum is read. Restoring
+month/year with non-notifying `setValue` also leaves the initial day maximum.
+The feature refreshes it after restoration and month/year changes
+(`DmSearchFilters.java:153-156`) and rejects invalid tuples before storage
+(`:102`).
+
+*(Established 2026-11-06, `#dm-search-filters`.)*
