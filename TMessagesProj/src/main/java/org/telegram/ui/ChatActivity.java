@@ -26548,7 +26548,8 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
                 if (searchItem != null) {
-                    searchItem.setShowSearchProgress(false);
+                    // NagramX: an incomplete sender scan may still be fetching raw pages.
+                    searchItem.setShowSearchProgress(getMediaDataController().isDmSearchActive(classGuid) && getMediaDataController().isSearchLoading());
                 }
                 if (messagesSearchAdapter != null) {
                     messagesSearchAdapter.notifyDataSetChanged();
@@ -26562,8 +26563,13 @@ public class ChatActivity extends BaseFragment implements
             }
         } else if (id == NotificationCenter.chatSearchResultsLoading) {
             if (classGuid == (Integer) args[0]) {
+                // NagramX: discard the previous count while the next filtered scan is incomplete.
+                if (getMediaDataController().isDmSearchActive(classGuid)) {
+                    updateSearchButtons(getMediaDataController().getMask(), getMediaDataController().getSearchPosition(), getMediaDataController().getSearchCount());
+                }
                 if (searchItem != null) {
-                    searchItem.setShowSearchProgress(!TextUtils.isEmpty(searchingQuery) || searchingReaction != null);
+                    // NagramX: filter-only scans need the same loading affordance as text searches.
+                    searchItem.setShowSearchProgress(getMediaDataController().isDmSearchActive(classGuid) || !TextUtils.isEmpty(searchingQuery) || searchingReaction != null);
                 }
                 onSearchLoadingUpdate(true);
                 if (messagesSearchAdapter != null) {
@@ -29975,6 +29981,9 @@ public class ChatActivity extends BaseFragment implements
             boolean animated = !LocaleController.isRTL;
             if (searchLastCount < 0) {
                 searchCountText.setText("", animated);
+            // NagramX: locally filtered pages establish only a lower bound until the raw search ends.
+            } else if (getMediaDataController().isDmSearchActive(classGuid) && !getMediaDataController().isDmSearchCountComplete(classGuid)) {
+                searchCountText.setText(searchLastCount == 0 ? "" : LocaleController.formatString(R.string.DmSearchPartialResults, LocaleController.formatNumber(searchLastCount, ' ')), animated);
             } else if (searchLastCount == 0) {
                 searchCountText.setText(LocaleController.getString(R.string.NoResult), animated);
             } else if (searchingFiltered) {

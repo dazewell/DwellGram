@@ -2953,3 +2953,27 @@ needs a separate picker flow; reusing this helper would label filtering as navig
 The date-component picker at `AlertsCreator.java:4072` accepts a caller-owned title.
 
 *(Established 2026-11-06, `#dm-search-filters`.)*
+
+## Search request fields do not establish private-chat sender support
+
+Telethon disables `from_id` for private peers and filters senders locally; it also
+documents failures when sender and type filters are combined
+([source](https://github.com/LonamiWebs/Telethon/blob/v1/telethon/client/messages.py#L97-L128)).
+The DM pager therefore omits the server sender filter (`DmSearchPager.java:147`),
+advances from raw message IDs before filtering (`:163`), and checks the sender
+locally (`:180`). Using the last displayed match as the cursor stalls on pages
+with no matches. These compatibility findings do not prove any particular
+device's empty-result response; observe the response before assigning its cause.
+
+*(Established 2026-11-06, `#dm-search-filters`.)*
+
+## Message search date bounds are exclusive
+
+Telegram documents `messages.search` dates as strictly greater than `min_date`
+and strictly smaller than `max_date`
+([method](https://core.telegram.org/method/messages.search)). A whole local day
+therefore needs midnight minus one second and the next local midnight, computed
+with calendar arithmetic across DST (`DmSearchDates.java:18`). Checking only a
+day's duration misses the excluded first and last seconds.
+
+*(Established 2026-11-06, `#dm-search-filters`.)*

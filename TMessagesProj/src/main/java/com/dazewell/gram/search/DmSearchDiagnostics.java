@@ -25,8 +25,8 @@ public final class DmSearchDiagnostics {
         String senderChoice = request.from_id == null ? "ANY"
                 : request.peer != null && request.from_id.user_id == request.peer.user_id ? "PEER" : "SELF";
         Log.i(TAG, MARKER + " PATH request=" + token + " emptyQuery=" + (request.q == null || request.q.isEmpty())
-                + " senderPresent=" + (request.from_id != null)
-                + " senderChoice=" + senderChoice
+                + " serverSenderPresent=" + (request.from_id != null)
+                + " serverSenderChoice=" + senderChoice
                 + " lowerPresent=" + lower + " upperPresent=" + upper
                 + " intervalValid=" + (!lower || !upper || request.min_date < request.max_date)
                 + " typeEmpty=" + (request.filter == null || request.filter instanceof TLRPC.TL_inputMessagesFilterEmpty));
@@ -51,6 +51,7 @@ public final class DmSearchDiagnostics {
             case "SEARCH_QUERY_EMPTY":
             case "QUERY_EMPTY":
             case "FROM_PEER_INVALID":
+            case "RPC_CALL_FAIL":
             case "INPUT_FILTER_INVALID":
             case "PEER_ID_INVALID":
             case "PEER_ID_NOT_SUPPORTED":

@@ -18,6 +18,10 @@ public final class DmSearchSession {
         generation++;
     }
 
+    public Snapshot peek(int guid, long dialogId) {
+        return owns(guid, dialogId) ? new Snapshot(generation, criteria, emptyQueryRejected, requestFailed) : null;
+    }
+
     public Snapshot begin(int guid, long dialogId) {
         if (!owns(guid, dialogId)) {
             configure(guid, dialogId, DmSearchCriteria.EMPTY, null, null);
