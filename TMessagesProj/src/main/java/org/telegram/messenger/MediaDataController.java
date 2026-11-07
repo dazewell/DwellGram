@@ -3845,8 +3845,8 @@ public class MediaDataController extends BaseController {
     // NagramX: each account owns its search bounds and invalidates queued callbacks on close.
     private final com.dazewell.gram.search.DmSearchSession dmSearchSession = new com.dazewell.gram.search.DmSearchSession();
 
-    public void setDmSearchCriteria(int guid, long dialogId, com.dazewell.gram.search.DmSearchCriteria criteria, Runnable emptyQueryRejected) {
-        dmSearchSession.configure(guid, dialogId, criteria, emptyQueryRejected);
+    public void setDmSearchCriteria(int guid, long dialogId, com.dazewell.gram.search.DmSearchCriteria criteria, Runnable emptyQueryRejected, Runnable requestFailed) {
+        dmSearchSession.configure(guid, dialogId, criteria, emptyQueryRejected, requestFailed);
         invalidateDmSearchRequests();
     }
 
@@ -4149,13 +4149,16 @@ public class MediaDataController extends BaseController {
                     if (!jumpToMessage) {
                         loadingMoreSearchMessages = false;
                     }
-                    // NagramX: a server rejection must finish loading without losing selected filters.
-                    if (response == null && dmSearch.emptyQueryRejected != null && TextUtils.isEmpty(req.q)) {
+                    // NagramX: errors finish loading without reporting a successful zero-result search.
+                    if (response == null && (dmSearch.emptyQueryRejected != null || dmSearch.requestFailed != null)) {
                         loadingMoreSearchMessages = false;
-                        messagesSearchEndReached[0] = messagesSearchEndReached[1] = true;
-                        getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, 0, 0, 0L, 0, 0, jumpToMessage);
-                        if (error != null && ("SEARCH_QUERY_EMPTY".equals(error.text) || "QUERY_EMPTY".equals(error.text))) {
+                        final boolean emptyQueryRejected = TextUtils.isEmpty(req.q) && error != null
+                                && ("SEARCH_QUERY_EMPTY".equals(error.text) || "QUERY_EMPTY".equals(error.text));
+                        getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, 0, getMask(), dialogId, lastReturnedNum, -1, true);
+                        if (emptyQueryRejected && dmSearch.emptyQueryRejected != null) {
                             dmSearch.emptyQueryRejected.run();
+                        } else if (dmSearch.requestFailed != null) {
+                            dmSearch.requestFailed.run();
                         }
                     }
                     if (response != null) {

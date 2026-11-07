@@ -11977,6 +11977,12 @@ public class ChatActivity extends BaseFragment implements
                                     .setMessage(LocaleController.getString(R.string.DmSearchTermRequired))
                                     .setPositiveButton(LocaleController.getString(R.string.OK), null).create());
                         }
+                    }, () -> {
+                        if (searching && getParentActivity() != null) {
+                            showDialog(new AlertDialog.Builder(getParentActivity(), themeDelegate)
+                                    .setMessage(LocaleController.getString(R.string.ErrorOccurred))
+                                    .setPositiveButton(LocaleController.getString(R.string.OK), null).create());
+                        }
                     });
                     searchItemListener.onSearchPressed(searchItem.getSearchField());
                 });

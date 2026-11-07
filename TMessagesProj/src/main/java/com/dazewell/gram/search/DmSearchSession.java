@@ -7,20 +7,22 @@ public final class DmSearchSession {
     private long generation;
     private DmSearchCriteria criteria = DmSearchCriteria.EMPTY;
     private Runnable emptyQueryRejected;
+    private Runnable requestFailed;
 
-    public void configure(int guid, long dialogId, DmSearchCriteria criteria, Runnable rejected) {
+    public void configure(int guid, long dialogId, DmSearchCriteria criteria, Runnable rejected, Runnable failed) {
         this.guid = guid;
         this.dialogId = dialogId;
         this.criteria = criteria == null ? DmSearchCriteria.EMPTY : criteria;
         emptyQueryRejected = rejected;
+        requestFailed = failed;
         generation++;
     }
 
     public Snapshot begin(int guid, long dialogId) {
         if (!owns(guid, dialogId)) {
-            configure(guid, dialogId, DmSearchCriteria.EMPTY, null);
+            configure(guid, dialogId, DmSearchCriteria.EMPTY, null, null);
         }
-        return new Snapshot(++generation, criteria, emptyQueryRejected);
+        return new Snapshot(++generation, criteria, emptyQueryRejected, requestFailed);
     }
 
     public boolean owns(int guid, long dialogId) {
@@ -32,18 +34,20 @@ public final class DmSearchSession {
     }
 
     public void close() {
-        configure(0, 0, DmSearchCriteria.EMPTY, null);
+        configure(0, 0, DmSearchCriteria.EMPTY, null, null);
     }
 
     public static final class Snapshot {
         private final long generation;
         public final DmSearchCriteria criteria;
         public final Runnable emptyQueryRejected;
+        public final Runnable requestFailed;
 
-        private Snapshot(long generation, DmSearchCriteria criteria, Runnable emptyQueryRejected) {
+        private Snapshot(long generation, DmSearchCriteria criteria, Runnable emptyQueryRejected, Runnable requestFailed) {
             this.generation = generation;
             this.criteria = criteria;
             this.emptyQueryRejected = emptyQueryRejected;
+            this.requestFailed = requestFailed;
         }
     }
 }
