@@ -4536,7 +4536,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (result) {
             if (!useSeekBarWaveform && event.getAction() == MotionEvent.ACTION_DOWN) {
                 getParent().requestDisallowInterceptTouchEvent(true);
-            } else if (documentAttachType != DOCUMENT_ATTACH_TYPE_AUDIO && useSeekBarWaveform && !seekBarWaveform.isStartDraging() && event.getAction() == MotionEvent.ACTION_UP) { // NagramX: voice playback belongs to the button, not waveform taps.
+            } else if (useSeekBarWaveform && !seekBarWaveform.isStartDraging() && event.getAction() == MotionEvent.ACTION_UP) {
                 didPressButton(true, false);
             }
             // NagramX: holding a voice waveform should still open the message's reaction menu.

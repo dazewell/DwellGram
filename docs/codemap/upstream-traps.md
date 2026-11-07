@@ -2937,7 +2937,7 @@ adds the checkbox translation to incoming bubbles or wide code
 ## Wide voice bubbles have two playback touch paths
 
 `ChatMessageCell.checkAudioMotionEvent` handles waveform taps separately from
-the button hit area. Voice waveform taps must not call `didPressButton`
+the button hit area. Non-drag waveform taps call `didPressButton`
 (`ChatMessageCell.java:4539`), and the bubble-wide hit area must exclude voice
 messages (`ChatMessageCell.java:4558`). Holding the waveform allows long press
 until seeking starts (`ChatMessageCell.java:4543`). Voice button hit bounds match
