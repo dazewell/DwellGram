@@ -39,6 +39,7 @@ public final class DmSearchPager {
     private Listener listener;
     private final ArrayList<MessageObject> matches = new ArrayList<>();
     private final HashSet<Integer> ids = new HashSet<>();
+    private final HashSet<Integer> deletedIds = new HashSet<>();
 
     public DmSearchPager(int account) {
         this.account = account;
@@ -71,6 +72,7 @@ public final class DmSearchPager {
         listener = null;
         matches.clear();
         ids.clear();
+        deletedIds.clear();
         query = null;
         filter = null;
         dates = null;
@@ -118,6 +120,32 @@ public final class DmSearchPager {
                 if (!loading) demand();
             }
         }
+    }
+
+    public void removeMessages(int guid, long dialogId, ArrayList<Integer> removedIds) {
+        if (!owns(guid, dialogId)) return;
+        // A response already in flight can still contain ids after their deletion update.
+        HashSet<Integer> removed = new HashSet<>(removedIds);
+        deletedIds.addAll(removed);
+        boolean changed = false;
+        for (int i = 0; i < matches.size();) {
+            int id = matches.get(i).getId();
+            if (!removed.contains(id)) {
+                i++;
+                continue;
+            }
+            boolean pendingWasCached = pendingPosition < matches.size();
+            matches.remove(i);
+            ids.remove(id);
+            if (i < position) position--;
+            position = Math.max(0, Math.min(position, matches.size() - 1));
+            if (i < pendingPosition) pendingPosition--;
+            int pendingLimit = pendingWasCached ? Math.max(0, matches.size() - 1) : matches.size();
+            pendingPosition = Math.max(0, Math.min(pendingPosition, pendingLimit));
+            if (loading) target = Math.max(0, target - 1);
+            changed = true;
+        }
+        if (changed) listener.updated(false, true);
     }
 
     public void loadMore() {
@@ -173,7 +201,7 @@ public final class DmSearchPager {
                 int previousSize = matches.size();
                 for (TLRPC.Message message : page.messages) {
                     if (message instanceof TLRPC.TL_messageEmpty || message.action instanceof TLRPC.TL_messageActionHistoryClear
-                            || message.id <= 0 || ids.contains(message.id)) continue;
+                            || message.id <= 0 || ids.contains(message.id) || deletedIds.contains(message.id)) continue;
                     if (dates.minDate != 0 && message.date <= dates.minDate
                             || dates.maxDate != 0 && message.date >= dates.maxDate) continue;
                     long from = MessageObject.getFromChatId(message);

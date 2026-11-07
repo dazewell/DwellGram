@@ -3730,6 +3730,12 @@ public class MediaDataController extends BaseController {
     private boolean loadingSearchLocal;
     private boolean loadedPredirectedSearchLocal;
 
+    // NagramX: deletion needs the search owner even when its message is not in cached history.
+    public void removeDmSearchMessages(int guid, long dialogId, ArrayList<Integer> ids) {
+        if (!dmSearchPager.owns(guid, dialogId)) return;
+        dmSearchPager.removeMessages(guid, dialogId, ids);
+    }
+
     public void removeMessageFromResults(int id) {
         for (int i = 0; i < searchResultMessages.size(); ++i) {
             MessageObject m = searchResultMessages.get(i);

@@ -29256,6 +29256,10 @@ public class ChatActivity extends BaseFragment implements
         } else if (channelId != 0) {
             return;
         }
+        // NagramX: search hits can be absent from cached history, including a page still in flight.
+        if (getMediaDataController().isDmSearchActive(classGuid)) {
+            getMediaDataController().removeDmSearchMessages(classGuid, dialog_id, markAsDeletedMessages);
+        }
         if (replyingMessageObject != null && markAsDeletedMessages.contains(replyingMessageObject.getId())) {
             replyingMessageObject = null;
             replyingQuote = null;

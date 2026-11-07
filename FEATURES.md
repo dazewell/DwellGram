@@ -12,7 +12,7 @@ Extra bits I've added on top of [NagramX](https://github.com/risin42/NagramX). M
 
 ### Direct message search filters <!-- #dm-search-filters -->
 
-Search ordinary one-to-one cloud chats by date range and sender from the search filter menu. Choose Anyone, Me, or the other person, alongside text and message-type filters. Dates include whole local days. Filters start clear and reset when search closes.
+Search ordinary one-to-one cloud chats by date range and sender from the search filter menu. Choose Anyone, Me, or the other person, alongside text and message-type filters. Dates include whole local days. Day and month wheels scroll continuously. Filters start clear and reset when search closes.
 
 ### Per-chat time zones <!-- #timezones -->
 

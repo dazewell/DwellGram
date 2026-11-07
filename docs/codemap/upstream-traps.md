@@ -2959,7 +2959,7 @@ The date-component picker at `AlertsCreator.java:4072` accepts a caller-owned ti
 Telethon disables `from_id` for private peers and filters senders locally; it also
 documents failures when sender and type filters are combined
 ([source](https://github.com/LonamiWebs/Telethon/blob/v1/telethon/client/messages.py#L97-L128)).
-The DM pager therefore omits the server sender filter (`DmSearchPager.java:148`),
+The DM pager therefore omits the server sender filter (`DmSearchPager.java:176`),
 advances from raw message IDs before filtering (`:162`), and checks the sender
 locally (`:179`). Using the last displayed match as the cursor stalls on pages
 with no matches. These compatibility findings do not prove any particular
@@ -2973,11 +2973,11 @@ Telegram documents `messages.search` dates as strictly greater than `min_date`
 and strictly smaller than `max_date`
 ([method](https://core.telegram.org/method/messages.search)). A whole local day
 therefore needs midnight minus one second and the next local midnight, computed
-with calendar arithmetic across DST (`DmSearchDates.java:34`). Checking only a
+from the earliest valid start of each civil date (`DmSearchDates.java:26-31`). Checking only a
 day's duration misses the excluded first and last seconds.
 
-The pager sends only the upper bound (`DmSearchPager.java:144-145`) and checks
-both bounds locally (`:177-178`). This broadens retrieval without shifting the
+The pager sends only the upper bound (`DmSearchPager.java:172-173`) and checks
+both bounds locally (`:205-206`). This broadens retrieval without shifting the
 selected days, at the cost of scanning older pages. Compare raw response counts
 with local rejection counts before attributing an empty result to conversion.
 
@@ -3002,14 +3002,24 @@ The feature refreshes it after restoration and month/year changes
 
 ## Midnight gaps and cached navigation need separate handling
 
-Advance the civil date at noon before normalizing midnight
-(`DmSearchDates.java:27-31`). Otherwise a midnight gap can normalize to 01:00
-and carry that hour into the following day's upper bound.
+Resolve each civil day's earliest valid start with `LocalDate.atStartOfDay`
+(`DmSearchDates.java:26-29`). Calendar normalization can carry a midnight gap's
+01:00 into the upper bound or choose the second midnight during an overlap,
+excluding selected-day messages and including next-day messages.
 
 Cached result navigation changes position, not the collection
-(`DmSearchPager.java:109`, `:114`). The controller rebuilds lists only when
-matches change (`MediaDataController.java:3897`): `updateSearchResults` searches
-the previous list for each match (`:3782`, `:3802`), so calling it on every arrow
+(`DmSearchPager.java:111`, `:116`). The controller rebuilds lists only when
+matches change (`MediaDataController.java:3903`): `updateSearchResults` searches
+the previous list for each match (`:3788`, `:3808`), so calling it on every arrow
 would add quadratic work to navigation.
+
+Deletion must also update the pager, including IDs still in flight. The chat's
+deletion chokepoint runs after the channel guard (`ChatActivity.java:29259-29262`)
+and passes the search owner and dialog through the account's controller
+(`MediaDataController.java:3734-3736`). The pager retains deleted IDs for the
+search generation and reconciles cached and pending positions
+(`DmSearchPager.java:125-149`), preventing an out-of-range navigation or a stale
+response restoring a removed hit. A batch publishes one collection update,
+avoiding a full rebuild for each deleted message.
 
 *(Established 2026-11-07, `#dm-search-filters`.)*

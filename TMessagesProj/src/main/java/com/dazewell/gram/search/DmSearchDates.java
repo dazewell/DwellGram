@@ -1,5 +1,6 @@
 package com.dazewell.gram.search;
 
+import java.time.LocalDate;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
@@ -22,16 +23,12 @@ public final class DmSearchDates {
 
     public static int boundary(Calendar date, boolean end) {
         if (date == null) return 0;
-        Calendar day = (Calendar) date.clone();
-        // Advance the civil date at noon so a midnight gap cannot carry its normalized hour forward.
-        day.set(Calendar.HOUR_OF_DAY, 12);
-        if (end) day.add(Calendar.DAY_OF_MONTH, 1);
-        day.set(Calendar.HOUR_OF_DAY, 0);
-        day.set(Calendar.MINUTE, 0);
-        day.set(Calendar.SECOND, 0);
-        day.set(Calendar.MILLISECOND, 0);
+        LocalDate day = LocalDate.of(date.get(Calendar.YEAR), date.get(Calendar.MONTH) + 1, date.get(Calendar.DAY_OF_MONTH));
+        if (end) day = day.plusDays(1);
+        // The earliest valid start includes both midnight occurrences in an overlap and skips a gap.
+        long start = day.atStartOfDay(date.getTimeZone().toZoneId()).toEpochSecond();
         // messages.search excludes both bounds: include midnight and the day's last second.
-        long seconds = day.getTimeInMillis() / 1000L - (end ? 0 : 1);
+        long seconds = start - (end ? 0 : 1);
         return (int) Math.max(0, Math.min(Integer.MAX_VALUE, seconds));
     }
 }
