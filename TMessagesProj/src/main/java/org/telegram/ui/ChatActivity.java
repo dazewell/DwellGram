@@ -11965,10 +11965,6 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void addDmSearchFilters(ItemOptions popup) {
-        // NagramX: temporary reachability evidence for the search filter smoke build.
-        android.util.Log.i("NagramX", "NAX_SMOKE_dm-search-filters BEGIN " + BuildConfig.BUILD_VERSION_STRING + " " + BuildConfig.APPLICATION_ID + " account=" + currentAccount);
-        android.util.Log.i("NagramX", "NAX_SMOKE_dm-search-filters " + (supportsDmSearchFilters() ? "PATH eligible" : "FORBIDDEN ineligible"));
-        android.util.Log.i("NagramX", "NAX_SMOKE_dm-search-filters END");
         if (!supportsDmSearchFilters()) return;
         if (dmSearchFilters == null) dmSearchFilters = new com.dazewell.gram.search.DmSearchFilters();
         dmSearchFilters.addOptions(popup, this, themeDelegate, getUserConfig().getCurrentUser(), currentUser,
