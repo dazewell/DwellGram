@@ -1,6 +1,7 @@
 package com.dazewell.gram.player;
 
 import org.telegram.messenger.MessageObject;
+import org.telegram.tgnet.TLRPC;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -9,7 +10,8 @@ import xyz.nextalone.nagram.NaConfig;
 
 /**
  * "Back-to-back only" auto-play: the voice/round playlist stops at the first chat message
- * that is not itself queued, so playback never jumps over a text, photo or reply.
+ * that is not itself queued, so playback never jumps over a text, photo or reply. Service
+ * messages (joins, pins, calls) and date headers don't count as being in between.
  *
  * Main thread only: both entry points run from ChatActivity and from
  * MediaController.didReceivedNotification.
@@ -38,7 +40,7 @@ public final class VoiceChain {
     }
 
     /**
-     * Cuts playlist (start first, then later messages in chat order) at the first real message
+     * Cuts playlist (start first, then later messages in chat order) at the first content message
      * after start that is not the next playlist entry. chatMessages is ChatActivity.messages,
      * newest at index 0. forwardEndReached says nothing newer exists beyond what is loaded.
      */
@@ -111,6 +113,6 @@ public final class VoiceChain {
     }
 
     private static boolean isSynthetic(MessageObject m) {
-        return m.isDateObject || m.type == MessageObject.TYPE_DATE || m.type == MessageObject.TYPE_LOADING || m.isSponsored();
+        return m.isDateObject || m.type == MessageObject.TYPE_LOADING || m.isSponsored() || m.messageOwner instanceof TLRPC.TL_messageService;
     }
 }
