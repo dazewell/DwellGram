@@ -2959,9 +2959,9 @@ The date-component picker at `AlertsCreator.java:4072` accepts a caller-owned ti
 Telethon disables `from_id` for private peers and filters senders locally; it also
 documents failures when sender and type filters are combined
 ([source](https://github.com/LonamiWebs/Telethon/blob/v1/telethon/client/messages.py#L97-L128)).
-The DM pager therefore omits the server sender filter (`DmSearchPager.java:147`),
-advances from raw message IDs before filtering (`:163`), and checks the sender
-locally (`:180`). Using the last displayed match as the cursor stalls on pages
+The DM pager therefore omits the server sender filter (`DmSearchPager.java:148`),
+advances from raw message IDs before filtering (`:164`), and checks the sender
+locally (`:184`). Using the last displayed match as the cursor stalls on pages
 with no matches. These compatibility findings do not prove any particular
 device's empty-result response; observe the response before assigning its cause.
 
@@ -2975,5 +2975,10 @@ and strictly smaller than `max_date`
 therefore needs midnight minus one second and the next local midnight, computed
 with calendar arithmetic across DST (`DmSearchDates.java:18`). Checking only a
 day's duration misses the excluded first and last seconds.
+
+The pager sends only the upper bound (`DmSearchPager.java:144-145`) and checks
+both bounds locally (`:182-183`). This broadens retrieval without shifting the
+selected days, at the cost of scanning older pages. Compare raw response counts
+with local rejection counts before attributing an empty result to conversion.
 
 *(Established 2026-11-06, `#dm-search-filters`.)*

@@ -45,6 +45,12 @@ public final class DmSearchDiagnostics {
         Log.i(TAG, MARKER + " END request=" + token + " scenario=date-range-request");
     }
 
+    public static void filtered(int token, int raw, int invalid, int duplicate, int below, int above, int senderRejected, int accepted) {
+        Log.i(TAG, MARKER + " PATH local request=" + token + " raw=" + raw + " invalid=" + invalid
+                + " duplicate=" + duplicate + " below=" + below + " above=" + above
+                + " senderRejected=" + senderRejected + " accepted=" + accepted);
+    }
+
     private static String errorKind(TLRPC.TL_error error) {
         if (error == null || error.text == null) return "OTHER";
         switch (error.text) {
