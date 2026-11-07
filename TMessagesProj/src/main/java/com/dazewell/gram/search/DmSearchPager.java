@@ -140,7 +140,8 @@ public final class DmSearchPager {
         req.peer = MessagesController.getInstance(account).getInputPeer(dialogId);
         req.q = query;
         req.filter = filter == null ? new TLRPC.TL_inputMessagesFilterEmpty() : filter;
-        req.min_date = dates.minDate;
+        // Keep lower-bound candidates for the exact local check instead of restricting them server-side.
+        req.min_date = 0;
         req.max_date = dates.maxDate;
         req.offset_id = offset;
         req.limit = 100;
