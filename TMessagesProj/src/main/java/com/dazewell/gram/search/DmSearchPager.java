@@ -146,13 +146,11 @@ public final class DmSearchPager {
         req.offset_id = offset;
         req.limit = 100;
         // Private-chat sender filtering is local: from_id is unreliable in private chats.
-        final int trace = DmSearchDiagnostics.begin(req, account);
         requestId = ConnectionsManager.getInstance(account).sendRequest(req, (response, error) -> {
             AndroidUtilities.runOnUIThread(() -> {
                 if (!active || token != generation) return;
                 requestId = 0;
                 if (error != null || !(response instanceof TLRPC.messages_Messages)) {
-                    DmSearchDiagnostics.end(trace, response, error);
                     loading = false;
                     boolean empty = query.isEmpty() && error != null
                             && ("SEARCH_QUERY_EMPTY".equals(error.text) || "QUERY_EMPTY".equals(error.text));
@@ -166,7 +164,6 @@ public final class DmSearchPager {
                     if (message.id > 0 && (next == 0 || message.id < next)) next = message.id;
                 }
                 if (!page.messages.isEmpty() && (next == 0 || offset != 0 && next >= offset)) {
-                    DmSearchDiagnostics.end(trace, response, error);
                     loading = false;
                     listener.failed(false);
                     return;
@@ -174,25 +171,20 @@ public final class DmSearchPager {
                 MessagesController.getInstance(account).putUsers(page.users, false);
                 MessagesController.getInstance(account).putChats(page.chats, false);
                 int previousSize = matches.size();
-                int invalid = 0, duplicate = 0, below = 0, above = 0, senderRejected = 0, accepted = 0;
                 for (TLRPC.Message message : page.messages) {
                     if (message instanceof TLRPC.TL_messageEmpty || message.action instanceof TLRPC.TL_messageActionHistoryClear
-                            || message.id <= 0) { invalid++; continue; }
-                    if (ids.contains(message.id)) { duplicate++; continue; }
-                    if (dates.minDate != 0 && message.date <= dates.minDate) { below++; continue; }
-                    if (dates.maxDate != 0 && message.date >= dates.maxDate) { above++; continue; }
+                            || message.id <= 0 || ids.contains(message.id)) continue;
+                    if (dates.minDate != 0 && message.date <= dates.minDate
+                            || dates.maxDate != 0 && message.date >= dates.maxDate) continue;
                     long from = MessageObject.getFromChatId(message);
                     if (from == 0) from = message.out ? selfId : dialogId;
-                    if (sender != 0 && sender != from) { senderRejected++; continue; }
+                    if (sender != 0 && sender != from) continue;
                     MessageObject object = new MessageObject(account, message, null, null, null, null, null, true, true, 0, false, false, false);
                     if (object.hasValidGroupId()) object.isPrimaryGroupMessage = true;
                     object.setQuery(query, true);
                     ids.add(message.id);
                     matches.add(object);
-                    accepted++;
                 }
-                DmSearchDiagnostics.filtered(trace, page.messages.size(), invalid, duplicate, below, above, senderRejected, accepted);
-                DmSearchDiagnostics.end(trace, response, error);
                 offset = next;
                 complete = page.messages.isEmpty();
                 loading = !complete && matches.size() < target;

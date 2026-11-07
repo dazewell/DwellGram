@@ -4205,8 +4205,6 @@ public class MediaDataController extends BaseController {
         lastSearchQuery = query;
         long queryWithDialogFinal = queryWithDialog;
         String finalQuery = query;
-        // NagramX: distinguish a rejected filtered request from a successful empty response.
-        final int dmTrace = dmSearch.requestFailed == null ? 0 : com.dazewell.gram.search.DmSearchDiagnostics.begin(req, currentAccount);
         reqId = getConnectionsManager().sendRequest(req, (response, error) -> {
             ArrayList<MessageObject> messageObjects = new ArrayList<>();
 
@@ -4225,8 +4223,6 @@ public class MediaDataController extends BaseController {
             }
             AndroidUtilities.runOnUIThread(() -> {
                 if (currentReqId == lastReqId && dmSearchSession.isCurrent(dmSearch)) {
-                    // NagramX: only the current search reports its diagnostic outcome.
-                    if (dmTrace != 0) com.dazewell.gram.search.DmSearchDiagnostics.end(dmTrace, response, error);
                     reqId = 0;
                     if (!jumpToMessage) {
                         loadingMoreSearchMessages = false;

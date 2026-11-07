@@ -2960,8 +2960,8 @@ Telethon disables `from_id` for private peers and filters senders locally; it al
 documents failures when sender and type filters are combined
 ([source](https://github.com/LonamiWebs/Telethon/blob/v1/telethon/client/messages.py#L97-L128)).
 The DM pager therefore omits the server sender filter (`DmSearchPager.java:148`),
-advances from raw message IDs before filtering (`:164`), and checks the sender
-locally (`:184`). Using the last displayed match as the cursor stalls on pages
+advances from raw message IDs before filtering (`:162`), and checks the sender
+locally (`:179`). Using the last displayed match as the cursor stalls on pages
 with no matches. These compatibility findings do not prove any particular
 device's empty-result response; observe the response before assigning its cause.
 
@@ -2977,7 +2977,7 @@ with calendar arithmetic across DST (`DmSearchDates.java:18`). Checking only a
 day's duration misses the excluded first and last seconds.
 
 The pager sends only the upper bound (`DmSearchPager.java:144-145`) and checks
-both bounds locally (`:182-183`). This broadens retrieval without shifting the
+both bounds locally (`:177-178`). This broadens retrieval without shifting the
 selected days, at the cost of scanning older pages. Compare raw response counts
 with local rejection counts before attributing an empty result to conversion.
 
