@@ -1138,6 +1138,13 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    // The camera-choice popup's Compact Recording switch: a small docked circle over a usable chat
+    val compactVideoRecording =
+        addConfig(
+            "CompactVideoRecording",
+            ConfigItem.configTypeBool,
+            false
+        )
     val infiniteRecordingCeiling =
         addConfig(
             "InfiniteRecordingCeiling",

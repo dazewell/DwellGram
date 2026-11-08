@@ -309,10 +309,13 @@ public final class VideoHoldToSend {
         final String text = LocaleController.getString(armed ? R.string.VideoMessagesHoldToSendArmed
                 : quiet ? R.string.VideoMessagesHoldToSendShort : R.string.VideoMessagesHoldToSendLabel);
         final float textWidth = paint.measureText(text);
+        CompactVideoRecorder.visibleBounds(circle, AndroidUtilities.rectTmp);
+        final float circleTop = AndroidUtilities.rectTmp.top;
+        final float circleCenterX = AndroidUtilities.rectTmp.centerX();
         String hint = null;
         float hintWidth = 0;
         // Skipped rather than clipped wherever the room or the width isn't there
-        if (!quiet && !NaConfig.INSTANCE.getVideoMessagesSwipeLearned().Bool() && canSwipe.run() && circle.getY() >= dp(64)) {
+        if (!quiet && !NaConfig.INSTANCE.getVideoMessagesSwipeLearned().Bool() && canSwipe.run() && circleTop >= dp(64)) {
             hint = LocaleController.getString(R.string.VideoMessagesGesturesHint);
             hintPaint.setTypeface(android.graphics.Typeface.DEFAULT);
             hintWidth = hintPaint.measureText(hint);
@@ -324,8 +327,9 @@ public final class VideoHoldToSend {
         final float lineHeight = quiet ? dp(18) : dp(24);
         final float height = hint != null ? dp(40) : lineHeight;
         final float width = Math.max(textWidth, hintWidth) + (quiet ? dp(16) : dp(20));
-        final float cx = circle.getX() + circle.getWidth() / 2f;
-        final float bottom = circle.getY() - dp(20);
+        // over the circle, but kept on screen when the circle is docked against an edge
+        final float cx = Math.max(width / 2f + dp(8), Math.min(circleCenterX, host.getWidth() - width / 2f - dp(8)));
+        final float bottom = circleTop - dp(20);
         labelRect.set(cx - width / 2f, bottom - height, cx + width / 2f, bottom);
         labelBackground.setAlpha((int) (0x4d * alpha));
         paint.setAlpha((int) (255 * alpha));
@@ -442,8 +446,8 @@ public final class VideoHoldToSend {
     }
 
     private static boolean contains(View circle, MotionEvent ev) {
-        // same bounds the host's pinch-to-zoom uses
-        AndroidUtilities.rectTmp.set(circle.getX(), circle.getY(), circle.getX() + circle.getMeasuredWidth(), circle.getY() + circle.getMeasuredHeight());
+        // the circle as drawn, scale included, the same bounds the host's pinch-to-zoom uses
+        CompactVideoRecorder.visibleBounds(circle, AndroidUtilities.rectTmp);
         return AndroidUtilities.rectTmp.contains(ev.getX(), ev.getY());
     }
 }

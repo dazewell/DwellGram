@@ -229,6 +229,99 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             // swipes steer a live recording only, locked or not, never the paused preview
             () -> recording && !encoderTeardownPending && !cameraFileHandedOff,
             this::onHoldSwipe);
+    // NagramX (#compact-video-recording): the docked, chat-usable presentation. Built after the circle in the
+    // constructor; nextOpenCompact carries the composer's popup snapshot into the one showCamera call it was for,
+    // and nextOpenOffered marks that call as the chat's, the only host that gives the dock its padding and guards.
+    private com.dazewell.gram.videonote.CompactVideoRecorder compactRecorder;
+    private boolean nextOpenCompact, nextOpenOffered;
+
+    private com.dazewell.gram.videonote.CompactVideoRecorder createCompactRecorder() {
+        final com.dazewell.gram.videonote.CompactVideoRecorder recorder = new com.dazewell.gram.videonote.CompactVideoRecorder(this, cameraContainer,
+                new com.dazewell.gram.videonote.CompactVideoRecorder.Host() {
+                    @Override
+                    public boolean canChangePresentation() {
+                        return opened && textureView != null && !cameraFileHandedOff && (animatorSet == null || !animatorSet.isRunning());
+                    }
+
+                    @Override
+                    public void applyPresentation() {
+                        // setVisibility set the pivot from the size before onMeasure re-picked it; a docked circle
+                        // rests below scale 1, where that puts it off its dock
+                        final float pivot = cameraContainer.getLayoutParams().width / 2f;
+                        cameraContainer.setPivotX(pivot);
+                        cameraContainer.setPivotY(pivot);
+                        textureOverlayView.setPivotX(pivot);
+                        textureOverlayView.setPivotY(pivot);
+                        final float s = compactRecorder.scale();
+                        cameraContainer.setScaleX(s);
+                        cameraContainer.setScaleY(s);
+                        textureOverlayView.setScaleX(s);
+                        textureOverlayView.setScaleY(s);
+                        cameraContainer.setTranslationX(compactRecorder.offsetX());
+                        textureOverlayView.setTranslationX(compactRecorder.offsetX());
+                        updateTranslationY();
+                        invalidate();
+                    }
+
+                    @Override
+                    public void onPresentationChanged() {
+                        onDockMoved();
+                        // the chat reads isCompactPresentation() from here to raise or drop its scrim
+                        dispatchAnimationState(true, true);
+                    }
+
+                    @Override
+                    public void onDockMoved() {
+                        cancelZoomInteractions();
+                        if (isInPinchToZoomTouchMode) {
+                            isInPinchToZoomTouchMode = false;
+                            finishZoom();
+                        }
+                        maybePinchToZoomTouchMode = false;
+                    }
+                });
+        recorder.hideWhenCompact(buttonsLayout, zoomControlView, zoomControlView.flipButton(), flashBrightnessSlider);
+        recorder.stackAbove(zoomControlView.flipButton());
+        recorder.updateColors(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(isDarkAppearance()));
+        return recorder;
+    }
+
+    // NagramX (#compact-video-recording): a fresh open, compact when the camera-choice popup asked for it
+    public void showCamera(boolean fromPaused, boolean compact) {
+        nextOpenCompact = compact;
+        nextOpenOffered = true;
+        try {
+            showCamera(fromPaused);
+        } finally {
+            nextOpenCompact = nextOpenOffered = false;
+        }
+    }
+
+    // NagramX (#compact-video-recording): this recording has been compact, opened so or collapsed, even if expanded since
+    public boolean isCompactSession() {
+        return compactRecorder != null && compactRecorder.isSession();
+    }
+
+    // NagramX (#compact-video-recording): docked right now, so the chat behind stays usable and unscrimmed
+    public boolean isCompactPresentation() {
+        return compactRecorder != null && compactRecorder.isCompact();
+    }
+
+    // NagramX (#compact-video-recording): the presentation's share of the circle's scale, for the chat's send fade
+    public float getPresentationScale() {
+        return compactRecorder != null ? compactRecorder.scale() : 1f;
+    }
+
+    // NagramX (#compact-video-recording): a touch that starts away from the docked circle is the chat's, refused
+    // before onInterceptTouchEvent can make the parent give it up
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (compactRecorder != null && !compactRecorder.acceptsDown(ev)) {
+            return false;
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
     private long recordedTime;
     private boolean cancelled;
 
@@ -390,6 +483,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             public void setAlpha(float alpha) {
                 super.setAlpha(alpha);
                 InstantCameraView.this.invalidate();
+                if (compactRecorder != null) compactRecorder.onCircleAlpha(alpha); // NagramX (#compact-video-recording): the toggle fades with it
             }
         };
         cameraContainer.setOutlineProvider(new ViewOutlineProvider() {
@@ -501,6 +595,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             }
         };
         addView(textureOverlayView, new LayoutParams(AndroidUtilities.roundPlayingMessageSize, AndroidUtilities.roundPlayingMessageSize, Gravity.CENTER));
+        compactRecorder = createCompactRecorder(); // NagramX (#compact-video-recording): last, so its toggle sits over the circle
 
         setVisibilityFromPause = false;
         setVisibility(INVISIBLE);
@@ -513,6 +608,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         buttonsLayout.setBackground(drawable);
         zoomControlView.setButtonsBackground(factory, colorProvider);
         flashBrightnessSlider.setGlassBackground(factory.create(flashBrightnessSlider, colorProvider), factory.create(flashBrightnessSlider, colorProvider)); // NagramX (#front-flash-brightness): the arm joins this row's glass
+        compactRecorder.setGlass(factory, colorProvider); // NagramX (#compact-video-recording): its toggle wears the flip button's glass
     }
 
     private Boolean wasFlashing;
@@ -688,6 +784,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             applyGlyphColor(flashButton, glyphColor(dark));
         }
         flashBrightnessSlider.setFillColor(glyphColor(dark)); // NagramX (#front-flash-brightness)
+        if (compactRecorder != null) compactRecorder.updateColors(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(dark)); // NagramX (#compact-video-recording)
         updateInfiniteButton();
     }
 
@@ -792,9 +889,14 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
     @Override
     protected void onDraw(Canvas canvas) {
-        float x = cameraContainer.getX();
-        float y = cameraContainer.getY();
-        rect.set(x - dp(8), y - dp(8), x + cameraContainer.getMeasuredWidth() + dp(8), y + cameraContainer.getMeasuredHeight() + dp(8));
+        // NagramX (#compact-video-recording): the ring from the circle as drawn, so it docks with it. The canvas
+        // scale below still applies the open/close zoom (animShare); dividing that share back out here keeps the
+        // ring where it was for a full-size circle, and 8dp clear of a docked one.
+        final float presentationScale = getPresentationScale();
+        final float animShare = flipAnimationInProgress || cameraContainer.getScaleX() <= 0f ? 1f : cameraContainer.getScaleX() / presentationScale;
+        com.dazewell.gram.videonote.CompactVideoRecorder.visibleBounds(cameraContainer, rect);
+        final float ringHalfW = rect.width() / 2f / animShare + dp(8), ringHalfH = rect.height() / 2f / animShare + dp(8);
+        rect.set(rect.centerX() - ringHalfW, rect.centerY() - ringHalfH, rect.centerX() + ringHalfW, rect.centerY() + ringHalfH);
         if (recording) {
             recordedTime = System.currentTimeMillis() - recordStartTime + recordPlusTime;
             progress = Math.min(1f, recordedTime / 60000.0f);
@@ -804,7 +906,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (progress != 0) {
             canvas.save();
             if (!flipAnimationInProgress) {
-                canvas.scale(cameraContainer.getScaleX(), cameraContainer.getScaleY(), rect.centerX(), rect.centerY());
+                canvas.scale(animShare, animShare, rect.centerX(), rect.centerY()); // NagramX (#compact-video-recording)
             }
             canvas.drawArc(rect, -90, 360 * progress, false, paint);
             // NagramX: pulse a second arc over the shared white one for the last ~5s before a round video
@@ -843,10 +945,12 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         muteImageView.setAlpha(0.0f);
         muteImageView.setScaleX(1.0f);
         muteImageView.setScaleY(1.0f);
-        cameraContainer.setScaleX(setVisibilityFromPause ? 1f : 0.1f);
-        cameraContainer.setScaleY(setVisibilityFromPause ? 1f : 0.1f);
-        textureOverlayView.setScaleX(setVisibilityFromPause ? 1f : 0.1f);
-        textureOverlayView.setScaleY(setVisibilityFromPause ? 1f : 0.1f);
+        if (visibility != VISIBLE && compactRecorder != null) compactRecorder.end(); // NagramX (#compact-video-recording): hidden for good; a pause stays VISIBLE
+        final float presentationScale = getPresentationScale(); // NagramX (#compact-video-recording)
+        cameraContainer.setScaleX((setVisibilityFromPause ? 1f : 0.1f) * presentationScale);
+        cameraContainer.setScaleY((setVisibilityFromPause ? 1f : 0.1f) * presentationScale);
+        textureOverlayView.setScaleX((setVisibilityFromPause ? 1f : 0.1f) * presentationScale);
+        textureOverlayView.setScaleY((setVisibilityFromPause ? 1f : 0.1f) * presentationScale);
         if (cameraContainer.getMeasuredWidth() != 0) {
             cameraContainer.setPivotX(cameraContainer.getMeasuredWidth() / 2);
             cameraContainer.setPivotY(cameraContainer.getMeasuredHeight() / 2);
@@ -1190,6 +1294,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         cameraContainer.addView(textureView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         updateTextureViewSize = true;
+        if (!fromPaused) compactRecorder.begin(nextOpenCompact, nextOpenOffered); // NagramX (#compact-video-recording): only once the open can't be refused, camera sessions included
         setVisibilityFromPause = fromPaused;
         setVisibility(VISIBLE);
 
@@ -1212,8 +1317,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             pipRoundVideoView.showTemporary(!open);
         }
         if (open && !opened) {
-            cameraContainer.setTranslationX(0);
-            textureOverlayView.setTranslationX(0);
+            cameraContainer.setTranslationX(compactRecorder.offsetX()); // NagramX (#compact-video-recording): 0 unless docked
+            textureOverlayView.setTranslationX(compactRecorder.offsetX());
             zoomControlView.setTranslationX(0);
 
             animationTranslationY = fromPaused ? 0 : getMeasuredHeight() / 2f;
@@ -1231,6 +1336,11 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (!open) {
             toX = recordedTime > 300 ? dp(24) - getMeasuredWidth() / 2f : 0;
         }
+        // NagramX (#compact-video-recording): the docked presentation rides on the same scale and slide. Only the
+        // circle docks; the zoom row (and the flip button it carries) keeps the stock target, and the cancel
+        // slide's target is already absolute.
+        final float presentationScale = compactRecorder.scale();
+        final float circleToX = toX != 0 ? toX : compactRecorder.offsetX();
         ValueAnimator translationYAnimator = ValueAnimator.ofFloat(open ? 1f : 0f, open ? 0 : 1f);
         translationYAnimator.addUpdateListener(animation -> {
             animationTranslationY = fromPaused ? 0 : (getMeasuredHeight() / 2f) * (float) animation.getAnimatedValue();
@@ -1242,13 +1352,13 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 ObjectAnimator.ofFloat(muteImageView, View.ALPHA, 0.0f),
                 ObjectAnimator.ofInt(paint, AnimationProperties.PAINT_ALPHA, open ? 255 : 0),
                 ObjectAnimator.ofFloat(cameraContainer, View.ALPHA, open ? 1.0f : 0.0f),
-                ObjectAnimator.ofFloat(cameraContainer, View.SCALE_X, open ? 1.0f : 0.1f),
-                ObjectAnimator.ofFloat(cameraContainer, View.SCALE_Y, open ? 1.0f : 0.1f),
-                ObjectAnimator.ofFloat(cameraContainer, View.TRANSLATION_X, toX),
+                ObjectAnimator.ofFloat(cameraContainer, View.SCALE_X, (open ? 1.0f : 0.1f) * presentationScale),
+                ObjectAnimator.ofFloat(cameraContainer, View.SCALE_Y, (open ? 1.0f : 0.1f) * presentationScale),
+                ObjectAnimator.ofFloat(cameraContainer, View.TRANSLATION_X, circleToX),
                 ObjectAnimator.ofFloat(textureOverlayView, View.ALPHA, open ? 1.0f : 0.0f),
-                ObjectAnimator.ofFloat(textureOverlayView, View.SCALE_X, open ? 1.0f : 0.1f),
-                ObjectAnimator.ofFloat(textureOverlayView, View.SCALE_Y, open ? 1.0f : 0.1f),
-                ObjectAnimator.ofFloat(textureOverlayView, View.TRANSLATION_X, toX),
+                ObjectAnimator.ofFloat(textureOverlayView, View.SCALE_X, (open ? 1.0f : 0.1f) * presentationScale),
+                ObjectAnimator.ofFloat(textureOverlayView, View.SCALE_Y, (open ? 1.0f : 0.1f) * presentationScale),
+                ObjectAnimator.ofFloat(textureOverlayView, View.TRANSLATION_X, circleToX),
                 ObjectAnimator.ofFloat(zoomControlView, View.TRANSLATION_X, toX),
                 translationYAnimator
         );
@@ -1265,6 +1375,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             });
         } else {
             setTranslationX(0);
+            animatorSet.addListener(compactRecorder.settleAfterOpen()); // NagramX (#compact-video-recording)
         }
         animatorSet.setDuration(180);
         animatorSet.setInterpolator(new DecelerateInterpolator());
@@ -1304,7 +1415,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         final float lift = Math.min(liftForRoomy, maxLift);
         final float gapAfterLift = restingGap + lift;
 
-        final float translationY = animationTranslationY + panTranslationY - lift;
+        // NagramX (#compact-video-recording): mixed toward the dock while compact; unchanged otherwise
+        final float translationY = compactRecorder == null ? animationTranslationY + panTranslationY - lift
+                : compactRecorder.blendY(animationTranslationY + panTranslationY - lift, animationTranslationY);
         textureOverlayView.setTranslationY(translationY);
         cameraContainer.setTranslationY(translationY);
 
@@ -1330,17 +1443,30 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
         zoomControlView.setPlacement(compact, buttonsLayout.getMeasuredWidth() > 0 ? buttonsLayout.getMeasuredWidth() + dp(1) : dp(108), rowCenterY);
         zoomControlView.setFlipLine(Float.isNaN(once) ? rowCenterY : once); // up the column from the view-once button
+        zoomControlView.setFlipColumn(InstantZoomControlView.onceColumn(this, delegate)); // NagramX: and on its centre line
         // dock the label inside the camera circle, bottom-center: the row's band is the zoom's own
-        zoomLabel.setTranslationY(translationY + textureViewSize / 2f - dp(30));
+        zoomLabel.setTranslationY(translationY + textureViewSize / 2f * getPresentationScale() - dp(30)); // NagramX (#compact-video-recording): and with the docked circle
+        zoomLabel.setTranslationX(compactRecorder == null ? 0 : compactRecorder.offsetX());
+        if (compactRecorder != null && compactRecorder.isSession()) {
+            // the preview's mute badge sits at the circle's bottom; keep it on the docked circle's
+            muteImageView.setTranslationX(compactRecorder.offsetX());
+            muteImageView.setTranslationY(translationY - (textureViewSize / 2f - dp(24)) * (1f - getPresentationScale()));
+        } else if (muteImageView.getTranslationX() != 0 || muteImageView.getTranslationY() != 0) {
+            muteImageView.setTranslationX(0);
+            muteImageView.setTranslationY(0);
+        }
+        if (compactRecorder != null) compactRecorder.layoutToggle(); // NagramX (#compact-video-recording): last, once the circle and the flip column are placed
     }
 
     public RectF getCameraRect() {
+        // NagramX (#compact-video-recording): the screen position already maps through the circle's transforms;
+        // the size needs its scale too. Identical to stock at scale 1, mid-flip included.
         cameraContainer.getLocationOnScreen(position);
         return new RectF(
                 position[0],
                 position[1],
-                position[0] + cameraContainer.getWidth(),
-                position[1] + cameraContainer.getHeight()
+                position[0] + cameraContainer.getWidth() * cameraContainer.getScaleX(),
+                position[1] + cameraContainer.getHeight() * cameraContainer.getScaleY()
         );
     }
 
@@ -1635,8 +1761,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     public void hideCamera(boolean async) {
         cancelZoomInteractions();
         destroy(async);
-        cameraContainer.setTranslationX(0);
-        textureOverlayView.setTranslationX(0);
+        // NagramX (#compact-video-recording): a resume passes through here, and must not slide a docked circle back from the middle
+        cameraContainer.setTranslationX(compactRecorder.offsetX());
+        textureOverlayView.setTranslationX(compactRecorder.offsetX());
         zoomControlView.setTranslationX(0);
         animationTranslationY = 0;
         updateTranslationY();
@@ -4961,7 +5088,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 zoomControlView.dismiss(); // NagramX (#video-zoom): the pinch has the zoom; the dial goes
             }
             if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                AndroidUtilities.rectTmp.set(cameraContainer.getX(), cameraContainer.getY(), cameraContainer.getX() + cameraContainer.getMeasuredWidth(), cameraContainer.getY() + cameraContainer.getMeasuredHeight());
+                com.dazewell.gram.videonote.CompactVideoRecorder.visibleBounds(cameraContainer, AndroidUtilities.rectTmp); // NagramX (#compact-video-recording): the circle as drawn
                 maybePinchToZoomTouchMode = AndroidUtilities.rectTmp.contains(ev.getX(), ev.getY());
             }
             return true;

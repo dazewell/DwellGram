@@ -51,6 +51,8 @@ public class InstantZoomControlView extends FrameLayout {
     private boolean compact;
     private float leftReserve;
     private float rowCenterY;
+    private float columnX = Float.NaN; // the composer's view-once column, from onceColumn
+
     private boolean relayoutPending;
     private final RectF rect = new RectF();
 
@@ -152,7 +154,7 @@ public class InstantZoomControlView extends FrameLayout {
     public void setTranslationX(float translationX) {
         super.setTranslationX(translationX);
         if (flip != null && getWidth() > 0) {
-            flip.setTranslationX(translationX + getWidth() / 2f - AndroidUtilities.dp(26));
+            flip.setTranslationX(translationX + flipCenterOffset(getWidth()));
         }
     }
 
@@ -265,7 +267,7 @@ public class InstantZoomControlView extends FrameLayout {
         final float side = AndroidUtilities.dp(COLUMN_DP + 8);
         zoom.setRowBounds(compact ? Math.max(side, leftReserve + AndroidUtilities.dp(8)) : side, side);
         setTranslationY(rowCenterY);
-        flip.setTranslationX(getTranslationX() + w / 2f - AndroidUtilities.dp(26));
+        flip.setTranslationX(getTranslationX() + flipCenterOffset(w));
     }
 
     /**
@@ -290,6 +292,42 @@ public class InstantZoomControlView extends FrameLayout {
         final float bottom = at[1] + controls.getHeight();
         host.getLocationInWindow(at);
         return bottom - AndroidUtilities.dp(154) - at[1];
+    }
+
+    /**
+     * The composer's view-once and pause column centre, in host's x. ControlsView centres them 26dp in from its own
+     * right edge (ChatActivityEnterView.ControlsView.onDraw, cx), and that view stops short of the screen's edge, so
+     * 26dp from the host's edge sat the flip a few dp right of them. NaN when there's no composer to measure.
+     */
+    public static float onceColumn(View host, Object delegate) {
+        if (!(delegate instanceof ChatActivity)) {
+            return Float.NaN;
+        }
+        final ChatActivityEnterView enter = ((ChatActivity) delegate).getChatActivityEnterView();
+        final View controls = enter != null ? enter.controlsView : null;
+        if (controls == null || controls.getWidth() == 0 || !controls.isAttachedToWindow()) {
+            return Float.NaN;
+        }
+        final int[] at = new int[2];
+        controls.getLocationInWindow(at);
+        final float right = at[0] + controls.getWidth();
+        host.getLocationInWindow(at);
+        return right - AndroidUtilities.dp2(26) - at[0];
+    }
+
+    /** Centres the flip on the view-once column at x (host's px), or 26dp from the right edge when that's NaN. */
+    public void setFlipColumn(float x) {
+        if (Float.compare(columnX, x) == 0) {
+            return;
+        }
+        columnX = x;
+        if (getWidth() > 0) {
+            flip.setTranslationX(getTranslationX() + flipCenterOffset(getWidth()));
+        }
+    }
+
+    private float flipCenterOffset(int w) {
+        return (Float.isNaN(columnX) ? w - AndroidUtilities.dp(26) : columnX) - w / 2f;
     }
 
     // The lowest point, in this view's own coordinates, that the row takes up left of x, so the
