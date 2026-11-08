@@ -651,7 +651,7 @@ final class CameraMemoCover extends FrameLayout {
         // and the preview's send still reads it
         boolean once = onceAvailable && viewfinder.getWidth() > 0 && (shown || live && bound)
                 // never over the open circle on a small screen: it would be clipped and take the circle's taps
-                && !(holeOpen && hasHole && RectF.intersects(hole, onceButton.getLeft(), onceButton.getTop(), onceButton.getRight(), onceButton.getBottom()));
+                && !(holeOpen && hasHole && hole.intersects(onceButton.getLeft(), onceButton.getTop(), onceButton.getRight(), onceButton.getBottom()));
         if (once != (onceButton.getVisibility() == VISIBLE)) {
             onceButton.setVisibility(once ? VISIBLE : GONE);
             requestLayout(); // the zoom stops make room for it
