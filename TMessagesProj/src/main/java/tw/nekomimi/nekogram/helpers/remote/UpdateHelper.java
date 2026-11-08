@@ -150,6 +150,9 @@ public class UpdateHelper extends BaseRemoteHelper {
     private void getNewVersionMessagesCallback(Delegate delegate, Update json, HashMap<String, Integer> ids, TLObject response) {
         var update = new TLRPC.TL_help_appUpdate();
         update.version = json.version;
+        // NagramX: writeString(null) silently writes nothing, so a post whose changelog message is
+        // gone would persist a misaligned pending update. Default to no text.
+        update.text = "";
         // NagramX: every staging build shares one version code, so the build timestamp is what
         // tells two builds apart. It rides in the otherwise unread id so the persisted pending
         // update can be judged by it (SelfUpdate.isStale). Seconds fit an int until 2038.
