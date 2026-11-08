@@ -311,6 +311,8 @@ A button in the player bar cycles how round video messages play — play once, p
 
 ### Back-to-back voice auto-play <!-- #back-to-back-voice -->
 
+With *Back-to-Back Only*, the next voice or round video message plays only if nothing else sits between it and the one that ended — a text, photo or your own reply stops playback. Service messages and dates don't count. N-Settings → Chat → Media → *Play Next Voice Message*: Always (default), Back-to-Back Only, or Never.
+
 ### Mute video messages <!-- #video-mute -->
 
 A mute button next to the playback-mode toggle silences round video messages.
