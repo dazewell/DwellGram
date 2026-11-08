@@ -1178,7 +1178,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (!initCamera()) {
             return;
         }
-        if (!fromPaused) compactRecorder.begin(nextOpenCompact, nextOpenOffered); // NagramX (#compact-video-recording): only once the open can't be refused
         if (MediaController.getInstance().getPlayingMessageObject() != null) {
             if (MediaController.getInstance().getPlayingMessageObject().isVideo() || MediaController.getInstance().getPlayingMessageObject().isRoundVideo()) {
                 MediaController.getInstance().cleanupPlayer(true, true);
@@ -1295,6 +1294,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         cameraContainer.addView(textureView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         updateTextureViewSize = true;
+        if (!fromPaused) compactRecorder.begin(nextOpenCompact, nextOpenOffered); // NagramX (#compact-video-recording): only once the open can't be refused, camera sessions included
         setVisibilityFromPause = fromPaused;
         setVisibility(VISIBLE);
 

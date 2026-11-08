@@ -81,7 +81,8 @@ public final class CompactVideoRecorder {
     private boolean expanded;
     private float factor;
     private ValueAnimator animator;
-    private float lastDockX = Float.NaN, lastDockY = Float.NaN;
+    // the dock relative to the circle's layout centre, which a width-only relayout moves while the dock stays put
+    private float lastOffsetX = Float.NaN, lastOffsetY = Float.NaN;
     private int lastSize = -1;
 
     public CompactVideoRecorder(FrameLayout host, View circle, Host callback) {
@@ -111,24 +112,31 @@ public final class CompactVideoRecorder {
         if (!available || factor == 0f || !callback.canChangePresentation()) {
             return;
         }
-        final float x = dockCenterX(), y = dockCenterY();
+        final float x = dockCenterX() - layoutCenterX(), y = dockCenterY() - layoutCenterY();
         final int size = circle.getLayoutParams() != null ? circle.getLayoutParams().width : 0;
-        if (x != lastDockX || y != lastDockY || size != lastSize) {
-            lastDockX = x;
-            lastDockY = y;
+        if (x != lastOffsetX || y != lastOffsetY || size != lastSize) {
+            lastOffsetX = x;
+            lastOffsetY = y;
             lastSize = size;
             callback.onDockMoved();
             callback.applyPresentation();
         }
     }
 
-    // For the host's open animation: settle on the current dock and size once it is done.
+    // For the host's open animation: settle on the current dock and size once it is done. A toggle that finished
+    // during that animation could not apply its last frame, so an expanded end (factor 0) is applied here too.
     public Animator.AnimatorListener settleAfterOpen() {
         return new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
                 lastSize = -1;
-                host.post(CompactVideoRecorder.this::refresh);
+                host.post(() -> {
+                    if (session && factor == 0f && animator == null && callback.canChangePresentation()) {
+                        callback.applyPresentation();
+                    } else {
+                        refresh();
+                    }
+                });
             }
         };
     }
@@ -178,7 +186,7 @@ public final class CompactVideoRecorder {
         session = compact;
         expanded = !compact;
         factor = compact ? 1f : 0f;
-        lastDockX = lastDockY = Float.NaN;
+        lastOffsetX = lastOffsetY = Float.NaN;
         lastSize = -1;
         toggle.setVisibility(offered ? View.VISIBLE : View.GONE);
         toggle.setAlpha(0f);
