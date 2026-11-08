@@ -1590,6 +1590,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             return Unit.INSTANCE;
         });
         updateChannelCell.setEnabled(com.dazewell.gram.selfupdate.SelfUpdate.isAvailable());
+        com.dazewell.gram.selfupdate.UpdateIntervalMenu.addTo(builder, this); // NagramX: #update-interval
         builder.show();
     }
 

@@ -462,7 +462,7 @@ Long-press most settings in N-Settings and choose *Pin to Settings* to put a sho
 
 ## Updates
 
-### Self-update from staging builds <!-- #self-update -->
+### Self-update from staging builds <!-- #self-update --> <!-- #update-interval -->
 
 <!-- Retired entries, plus sync-reconciliation and superseded feature slugs that have no catalog entry of their own.
      The behaviour still ships; it is documented in README instead of here.
