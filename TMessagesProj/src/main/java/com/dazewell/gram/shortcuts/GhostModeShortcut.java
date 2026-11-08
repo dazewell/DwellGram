@@ -14,10 +14,15 @@ import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
+import org.telegram.messenger.UserConfig;
+import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.tl.TL_account;
 import org.telegram.ui.LaunchActivity;
 
 import java.util.Collections;
 import java.util.List;
+
+import tw.nekomimi.nekogram.NekoConfig;
 
 import xyz.nextalone.nagram.NaConfig;
 
@@ -39,6 +44,27 @@ public final class GhostModeShortcut {
 
     public static boolean isEnabled() {
         return NaConfig.INSTANCE.getGhostModeShortcut().Bool();
+    }
+
+    /** Runs before account switching or passcode deferral can resume online-status work. */
+    public static void accept(Intent intent) {
+        if (intent == null || !ACTION.equals(intent.getAction())) {
+            return;
+        }
+        // Consume even a disabled pinned copy; unlock and activity recreation must not replay it.
+        intent.setAction(Intent.ACTION_MAIN);
+        if (!isEnabled()) {
+            return;
+        }
+        // Preserve deliberate signal locks, including an online-on lock. This is not a toggle.
+        NekoConfig.setGhostMode(true);
+        for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
+            if (UserConfig.getInstance(account).isClientActivated()) {
+                TL_account.updateStatus request = new TL_account.updateStatus();
+                request.offline = true;
+                ConnectionsManager.getInstance(account).sendRequest(request, (response, error) -> {});
+            }
+        }
     }
 
     /** MediaDataController.buildShortcuts: the ids it keeps when pruning stale shortcuts. */

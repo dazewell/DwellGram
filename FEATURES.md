@@ -53,7 +53,7 @@ Tap the *Save Deleted Messages* or *Save Edits History* row under N-Settings →
 
 Edits History (message menu, with *Save Edits History* on under N-Settings → Experimental) comes from NagramX. Here it ends with the current version, and each version after the first shows its change from the one before: removed words struck through, added words bold and underlined. Copy still copies the version's own text.
 
-### Ayu Mode shortcut <!-- #ayu-mode -->
+### Ayu Mode shortcut <!-- #ayu-mode --> <!-- #ayu-startup-fix -->
 
 A launcher shortcut (long-press the app icon, or pin it to your home screen) that opens the app with Ghost Mode already on. Tapping it flips every Ghost toggle you haven't locked and pushes you offline, then opens as normal. On by default; switch it off under N-Settings → General → Launcher shortcuts.
 

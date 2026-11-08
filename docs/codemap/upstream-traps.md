@@ -2755,12 +2755,33 @@ release it on a programmatic dismiss. A destroyed host only dismisses what is in
 `LaunchActivity.visibleDialogs` (`LaunchActivity.java:7062-7068`), so the prompt registers itself there, and
 `AlertDialog.show()` returns silently on a finishing host (`AlertDialog.java:325-326`), so check `isShowing()`.
 
-A cold start from the Ghost shortcut was checked and is fine: the intent is handled in `onCreate`
-(`LaunchActivity.java:689`), before the stage-queue flag goes false (`:7187`, default true at
-`ApplicationLoader.java:93`), and the 55 s status timer only sends while it is false and more than a second old
-(`MessagesController.java:10741-10742`).
+The original cold-start safety claim missed passcode deferral. See the Ayu shortcut entry below
+for the corrected ordering and its remaining limits.
 
 *(Established 2026-10-21, `#ghost-off-fix`.)*
+
+## Apply the Ayu shortcut before passcode deferral or account resume
+
+PR #602 identified that the old Ayu action handler ran after the passcode early return and inside
+the history/restore guards. `onResume` still resumed online-status work while locked. The timer's
+55-second refresh interval is not a startup grace period: zero last-update time or `offlineSent`
+also qualifies (`MessagesController.java:10735`).
+
+`LaunchActivity.java:1566` now calls `GhostModeShortcut.accept` before account switching, passcode
+deferral (`:1596`) and history/restore filtering (`:1679`). The helper consumes the action as
+`ACTION_MAIN`, respects disabled pinned copies and applies `setGhostMode(true)` idempotently,
+then explicitly requests offline status for every activated account (`GhostModeShortcut.java:50-67`).
+`ConfigItem.value` is volatile (`ConfigItem.java:33`) so network-thread readers see UI changes.
+The ordinary Ghost toggle also passes an explicit offline policy (`NekoConfig.java:356`).
+
+Two limits remain deliberate. Ghost ignores locked toggles (`NekoConfig.java:308-331`), so locking
+online sending on still allows later online refreshes even after the shortcut's offline request.
+And requests already past interception (`ConnectionsManager.java:422`) can serialize and reach
+native submission afterward (`:432`, `:537`); an offline follow-up cannot retract an online update.
+The shortcut closes the pre-unlock activation gap, not those earlier admissions. Device incidents
+still require runtime evidence rather than attribution from this call sequence.
+
+*(Established 2026-11-07, `#ayu-startup-fix`; supersedes the cold-start claim under `#ghost-off-fix`.)*
 
 ## Your own status is never written from your own updateStatus
 

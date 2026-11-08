@@ -352,8 +352,8 @@ public class NekoConfig {
         boolean newState = !isGhostModeActive();
         setGhostMode(newState);
 
-        boolean sendOnlineNow = !newState && !sendOfflinePacketAfterOnlineLocked.Bool() && sendOfflinePacketAfterOnline.Bool();
-        AyuGhostUtils.performStatusRequest(sendOnlineNow);
+        // NagramX: the argument means offline; entry must not rely on the interceptor to correct it.
+        AyuGhostUtils.performStatusRequest(newState || !sendOnlinePackets.Bool());
     }
 
     private static final List<Pair<ConfigItem, ConfigItem>> ghostToggleItems = Arrays.asList(
