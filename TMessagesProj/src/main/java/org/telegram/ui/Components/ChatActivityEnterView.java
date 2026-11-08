@@ -19837,6 +19837,25 @@ public class ChatActivityEnterView extends FrameLayout implements
         return getInfiniteRecordingState();
     }
 
+    // NagramX (#camera-memo-controls): the camera memo covers the record controls, so it flips view-once here. The same
+    // flip as ControlsView's once tap, without its hint, which would draw under the memo.
+    public boolean canToggleVideoOnce() {
+        return delegate != null && delegate.onceVoiceAvailable();
+    }
+
+    public void toggleVideoOnce() {
+        voiceOnce = !voiceOnce;
+        if (voiceOnce) {
+            infiniteVideoMessage = false;
+        }
+        updateInfiniteRecordingButton();
+        MediaDataController.getInstance(currentAccount).toggleDraftVoiceOnce(dialog_id, parentFragment != null && parentFragment.isTopic ? parentFragment.getTopicId() : 0, voiceOnce);
+        if (controlsView != null) {
+            controlsView.periodDrawable.setValue(1, voiceOnce, true);
+            controlsView.invalidate();
+        }
+    }
+
     private void updateInfiniteRecordingButton() {
         if (parentFragment != null && parentFragment.instantCameraView != null) {
             parentFragment.instantCameraView.updateInfiniteButton();

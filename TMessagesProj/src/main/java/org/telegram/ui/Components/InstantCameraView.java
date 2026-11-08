@@ -5181,6 +5181,27 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
     }
 
+    // NagramX (#camera-memo-controls): the camera memo covers the flash button and the front flash, so it drives the
+    // flash through the button's own flip and paints the front flash itself. Segment time is worked out here rather than
+    // read from recordedTime, which only moves while the circle draws.
+    public boolean isCoverFlashOn() {
+        return flashing;
+    }
+
+    public void toggleCoverFlash() {
+        flashing = !flashing;
+        updateFlash();
+    }
+
+    // The front flash's colour at its intensity as alpha, 0 while it isn't lit
+    public int getCoverFrontFlash() {
+        return frontFlashing ? ColorUtils.setAlphaComponent(FlashViews.getColor(flashViews.warmth), (int) (0xff * Utilities.clamp(flashViews.intensity, 1f, 0f))) : 0;
+    }
+
+    public long getCoverSegmentTime() {
+        return recording ? System.currentTimeMillis() - recordStartTime + recordPlusTime : recordedTime;
+    }
+
     // NagramX (#camera-memo-zoom): the camera memo draws its own stops and dial over this view and drives the zoom
     // through the same animator and follower as the slider. {min, max, current} as ratios; null with nothing to zoom
     public float[] getCoverZoom() {
