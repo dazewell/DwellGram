@@ -634,9 +634,9 @@ final class CameraMemoCover extends FrameLayout {
         return !recording && bound && resumableStop && segment < PAUSE_UNTIL_MS;
     }
 
-    // Shown with the zoom, over a live viewfinder only: with the hole open the stock circle brings its own buttons.
-    // Infinite and view-once follow the composer's availability, view-once only once a take exists, since starting a
-    // new one clears it.
+    // The pill shows with the zoom, over a live viewfinder only: with the hole open the stock circle brings its own
+    // buttons. Infinite and view-once follow the composer's availability, view-once only once a take exists, since
+    // starting a new one clears it.
     private void syncToggles(boolean live, boolean shown) {
         togglePill.setVisibility(shown ? VISIBLE : GONE);
         flashCell.setOn(flashOn);
