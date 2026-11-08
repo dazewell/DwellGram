@@ -22,7 +22,6 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBar;
-import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
 
@@ -170,16 +169,18 @@ public final class CompactVideoRecorder {
     }
 
     // A fresh camera open. compact is the composer's snapshot of the popup choice; anything else opens full,
-    // and can still be collapsed from its toggle, as infinite recording can be turned on mid-recording.
-    public void begin(boolean compact) {
+    // and can still be collapsed from its toggle, as infinite recording can be turned on mid-recording. offered is
+    // false for a host without the chat's dock padding and guards (a story reply): the recorder stays stock there.
+    public void begin(boolean compact, boolean offered) {
         cancelAnimator();
-        available = true;
+        compact &= offered;
+        available = offered;
         session = compact;
         expanded = !compact;
         factor = compact ? 1f : 0f;
         lastDockX = lastDockY = Float.NaN;
         lastSize = -1;
-        toggle.setVisibility(View.VISIBLE);
+        toggle.setVisibility(offered ? View.VISIBLE : View.GONE);
         toggle.setAlpha(0f);
         updateToggleIcon();
         updateControls();

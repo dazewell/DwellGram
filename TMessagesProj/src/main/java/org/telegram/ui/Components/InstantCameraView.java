@@ -230,9 +230,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             () -> recording && !encoderTeardownPending && !cameraFileHandedOff,
             this::onHoldSwipe);
     // NagramX (#compact-video-recording): the docked, chat-usable presentation. Built after the circle in the
-    // constructor; nextOpenCompact carries the composer's popup snapshot into the one showCamera call it was for.
+    // constructor; nextOpenCompact carries the composer's popup snapshot into the one showCamera call it was for,
+    // and nextOpenOffered marks that call as the chat's, the only host that gives the dock its padding and guards.
     private com.dazewell.gram.videonote.CompactVideoRecorder compactRecorder;
-    private boolean nextOpenCompact;
+    private boolean nextOpenCompact, nextOpenOffered;
 
     private com.dazewell.gram.videonote.CompactVideoRecorder createCompactRecorder() {
         final com.dazewell.gram.videonote.CompactVideoRecorder recorder = new com.dazewell.gram.videonote.CompactVideoRecorder(this, cameraContainer,
@@ -288,10 +289,11 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     // NagramX (#compact-video-recording): a fresh open, compact when the camera-choice popup asked for it
     public void showCamera(boolean fromPaused, boolean compact) {
         nextOpenCompact = compact;
+        nextOpenOffered = true;
         try {
             showCamera(fromPaused);
         } finally {
-            nextOpenCompact = false;
+            nextOpenCompact = nextOpenOffered = false;
         }
     }
 
@@ -1176,7 +1178,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (!initCamera()) {
             return;
         }
-        if (!fromPaused) compactRecorder.begin(nextOpenCompact); // NagramX (#compact-video-recording): only once the open can't be refused
+        if (!fromPaused) compactRecorder.begin(nextOpenCompact, nextOpenOffered); // NagramX (#compact-video-recording): only once the open can't be refused
         if (MediaController.getInstance().getPlayingMessageObject() != null) {
             if (MediaController.getInstance().getPlayingMessageObject().isVideo() || MediaController.getInstance().getPlayingMessageObject().isRoundVideo()) {
                 MediaController.getInstance().cleanupPlayer(true, true);
