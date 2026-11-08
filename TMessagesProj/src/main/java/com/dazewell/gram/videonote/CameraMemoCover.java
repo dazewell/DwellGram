@@ -615,7 +615,7 @@ final class CameraMemoCover extends FrameLayout {
         pauseButton.setVisibility(controls);
         // Only over a live viewfinder: with the hole open the stock circle shows, which these don't belong to
         zoom.sync(live && viewfinderCovers);
-        syncToggles(live && viewfinderCovers);
+        syncToggles(live, live && viewfinderCovers);
         failedText.setVisibility(failed ? VISIBLE : GONE);
         closeButton.setVisibility(failed && !VideoNoteShortcut.isLockedMemo() ? VISIBLE : GONE);
         setContentDescription(stateText());
@@ -634,7 +634,7 @@ final class CameraMemoCover extends FrameLayout {
     // Shown with the zoom, over a live viewfinder only: with the hole open the stock circle brings its own buttons.
     // Infinite and view-once follow the composer's availability, view-once only once a take exists, since starting a
     // new one clears it.
-    private void syncToggles(boolean shown) {
+    private void syncToggles(boolean live, boolean shown) {
         togglePill.setVisibility(shown ? VISIBLE : GONE);
         flashCell.setOn(flashOn);
         flashCell.setContentDescription(LocaleController.getString(flashOn ? R.string.AccDescrCameraFlashOff : R.string.AccDescrCameraFlashOn));
@@ -644,7 +644,9 @@ final class CameraMemoCover extends FrameLayout {
         infiniteCell.setEnabled(recording);
         infiniteCell.setOn(infiniteOn);
         infiniteCell.setContentDescription(LocaleController.getString(infiniteOn ? R.string.AccDescrInfiniteRecordingOff : R.string.AccDescrInfiniteRecordingOn));
-        boolean once = shown && onceAvailable && viewfinder.getWidth() > 0;
+        // Also over a paused take's preview, where the viewfinder has gone stale: the stock once button is under this view
+        // and the preview's send still reads it
+        boolean once = onceAvailable && viewfinder.getWidth() > 0 && (shown || live && bound);
         if (once != (onceButton.getVisibility() == VISIBLE)) {
             onceButton.setVisibility(once ? VISIBLE : GONE);
             requestLayout(); // the zoom stops make room for it
