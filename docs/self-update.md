@@ -33,6 +33,10 @@ Unavailable, as before. Emoji packs and link-preview rules still read nothing.
 1. **Create a channel.** Public is strongly recommended: the app resolves it by
    username, so any of your accounts can check without having opened it. A
    private channel works only for accounts that have joined and opened it.
+   Making a public channel private later frees its username: run the script
+   with only `-ChannelId` to clear the variable. Builds that still carry the
+   old name reject it once someone else takes it, since the resolved channel
+   must match the built-in id.
    Using the existing `HELPER_BOT_TARGET` chat is fine too; then nothing is copied.
 2. **Add the helper bot** (the one behind `HELPER_BOT_TOKEN`) as an admin with
    *Post messages*.

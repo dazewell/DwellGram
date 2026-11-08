@@ -135,6 +135,12 @@ public abstract class BaseRemoteHelper {
                     onError("CHANNEL_INVALID", delegate);
                     return;
                 }
+                // NagramX: a username can change hands, e.g. after the channel goes private, and the
+                // messages a post points at are fetched by id. Only trust the channel built in.
+                if (resolvedPeer.chats == null || resolvedPeer.chats.isEmpty() || resolvedPeer.chats.get(0).id != getChannelId()) {
+                    onError("CHANNEL_INVALID", delegate);
+                    return;
+                }
                 getMessagesController().putUsers(resolvedPeer.users, false);
                 getMessagesController().putChats(resolvedPeer.chats, false);
                 getMessagesStorage().putUsersAndChats(resolvedPeer.users, resolvedPeer.chats, false, true);
