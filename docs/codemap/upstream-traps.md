@@ -3063,3 +3063,18 @@ response restoring a removed hit. A batch publishes one collection update,
 avoiding a full rebuild for each deleted message.
 
 *(Established 2026-11-07, `#dm-search-filters`.)*
+
+## A pending app update is kept or dropped by comparing version names
+
+On load, upstream drops a saved pending update when the version codes differ or
+when the installed `versionName` sorts at or after the update's
+(`SharedConfig.java:632`). `isAppUpdateAvailable` checks only the version code
+(`:837`). This fork keeps `verCode` constant and suffixes `versionName` with the
+commit hash (`build.gradle:39-40`), so between two staging builds that name
+comparison is effectively random. A real update can vanish on cold start, and an
+older one can survive a sideloaded build and be offered as a downgrade. The
+self-updater stores the build timestamp in the update's otherwise unread `id`
+and judges staleness by it instead, falling back to the name comparison for
+`id == 0`.
+
+*(Established 2026-11-07, `#self-update`.)*

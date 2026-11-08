@@ -86,7 +86,14 @@ jobs:
       pr_body: ${{ steps.classify.outputs.pr_body }}
       unlabel_pr_number: ${{ steps.classify.outputs.unlabel_pr_number }}
       lookup_outcome: ${{ steps.classify.outputs.lookup_outcome }}
+      build_timestamp: ${{ steps.stamp.outputs.build_timestamp }}
     steps:
+      # One timestamp for the whole run. Each package leg used to take its own, so the
+      # self-update metadata could name a time a few seconds off the one baked into the
+      # other package's APK, and that install would keep offering itself as an update.
+      - name: Stamp build time
+        id: stamp
+        run: echo "build_timestamp=$(date +%s)" >> "$GITHUB_OUTPUT"
       - name: Checkout
         uses: actions/checkout@v7
         with:
@@ -173,8 +180,6 @@ jobs:
             artifact: Unofficial
           - package: org.telegram.messenger.beta
             artifact: Official
-    outputs:
-      build_timestamp: ${{ steps.staging_build_step.outputs.build_timestamp }}
     env:
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
       CCACHE_HARDLINK: "true"
@@ -251,10 +256,13 @@ jobs:
         id: staging_build_step
         env:
           COMMIT_ID: ${{ github.event.pull_request.head.sha || github.sha }}
+          BUILD_TIMESTAMP: ${{ needs.resolve.outputs.build_timestamp }}
+          # The self-update channel baked into the app (#self-update). Unset or 0 builds an
+          # app whose updater reads Unavailable. See docs/self-update.md.
+          UPDATE_CHANNEL_ID: ${{ vars.UPDATE_CHANNEL_ID }}
+          UPDATE_CHANNEL_USERNAME: ${{ vars.UPDATE_CHANNEL_USERNAME }}
         run: |
           export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
-          export BUILD_TIMESTAMP=$(date +%s)
-          echo "build_timestamp=$BUILD_TIMESTAMP" >> "$GITHUB_OUTPUT"
           ./gradlew TMessagesProj:assembleStaging -PAPP_PACKAGE=${{ matrix.package }}
 
           APK=$(find TMessagesProj/build/outputs/apk -name '*arm64-v8a*.apk')
@@ -481,7 +489,8 @@ jobs:
           SERVER_URL: ${{ github.server_url }}
           PUSH_SHA: ${{ github.sha }}
           PUSH_BRANCH: ${{ github.ref_name }}
-          BUILD_TIMESTAMP: ${{ needs.build.outputs.build_timestamp }}
+          BUILD_TIMESTAMP: ${{ needs.resolve.outputs.build_timestamp }}
+          UPDATE_CHANNEL_ID: ${{ vars.UPDATE_CHANNEL_ID }}
           BUILD_TYPE: ${{ needs.resolve.outputs.build_type }}
           AI_SUMMARY: ${{ steps.prepare.outputs.ai_summary }}
           PR_NUMBER: ${{ steps.prepare.outputs.pr_number }}

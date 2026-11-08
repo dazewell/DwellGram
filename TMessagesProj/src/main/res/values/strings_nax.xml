@@ -341,8 +341,10 @@
     <string name="AutoCheckUpdateSwitch">Update Channel</string>
     <string name="AutoCheckUpdateRelease">Release</string>
     <string name="AutoCheckUpdateBeta">Beta</string>
+    <string name="AutoCheckUpdateStagingNax">Staging</string>
     <string name="YourVersionIsLatestNax">Your version is up to date.</string>
     <string name="UpdateChecksOffNax">Update checks are unavailable.</string>
+    <string name="UpdateChecksDisabledNax">Update checks are off. Turn them on in Update Channel.</string>
     <string name="PremiumElements">Premium Elements</string>
     <string name="PremiumItemBoosts">Boost Counter</string>
     <string name="PremiumItemStickerEffects">Sticker Effects</string>
