@@ -363,6 +363,8 @@ While a round video records hands-free or waits paused in its preview, tap it to
 
 ### Compact video message recording <!-- #compact-video-recording -->
 
+A round video can record as a small circle docked at the bottom left, so you can keep scrolling, copying and reading the chat. The button above the flip button collapses or expands the recorder at any point of a recording. The *Compact Recording* toggle in the camera choice popup (off by default, remembered) starts recordings from that popup already collapsed.
+
 ### Don't lose an unsent video message <!-- #video-draft-guard --> <!-- #video-pause-grace -->
 
 A round video message you've recorded but haven't sent survives backing out of the chat, switching apps mid-recording, or the chat locking behind a passcode — the clip waits in the preview, trimmed the way you left it, for up to a day. After a teardown it returns as the trim strip and send button, not the round preview. A pause under two seconds (wireless Android Auto) won't stop recording.

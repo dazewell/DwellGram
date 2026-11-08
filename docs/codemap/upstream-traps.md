@@ -3078,3 +3078,25 @@ and judges staleness by it instead, falling back to the name comparison for
 `id == 0`.
 
 *(Established 2026-11-07, `#self-update`.)*
+
+## The composer's pause/view-once column is not 26dp from the screen edge
+
+The locked pause and view-once "(1)" buttons centre on
+`controlsView.getMeasuredWidth() - dp2(26)` (`ChatActivityEnterView.java:1576`),
+but `controlsView` is shifted by the composer's right padding
+(`ChatActivityEnterView.java:18412`) and does not reach the screen edge. Anything
+in the round-video recorder that should sit in that column (the flip button, the
+compact collapse toggle) must measure it with `getLocationInWindow` on
+`controlsView`, as `InstantZoomControlView.onceColumn` does
+(`InstantZoomControlView.java:302`). Placing it `26dp` in from the recorder's own
+edge leaves it a few dp right of the column.
+
+The "(1)" digit is also centred by its line box, not its ink:
+`PeriodDrawable` hands `AnimatedTextDrawable` a 40dp box
+(`CaptionContainerView.java:1552`), which centres the advance width and, with
+`includeFontPadding` on by default (`AnimatedTextView.java:210`), the font's
+top..bottom (`AnimatedTextView.java:370`). Shift it through the drawable's own
+`textOffsetX`/`textOffsetY` (`CaptionContainerView.java:1545`), measured from
+the glyph bounds, rather than by eye.
+
+*(Established 2026-11-07, `#compact-video-recording`, `#video-zoom`, `#once-glyph-fix`.)*
