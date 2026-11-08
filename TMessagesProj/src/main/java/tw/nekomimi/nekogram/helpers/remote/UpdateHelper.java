@@ -54,14 +54,30 @@ public class UpdateHelper extends BaseRemoteHelper {
         delegate.onTLResponse(null, text);
     }
 
+    // NagramX: reads the fork's own channel, which CI posts only staging builds to. One tag per
+    // package, so the old Release/Beta split and the debug tag no longer pick anything (#self-update).
     @Override
     protected String getTag() {
-        if (BuildConfig.DEBUG) return "updateDebug";
-        return NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UPDATE_CHANNEL_RELEASE ? "updateRelease" : "updateBeta";
+        return com.dazewell.gram.selfupdate.SelfUpdate.tag();
+    }
+
+    @Override
+    protected boolean isSourceEnabled() {
+        return com.dazewell.gram.selfupdate.SelfUpdate.isAvailable();
+    }
+
+    @Override
+    protected long getChannelId() {
+        return com.dazewell.gram.selfupdate.SelfUpdate.channelId();
+    }
+
+    @Override
+    protected String getChannelUsername() {
+        return com.dazewell.gram.selfupdate.SelfUpdate.channelUsername();
     }
 
     @SuppressWarnings("ConstantConditions")
-    private int getPreferredAbiFile(Map<String, Integer> files) {
+    private Integer getPreferredAbiFile(Map<String, Integer> files) {
         for (String abi : Build.SUPPORTED_ABIS) {
             if (files.containsKey(abi)) {
                 return files.get(abi);
@@ -98,20 +114,32 @@ public class UpdateHelper extends BaseRemoteHelper {
                 } else if (remoteVersion == currentVersion && remoteBuildTimestamp > buildTimestamp) {
                     shouldUpdate = true;
                 }
+                // NagramX: search order is posting order, and a dispatched staging run can post after
+                // a newer one, so keep the newest qualifying build instead of the first. updateAlways
+                // still takes the most recent post as-is.
+                if (!updateAlways && ref != null && (remoteVersion < ref.versionCode
+                        || (remoteVersion == ref.versionCode && remoteBuildTimestamp <= ref.buildTimestamp))) {
+                    continue;
+                }
                 if (shouldUpdate || updateAlways) {
+                    boolean takeFirst = updateAlways;
                     if (updateAlways) {
                         updateAlways = false;
                     }
+                    // NagramX: sticker, message and url are optional in the fork's metadata.
                     ref = new Update(
-                            string.getBoolean("can_not_skip"),
+                            string.optBoolean("can_not_skip", false),
                             string.getString("version"),
                             remoteVersion,
-                            string.getInt("sticker"),
-                            string.getInt("message"),
+                            string.optInt("sticker", 0),
+                            string.optInt("message", 0),
                             jsonToMap(string.getJSONObject("document")),
-                            string.getString("url")
+                            string.optString("url", null)
                     );
-                    break;
+                    ref.buildTimestamp = remoteBuildTimestamp;
+                    if (takeFirst) {
+                        break;
+                    }
                 }
             } catch (JSONException ignored) {
             }
@@ -122,6 +150,13 @@ public class UpdateHelper extends BaseRemoteHelper {
     private void getNewVersionMessagesCallback(Delegate delegate, Update json, HashMap<String, Integer> ids, TLObject response) {
         var update = new TLRPC.TL_help_appUpdate();
         update.version = json.version;
+        // NagramX: writeString(null) silently writes nothing, so a post whose changelog message is
+        // gone would persist a misaligned pending update. Default to no text.
+        update.text = "";
+        // NagramX: every staging build shares one version code, so the build timestamp is what
+        // tells two builds apart. It rides in the otherwise unread id so the persisted pending
+        // update can be judged by it (SelfUpdate.isStale). Seconds fit an int until 2038.
+        update.id = (int) json.buildTimestamp;
         update.can_not_skip = json.canNotSkip;
         if (json.url != null) {
             update.url = json.url;
@@ -129,7 +164,7 @@ public class UpdateHelper extends BaseRemoteHelper {
         }
         if (response != null) {
             var res = (TLRPC.messages_Messages) response;
-            getMessagesController().removeDeletedMessagesFromArray(CHANNEL_METADATA_ID, res.messages);
+            getMessagesController().removeDeletedMessagesFromArray(getChannelId(), res.messages);
             var messages = new HashMap<Integer, TLRPC.Message>();
             for (var message : res.messages) {
                 messages.put(message.id, message);
@@ -156,6 +191,11 @@ public class UpdateHelper extends BaseRemoteHelper {
                 }
             }
         }
+        // NagramX: the update dialog dereferences the document, so a post whose APK is gone is no update.
+        if (update.document == null) {
+            delegate.onTLResponse(null, null);
+            return;
+        }
         delegate.onTLResponse(update, null);
     }
 
@@ -167,20 +207,21 @@ public class UpdateHelper extends BaseRemoteHelper {
             return;
         }
         var ids = new HashMap<String, Integer>();
-        if (update.sticker != null) {
+        if (update.sticker != null && update.sticker > 0) {
             ids.put("sticker", update.sticker);
         }
-        if (update.message != null) {
+        if (update.message != null && update.message > 0) {
             ids.put("message", update.message);
         }
-        if (update.document != null) {
-            ids.put("document", getPreferredAbiFile(update.document));
+        Integer documentId = update.document == null ? null : getPreferredAbiFile(update.document);
+        if (documentId != null && documentId > 0) {
+            ids.put("document", documentId);
         }
         if (ids.isEmpty()) {
             getNewVersionMessagesCallback(delegate, update, null, null);
         } else {
             var req = new TLRPC.TL_channels_getMessages();
-            req.channel = getMessagesController().getInputChannel(CHANNEL_METADATA_ID);
+            req.channel = getMessagesController().getInputChannel(getChannelId());
             req.id = new ArrayList<>(ids.values());
             getConnectionsManager().sendRequest(req, (response1, error1) -> {
                 if (error1 == null) {
@@ -220,6 +261,7 @@ public class UpdateHelper extends BaseRemoteHelper {
         public Integer message;
         public Map<String, Integer> document;
         public String url;
+        public long buildTimestamp;
 
         public Update(Boolean canNotSkip, String version, int versionCode, int sticker, int message, Map<String, Integer> document, String url) {
             this.canNotSkip = canNotSkip;
