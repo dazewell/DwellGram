@@ -39730,7 +39730,7 @@ public class ChatActivity extends BaseFragment implements
             AndroidUtilities.runOnUIThread(closeInstantCameraAnimation = () -> {
                 closeInstantCameraAnimation = null;
                 runCloseInstantCameraAnimation();
-            }, instantCameraView != null && instantCameraView.isCompactSession() ? 0 : 3000); // NagramX (#compact-video-recording): a compact one fades out at once, no fly-to-message
+            }, instantCameraView != null && instantCameraView.isCompactSession() && scheduleDate == 0 ? 0 : 3000); // NagramX (#compact-video-recording): a compact one fades out at once, no fly-to-message; a scheduled send already closes itself
         }
         fillEditingMediaWithCaption(photoEntry.caption, photoEntry.entities);
         AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, payStars -> {
