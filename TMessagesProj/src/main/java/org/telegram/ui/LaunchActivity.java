@@ -366,6 +366,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     private Intent passcodeSaveIntent;
     private boolean passcodeSaveIntentIsNew;
     private boolean passcodeSaveIntentIsRestore;
+    private boolean ayuShortcutConsumed; // NagramX: task restoration must not replay an earlier Ayu tap.
 
     private boolean tabletFullSize;
 
@@ -429,6 +430,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // NagramX: the system may restore the original task action after process loss.
+        ayuShortcutConsumed = savedInstanceState != null && savedInstanceState.getBoolean(com.dazewell.gram.shortcuts.GhostModeShortcut.STATE_CONSUMED, false);
         isActive = true;
         activeInstanceCount++;
         if (BuildVars.DEBUG_VERSION) {
@@ -1562,6 +1565,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
     @SuppressLint("Range")
     private boolean handleIntent(Intent intent, boolean isNew, boolean restore, boolean fromPassword, Browser.Progress progress, boolean rebuildFragments, boolean openedTelegram) {
+        // NagramX: protect Ayu launches before account resume, passcode deferral and history/restore guards.
+        ayuShortcutConsumed |= com.dazewell.gram.shortcuts.GhostModeShortcut.accept(intent, isNew, ayuShortcutConsumed);
         if (GiftInfoBottomSheet.handleIntent(intent, progress)) {
             return true;
         }
@@ -3042,16 +3047,6 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     open_settings = 1;
                 } else if (intent.getAction().equals("new_dialog")) {
                     open_new_dialog = 1;
-                } else if (intent.getAction().equals(com.dazewell.gram.shortcuts.GhostModeShortcut.ACTION)) {
-                    // NagramX: "Ayu Mode" launcher shortcut flips Ghost Mode on (and pushes us offline now), then the app opens as usual.
-                    // A pinned copy outlives its setting, so it only works while that is on.
-                    if (com.dazewell.gram.shortcuts.GhostModeShortcut.isEnabled() && !NekoConfig.isGhostModeActive()) {
-                        NekoConfig.toggleGhostMode();
-                        BaseFragment lastFragment = getSafeLastFragment();
-                        if (lastFragment != null) {
-                            BulletinFactory.of(lastFragment).createSuccessBulletin(LocaleController.getString(R.string.GhostModeEnabled)).show();
-                        }
-                    }
                 } else if (intent.getAction().equals(com.dazewell.gram.videonote.VideoNoteShortcut.ACTION)) {
                     // NagramX: "Video memo" launcher shortcut opens Saved Messages or the chosen person through the
                     // normal chat push below, and that chat starts the round video once it has opened
@@ -8614,6 +8609,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
+        // NagramX: save before fragment-state traversal, which can fail independently of intent handling.
+        outState.putBoolean(com.dazewell.gram.shortcuts.GhostModeShortcut.STATE_CONSUMED, ayuShortcutConsumed);
         try {
             super.onSaveInstanceState(outState);
             BaseFragment lastFragment = null;
