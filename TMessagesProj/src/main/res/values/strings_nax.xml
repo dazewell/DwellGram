@@ -187,6 +187,10 @@
     <string name="ResetSettings">Reset Settings</string>
     <string name="ResetSettingsAlert">Are you sure you want to reset all N-Settings?</string>
     <string name="DontAutoPlayNextVoice">Don\'t Auto Play Next Voice Message</string>
+    <string name="AutoPlayNextVoice">Play Next Voice Message</string>
+    <string name="AutoPlayNextVoiceAlways">Always</string>
+    <string name="AutoPlayNextVoiceBackToBack">Back-to-Back Only</string>
+    <string name="AutoPlayNextVoiceNever">Never</string>
     <string name="SaveToChatSubfolder">Save Attachments by Chat Name</string>
     <string name="MessageColoredBackground">Colorful Message Backgrounds</string>
     <string name="ColoredBackgroundNotice">Background color and emojis for replies, quotes, and link previews.</string>

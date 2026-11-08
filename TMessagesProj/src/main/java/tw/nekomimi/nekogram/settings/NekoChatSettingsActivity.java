@@ -210,7 +210,11 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     private final AbstractConfigCell takeGIFasVideoRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.takeGIFasVideo));
     private final AbstractConfigCell autoPauseVideoRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.autoPauseVideo, getString(R.string.AutoPauseVideoAbout)));
     private final AbstractConfigCell disablePreviewVideoSoundShortcutRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDisablePreviewVideoSoundShortcut(), getString(R.string.DisablePreviewVideoSoundShortcutNotice)));
-    private final AbstractConfigCell dontAutoPlayNextVoiceRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDontAutoPlayNextVoice()));
+    private final AbstractConfigCell autoPlayNextVoiceRow = cellGroup.appendCell(new ConfigCellSelectBox(null, NaConfig.INSTANCE.getAutoPlayNextVoice(), new String[]{
+            getString(R.string.AutoPlayNextVoiceAlways),
+            getString(R.string.AutoPlayNextVoiceBackToBack),
+            getString(R.string.AutoPlayNextVoiceNever)
+    }, new int[]{NaConfig.AUTO_PLAY_NEXT_ALWAYS, NaConfig.AUTO_PLAY_NEXT_BACK_TO_BACK, NaConfig.AUTO_PLAY_NEXT_NEVER}, null));
     private final AbstractConfigCell showSpoilersDirectlyRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.showSpoilersDirectly));
     private final AbstractConfigCell albumCaptionPerPhotoRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getAlbumCaptionPerPhoto(), getString(R.string.AlbumCaptionPerPhotoAbout)));
     private final AbstractConfigCell dividerMedia = cellGroup.appendCell(new ConfigCellDivider());
