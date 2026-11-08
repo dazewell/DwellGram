@@ -41,17 +41,9 @@ public final class UpdateIntervalMenu {
     }
 
     private static String label(int minutes) {
-        switch (minutes) {
-            case 15:
-                return getString(R.string.UpdateInterval15mNax);
-            case 60:
-                return getString(R.string.UpdateInterval1hNax);
-            case 180:
-                return getString(R.string.UpdateInterval3hNax);
-            case 360:
-                return getString(R.string.UpdateInterval6hNax);
-            default:
-                return getString(R.string.UpdateInterval24hNax);
-        }
+        // Upstream's translated plurals, so the choices follow the app language.
+        return minutes < 60
+                ? org.telegram.messenger.LocaleController.formatPluralString("Minutes", minutes)
+                : org.telegram.messenger.LocaleController.formatPluralString("Hours", minutes / 60);
     }
 }
