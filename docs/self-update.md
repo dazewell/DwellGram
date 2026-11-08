@@ -11,16 +11,18 @@ It now reads a channel you own, and only staging builds are posted to it.
    `org.telegram.messenger.beta`, `updateUnofficial` for `nekox.messenger`. Both
    legs now share one build timestamp from the `resolve` job.
 2. **Publish.** `Tools/scripts/upload.py` sends the APK album to
-   `HELPER_BOT_TARGET` as before. For a **staging** build only (a push to `dev`,
-   or a dispatch with no matching PR; never a `build-apk` test build) it then:
-   - copies the album into the update channel, unless that is the same chat;
+   `HELPER_BOT_TARGET` as before. For a **staging** build of `dev` only (a push, or a dispatch on `dev`;
+   never a `build-apk` test build or a dispatch on another branch) it then:
+   - copies the album, caption included, into the update channel, unless that is the same chat;
    - posts one message per package:
      `#updateOfficial {"version":"13.1.1-abc1234","version_code":1266,"build_timestamp":…,"message":<caption msg id>,"document":{"arm64-v8a":<APK msg id>}}`.
    A failure here is a warning in the run log; the APK delivery itself never fails on it.
 3. **Check.** On resume (at most once per server `updateCheckDelay`, a day by default) or on
-   *Check for Updates*, the app searches the channel for its own tag, takes the
-   newest post, and offers it when its `version_code` is higher, or equal with a
-   newer `build_timestamp`. The APK and changelog come from the posts it points at.
+   *Check for Updates*, the app searches the channel for its own tag and offers
+   the newest post whose `version_code` is higher, or equal with a newer
+   `build_timestamp`. The APK and changelog come from the posts it points at. A
+   saved pending update is dropped on launch once the installed build's own
+   timestamp has caught up with it (the timestamp rides in the update's `id`).
 
 Update Channel in Settings is **Off** or **Staging**, Off by default. A build
 with no channel baked in (local, `ci.yml`, a fork) shows it greyed out as
@@ -48,7 +50,8 @@ Unavailable, as before. Emoji packs and link-preview rules still read nothing.
 4. **Ship one staging build** (merge anything to `dev`, or dispatch
    `staging.yml` on `dev`). Builds made before step 3 have no channel and can't
    update themselves, so install this one by hand once.
-5. **Turn it on** in each install: Settings → Update Channel → Staging.
+5. **Turn it on** in each install: Settings → Update Channel → Staging. An
+   install that had Release or Beta picked before is already on.
 
 ## Checking it
 
