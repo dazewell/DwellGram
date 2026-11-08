@@ -22,25 +22,21 @@ public abstract class BaseRemoteHelper {
     public static final long CHANNEL_METADATA_ID = 2477822904L;
     public static final String CHANNEL_METADATA_NAME = "nagramx_remote_metadata";
 
-    // NagramX: the metadata channel belongs to the abandoned upstream (risin42), so nothing
-    // loads from it anymore. Suppressed here rather than at the call sites so no future caller
-    // can reopen it; a blocked call reports an empty result so cached data and callbacks are
-    // unaffected. The request code below is kept as the reference implementation for a
-    // fork-owned source: re-enabling means changing CHANNEL_METADATA_* and dropping this guard —
-    // that restores the network fetch for all three load() consumers here: emoji packs
-    // (EmojiHelper), link-preview rewrite rules (PagePreviewRulesHelper), and update metadata
-    // (UpdateHelper.checkNewVersionAvailable). Dropping the guard is not enough to bring back
-    // visible update checks, though: LaunchActivity.checkAppUpdate never reaches
-    // UpdateHelper.checkNewVersionAvailable at all, because it's gated independently at five
-    // further sites this boolean does not touch, so all five need to be reverted by hand too.
-    // The two LaunchActivity gates carry a short back-reference to this flag; the other three do
-    // not, so start from this list rather than expecting to find a trail from them:
-    //   - LaunchActivity.checkAppUpdate's own if (true) gate (~L6119)
-    //   - LaunchActivity's unconditional pending-update purge on resume (~L7210)
-    //   - SettingsActivity's Update Channel picker label (~L1521) and setEnabled(false) (~L1556)
-    //   - ProfileActivity's copy of the same picker (~L4823 / ~L4858)
-    //   - the reworded UpdateChecksOffNax string (strings_nax.xml ~L284)
-    private static final boolean REMOTE_METADATA_DISABLED = true;
+    // NagramX: the inherited metadata channel belongs to the abandoned upstream (risin42), so
+    // nothing loads from it. A blocked load reports an empty result, so cached data and callbacks
+    // are unaffected. EmojiHelper and PagePreviewRulesHelper keep these defaults and stay off;
+    // UpdateHelper overrides all three to read the fork's own channel (#self-update).
+    protected boolean isSourceEnabled() {
+        return false;
+    }
+
+    protected long getChannelId() {
+        return CHANNEL_METADATA_ID;
+    }
+
+    protected String getChannelUsername() {
+        return CHANNEL_METADATA_NAME;
+    }
 
     protected static final SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("nekoremoteconfig", Activity.MODE_PRIVATE);
 
@@ -83,7 +79,7 @@ public abstract class BaseRemoteHelper {
     private void onGetMessageSuccess(TLObject response, Delegate delegate) {
         var tag = "#" + getTag();
         final var res = (TLRPC.messages_Messages) response;
-        getMessagesController().removeDeletedMessagesFromArray(CHANNEL_METADATA_ID, res.messages);
+        getMessagesController().removeDeletedMessagesFromArray(getChannelId(), res.messages);
         ArrayList<JSONObject> responses = new ArrayList<>();
         for (var message : res.messages) {
             if (TextUtils.isEmpty(message.message) || !message.message.startsWith(tag)) {
@@ -107,7 +103,7 @@ public abstract class BaseRemoteHelper {
     }
 
     private void load(boolean forceRefreshAccessHash, Delegate delegate) {
-        if (REMOTE_METADATA_DISABLED) {
+        if (!isSourceEnabled()) {
             if (delegate != null) {
                 delegate.onTLResponse(null, null);
             }
@@ -119,21 +115,31 @@ public abstract class BaseRemoteHelper {
         req.offset_id = 0;
         req.filter = new TLRPC.TL_inputMessagesFilterEmpty();
         req.q = tag;
-        req.peer = getMessagesController().getInputPeer(-CHANNEL_METADATA_ID);
+        req.peer = getMessagesController().getInputPeer(-getChannelId());
         if (req.peer == null || req.peer.access_hash == 0 || forceRefreshAccessHash) {
+            // NagramX: a channel with no username can only be reached once this account has
+            // seen it. Every failure below reports through onError: the inherited code returned
+            // silently, which left a caller's progress spinner running forever.
+            if (TextUtils.isEmpty(getChannelUsername())) {
+                onError("CHANNEL_NOT_JOINED", delegate);
+                return;
+            }
             TLRPC.TL_contacts_resolveUsername req1 = new TLRPC.TL_contacts_resolveUsername();
-            req1.username = CHANNEL_METADATA_NAME;
+            req1.username = getChannelUsername();
             getConnectionsManager().sendRequest(req1, (response1, error1) -> {
                 if (error1 != null) {
+                    onError(error1.text, delegate);
                     return;
                 }
                 if (!(response1 instanceof TLRPC.TL_contacts_resolvedPeer resolvedPeer)) {
+                    onError("CHANNEL_INVALID", delegate);
                     return;
                 }
                 getMessagesController().putUsers(resolvedPeer.users, false);
                 getMessagesController().putChats(resolvedPeer.chats, false);
                 getMessagesStorage().putUsersAndChats(resolvedPeer.users, resolvedPeer.chats, false, true);
                 if ((resolvedPeer.chats == null || resolvedPeer.chats.size() == 0)) {
+                    onError("CHANNEL_INVALID", delegate);
                     return;
                 }
                 req.peer = new TLRPC.TL_inputPeerChannel();

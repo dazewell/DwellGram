@@ -4845,11 +4845,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             return Unit.INSTANCE;
                         });
 
-                // NagramX: the update source this picker chose between is disabled fork-wide, so
-                // the control is shown inert rather than removed — the stored
-                // NaConfig.autoUpdateChannel choice is preserved for a future fork-owned source,
-                // it just can't be edited now.
-                String currentChannel = " - " + getString(R.string.Unavailable);
+                // NagramX: Off or Staging (#self-update); a stored Release or Beta from the old picker reads as
+                // Staging. Shown inert, reading Unavailable, on a build with no update channel baked in.
+                String currentChannel = " - " + getString(!com.dazewell.gram.selfupdate.SelfUpdate.isAvailable() ? R.string.Unavailable
+                        : NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UpdateHelper.UPDATE_OFF ? R.string.AutoCheckUpdateOFF : R.string.AutoCheckUpdateStagingNax);
 
                 var updateChannelCell = builder.addItem(getString(R.string.AutoCheckUpdateSwitch) + currentChannel, R.drawable.sync_outline_28, (it) -> {
                     BottomBuilder switchBuilder = new BottomBuilder(getParentActivity());
@@ -4863,16 +4862,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         }, 500);
                         return Unit.INSTANCE;
                     });
-                    switchBuilder.addRadioItem(getString(R.string.AutoCheckUpdateRelease), NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UpdateHelper.UPDATE_CHANNEL_RELEASE, (radioButtonCell) -> {
-                        NaConfig.INSTANCE.getAutoUpdateChannel().setConfigInt(UpdateHelper.UPDATE_CHANNEL_RELEASE);
-                        switchBuilder.doRadioCheck(radioButtonCell);
-                        AndroidUtilities.runOnUIThread(() -> {
-                            switchBuilder.dismiss();
-                            Browser.openUrl(context, "tg://update");
-                        }, 500);
-                        return Unit.INSTANCE;
-                    });
-                    switchBuilder.addRadioItem(getString(R.string.AutoCheckUpdateBeta), NaConfig.INSTANCE.getAutoUpdateChannel().Int() == UpdateHelper.UPDATE_CHANNEL_BETA, (radioButtonCell) -> {
+                    switchBuilder.addRadioItem(getString(R.string.AutoCheckUpdateStagingNax), NaConfig.INSTANCE.getAutoUpdateChannel().Int() != UpdateHelper.UPDATE_OFF, (radioButtonCell) -> {
                         NaConfig.INSTANCE.getAutoUpdateChannel().setConfigInt(UpdateHelper.UPDATE_CHANNEL_BETA);
                         switchBuilder.doRadioCheck(radioButtonCell);
                         AndroidUtilities.runOnUIThread(() -> {
@@ -4884,7 +4874,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     showDialog(switchBuilder.create());
                     return Unit.INSTANCE;
                 });
-                updateChannelCell.setEnabled(false);
+                updateChannelCell.setEnabled(com.dazewell.gram.selfupdate.SelfUpdate.isAvailable());
                 builder.show();
             } else if (position == premiumRow) {
                 presentFragment(new PremiumPreviewFragment("settings"));
