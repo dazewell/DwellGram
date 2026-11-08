@@ -155,6 +155,15 @@ android {
         buildConfigField 'String', 'APP_HASH', '"' + appHash + '"'
         buildConfigField 'long', 'BUILD_TIMESTAMP', buildTimestamp + 'L'
 
+        // NagramX: the self-update channel (#self-update), from the UPDATE_CHANNEL_* repo variables in staging.yml.
+        // Unset or malformed bakes in 0, which leaves the updater unavailable. The tag is per package so
+        // Official and Unofficial each read only their own APK; Tools/scripts/upload.py writes the same two tags.
+        def updateChannelId = (System.getenv('UPDATE_CHANNEL_ID') ?: '').trim().replaceFirst('^-100', '')
+        def updateChannelUser = (System.getenv('UPDATE_CHANNEL_USERNAME') ?: '').trim().replaceFirst('^@', '')
+        buildConfigField 'long', 'UPDATE_CHANNEL_ID', (updateChannelId ==~ /[1-9]\d{0,15}/ ? updateChannelId : '0') + 'L'
+        buildConfigField 'String', 'UPDATE_CHANNEL_USERNAME', '"' + (updateChannelUser ==~ /[A-Za-z][A-Za-z0-9_]{3,31}/ ? updateChannelUser : '') + '"'
+        buildConfigField 'String', 'UPDATE_TAG', APP_PACKAGE.endsWith('.beta') ? '"updateOfficial"' : '"updateUnofficial"'
+
         // NagramX: the icon this package variant wants to start on. Only applied to an install where no
         // icon has ever been picked (see LauncherIconController.tryFixLauncherIconIfNeeded) - the manifest
         // keeps exactly one alias enabled on both variants, because a second enabled alias shows up as a

@@ -627,7 +627,9 @@ public class SharedConfig {
                     if (updateVersionString == null) {
                         updateVersionString = BuildVars.BUILD_VERSION_STRING;
                     }
-                    if (pendingAppUpdateBuildVersion != updateVersion || pendingAppUpdate.version == null || updateVersionString.compareTo(pendingAppUpdate.version) >= 0 || BuildVars.DEBUG_PRIVATE_VERSION) {
+                    // NagramX: a self-update entry (non-zero id) is judged by its build timestamp, because
+                    // staging builds share a version code and their names differ only by commit hash.
+                    if (pendingAppUpdateBuildVersion != updateVersion || pendingAppUpdate.version == null || (pendingAppUpdate.id != 0 ? com.dazewell.gram.selfupdate.SelfUpdate.isStale(pendingAppUpdate) : updateVersionString.compareTo(pendingAppUpdate.version) >= 0) || BuildVars.DEBUG_PRIVATE_VERSION) {
                         pendingAppUpdate = null;
                         AndroidUtilities.runOnUIThread(SharedConfig::saveConfig);
                     }

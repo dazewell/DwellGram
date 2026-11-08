@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import contextlib
@@ -8,6 +9,7 @@ from sys import argv
 from urllib.parse import quote as urlquote
 
 from pyrogram import Client
+from pyrogram.enums import ParseMode
 from pyrogram.errors import FloodPremiumWait, FloodWait
 from pyrogram.types import InputMediaDocument
 
@@ -20,6 +22,13 @@ VARIANTS = (
     ("Official", "org.telegram.messenger.beta"),
     ("Unofficial", "nekox.messenger"),
 )
+
+# Self-update (#self-update): the hashtag each package's app searches the update
+# channel for. Keep in step with UPDATE_TAG in TMessagesProj/build.gradle.
+UPDATE_TAGS = {
+    "Official": "updateOfficial",
+    "Unofficial": "updateUnofficial",
+}
 
 # staging.yml resolves build_type once up front. "test" covers PR-associated
 # builds, and "staging" covers true dev/release-candidate builds. Anything else
@@ -249,10 +258,11 @@ async def send_to_channel(client: "Client", cid: str):
     print("Uploading to Telegram:", flush=True)
     for document in documents:
         print(f"- {document.media}", flush=True)
-    await client.send_media_group(
+    sent = await client.send_media_group(
         cid,
         media = documents,
     )
+    return sent, documents[-1].caption or ""
 
 @retry
 async def send_metadata(client: "Client", cid: str):
@@ -262,6 +272,91 @@ async def send_metadata(client: "Client", cid: str):
         chat_id = cid,
         text = get_metadata(),
     )
+
+def get_update_chat_id() -> int | None:
+    # The repo variable holds the bare channel id the app is built with; -100 makes
+    # it a Bot API chat id. Unset, 0 or malformed means self-update isn't set up.
+    raw = (os.environ.get("UPDATE_CHANNEL_ID") or "").strip()
+    if raw.startswith("-100"):
+        raw = raw[4:]
+    if not re.fullmatch(r"[1-9]\d{0,15}", raw):
+        return None
+    return int("-100" + raw)
+
+def get_app_version(root: Path = Path(".")) -> tuple[str, int] | None:
+    # Mirrors verName/verCode in TMessagesProj/build.gradle, which is what the app
+    # compares against: the same code, then the build timestamp to break the tie.
+    try:
+        gradle = (root / "TMessagesProj" / "build.gradle").read_text(encoding="utf-8")
+        props = (root / "gradle.properties").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    code = re.search(r"^def verCode = (\d+)\s*$", gradle, re.M)
+    name = re.search(r"^APP_VERSION_NAME=(\S+)\s*$", props, re.M)
+    if not code or not name:
+        return None
+    commit = (os.environ.get("COMMIT_ID") or "")[:7]
+    return name.group(1) + (f"-{commit}" if commit else ""), int(code.group(1))
+
+def get_update_metadata(tag: str, version: str, version_code: int, build_timestamp: int,
+                        document_id: int, message_id: int) -> str:
+    # BaseRemoteHelper reads the text after the leading hashtag as JSON.
+    payload = {
+        "version": version,
+        "version_code": version_code,
+        "build_timestamp": build_timestamp,
+        "can_not_skip": False,
+        "message": message_id,
+        "document": {"arm64-v8a": document_id},
+    }
+    return f"#{tag} " + json.dumps(payload, separators=(",", ":"))
+
+def match_variants(messages) -> dict:
+    # The album keeps the VARIANTS order; check it by file name anyway, since
+    # handing a package the other package's APK is the one thing that must not happen.
+    if len(messages) != len(VARIANTS):
+        raise ValueError(f"expected {len(VARIANTS)} album messages, got {len(messages)}")
+    matched = {}
+    for (build_label, _), message in zip(VARIANTS, messages):
+        name = getattr(getattr(message, "document", None), "file_name", None) or ""
+        if f"-{build_label}-" not in name and not name.endswith(f"-{build_label}.apk"):
+            raise ValueError(f"album message {message.id} ({name!r}) is not the {build_label} APK")
+        matched[build_label] = message
+    return matched
+
+async def publish_update(client: "Client", sent, caption: str = "") -> None:
+    # Only staging builds of dev become updates. A PR test build is never offered, and
+    # neither is a dispatch on a feature branch, which resolve_build also calls staging.
+    if build_type != "staging" or os.environ.get("BRANCH") != "dev":
+        return
+    chat_id = get_update_chat_id()
+    if chat_id is None:
+        print("UPDATE_CHANNEL_ID not set; skipping self-update metadata.", flush=True)
+        return
+    try:
+        version = get_app_version()
+        build_timestamp = int(os.environ.get("BUILD_TIMESTAMP") or "0")
+        if version is None or build_timestamp <= 0:
+            raise ValueError(f"missing version ({version}) or build timestamp ({build_timestamp})")
+        if sent[0].chat.id != chat_id:
+            # The fork re-parses copied captions from plain text, which would drop the
+            # changelog's formatting; hand it the original HTML caption instead.
+            captions = [""] * (len(sent) - 1) + [caption]
+            sent = await client.copy_media_group(chat_id, sent[0].chat.id, sent[0].id, captions=captions)
+        matched = match_variants(sent)
+        # The last album message carries the caption, which the app shows as the changelog.
+        changelog_id = sent[-1].id
+        for build_label, _ in VARIANTS:
+            await client.send_message(
+                chat_id,
+                get_update_metadata(UPDATE_TAGS[build_label], version[0], version[1], build_timestamp,
+                                    matched[build_label].id, changelog_id),
+                parse_mode=ParseMode.DISABLED,
+            )
+        print(f"Published self-update metadata for {version[0]} to {chat_id}.", flush=True)
+    except Exception as e:
+        # The APKs are already delivered; a broken update post must not fail that.
+        print(f"::warning::self-update metadata not published: {e}", flush=True)
 
 def get_client(bot_token: str):
     return Client(
@@ -277,7 +372,8 @@ async def main():
     chat_id = argv[2]
     client = get_client(bot_token)
     await client.start()
-    await send_to_channel(client, chat_id)
+    sent, caption = await send_to_channel(client, chat_id)
+    await publish_update(client, sent, caption)
     if metadata_chat_id:
         await send_metadata(client, metadata_chat_id)
     await client.stop()
