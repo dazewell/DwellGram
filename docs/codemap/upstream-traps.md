@@ -2767,10 +2767,14 @@ the history/restore guards. `onResume` still resumed online-status work while lo
 55-second refresh interval is not a startup grace period: zero last-update time or `offlineSent`
 also qualifies (`MessagesController.java:10735`).
 
-`LaunchActivity.java:1566` now calls `GhostModeShortcut.accept` before account switching, passcode
-deferral (`:1596`) and history/restore filtering (`:1679`). The helper consumes the action as
+`LaunchActivity.java:1569` now calls `GhostModeShortcut.accept` before account switching, passcode
+deferral (`:1599`) and history/restore filtering (`:1682`). The helper consumes the action as
 `ACTION_MAIN`, respects disabled pinned copies and applies `setGhostMode(true)` idempotently,
-then explicitly requests offline status for every activated account (`GhostModeShortcut.java:50-67`).
+then explicitly requests offline status for every activated account (`GhostModeShortcut.java:51-70`).
+Mutating the local intent does not change Android's retained task intent: an Activity-owned marker
+is restored at `LaunchActivity.java:434` and saved before fragment traversal at `:8613`. Consumed
+restorations and history launches cannot re-enable Ghost after the user turns it off; a fresh
+`onNewIntent` delivery bypasses the consumed marker (`GhostModeShortcut.java:58`).
 `ConfigItem.value` is volatile (`ConfigItem.java:33`) so network-thread readers see UI changes.
 The ordinary Ghost toggle also passes an explicit offline policy (`NekoConfig.java:356`).
 

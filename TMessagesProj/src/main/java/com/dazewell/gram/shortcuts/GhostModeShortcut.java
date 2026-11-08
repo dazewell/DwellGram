@@ -33,6 +33,7 @@ import xyz.nextalone.nagram.NaConfig;
 public final class GhostModeShortcut {
 
     public static final String ACTION = "enable_ayu_mode";
+    public static final String STATE_CONSUMED = "nax_ayu_shortcut_consumed";
     private static final String SHORTCUT_ID = "ayu_mode";
 
     private GhostModeShortcut() {
@@ -47,14 +48,15 @@ public final class GhostModeShortcut {
     }
 
     /** Runs before account switching or passcode deferral can resume online-status work. */
-    public static void accept(Intent intent) {
+    public static boolean accept(Intent intent, boolean isNew, boolean consumed) {
         if (intent == null || !ACTION.equals(intent.getAction())) {
-            return;
+            return false;
         }
-        // Consume even a disabled pinned copy; unlock and activity recreation must not replay it.
+        boolean fromHistory = (intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0;
+        // Android retains its own task intent; the Activity also saves the returned consumption marker.
         intent.setAction(Intent.ACTION_MAIN);
-        if (!isEnabled()) {
-            return;
+        if (fromHistory || (!isNew && consumed) || !isEnabled()) {
+            return true;
         }
         // Preserve deliberate signal locks, including an online-on lock. This is not a toggle.
         NekoConfig.setGhostMode(true);
@@ -65,6 +67,7 @@ public final class GhostModeShortcut {
                 ConnectionsManager.getInstance(account).sendRequest(request, (response, error) -> {});
             }
         }
+        return true;
     }
 
     /** MediaDataController.buildShortcuts: the ids it keeps when pruning stale shortcuts. */
