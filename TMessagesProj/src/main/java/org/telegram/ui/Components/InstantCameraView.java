@@ -1330,9 +1330,11 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (!open) {
             toX = recordedTime > 300 ? dp(24) - getMeasuredWidth() / 2f : 0;
         }
-        // NagramX (#compact-video-recording): the docked presentation rides on the same scale and slide
+        // NagramX (#compact-video-recording): the docked presentation rides on the same scale and slide. Only the
+        // circle docks; the zoom row (and the flip button it carries) keeps the stock target, and the cancel
+        // slide's target is already absolute.
         final float presentationScale = compactRecorder.scale();
-        toX += compactRecorder.offsetX();
+        final float circleToX = toX != 0 ? toX : compactRecorder.offsetX();
         ValueAnimator translationYAnimator = ValueAnimator.ofFloat(open ? 1f : 0f, open ? 0 : 1f);
         translationYAnimator.addUpdateListener(animation -> {
             animationTranslationY = fromPaused ? 0 : (getMeasuredHeight() / 2f) * (float) animation.getAnimatedValue();
@@ -1346,11 +1348,11 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 ObjectAnimator.ofFloat(cameraContainer, View.ALPHA, open ? 1.0f : 0.0f),
                 ObjectAnimator.ofFloat(cameraContainer, View.SCALE_X, (open ? 1.0f : 0.1f) * presentationScale),
                 ObjectAnimator.ofFloat(cameraContainer, View.SCALE_Y, (open ? 1.0f : 0.1f) * presentationScale),
-                ObjectAnimator.ofFloat(cameraContainer, View.TRANSLATION_X, toX),
+                ObjectAnimator.ofFloat(cameraContainer, View.TRANSLATION_X, circleToX),
                 ObjectAnimator.ofFloat(textureOverlayView, View.ALPHA, open ? 1.0f : 0.0f),
                 ObjectAnimator.ofFloat(textureOverlayView, View.SCALE_X, (open ? 1.0f : 0.1f) * presentationScale),
                 ObjectAnimator.ofFloat(textureOverlayView, View.SCALE_Y, (open ? 1.0f : 0.1f) * presentationScale),
-                ObjectAnimator.ofFloat(textureOverlayView, View.TRANSLATION_X, toX),
+                ObjectAnimator.ofFloat(textureOverlayView, View.TRANSLATION_X, circleToX),
                 ObjectAnimator.ofFloat(zoomControlView, View.TRANSLATION_X, toX),
                 translationYAnimator
         );
