@@ -379,7 +379,7 @@ A text memo shows *online* next to its label, and an unread badge, when your *Re
 
 ### Camera memo screen <!-- #camera-memo --> <!-- #video-memo-screen --> <!-- #camera-memo-zoom --> <!-- #camera-memo-controls -->
 
-Pick the video memo's screen from two previews under N-Settings → General → Launcher shortcuts: *Chat*, the usual round recorder, or *Camera screen*, a 4:3 viewfinder with a grid and a recording timer. Zoom stops sit along its bottom edge: tap one to jump, hold or slide to fine-tune on a dial. The shortcut then reads *Camera memo* with a dark icon. *Chat* by default.
+Pick the video memo's screen from two previews under N-Settings → General → Launcher shortcuts: *Chat*, the usual round recorder, or *Camera screen*, a 4:3 viewfinder with zoom stops, flash, infinite recording and view-once. Tap a zoom stop to jump; hold or slide to fine-tune. The shortcut then reads *Camera memo* with a dark icon. *Chat* by default.
 
 ### Custom file names for saved media <!-- #custom-file-names -->
 
