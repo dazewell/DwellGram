@@ -258,10 +258,11 @@ async def send_to_channel(client: "Client", cid: str):
     print("Uploading to Telegram:", flush=True)
     for document in documents:
         print(f"- {document.media}", flush=True)
-    return await client.send_media_group(
+    sent = await client.send_media_group(
         cid,
         media = documents,
     )
+    return sent, documents[-1].caption or ""
 
 @retry
 async def send_metadata(client: "Client", cid: str):
@@ -323,9 +324,10 @@ def match_variants(messages) -> dict:
         matched[build_label] = message
     return matched
 
-async def publish_update(client: "Client", sent) -> None:
-    # Only staging builds become updates; a PR test build is never offered.
-    if build_type != "staging":
+async def publish_update(client: "Client", sent, caption: str = "") -> None:
+    # Only staging builds of dev become updates. A PR test build is never offered, and
+    # neither is a dispatch on a feature branch, which resolve_build also calls staging.
+    if build_type != "staging" or os.environ.get("BRANCH") != "dev":
         return
     chat_id = get_update_chat_id()
     if chat_id is None:
@@ -337,7 +339,10 @@ async def publish_update(client: "Client", sent) -> None:
         if version is None or build_timestamp <= 0:
             raise ValueError(f"missing version ({version}) or build timestamp ({build_timestamp})")
         if sent[0].chat.id != chat_id:
-            sent = await client.copy_media_group(chat_id, sent[0].chat.id, sent[0].id)
+            # The fork re-parses copied captions from plain text, which would drop the
+            # changelog's formatting; hand it the original HTML caption instead.
+            captions = [""] * (len(sent) - 1) + [caption]
+            sent = await client.copy_media_group(chat_id, sent[0].chat.id, sent[0].id, captions=captions)
         matched = match_variants(sent)
         # The last album message carries the caption, which the app shows as the changelog.
         changelog_id = sent[-1].id
@@ -367,8 +372,8 @@ async def main():
     chat_id = argv[2]
     client = get_client(bot_token)
     await client.start()
-    sent = await send_to_channel(client, chat_id)
-    await publish_update(client, sent)
+    sent, caption = await send_to_channel(client, chat_id)
+    await publish_update(client, sent, caption)
     if metadata_chat_id:
         await send_metadata(client, metadata_chat_id)
     await client.stop()

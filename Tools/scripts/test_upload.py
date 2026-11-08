@@ -212,6 +212,17 @@ class SelfUpdateTests(unittest.TestCase):
 
         asyncio.run(upload.publish_update(NoClient(), []))
 
+    def test_staging_off_dev_publishes_nothing(self):
+        upload.build_type = "staging"
+        os.environ["UPDATE_CHANNEL_ID"] = "1234567890"
+        os.environ["BRANCH"] = "2026-11-07_some-feature"
+
+        class NoClient:
+            def __getattr__(self, name):
+                raise AssertionError(f"client.{name} called for a non-dev build")
+
+        asyncio.run(upload.publish_update(NoClient(), []))
+
 
 if __name__ == "__main__":
     unittest.main()
