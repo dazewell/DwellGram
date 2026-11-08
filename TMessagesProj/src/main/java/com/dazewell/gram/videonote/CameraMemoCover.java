@@ -76,6 +76,7 @@ final class CameraMemoCover extends FrameLayout {
     private static final long FLASH_FADE_MS = 250;
     private static final int ONCE_SIZE = 44; // dp, the once button at the zoom row's start
     private static final int EDGE = 16; // dp from the screen's sides to the pill and the once button
+    private static final int ONCE_MIN_ROW = 144; // dp the zoom stops keep beside the once button, else it isn't shown
 
     private final WeakReference<ChatActivity> chatRef;
     private final long attachedAt = SystemClock.elapsedRealtime();
@@ -650,6 +651,8 @@ final class CameraMemoCover extends FrameLayout {
         // Also over a paused take's preview, where the viewfinder has gone stale: the stock once button is under this view
         // and the preview's send still reads it
         boolean once = onceAvailable && viewfinder.getWidth() > 0 && (shown || live && bound)
+                // a narrow split-screen viewfinder keeps its zoom stops usable rather than squeezing them past the button
+                && viewfinder.getWidth() >= AndroidUtilities.dp(2 * (EDGE + ONCE_SIZE + 8) + ONCE_MIN_ROW)
                 // never over the open circle on a small screen: it would be clipped and take the circle's taps
                 && !(holeOpen && hasHole && hole.intersects(onceButton.getLeft(), onceButton.getTop(), onceButton.getRight(), onceButton.getBottom()));
         if (once != (onceButton.getVisibility() == VISIBLE)) {
