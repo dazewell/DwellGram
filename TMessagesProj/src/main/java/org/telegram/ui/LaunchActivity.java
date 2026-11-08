@@ -6325,7 +6325,11 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             }
                         }
                     }
-                    SharedConfig.setNewAppVersionAvailable(null);
+                    // NagramX: a failed check (offline, flood wait) says nothing about the pending
+                    // update, so only a clean "nothing newer" clears it, maybe downloaded APK and all.
+                    if (error == null) {
+                        SharedConfig.setNewAppVersionAvailable(null);
+                    }
                 }
                 NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.appUpdateAvailable);
                 if (progress != null) {
