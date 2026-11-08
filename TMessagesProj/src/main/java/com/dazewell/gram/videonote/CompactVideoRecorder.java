@@ -30,7 +30,8 @@ import org.telegram.ui.Components.LayoutHelper;
  * The round video recorder's compact presentation: the live circle shrunk to COMPACT_DP and docked at the bottom
  * left, above the recording bar, with the chat behind it left touchable. A recording opens compact only when the
  * camera-choice popup started it with Compact Recording on; the host passes that in at the fresh open and this
- * keeps it until the recorder is hidden for good, so pause, resume and an infinite rollover all keep it.
+ * keeps it until the recorder is hidden for good, so pause, resume and an infinite rollover all keep it. Any other
+ * recording opens full and can be collapsed from the same toggle.
  *
  * The camera surface is never resized. The presentation is a factor, 1 compact and 0 full, folded into the
  * transforms the host already animates: scale() multiplies the open/close scale, offsetX() adds to its
@@ -74,7 +75,9 @@ public final class CompactVideoRecorder {
     private View flip;
     private boolean glass;
 
-    // this recording opened compact; cleared only by end()
+    // the toggle is offered: every recording from its fresh open until end()
+    private boolean available;
+    // this recording has been compact, opened so or collapsed since; it fades on send. Cleared only by end()
     private boolean session;
     private boolean expanded;
     private float factor;
@@ -106,7 +109,7 @@ public final class CompactVideoRecorder {
     // Re-applies the presentation if the dock or the circle's size moved under a settled circle. The host also
     // calls it once its open animation ends, since that animation's end values were fixed when it started.
     public void refresh() {
-        if (!session || factor == 0f || !callback.canChangePresentation()) {
+        if (!available || factor == 0f || !callback.canChangePresentation()) {
             return;
         }
         final float x = dockCenterX(), y = dockCenterY();
@@ -166,15 +169,17 @@ public final class CompactVideoRecorder {
         updateControls();
     }
 
-    // A fresh camera open. compact is the composer's snapshot of the popup choice; anything else opens full.
+    // A fresh camera open. compact is the composer's snapshot of the popup choice; anything else opens full,
+    // and can still be collapsed from its toggle, as infinite recording can be turned on mid-recording.
     public void begin(boolean compact) {
         cancelAnimator();
+        available = true;
         session = compact;
-        expanded = false;
+        expanded = !compact;
         factor = compact ? 1f : 0f;
         lastDockX = lastDockY = Float.NaN;
         lastSize = -1;
-        toggle.setVisibility(compact ? View.VISIBLE : View.GONE);
+        toggle.setVisibility(View.VISIBLE);
         toggle.setAlpha(0f);
         updateToggleIcon();
         updateControls();
@@ -182,10 +187,11 @@ public final class CompactVideoRecorder {
 
     // The recorder is hidden for good: sent, discarded or torn down.
     public void end() {
-        if (!session && factor == 0f) {
+        if (!available && factor == 0f) {
             return;
         }
         cancelAnimator();
+        available = false;
         session = false;
         expanded = false;
         factor = 0f;
@@ -198,7 +204,7 @@ public final class CompactVideoRecorder {
     }
 
     public boolean isCompact() {
-        return session && !expanded;
+        return available && !expanded;
     }
 
     public float scale() {
@@ -261,7 +267,7 @@ public final class CompactVideoRecorder {
 
     // Follows the circle's fades, which the host and the chat animate on it directly.
     public void onCircleAlpha(float alpha) {
-        if (session) {
+        if (available) {
             toggle.setAlpha(alpha);
         }
     }
@@ -270,7 +276,7 @@ public final class CompactVideoRecorder {
     // Docked, it sits to the circle's right, where the screen is free. Expanded, it stacks on the flip button in
     // the right-hand column of camera controls. In between it slides with the factor.
     public void layoutToggle() {
-        if (!session) {
+        if (!available) {
             return;
         }
         visibleBounds(circle, AndroidUtilities.rectTmp);
@@ -301,10 +307,13 @@ public final class CompactVideoRecorder {
     }
 
     private void setExpanded(boolean expand) {
-        if (!session || expanded == expand || !callback.canChangePresentation()) {
+        if (!available || expanded == expand || !callback.canChangePresentation()) {
             return;
         }
         expanded = expand;
+        if (!expand) {
+            session = true;
+        }
         updateToggleIcon();
         updateControls();
         callback.onPresentationChanged();

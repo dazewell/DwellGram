@@ -295,7 +295,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
     }
 
-    // NagramX (#compact-video-recording): this recording opened compact, even if expanded since
+    // NagramX (#compact-video-recording): this recording has been compact, opened so or collapsed, even if expanded since
     public boolean isCompactSession() {
         return compactRecorder != null && compactRecorder.isSession();
     }
