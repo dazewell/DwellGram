@@ -128,6 +128,7 @@ public class UpdateHelper extends BaseRemoteHelper {
                             jsonToMap(string.getJSONObject("document")),
                             string.optString("url", null)
                     );
+                    ref.buildTimestamp = remoteBuildTimestamp;
                     break;
                 }
             } catch (JSONException ignored) {
@@ -139,6 +140,10 @@ public class UpdateHelper extends BaseRemoteHelper {
     private void getNewVersionMessagesCallback(Delegate delegate, Update json, HashMap<String, Integer> ids, TLObject response) {
         var update = new TLRPC.TL_help_appUpdate();
         update.version = json.version;
+        // NagramX: every staging build shares one version code, so the build timestamp is what
+        // tells two builds apart. It rides in the otherwise unread id so the persisted pending
+        // update can be judged by it (SelfUpdate.isStale). Seconds fit an int until 2038.
+        update.id = (int) json.buildTimestamp;
         update.can_not_skip = json.canNotSkip;
         if (json.url != null) {
             update.url = json.url;
@@ -243,6 +248,7 @@ public class UpdateHelper extends BaseRemoteHelper {
         public Integer message;
         public Map<String, Integer> document;
         public String url;
+        public long buildTimestamp;
 
         public Update(Boolean canNotSkip, String version, int versionCode, int sticker, int message, Map<String, Integer> document, String url) {
             this.canNotSkip = canNotSkip;

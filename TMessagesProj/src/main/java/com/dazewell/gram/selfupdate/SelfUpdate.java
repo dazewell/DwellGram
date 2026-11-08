@@ -1,6 +1,7 @@
 package com.dazewell.gram.selfupdate;
 
 import org.telegram.messenger.BuildConfig;
+import org.telegram.tgnet.TLRPC;
 
 import tw.nekomimi.nekogram.helpers.remote.UpdateHelper;
 import xyz.nextalone.nagram.NaConfig;
@@ -33,6 +34,15 @@ public final class SelfUpdate {
 
     public static String channelUsername() {
         return BuildConfig.UPDATE_CHANNEL_USERNAME;
+    }
+
+    /**
+     * Whether a persisted pending update is this build or older. Upstream compares version
+     * names, which here end in a commit hash, so that comparison is effectively random between
+     * two staging builds. UpdateHelper stores the build timestamp in the update's id instead.
+     */
+    public static boolean isStale(TLRPC.TL_help_appUpdate update) {
+        return update.id <= BuildConfig.BUILD_TIMESTAMP;
     }
 
     /** The hashtag this package's metadata posts carry; upload.py writes the same two. */
