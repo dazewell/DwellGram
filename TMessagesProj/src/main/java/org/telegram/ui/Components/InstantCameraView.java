@@ -1441,6 +1441,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
         zoomControlView.setPlacement(compact, buttonsLayout.getMeasuredWidth() > 0 ? buttonsLayout.getMeasuredWidth() + dp(1) : dp(108), rowCenterY);
         zoomControlView.setFlipLine(Float.isNaN(once) ? rowCenterY : once); // up the column from the view-once button
+        zoomControlView.setFlipColumn(InstantZoomControlView.onceColumn(this, delegate)); // NagramX: and on its centre line
         // dock the label inside the camera circle, bottom-center: the row's band is the zoom's own
         zoomLabel.setTranslationY(translationY + textureViewSize / 2f * getPresentationScale() - dp(30)); // NagramX (#compact-video-recording): and with the docked circle
         zoomLabel.setTranslationX(compactRecorder == null ? 0 : compactRecorder.offsetX());
