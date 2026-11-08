@@ -1452,13 +1452,15 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     }
 
     public RectF getCameraRect() {
-        // NagramX (#compact-video-recording): the circle as drawn, from the one visible-bounds calculation; the
-        // same rect as before whenever its scale is 1, which is when the send transition reads it
-        getLocationOnScreen(position);
-        final RectF bounds = new RectF();
-        com.dazewell.gram.videonote.CompactVideoRecorder.visibleBounds(cameraContainer, bounds);
-        bounds.offset(position[0], position[1]);
-        return bounds;
+        // NagramX (#compact-video-recording): the screen position already maps through the circle's transforms;
+        // the size needs its scale too. Identical to stock at scale 1, mid-flip included.
+        cameraContainer.getLocationOnScreen(position);
+        return new RectF(
+                position[0],
+                position[1],
+                position[0] + cameraContainer.getWidth() * cameraContainer.getScaleX(),
+                position[1] + cameraContainer.getHeight() * cameraContainer.getScaleY()
+        );
     }
 
     public void changeVideoPreviewState(int state, float progress) {
