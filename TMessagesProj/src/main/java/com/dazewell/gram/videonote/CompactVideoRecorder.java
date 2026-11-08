@@ -189,8 +189,9 @@ public final class CompactVideoRecorder {
     }
 
     // Where the circle really is on screen, in the host's coordinates, with every transform the host and this
-    // apply. The pivot is the circle's centre (the host's setVisibility sets it there), except during the stock
-    // send transition, which moves it and never runs for a compact recording.
+    // apply, whatever the pivot. The host keeps it at the centre while docked (setVisibility, then
+    // applyPresentation after a size change); the stock send transition moves it, and never runs for a compact
+    // recording.
     public static void visibleBounds(View circle, RectF out) {
         final float w = circle.getMeasuredWidth(), h = circle.getMeasuredHeight();
         final float px = circle.getPivotX(), py = circle.getPivotY();

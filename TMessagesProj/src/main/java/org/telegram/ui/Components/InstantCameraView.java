@@ -244,6 +244,13 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
                     @Override
                     public void applyPresentation() {
+                        // setVisibility set the pivot from the size before onMeasure re-picked it; a docked circle
+                        // rests below scale 1, where that puts it off its dock
+                        final float pivot = cameraContainer.getLayoutParams().width / 2f;
+                        cameraContainer.setPivotX(pivot);
+                        cameraContainer.setPivotY(pivot);
+                        textureOverlayView.setPivotX(pivot);
+                        textureOverlayView.setPivotY(pivot);
                         final float s = compactRecorder.scale();
                         cameraContainer.setScaleX(s);
                         cameraContainer.setScaleY(s);
