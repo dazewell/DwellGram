@@ -1,9 +1,12 @@
 """Unit tests for upload.py caption assembly and trailing build hashtag."""
+import asyncio
 import html
+import json
 import os
 import sys
 import types
 import unittest
+from pathlib import Path
 
 _THIS_DIR = os.path.dirname(__file__)
 
@@ -34,7 +37,15 @@ def _install_pyrogram_stub():
 
     types_mod.InputMediaDocument = InputMediaDocument
 
+    enums = types.ModuleType("pyrogram.enums")
+
+    class ParseMode:
+        DISABLED = "disabled"
+
+    enums.ParseMode = ParseMode
+
     sys.modules["pyrogram"] = pyrogram
+    sys.modules["pyrogram.enums"] = enums
     sys.modules["pyrogram.errors"] = errors
     sys.modules["pyrogram.types"] = types_mod
 
@@ -133,6 +144,73 @@ class UploadCaptionTests(unittest.TestCase):
         room = limit - overhead - upload.tg_len(generated_summary)
         base_caption = upload.get_caption(commit_msg_budget=max(0, room))
         return base_caption + generated_summary + hashtag
+
+
+class SelfUpdateTests(unittest.TestCase):
+    def setUp(self):
+        self._env_backup = dict(os.environ)
+
+    def tearDown(self):
+        os.environ.clear()
+        os.environ.update(self._env_backup)
+
+    def test_update_chat_id_accepts_bare_and_prefixed_ids(self):
+        for raw in ("1234567890", "-1001234567890", " 1234567890 "):
+            os.environ["UPDATE_CHANNEL_ID"] = raw
+            self.assertEqual(upload.get_update_chat_id(), -1001234567890)
+
+    def test_update_chat_id_rejects_placeholders(self):
+        for raw in ("", "0", "-", "abc", "-100"):
+            os.environ["UPDATE_CHANNEL_ID"] = raw
+            self.assertIsNone(upload.get_update_chat_id())
+
+    def test_metadata_round_trips_after_the_tag(self):
+        text = upload.get_update_metadata("updateOfficial", "13.1.1-abc1234", 1266, 1700000000, 41, 42)
+        self.assertTrue(text.startswith("#updateOfficial "))
+        payload = json.loads(text[len("#updateOfficial"):].strip())
+        self.assertEqual(payload["document"], {"arm64-v8a": 41})
+        self.assertEqual(payload["message"], 42)
+        self.assertEqual(payload["version_code"], 1266)
+        self.assertEqual(payload["build_timestamp"], 1700000000)
+        self.assertFalse(payload["can_not_skip"])
+
+    def test_app_version_matches_the_repo_build_files(self):
+        os.environ["COMMIT_ID"] = "abc123def456"
+        root = Path(_THIS_DIR).parent.parent
+        version = upload.get_app_version(root)
+        self.assertIsNotNone(version)
+        self.assertTrue(version[0].endswith("-abc123d"))
+        self.assertGreater(version[1], 0)
+
+    def _message(self, mid, name):
+        return types.SimpleNamespace(id=mid, document=types.SimpleNamespace(file_name=name))
+
+    def test_variants_match_by_file_name(self):
+        messages = [
+            self._message(10, "DwellGram-Official-abc1234-v13.1.1(1266)-arm64-v8a.apk"),
+            self._message(11, "DwellGramX-Unofficial-abc1234-v13.1.1(1266)-arm64-v8a.apk"),
+        ]
+        matched = upload.match_variants(messages)
+        self.assertEqual(matched["Official"].id, 10)
+        self.assertEqual(matched["Unofficial"].id, 11)
+
+    def test_swapped_album_is_refused(self):
+        messages = [
+            self._message(10, "DwellGramX-Unofficial-abc1234-v13.1.1(1266)-arm64-v8a.apk"),
+            self._message(11, "DwellGram-Official-abc1234-v13.1.1(1266)-arm64-v8a.apk"),
+        ]
+        with self.assertRaises(ValueError):
+            upload.match_variants(messages)
+
+    def test_test_builds_publish_nothing(self):
+        upload.build_type = "test"
+        os.environ["UPDATE_CHANNEL_ID"] = "1234567890"
+
+        class NoClient:
+            def __getattr__(self, name):
+                raise AssertionError(f"client.{name} called for a test build")
+
+        asyncio.run(upload.publish_update(NoClient(), []))
 
 
 if __name__ == "__main__":
