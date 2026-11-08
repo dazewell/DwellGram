@@ -18,7 +18,7 @@ It now reads a channel you own, and only staging builds are posted to it.
      `#updateOfficial {"version":"13.1.1-abc1234","version_code":1266,"build_timestamp":…,"message":<caption msg id>,"document":{"arm64-v8a":<APK msg id>}}`.
    A failure here is a warning in the run log; the APK delivery itself never fails on it.
 3. **Check.** On resume (at most once per server `updateCheckDelay`, a day by default) or on
-   *Check for Updates*, the app searches the channel for its own tag and offers
+   *Check for Updates*, the app reads the channel's latest 30 posts, keeps those with its own tag, and offers
    the newest post whose `version_code` is higher, or equal with a newer
    `build_timestamp`. The APK and changelog come from the posts it points at. A
    saved pending update is dropped on launch once the installed build's own

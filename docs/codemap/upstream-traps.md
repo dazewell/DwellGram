@@ -3078,3 +3078,14 @@ and judges staleness by it instead, falling back to the name comparison for
 `id == 0`.
 
 *(Established 2026-11-07, `#self-update`.)*
+
+## Channel search lags new posts by minutes; read history for anything fresh
+
+`messages.search` in a channel did not return a post the helper bot had just
+sent. The same query in the in-chat search found it only after a delay of
+several minutes, while the post itself was already visible. The self-updater's
+`BaseRemoteHelper` used to search for its `#tag`, so a fresh staging build went
+unseen. It now reads the latest 30 posts with `messages.getHistory`
+(`BaseRemoteHelper.java:115`) and filters them by tag (`:85`).
+
+*(Established 2026-11-08, `#self-update-fix`.)*

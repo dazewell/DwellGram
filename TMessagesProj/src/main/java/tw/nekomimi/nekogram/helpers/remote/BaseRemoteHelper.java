@@ -109,12 +109,12 @@ public abstract class BaseRemoteHelper {
             }
             return;
         }
-        var tag = "#" + getTag();
-        TLRPC.TL_messages_search req = new TLRPC.TL_messages_search();
-        req.limit = 10;
+        // NagramX: read the latest posts instead of searching for the tag. Search lags behind a new
+        // post by many minutes, so a fresh build went unseen; onGetMessageSuccess filters by tag.
+        // 30 posts cover several builds (an album plus two metadata posts each).
+        TLRPC.TL_messages_getHistory req = new TLRPC.TL_messages_getHistory();
+        req.limit = 30;
         req.offset_id = 0;
-        req.filter = new TLRPC.TL_inputMessagesFilterEmpty();
-        req.q = tag;
         req.peer = getMessagesController().getInputPeer(-getChannelId());
         if (req.peer == null || req.peer.access_hash == 0 || forceRefreshAccessHash) {
             // NagramX: a channel with no username can only be reached once this account has
