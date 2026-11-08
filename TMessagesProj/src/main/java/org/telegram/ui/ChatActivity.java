@@ -36450,8 +36450,10 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         // NagramX (#compact-video-recording): a compact recorder leaves the history tappable, and an edit opened now
-        // would make the recording go out as that message's new media
-        if (chatActivityEnterView != null && chatActivityEnterView.isRecordingAudioVideo()) {
+        // would make the recording go out as that message's new media. Its paused preview included, which a
+        // pause takes out of isRecordingAudioVideo()
+        if (chatActivityEnterView != null && chatActivityEnterView.isRecordingAudioVideo()
+                || instantCameraView != null && instantCameraView.isCompactSession()) {
             return;
         }
         if (selectionReactionsOverlay != null && selectionReactionsOverlay.isVisible()) {
