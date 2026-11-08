@@ -58,7 +58,12 @@ public final class CompactVideoRecorder {
 
     public static final int COMPACT_DP = 112;
     private static final int EDGE_DP = 12;
+    // a 48dp target around a 44dp disc, the size of the flip button it stacks on
     private static final int TOGGLE_DP = 48;
+    private static final int FLIP_DP = 44;
+    private static final int INSET_DP = (TOGGLE_DP - FLIP_DP) / 2;
+    // InstantZoomControlView's spacing between the flip button and the view-once button below it
+    private static final int COLUMN_GAP_DP = 24;
     private static final long TOGGLE_MS = 220;
 
     private final FrameLayout host;
@@ -66,6 +71,8 @@ public final class CompactVideoRecorder {
     private final Host callback;
     private final ImageView toggle;
     private View[] expandedOnly = new View[0];
+    private View flip;
+    private boolean glass;
 
     // this recording opened compact; cleared only by end()
     private boolean session;
@@ -83,7 +90,6 @@ public final class CompactVideoRecorder {
         toggle = new ImageView(host.getContext());
         toggle.setScaleType(ImageView.ScaleType.CENTER);
         toggle.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN));
-        toggle.setBackground(Theme.createSimpleSelectorCircleDrawable(dp(TOGGLE_DP), 0x4d000000, 0x66000000));
         toggle.setVisibility(View.GONE);
         toggle.setOnClickListener(v -> setExpanded(!expanded));
         host.addView(toggle, LayoutHelper.createFrame(TOGGLE_DP, TOGGLE_DP, Gravity.LEFT | Gravity.TOP));
@@ -123,6 +129,35 @@ public final class CompactVideoRecorder {
                 host.post(CompactVideoRecorder.this::refresh);
             }
         };
+    }
+
+    // The host's flip button. Expanded, the toggle joins its column, one step above it: the flip's own step up
+    // from the view-once button, FLIP_DP plus COLUMN_GAP_DP.
+    public void stackAbove(View flip) {
+        this.flip = flip;
+    }
+
+    // The same look as the flip button: its glyph tint, and its flat circle until the glass arrives.
+    public void updateColors(int panelColor, int glyphColor) {
+        toggle.setColorFilter(new PorterDuffColorFilter(glyphColor, PorterDuff.Mode.SRC_IN));
+        if (!glass) {
+            final android.graphics.drawable.ShapeDrawable flat = new android.graphics.drawable.ShapeDrawable(new android.graphics.drawable.shapes.OvalShape());
+            flat.getPaint().setColor(androidx.core.graphics.ColorUtils.setAlphaComponent(panelColor, 0xFF));
+            toggle.setBackground(new android.graphics.drawable.InsetDrawable(flat, dp(INSET_DP)));
+        }
+    }
+
+    // The recorder's glass, as the flip button and the flash row wear it. Once: every create() subscribes for good.
+    public void setGlass(org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory factory,
+                         org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundColorProvider colorProvider) {
+        if (glass) {
+            return;
+        }
+        glass = true;
+        final org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable drawable = factory.create(toggle, colorProvider);
+        drawable.setPadding(dp(INSET_DP));
+        drawable.setRadius(dp(FLIP_DP / 2f));
+        toggle.setBackground(drawable);
     }
 
     // The camera controls that only the full recorder shows: flash, zoom, flip, infinite and the brightness arm.
@@ -232,9 +267,8 @@ public final class CompactVideoRecorder {
     }
 
     // Puts the toggle by the circle as it is drawn now. The host calls this whenever it moves the circle.
-    // Docked, it sits to the circle's right, where the screen is free. Expanded, the circle spans nearly the
-    // whole width, so it goes off the circle's top-left instead: clear of the arc, and away from the centred
-    // hint above and the controls below. In between it slides with the factor.
+    // Docked, it sits to the circle's right, where the screen is free. Expanded, it stacks on the flip button in
+    // the right-hand column of camera controls. In between it slides with the factor.
     public void layoutToggle() {
         if (!session) {
             return;
@@ -245,15 +279,21 @@ public final class CompactVideoRecorder {
         final float maxY = host.getMeasuredHeight() - host.getPaddingBottom() - size;
         final float dockedX = AndroidUtilities.rectTmp.right + dp(EDGE_DP);
         final float dockedY = AndroidUtilities.rectTmp.centerY() - size / 2f;
-        // up-left of the centre by the ring's outer radius (R + 8dp + half its stroke) plus a gap and the button's
-        // own radius, at 45 degrees where the room allows; the rise is capped so the button never reaches past
-        // circleTop - 16dp, under the hold-to-send label, which is what pushes it sideways on a small circle
-        final float r = AndroidUtilities.rectTmp.width() / 2f;
-        final float d = r + dp(8) + dp(2) + dp(4) + size / 2f;
-        final float dy = Math.max(0f, Math.min(d * 0.7071f, r - dp(8)));
-        final float dx = (float) Math.sqrt(d * d - dy * dy);
-        final float expandedX = AndroidUtilities.rectTmp.centerX() - dx - size / 2f;
-        final float expandedY = AndroidUtilities.rectTmp.centerY() - dy - size / 2f;
+        float expandedX, expandedY;
+        if (flip != null && flip.getWidth() > 0) {
+            // in the flip button's column, one step above it, the step the flip itself sits above view-once
+            expandedX = flip.getX() + flip.getWidth() / 2f - size / 2f;
+            expandedY = flip.getY() + flip.getHeight() / 2f - dp(FLIP_DP + COLUMN_GAP_DP) - size / 2f;
+        } else {
+            // before the column is laid out: up-left of the centre, clear of the ring (R + 8dp + half its stroke)
+            // by a gap, and no higher than circleTop - 16dp, under the hold-to-send label
+            final float r = AndroidUtilities.rectTmp.width() / 2f;
+            final float d = r + dp(8) + dp(2) + dp(4) + size / 2f;
+            final float dy = Math.max(0f, Math.min(d * 0.7071f, r - dp(8)));
+            final float dx = (float) Math.sqrt(d * d - dy * dy);
+            expandedX = AndroidUtilities.rectTmp.centerX() - dx - size / 2f;
+            expandedY = AndroidUtilities.rectTmp.centerY() - dy - size / 2f;
+        }
         final float x = expandedX + (dockedX - expandedX) * factor;
         final float y = expandedY + (dockedY - expandedY) * factor;
         toggle.setTranslationX(Math.max(dp(4), Math.min(x, maxX)));

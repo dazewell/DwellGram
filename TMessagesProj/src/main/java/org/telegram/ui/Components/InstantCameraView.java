@@ -280,6 +280,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                     }
                 });
         recorder.hideWhenCompact(buttonsLayout, zoomControlView, zoomControlView.flipButton(), flashBrightnessSlider);
+        recorder.stackAbove(zoomControlView.flipButton());
+        recorder.updateColors(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(isDarkAppearance()));
         return recorder;
     }
 
@@ -604,6 +606,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         buttonsLayout.setBackground(drawable);
         zoomControlView.setButtonsBackground(factory, colorProvider);
         flashBrightnessSlider.setGlassBackground(factory.create(flashBrightnessSlider, colorProvider), factory.create(flashBrightnessSlider, colorProvider)); // NagramX (#front-flash-brightness): the arm joins this row's glass
+        compactRecorder.setGlass(factory, colorProvider); // NagramX (#compact-video-recording): its toggle wears the flip button's glass
     }
 
     private Boolean wasFlashing;
@@ -779,6 +782,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             applyGlyphColor(flashButton, glyphColor(dark));
         }
         flashBrightnessSlider.setFillColor(glyphColor(dark)); // NagramX (#front-flash-brightness)
+        if (compactRecorder != null) compactRecorder.updateColors(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(dark)); // NagramX (#compact-video-recording)
         updateInfiniteButton();
     }
 
@@ -1414,7 +1418,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 : compactRecorder.blendY(animationTranslationY + panTranslationY - lift, animationTranslationY);
         textureOverlayView.setTranslationY(translationY);
         cameraContainer.setTranslationY(translationY);
-        if (compactRecorder != null) compactRecorder.layoutToggle();
 
         // NagramX (#video-zoom): the zoom row's 40dp capsule goes above the 56dp flash row when the gap
         // holds both with 8dp margins (112dp); otherwise it shares the flash row's line, between the flash
@@ -1449,6 +1452,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             muteImageView.setTranslationX(0);
             muteImageView.setTranslationY(0);
         }
+        if (compactRecorder != null) compactRecorder.layoutToggle(); // NagramX (#compact-video-recording): last, once the circle and the flip column are placed
     }
 
     public RectF getCameraRect() {
