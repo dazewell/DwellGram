@@ -19,7 +19,7 @@ public final class UpdateIntervalMenu {
     }
 
     public static void addTo(BottomBuilder builder, BaseFragment fragment) {
-        var cell = builder.addItem(getString(R.string.UpdateIntervalNax) + " - " + label(SelfUpdate.intervalMinutes()), R.drawable.msg_contacts_time_solar, (it) -> {
+        var cell = builder.addItem(getString(R.string.UpdateIntervalNax) + " - " + (SelfUpdate.isAvailable() ? label(SelfUpdate.intervalMinutes()) : getString(R.string.Unavailable)), R.drawable.msg_contacts_time_solar, (it) -> {
             if (fragment.getParentActivity() == null) {
                 return Unit.INSTANCE;
             }
