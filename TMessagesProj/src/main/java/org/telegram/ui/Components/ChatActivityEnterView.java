@@ -970,6 +970,15 @@ public class ChatActivityEnterView extends FrameLayout implements
     private boolean removeEmojiViewAfterAnimation;
 
     private Boolean pendingCameraFront = null; // nax
+    // NagramX (#compact-video-recording): the Compact Recording switch as it stood when a camera was picked in the
+    // camera-choice popup. Only a popup pick sets it; the chat takes it once, at the camera open. UI thread only.
+    private boolean pendingCompactVideo;
+
+    public boolean takeCompactVideoStart() {
+        final boolean compact = pendingCompactVideo;
+        pendingCompactVideo = false;
+        return compact;
+    }
 
     // NagramX: infinite video message. Session-only on purpose, so it never carries over to the next recording.
     private boolean infiniteVideoMessage;
@@ -1015,6 +1024,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             infiniteVideoSegments = 0;
             infiniteVideoBaseDate = 0;
             infiniteVideoNotify = true;
+            pendingCompactVideo = false; // NagramX (#compact-video-recording): only a popup pick below sets it
             /*delegate.onPreAudioVideoRecord();
             calledRecordRunnable = true;
             recordAudioVideoRunnableStarted = false;
@@ -8683,6 +8693,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             MediaDataController.getInstance(currentAccount).setDraftVoiceRegion(dialog_id, parentFragment != null && parentFragment.isTopic ? parentFragment.getTopicId() : 0, audioTimelineView == null ? 0.0f : audioTimelineView.getAudioLeft(), audioTimelineView == null ? 1.0f : audioTimelineView.getAudioRight());
         }
         destroyed = true;
+        pendingCompactVideo = false; // NagramX (#compact-video-recording)
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.recordStarted);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.recordPaused);
         NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.recordResumed);
@@ -19632,6 +19643,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
         if (!checkMenuPermissions(true)) {
             pendingCameraFront = null;
+            pendingCompactVideo = false; // NagramX (#compact-video-recording)
             return;
         }
         // NagramX: infinite video message: in a scheduled chat, ask for segment 0's send time before the
@@ -19660,6 +19672,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                         // a destroyed composer. Reject on lifecycle state too before touching anything.
                         if (delegate == null || parentActivity == null || destroyed) {
                             pendingCameraFront = null;
+                            pendingCompactVideo = false; // NagramX (#compact-video-recording)
                             return;
                         }
                         startVideoRecordingSession();
@@ -19667,6 +19680,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     () -> {
                         infiniteVideoScheduleSheet = null;
                         pendingCameraFront = null;
+                        pendingCompactVideo = false; // NagramX (#compact-video-recording)
                         // load-bearing on the attach-menu path (it does not clear this before showing the
                         // popup, unlike the long-press path); redundant but harmless on the long-press path.
                         calledRecordRunnable = false;
@@ -19690,6 +19704,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         calledRecordRunnable = false;
         startedDraggingX = -1;
         pendingCameraFront = null;
+        pendingCompactVideo = false; // NagramX (#compact-video-recording)
         if (audioVideoButtonContainer != null) {
             AndroidUtilities.shakeViewSpring(audioVideoButtonContainer, 3);
         }
@@ -19715,6 +19730,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         infiniteVideoSegments = 0;
         infiniteVideoBaseDate = 0;
         infiniteVideoNotify = true;
+        pendingCompactVideo = false; // NagramX (#compact-video-recording): shortcuts keep the full recorder
         closeKeyboard();
         pendingCameraFront = frontCamera;
         startVideoRecordingSession();
@@ -19972,6 +19988,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         infiniteVideoSegments = 0;
         infiniteVideoBaseDate = 0;
         infiniteVideoNotify = true;
+        pendingCompactVideo = false; // NagramX (#compact-video-recording): set again only by a pick below
 
         final boolean[] cameraSelected = {false};
 
@@ -20023,6 +20040,14 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
         popupLayout.addView(infiniteRow, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
 
+        // NagramX (#compact-video-recording): remembered, unlike infinite; read when a camera is picked below
+        Switch compactSwitch = new Switch(getContext(), resourcesProvider);
+        compactSwitch.setColors(Theme.key_switchTrack, Theme.key_switchTrackChecked, Theme.key_windowBackgroundWhite, Theme.key_windowBackgroundWhite);
+        compactSwitch.setChecked(NaConfig.INSTANCE.getCompactVideoRecording().Bool(), false);
+        LinearLayout compactRow = createPopupSwitchRow(R.drawable.msg_voice_pip_solar, getString(R.string.CameraInVideoMessagesCompact), compactSwitch, true);
+        compactRow.setOnClickListener(v -> compactSwitch.setChecked(NaConfig.INSTANCE.getCompactVideoRecording().toggleConfigBool(), true));
+        popupLayout.addView(compactRow, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
+
         // section separator
         ActionBarPopupWindow.GapView gapView = new ActionBarPopupWindow.GapView(getContext(), resourcesProvider);
         gapView.setTag(R.id.object_tag, 1);
@@ -20033,6 +20058,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         frontItem.setTextAndIcon(getString(R.string.CameraInVideoMessagesFront), R.drawable.msg_openprofile_solar);
         frontItem.setOnClickListener(v -> {
             cameraSelected[0] = true;
+            pendingCompactVideo = NaConfig.INSTANCE.getCompactVideoRecording().Bool(); // NagramX (#compact-video-recording)
             if (cameraSelectionPopup != null && cameraSelectionPopup.isShowing()) {
                 cameraSelectionPopup.dismiss();
             }
@@ -20045,6 +20071,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         rearItem.setTextAndIcon(getString(R.string.CameraInVideoMessagesRear), R.drawable.msg_rear_camera_solar);
         rearItem.setOnClickListener(v -> {
             cameraSelected[0] = true;
+            pendingCompactVideo = NaConfig.INSTANCE.getCompactVideoRecording().Bool(); // NagramX (#compact-video-recording)
             if (cameraSelectionPopup != null && cameraSelectionPopup.isShowing()) {
                 cameraSelectionPopup.dismiss();
             }

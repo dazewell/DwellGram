@@ -2847,7 +2847,7 @@ public class ChatActivity extends BaseFragment implements
                         AndroidUtilities.cancelRunOnUIThread(closeInstantCameraAnimation);
                         closeInstantCameraAnimation = null;
                     }
-                    instantCameraView.showCamera(false);
+                    instantCameraView.showCamera(false, chatActivityEnterView != null && chatActivityEnterView.takeCompactVideoStart()); // NagramX (#compact-video-recording): the popup's choice, taken once
                     chatListView.stopScroll();
                     chatAdapter.updateRowsSafe();
                 } else if (state == 1 || state == 3 || state == 4) {
@@ -12268,8 +12268,12 @@ public class ChatActivity extends BaseFragment implements
                 themeDelegate,
                 true
         );
-        instantCameraView.setAnimationCallback((open, fromPaused) ->
-                animatorRoundMessageCameraVisibility.setValue(open, true));
+        // NagramX (#compact-video-recording): a docked recorder leaves the chat unscrimmed and its jump-to-latest
+        // reachable; expanding and collapsing it come through here as well
+        instantCameraView.setAnimationCallback((open, fromPaused) -> {
+            animatorRoundMessageCameraVisibility.setValue(open && !instantCameraView.isCompactPresentation(), true);
+            updatePagedownButtonVisibility(true);
+        });
         instantCameraView.setTrimCallback((start, end) -> {
             if (chatActivityEnterView != null) {
                 chatActivityEnterView.setVideoTimelineTrim(start, end);
@@ -19391,7 +19395,8 @@ public class ChatActivity extends BaseFragment implements
         if (sideControlsButtonsLayout == null) {
             return;
         }
-        boolean show = canShowPagedownButton && !hasTextSelection() && !chatActivityEnterView.isRecordingAudioVideo() && !isInsideContainer && (!searching || getMediaDataController().searchResultMessages.isEmpty());
+        // NagramX (#compact-video-recording): a docked round video recorder leaves jump-to-latest usable
+        boolean show = canShowPagedownButton && !hasTextSelection() && (!chatActivityEnterView.isRecordingAudioVideo() || instantCameraView != null && instantCameraView.isCompactPresentation()) && !isInsideContainer && (!searching || getMediaDataController().searchResultMessages.isEmpty());
         if (show) {
             if (animated && (openAnimationStartTime == 0 || SystemClock.elapsedRealtime() < openAnimationStartTime + 150)) {
                 animated = false;
@@ -39720,7 +39725,7 @@ public class ChatActivity extends BaseFragment implements
             AndroidUtilities.runOnUIThread(closeInstantCameraAnimation = () -> {
                 closeInstantCameraAnimation = null;
                 runCloseInstantCameraAnimation();
-            }, 3000);
+            }, instantCameraView != null && instantCameraView.isCompactSession() ? 0 : 3000); // NagramX (#compact-video-recording): a compact one fades out at once, no fly-to-message
         }
         fillEditingMediaWithCaption(photoEntry.caption, photoEntry.entities);
         AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, payStars -> {
@@ -39974,8 +39979,8 @@ public class ChatActivity extends BaseFragment implements
         final InstantCameraViewBase.InstantViewCameraContainer cameraContainer = instantCameraView.getCameraContainer();
         AnimatorSet allAnimators = new AnimatorSet();
         allAnimators.playTogether(
-                ObjectAnimator.ofFloat(cameraContainer, View.SCALE_X, 0.5f),
-                ObjectAnimator.ofFloat(cameraContainer, View.SCALE_Y, 0.5f),
+                ObjectAnimator.ofFloat(cameraContainer, View.SCALE_X, 0.5f * instantCameraView.getPresentationScale()), // NagramX (#compact-video-recording): shrink, never grow, a docked circle
+                ObjectAnimator.ofFloat(cameraContainer, View.SCALE_Y, 0.5f * instantCameraView.getPresentationScale()),
                 ObjectAnimator.ofFloat(cameraContainer, View.ALPHA, 0.0f),
                 ObjectAnimator.ofFloat(instantCameraView.getButtonsLayout(), View.ALPHA, 0.0f),
                 ObjectAnimator.ofInt(instantCameraView.getPaint(), AnimationProperties.PAINT_ALPHA, 0),
@@ -42150,7 +42155,8 @@ public class ChatActivity extends BaseFragment implements
                         // NagramX: the pending close is what marks a sent camera still waiting to be retired. Without it,
                         // the open camera belongs to a later recording and must not be flown away.
                         if (message.type == MessageObject.TYPE_ROUND_VIDEO && instantCameraView != null && instantCameraView.getTextureView() != null && closeInstantCameraAnimation != null
-                                && instantCameraView.isFileHandedOff()) { // NagramX (#round-video-restart-guard-fix): only the camera that sent
+                                && instantCameraView.isFileHandedOff() // NagramX (#round-video-restart-guard-fix): only the camera that sent
+                                && !instantCameraView.isCompactSession()) { // NagramX (#compact-video-recording): its fade already owns the close
                             applyAnimation = true;
                             if (closeInstantCameraAnimation != null) {
                                 AndroidUtilities.cancelRunOnUIThread(closeInstantCameraAnimation);

@@ -459,6 +459,9 @@
     <string name="CameraInVideoMessagesAsk">Ask</string>
     <string name="CameraInVideoMessagesExternalMic">External Microphone</string>
     <string name="CameraInVideoMessagesInfinite">Infinite Recording</string>
+    <string name="CameraInVideoMessagesCompact">Compact Recording</string>
+    <string name="AccDescrCompactRecordingExpand">Expand video recorder</string>
+    <string name="AccDescrCompactRecordingCollapse">Collapse video recorder</string>
     <string name="AccDescrInfiniteRecordingOn">Turn on infinite recording</string>
     <string name="AccDescrInfiniteRecordingOff">Turn off infinite recording</string>
     <string name="InfiniteRecordingScheduleTitle">Schedule first message</string>
