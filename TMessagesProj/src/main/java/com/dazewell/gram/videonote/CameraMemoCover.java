@@ -542,8 +542,10 @@ final class CameraMemoCover extends FrameLayout {
                 // reading until the new one began.
                 lastRollover = segment + Math.max(0, now - lastTick - time);
                 priorSegments += lastRollover;
-            } else if (recording && wasRecording && lastRollover > 0 && time > segment + 2_000 && time >= lastRollover - 1_000) {
-                // a rollover the encoder couldn't open a file for puts the old segment's time back (rollOverSegment)
+            } else if (recording && wasRecording && lastRollover > 0 && time - segment > now - lastTick + 2_000
+                    && time >= lastRollover - 1_000) {
+                // A rollover the encoder couldn't open a file for puts the old segment's time back (rollOverSegment): a
+                // jump well past the time since the last reading, which a late reading alone can't make
                 priorSegments = Math.max(0, priorSegments - lastRollover);
                 lastRollover = 0;
             }
