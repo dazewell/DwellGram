@@ -649,7 +649,9 @@ final class CameraMemoCover extends FrameLayout {
         infiniteCell.setContentDescription(LocaleController.getString(infiniteOn ? R.string.AccDescrInfiniteRecordingOff : R.string.AccDescrInfiniteRecordingOn));
         // Also over a paused take's preview, where the viewfinder has gone stale: the stock once button is under this view
         // and the preview's send still reads it
-        boolean once = onceAvailable && viewfinder.getWidth() > 0 && (shown || live && bound);
+        boolean once = onceAvailable && viewfinder.getWidth() > 0 && (shown || live && bound)
+                // never over the open circle on a small screen: it would be clipped and take the circle's taps
+                && !(holeOpen && hasHole && RectF.intersects(hole, onceButton.getLeft(), onceButton.getTop(), onceButton.getRight(), onceButton.getBottom()));
         if (once != (onceButton.getVisibility() == VISIBLE)) {
             onceButton.setVisibility(once ? VISIBLE : GONE);
             requestLayout(); // the zoom stops make room for it
