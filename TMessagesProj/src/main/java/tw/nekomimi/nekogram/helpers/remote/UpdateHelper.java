@@ -114,7 +114,15 @@ public class UpdateHelper extends BaseRemoteHelper {
                 } else if (remoteVersion == currentVersion && remoteBuildTimestamp > buildTimestamp) {
                     shouldUpdate = true;
                 }
+                // NagramX: search order is posting order, and a dispatched staging run can post after
+                // a newer one, so keep the newest qualifying build instead of the first. updateAlways
+                // still takes the most recent post as-is.
+                if (!updateAlways && ref != null && (remoteVersion < ref.versionCode
+                        || (remoteVersion == ref.versionCode && remoteBuildTimestamp <= ref.buildTimestamp))) {
+                    continue;
+                }
                 if (shouldUpdate || updateAlways) {
+                    boolean takeFirst = updateAlways;
                     if (updateAlways) {
                         updateAlways = false;
                     }
@@ -129,7 +137,9 @@ public class UpdateHelper extends BaseRemoteHelper {
                             string.optString("url", null)
                     );
                     ref.buildTimestamp = remoteBuildTimestamp;
-                    break;
+                    if (takeFirst) {
+                        break;
+                    }
                 }
             } catch (JSONException ignored) {
             }
