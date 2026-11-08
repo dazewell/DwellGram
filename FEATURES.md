@@ -55,7 +55,7 @@ Edits History (message menu, with *Save Edits History* on under N-Settings → E
 
 ### Ayu Mode shortcut <!-- #ayu-mode --> <!-- #ayu-startup-fix -->
 
-A launcher shortcut (long-press the app icon, or pin it to your home screen) that opens the app with Ghost Mode already on. Tapping it flips every Ghost toggle you haven't locked and pushes you offline, then opens as normal. On by default; switch it off under N-Settings → General → Launcher shortcuts.
+A launcher shortcut (long-press the app icon, or pin it to your home screen) that enables unlocked Ghost toggles before the passcode screen and requests offline status for all signed-in accounts. Locking online sending on still allows later online updates. On by default; switch it off under N-Settings → General → Launcher shortcuts.
 
 ### Unofficial shortcut names <!-- #shortcut-variant-prefix -->
 
