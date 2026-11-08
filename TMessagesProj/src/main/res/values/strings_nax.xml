@@ -342,6 +342,12 @@
     <string name="AutoCheckUpdateRelease">Release</string>
     <string name="AutoCheckUpdateBeta">Beta</string>
     <string name="AutoCheckUpdateStagingNax">Staging</string>
+    <string name="UpdateIntervalNax">Check Interval</string>
+    <string name="UpdateInterval15mNax">15 minutes</string>
+    <string name="UpdateInterval1hNax">1 hour</string>
+    <string name="UpdateInterval3hNax">3 hours</string>
+    <string name="UpdateInterval6hNax">6 hours</string>
+    <string name="UpdateInterval24hNax">24 hours</string>
     <string name="YourVersionIsLatestNax">Your version is up to date.</string>
     <string name="UpdateChecksOffNax">Update checks are unavailable.</string>
     <string name="UpdateChecksDisabledNax">Update checks are off. Turn them on in Update Channel.</string>

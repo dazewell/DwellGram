@@ -4875,6 +4875,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     return Unit.INSTANCE;
                 });
                 updateChannelCell.setEnabled(com.dazewell.gram.selfupdate.SelfUpdate.isAvailable());
+                com.dazewell.gram.selfupdate.UpdateIntervalMenu.addTo(builder, this); // NagramX: #update-interval
                 builder.show();
             } else if (position == premiumRow) {
                 presentFragment(new PremiumPreviewFragment("settings"));

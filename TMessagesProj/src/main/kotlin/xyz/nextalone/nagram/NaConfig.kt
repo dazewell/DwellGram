@@ -1514,6 +1514,12 @@ object NaConfig {
             ConfigItem.configTypeInt,
             0 // 0: off; 1: release; 2: beta
         )
+    val updateCheckInterval =
+        addConfig(
+            "UpdateCheckInterval",
+            ConfigItem.configTypeInt,
+            180 // minutes between automatic update checks; read through SelfUpdate.checkDelayMillis
+        )
     val premiumItemEmojiStatus =
         addConfig(
             "PremiumItemEmojiStatus",
