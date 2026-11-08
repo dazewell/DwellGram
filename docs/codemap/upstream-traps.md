@@ -2755,12 +2755,41 @@ release it on a programmatic dismiss. A destroyed host only dismisses what is in
 `LaunchActivity.visibleDialogs` (`LaunchActivity.java:7062-7068`), so the prompt registers itself there, and
 `AlertDialog.show()` returns silently on a finishing host (`AlertDialog.java:325-326`), so check `isShowing()`.
 
-A cold start from the Ghost shortcut was checked and is fine: the intent is handled in `onCreate`
-(`LaunchActivity.java:689`), before the stage-queue flag goes false (`:7187`, default true at
-`ApplicationLoader.java:93`), and the 55 s status timer only sends while it is false and more than a second old
-(`MessagesController.java:10741-10742`).
+The earlier cold-start safety claim missed the passcode early return. See the shortcut trap below:
+calling `handleIntent` before `onResume` does not prove that Ghost activation ran.
 
 *(Established 2026-10-21, `#ghost-off-fix`.)*
+
+## The Ayu shortcut can resume online before it enables Ghost
+
+`LaunchActivity.onCreate` calls `handleIntent` at `LaunchActivity.java:692`, but the passcode branch
+saves the intent and returns at `:1594-1602`, before Ghost activation at `:3045-3049`. The unlock
+delegate replays it only at `:1508`. Meanwhile `onResume` marks the interface active on the stage
+queue (`:7306-7309`) and resumes the selected account's connection (`:7344`), even with the
+passcode visible. `MessagesController.java:10733-10744` can send `offline=false` after more than
+one second when its status refresh is due; it has no passcode guard. The 55-second interval is
+not a startup grace period: a zero last-update time or `offlineSent` also qualifies (`:10735`).
+Thus an initially non-Ghost launch can disclose online status while waiting for unlock. This is
+a statically verified path, not attribution of a particular device incident.
+
+Activation also sits inside the no-history/no-restore guards (`LaunchActivity.java:1677-1678`;
+`onCreate` supplies `savedInstanceState != null` at `:692`). Such intents can skip activation
+entirely. Whether a particular launcher delivered either condition needs runtime evidence.
+
+There is a separate settings trap: `NekoConfig.isGhostModeActive` ignores locked toggles
+(`NekoConfig.java:308-321`), and `setGhostMode` leaves them unchanged (`:324-331`). If online
+sending is locked on, Ghost can appear active while online requests remain allowed. Worse,
+entering Ghost passes `false` to `performStatusRequest` (`:351-356`), whose parameter means
+*offline* (`AyuGhostUtils.java:150-154`). It constructs an online request and relies on the
+interceptor to rewrite it; with online sending locked on, that rewrite does not run (`:193-195`).
+
+Moving activation earlier must account for requests already past the gate: interception precedes
+serialization (`ConnectionsManager.java:422-432`), then native submission (`:537`). A later toggle
+does not rewrite those serialized requests. An offline follow-up cannot erase an already observed
+online update. The shortcut needs protection before unlock deferral and resumed status work,
+with explicit treatment of locked online settings and already queued requests.
+
+*(Established 2026-11-07, `#ayu-mode`; corrects the cold-start claim under `#ghost-off-fix`.)*
 
 ## Your own status is never written from your own updateStatus
 
