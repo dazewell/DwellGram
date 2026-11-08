@@ -157,6 +157,9 @@ public abstract class BaseRemoteHelper {
             getConnectionsManager().sendRequest(req, (response, error) -> {
                 if (error == null) {
                     onGetMessageSuccess(response, delegate);
+                } else if (TextUtils.isEmpty(getChannelUsername())) {
+                    // NagramX: no username to re-resolve with, so retrying would only mask this error.
+                    onError(error.text, delegate);
                 } else {
                     load(true, delegate);
                 }
