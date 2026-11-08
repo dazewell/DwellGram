@@ -22,6 +22,7 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -72,6 +73,9 @@ final class CameraMemoCover extends FrameLayout {
     private static final int TONAL = 0xff2b2e33;
     private static final int ONLINE = 0xff34c759; // a fixed green, not the theme's online colour, which would give the app away
     private static final int CONTROLS_GAP = 18; // dp from the viewfinder's bottom to the control row, as the stock camera's shutter sits
+    private static final long FLASH_FADE_MS = 250;
+    private static final int ONCE_SIZE = 44; // dp, the once button at the zoom row's start
+    private static final int EDGE = 16; // dp from the screen's sides to the pill and the once button
 
     private final WeakReference<ChatActivity> chatRef;
     private final long attachedAt = SystemClock.elapsedRealtime();
@@ -110,6 +114,21 @@ final class CameraMemoCover extends FrameLayout {
     private final ControlButton pauseButton;
     private final TextView failedText;
     private final TextView closeButton;
+    // #camera-memo-controls: the recorder's own flash, infinite and view-once toggles, all under this view
+    private final LinearLayout togglePill;
+    private final ToggleCell flashCell;
+    private final ToggleCell infiniteCell;
+    private final ControlButton onceButton;
+    private boolean flashOn;
+    private int infiniteState = InstantCameraView.INFINITE_RECORDING_UNAVAILABLE;
+    private boolean onceAvailable;
+    private boolean onceOn;
+    // The front flash, painted here since the recorder's own is drawn under this view: its colour, kept after it goes
+    // out for the fade, and how far it is faded in
+    private int frontFlashColor;
+    private boolean frontFlashLit;
+    private float frontFlashShown;
+    private long frontFlashDrawnAt;
 
     // Recorder state, read every tick
     private boolean recording;
@@ -124,7 +143,11 @@ final class CameraMemoCover extends FrameLayout {
     private boolean resumableStop;
     private long pauseIntentAt;
     private long forwardDownAt;
-    private long elapsed;
+    private long elapsed; // the whole take, every infinite segment so far included
+    // The recorder's own time for the segment being recorded, and the sum of those it already rolled over and sent
+    private long segment;
+    private long priorSegments;
+    private long lastRollover;
     private long lastTick;
     private boolean committed;
     private long committedAt;
@@ -291,6 +314,47 @@ final class CameraMemoCover extends FrameLayout {
         });
         addView(closeButton);
 
+        // After the zoom, so they hit-test before its row
+        flashCell = new ToggleCell(context, R.drawable.flash_off, R.drawable.flash_on, false);
+        flashCell.setOnClickListener(v -> {
+            InstantCameraView camera = camera();
+            if (camera != null && flashCell.isEnabled()) {
+                camera.toggleCoverFlash();
+                refresh();
+            }
+        });
+        infiniteCell = new ToggleCell(context, R.drawable.nax_infinite, R.drawable.nax_infinite, true);
+        infiniteCell.setOnClickListener(v -> {
+            ChatActivity c = chatRef.get();
+            InstantCameraView camera = camera();
+            // the recorder's own guard: the toggle only means something while a segment is running
+            if (c != null && camera != null && infiniteCell.isEnabled() && camera.isRecording()) {
+                c.toggleInfiniteRecording();
+                camera.updateInfiniteButton();
+                refresh();
+            }
+        });
+        togglePill = new LinearLayout(context);
+        togglePill.setOrientation(LinearLayout.HORIZONTAL);
+        GradientDrawable pillBackground = new GradientDrawable();
+        pillBackground.setColor(TONAL);
+        pillBackground.setCornerRadius(AndroidUtilities.dp(18));
+        togglePill.setBackground(pillBackground);
+        togglePill.setPadding(AndroidUtilities.dp(4), 0, AndroidUtilities.dp(4), 0);
+        togglePill.addView(flashCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
+        togglePill.addView(infiniteCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
+        addView(togglePill);
+        onceButton = new ControlButton(context, ControlButton.ONCE);
+        onceButton.setOnClickListener(v -> {
+            ChatActivity c = chatRef.get();
+            ChatActivityEnterView enterView = c != null ? c.getChatActivityEnterView() : null;
+            if (enterView != null && onceButton.isEnabled() && enterView.canToggleVideoOnce()) {
+                enterView.toggleVideoOnce();
+                refresh();
+            }
+        });
+        addView(onceButton);
+
         refresh();
     }
 
@@ -386,7 +450,7 @@ final class CameraMemoCover extends FrameLayout {
             touchThrough = false;
             forwarding = false;
             // The zoom's row and open dial can lie over the crop (a square frame, the dial's height): theirs first
-            if (!failed && hasHole && !zoom.claims(event.getX() - zoom.getLeft(), event.getY() - zoom.getTop())) {
+            if (!failed && hasHole && !onToggle(event.getX(), event.getY()) && !zoom.claims(event.getX() - zoom.getLeft(), event.getY() - zoom.getTop())) {
                 if (viewfinderCovers && hasFlatHole && cropRect.contains(event.getX(), event.getY())) {
                     startForwarding();
                     forwardDownAt = event.getEventTime();
@@ -470,9 +534,28 @@ final class CameraMemoCover extends FrameLayout {
         long now = SystemClock.elapsedRealtime();
         recording = camera != null && camera.isRecording();
         bound = enterView != null && enterView.hasVideoToSend();
-        if (recording && wasRecording) {
-            elapsed += now - lastTick;
+        if (camera != null) {
+            long time = Math.max(0, camera.getCoverSegmentTime());
+            if (recording && wasRecording && time < segment - 1_000) {
+                lastRollover = segment; // an infinite rollover: the recorder starts the next segment from zero
+                priorSegments += segment;
+            } else if (recording && wasRecording && lastRollover > 0 && time > segment + 2_000) {
+                // a rollover the encoder couldn't open a file for puts the old segment's time back (rollOverSegment)
+                priorSegments = Math.max(0, priorSegments - lastRollover);
+                lastRollover = 0;
+            }
+            segment = time;
+            flashOn = camera.isCoverFlashOn();
+            int flash = camera.getCoverFrontFlash();
+            frontFlashLit = flash != 0;
+            if (frontFlashLit) {
+                frontFlashColor = flash;
+            }
         }
+        elapsed = priorSegments + segment;
+        infiniteState = chat != null ? chat.getInfiniteRecordingState() : InstantCameraView.INFINITE_RECORDING_UNAVAILABLE;
+        onceAvailable = enterView != null && enterView.canToggleVideoOnce();
+        onceOn = onceAvailable && enterView.voiceOnce;
         if (recording) {
             if (!everRecorded) {
                 firstRecordingAt = now;
@@ -517,8 +600,9 @@ final class CameraMemoCover extends FrameLayout {
         }
         boolean live = !failed && !committed;
         discardButton.setEnabled(live && (recording || bound));
-        sendButton.setEnabled(live && (recording && elapsed >= MIN_CLIP_MS || !recording && bound));
-        boolean canPause = live && recording && elapsed >= MIN_CLIP_MS && elapsed < PAUSE_UNTIL_MS;
+        // Segment time, not the take's: under infinite each segment is its own clip, and one under 800 ms is cancelled
+        sendButton.setEnabled(live && (recording && segment >= MIN_CLIP_MS || !recording && bound));
+        boolean canPause = live && recording && segment >= MIN_CLIP_MS && segment < PAUSE_UNTIL_MS;
         boolean canResume = live && isPaused();
         pauseButton.setEnabled(canPause || canResume);
         pauseButton.setPlaying(isPaused());
@@ -529,6 +613,7 @@ final class CameraMemoCover extends FrameLayout {
         pauseButton.setVisibility(controls);
         // Only over a live viewfinder: with the hole open the stock circle shows, which these don't belong to
         zoom.sync(live && viewfinderCovers);
+        syncToggles(live && viewfinderCovers);
         failedText.setVisibility(failed ? VISIBLE : GONE);
         closeButton.setVisibility(failed && !VideoNoteShortcut.isLockedMemo() ? VISIBLE : GONE);
         setContentDescription(stateText());
@@ -541,7 +626,43 @@ final class CameraMemoCover extends FrameLayout {
     // A clip waiting in the preview, short of the cap, with the camera off, that the recorder can pick up again: paused
     // by the Pause button or a tap on the crop. Any other stop reads Stopped (resumableStop).
     private boolean isPaused() {
-        return !recording && bound && resumableStop && elapsed < PAUSE_UNTIL_MS;
+        return !recording && bound && resumableStop && segment < PAUSE_UNTIL_MS;
+    }
+
+    // Shown with the zoom, over a live viewfinder only: with the hole open the stock circle brings its own buttons.
+    // Infinite and view-once follow the composer's availability, view-once only once a take exists, since starting a
+    // new one clears it.
+    private void syncToggles(boolean shown) {
+        togglePill.setVisibility(shown ? VISIBLE : GONE);
+        flashCell.setOn(flashOn);
+        flashCell.setContentDescription(LocaleController.getString(flashOn ? R.string.AccDescrCameraFlashOff : R.string.AccDescrCameraFlashOn));
+        boolean infinite = infiniteState != InstantCameraView.INFINITE_RECORDING_UNAVAILABLE;
+        boolean infiniteOn = infiniteState == InstantCameraView.INFINITE_RECORDING_ON;
+        infiniteCell.setVisibility(infinite ? VISIBLE : GONE);
+        infiniteCell.setEnabled(recording);
+        infiniteCell.setOn(infiniteOn);
+        infiniteCell.setContentDescription(LocaleController.getString(infiniteOn ? R.string.AccDescrInfiniteRecordingOff : R.string.AccDescrInfiniteRecordingOn));
+        boolean once = shown && onceAvailable && viewfinder.getWidth() > 0;
+        if (once != (onceButton.getVisibility() == VISIBLE)) {
+            onceButton.setVisibility(once ? VISIBLE : GONE);
+            requestLayout(); // the zoom stops make room for it
+        }
+        onceButton.setEnabled(recording || bound);
+        onceButton.setPlaying(onceOn);
+        onceButton.setContentDescription(LocaleController.getString(onceOn ? R.string.AccActionOnceDeactivate : R.string.AccActionOnceActivate));
+        if (shown) {
+            float centerY = statusBaseline() - textPaint.getTextSize() * 0.35f;
+            togglePill.setTranslationY(Math.round(centerY - togglePill.getHeight() / 2f));
+        }
+    }
+
+    private boolean onToggle(float x, float y) {
+        return hits(togglePill, x, y) || hits(onceButton, x, y);
+    }
+
+    private static boolean hits(View view, float x, float y) {
+        return view.getVisibility() == VISIBLE && x >= view.getLeft() && x < view.getRight()
+                && y >= view.getTop() + view.getTranslationY() && y < view.getBottom() + view.getTranslationY();
     }
 
     // The circle's bounds as drawn, open animation included, in this view's coordinates. Fails open: while the recorder
@@ -654,6 +775,10 @@ final class CameraMemoCover extends FrameLayout {
         discardButton.measure(small, small);
         pauseButton.measure(small, small);
         sendButton.measure(big, big);
+        int once = MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(ONCE_SIZE), MeasureSpec.EXACTLY);
+        onceButton.measure(once, once);
+        togglePill.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST),
+                MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(36), MeasureSpec.EXACTLY));
         failedText.measure(MeasureSpec.makeMeasureSpec(Math.max(0, width - AndroidUtilities.dp(64)), MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(height, MeasureSpec.AT_MOST));
         closeButton.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST),
@@ -695,11 +820,19 @@ final class CameraMemoCover extends FrameLayout {
             }
             zoom.layout(vl, vt, vl + vw, vt + vh);
             zoom.setRowBand(viewfinderRect.bottom - cropRect.bottom);
+            // Once at the row's start, as a camera's mode button. The stops keep clear of it on both sides, so they stay
+            // centred.
+            boolean once = onceButton.getVisibility() == VISIBLE;
+            float reserve = once ? AndroidUtilities.dp(EDGE + ONCE_SIZE + 8) : 0;
+            zoom.setRowBounds(reserve, reserve);
+            place(onceButton, vl + AndroidUtilities.dp(EDGE + ONCE_SIZE / 2), Math.round(vt + zoom.rowCenterY()));
         } else {
             viewfinder.layout(0, 0, 0, 0);
             zoom.layout(0, 0, 0, 0);
+            onceButton.layout(0, 0, 0, 0);
             cropRect.setEmpty();
         }
+        togglePill.layout(AndroidUtilities.dp(EDGE), 0, AndroidUtilities.dp(EDGE) + togglePill.getMeasuredWidth(), togglePill.getMeasuredHeight());
         controlsTop = computeControlsTop(shown);
         int centerY = controlsTop + AndroidUtilities.dp(36);
         int centerX = width / 2;
@@ -751,7 +884,34 @@ final class CameraMemoCover extends FrameLayout {
             canvas.clipOutPath(holePath);
         }
         canvas.drawColor(0xff000000);
+        drawFrontFlash(canvas);
         canvas.restore();
+    }
+
+    // The selfie camera's screen flash: the recorder's light at its own colour and strength, around the viewfinder, which
+    // draws over it. Faded in and out rather than cut, like the recorder's.
+    private void drawFrontFlash(Canvas canvas) {
+        long now = SystemClock.elapsedRealtime();
+        float step = frontFlashDrawnAt == 0 ? 0f : Math.min(1f, (now - frontFlashDrawnAt) / (float) FLASH_FADE_MS);
+        frontFlashDrawnAt = now;
+        float target = frontFlashLit && !failed ? 1f : 0f;
+        frontFlashShown = target > frontFlashShown ? Math.min(target, frontFlashShown + step) : Math.max(target, frontFlashShown - step);
+        if (frontFlashShown != target) {
+            invalidate();
+        } else {
+            frontFlashDrawnAt = 0; // settled: the next fade starts from its own first frame, not the last tick's
+        }
+        if (frontFlashShown <= 0f) {
+            return;
+        }
+        fillPaint.setColor(frontFlashColor);
+        fillPaint.setAlpha((int) ((frontFlashColor >>> 24) * frontFlashShown));
+        canvas.drawRect(0, 0, getWidth(), getHeight(), fillPaint);
+    }
+
+    // Dark ink once the flash is bright enough to wash the white out
+    private boolean darkInk() {
+        return (frontFlashColor >>> 24) * frontFlashShown > 0x80;
     }
 
     // Children, the viewfinder first. Unless the viewfinder covers the circle, none of them draws into the hole: that is
@@ -818,15 +978,24 @@ final class CameraMemoCover extends FrameLayout {
         if (!everRecorded) {
             return LocaleController.getString(R.string.CameraMemoStarting);
         }
-        String time = formatTime(elapsed) + " / " + formatTime(CAP_MS);
+        String time = formatTime(shownTime()) + capSuffix();
         if (recording) {
             return time;
         }
         return LocaleController.getString(isPaused() ? R.string.CameraMemoPaused : R.string.CameraMemoStopped) + " " + time;
     }
 
+    // The take's time, held at the cap that would end it. Infinite has no cap: a segment ends and the next one starts.
+    private long shownTime() {
+        return infiniteState == InstantCameraView.INFINITE_RECORDING_ON ? elapsed : Math.min(elapsed, priorSegments + CAP_MS);
+    }
+
+    private String capSuffix() {
+        return infiniteState == InstantCameraView.INFINITE_RECORDING_ON ? "" : " / " + formatTime(priorSegments + CAP_MS);
+    }
+
     private static String formatTime(long ms) {
-        long seconds = Math.min(ms, CAP_MS) / 1000;
+        long seconds = Math.max(0, ms) / 1000;
         return String.format(Locale.US, "%d:%02d", seconds / 60, seconds % 60);
     }
 
@@ -895,21 +1064,30 @@ final class CameraMemoCover extends FrameLayout {
     // Top centre: a blinking red dot and the clock while capturing, a pause or stop glyph and its word otherwise
     private void drawStatus(Canvas canvas) {
         float baseline = statusBaseline();
+        // Over a lit front flash the white would wash out
+        boolean dark = darkInk();
+        int ink = dark ? 0xff000000 : 0xffffffff;
+        dimTextPaint.setColor(dark ? 0xb3000000 : 0xb3ffffff);
+        dimTextPaint.setShadowLayer(AndroidUtilities.dp(3), 0, 0, dark ? 0 : 0x99000000);
+        textPaint.setShadowLayer(AndroidUtilities.dp(3), 0, 0, dark ? 0 : 0x99000000);
+        // Clear of the pill on the left
+        float minX = togglePill.getVisibility() == VISIBLE ? togglePill.getRight() + AndroidUtilities.dp(12) : 0;
         if (!everRecorded) {
             String text = LocaleController.getString(R.string.CameraMemoStarting);
-            canvas.drawText(text, (getWidth() - dimTextPaint.measureText(text)) / 2f, baseline, dimTextPaint);
+            canvas.drawText(text, Math.max(minX, (getWidth() - dimTextPaint.measureText(text)) / 2f), baseline, dimTextPaint);
             return;
         }
-        textPaint.setColor(recording && elapsed >= WARN_FROM_MS ? AMBER : 0xffffffff);
+        // The segment's, as the recorder warns: under infinite it is the next rollover coming up
+        textPaint.setColor(recording && segment >= WARN_FROM_MS ? (dark ? 0xffb36b00 : AMBER) : ink);
         boolean paused = isPaused();
         String word = recording ? null : LocaleController.getString(paused ? R.string.CameraMemoPaused : R.string.CameraMemoStopped);
-        String time = formatTime(elapsed);
-        String cap = " / " + formatTime(CAP_MS);
+        String time = formatTime(shownTime());
+        String cap = capSuffix();
         float glyph = AndroidUtilities.dp(12);
         float gap = AndroidUtilities.dp(8);
         float wordWidth = word != null ? textPaint.measureText(word) + gap : 0;
         float total = glyph + gap + wordWidth + textPaint.measureText(time) + dimTextPaint.measureText(cap);
-        float x = (getWidth() - total) / 2f;
+        float x = Math.max(minX, (getWidth() - total) / 2f);
         float centerY = baseline - textPaint.getTextSize() * 0.35f;
         if (recording) {
             if ((SystemClock.elapsedRealtime() / 500) % 2 == 0) {
@@ -917,7 +1095,7 @@ final class CameraMemoCover extends FrameLayout {
                 canvas.drawCircle(x + glyph / 2f, centerY, AndroidUtilities.dp(5), fillPaint);
             }
         } else {
-            fillPaint.setColor(0xffffffff);
+            fillPaint.setColor(ink);
             if (paused) {
                 float bar = AndroidUtilities.dp(3.5f);
                 canvas.drawRect(x + AndroidUtilities.dp(1), centerY - glyph / 2f, x + AndroidUtilities.dp(1) + bar, centerY + glyph / 2f, fillPaint);
@@ -943,11 +1121,13 @@ final class CameraMemoCover extends FrameLayout {
         static final int DISCARD = 0;
         static final int SEND = 1;
         static final int PAUSE = 2;
+        static final int ONCE = 3; // the stock once glyph; "playing" is armed
 
         private final int type;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Path path = new Path();
         private final Drawable trash;
+        private final org.telegram.ui.Stories.recorder.CaptionContainerView.PeriodDrawable period;
         private boolean playing;
 
         ControlButton(Context context, int type) {
@@ -959,11 +1139,28 @@ final class CameraMemoCover extends FrameLayout {
             } else {
                 trash = null;
             }
+            if (type == ONCE) {
+                period = new org.telegram.ui.Stories.recorder.CaptionContainerView.PeriodDrawable();
+                period.updateColors(0xffffffff, CameraMemoZoom.ORANGE, 0xff000000);
+                com.dazewell.gram.helpers.PeriodGlyphCentering.centerInk(period, "1");
+                period.setValue(1, false, false);
+                period.setCallback(this);
+            } else {
+                period = null;
+            }
+        }
+
+        @Override
+        protected boolean verifyDrawable(Drawable who) {
+            return who == period || super.verifyDrawable(who);
         }
 
         void setPlaying(boolean playing) {
             if (this.playing != playing) {
                 this.playing = playing;
+                if (period != null) {
+                    period.setValue(1, playing, true);
+                }
                 invalidate();
             }
         }
@@ -992,12 +1189,16 @@ final class CameraMemoCover extends FrameLayout {
                 return;
             }
             paint.setColor(TONAL);
-            canvas.drawCircle(cx, cy, AndroidUtilities.dp(24), paint);
+            canvas.drawCircle(cx, cy, Math.min(AndroidUtilities.dp(24), getWidth() / 2f), paint);
             paint.setColor(0xffffffff);
             if (type == DISCARD) {
                 int half = AndroidUtilities.dp(12);
                 trash.setBounds((int) cx - half, (int) cy - half, (int) cx + half, (int) cy + half);
                 trash.draw(canvas);
+            } else if (type == ONCE) {
+                int half = AndroidUtilities.dp(14);
+                period.setBounds((int) cx - half, (int) cy - half, (int) cx + half, (int) cy + half);
+                period.draw(canvas);
             } else if (playing) {
                 float s = AndroidUtilities.dp(8);
                 path.reset();
@@ -1012,6 +1213,62 @@ final class CameraMemoCover extends FrameLayout {
                 float gap = AndroidUtilities.dp(2.5f);
                 canvas.drawRect(cx - gap - bar, cy - h, cx - gap, cy + h, paint);
                 canvas.drawRect(cx + gap, cy - h, cx + gap + bar, cy + h, paint);
+            }
+        }
+    }
+
+    /** One cell of the top-left pill: white while off, orange while on, as a camera's quick toggles. */
+    private static final class ToggleCell extends View {
+
+        private final Drawable offGlyph;
+        private final Drawable onGlyph;
+        private final boolean slashWhenOff; // for a glyph with no off variant of its own
+        private final Paint slashPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private boolean on;
+
+        ToggleCell(Context context, int offRes, int onRes, boolean slashWhenOff) {
+            super(context);
+            offGlyph = context.getResources().getDrawable(offRes, null).mutate();
+            offGlyph.setColorFilter(new PorterDuffColorFilter(0xffffffff, PorterDuff.Mode.SRC_IN));
+            onGlyph = context.getResources().getDrawable(onRes, null).mutate();
+            onGlyph.setColorFilter(new PorterDuffColorFilter(CameraMemoZoom.ORANGE, PorterDuff.Mode.SRC_IN));
+            this.slashWhenOff = slashWhenOff;
+            slashPaint.setStyle(Paint.Style.STROKE);
+            slashPaint.setStrokeCap(Paint.Cap.ROUND);
+        }
+
+        void setOn(boolean on) {
+            if (this.on != on) {
+                this.on = on;
+                invalidate();
+            }
+        }
+
+        @Override
+        public void setEnabled(boolean enabled) {
+            if (enabled != isEnabled()) {
+                super.setEnabled(enabled);
+                setAlpha(enabled ? 1f : 0.4f);
+            }
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            int cx = getWidth() / 2;
+            int cy = getHeight() / 2;
+            int half = AndroidUtilities.dp(11);
+            Drawable glyph = on ? onGlyph : offGlyph;
+            glyph.setBounds(cx - half, cy - half, cx + half, cy + half);
+            glyph.draw(canvas);
+            if (!on && slashWhenOff) {
+                float s = AndroidUtilities.dp(9);
+                // cut out of the glyph in the pill's colour first, so the slash reads against it
+                slashPaint.setColor(TONAL);
+                slashPaint.setStrokeWidth(AndroidUtilities.dp(4.5f));
+                canvas.drawLine(cx - s, cy - s, cx + s, cy + s, slashPaint);
+                slashPaint.setColor(0xffffffff);
+                slashPaint.setStrokeWidth(AndroidUtilities.dp(1.75f));
+                canvas.drawLine(cx - s, cy - s, cx + s, cy + s, slashPaint);
             }
         }
     }

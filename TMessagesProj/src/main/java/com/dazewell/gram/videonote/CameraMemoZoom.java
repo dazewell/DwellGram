@@ -62,7 +62,7 @@ public final class CameraMemoZoom extends View {
         void setZoom(float ratio, boolean animate);
     }
 
-    private static final int ORANGE = 0xffff9500;
+    static final int ORANGE = 0xffff9500; // CameraMemoCover's toggles share it as their on colour
     private static final int DISC = 0x99000000;
     private static final int CHIP = 0x66000000;
     private static final long HOLD_MS = 300;
@@ -444,7 +444,7 @@ public final class CameraMemoZoom extends View {
         return SystemClock.elapsedRealtime() - tapAt <= TAP_SETTLE_MS ? tapTarget : current;
     }
 
-    private float rowCenterY() {
+    float rowCenterY() { // CameraMemoCover centres its once button on it
         float half = AndroidUtilities.dp(24);
         return rowBand >= half * 2 ? getHeight() - rowBand / 2f : getHeight() - AndroidUtilities.dp(12) - half;
     }
