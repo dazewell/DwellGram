@@ -228,19 +228,26 @@ public final class CompactVideoRecorder {
         }
     }
 
-    // Puts the toggle beside the circle as it is drawn now. The host calls this whenever it moves the circle.
+    // Puts the toggle by the circle as it is drawn now. The host calls this whenever it moves the circle.
+    // Docked, it sits to the circle's right, where the screen is free. Expanded, the circle spans nearly the
+    // whole width, so it goes to the top-left corner of the circle's square instead: clear of the arc there, and
+    // away from the centred hint above and the controls below. In between it slides with the factor.
     public void layoutToggle() {
         if (!session) {
             return;
         }
         visibleBounds(circle, AndroidUtilities.rectTmp);
         final float size = dp(TOGGLE_DP);
-        float x = AndroidUtilities.rectTmp.right + dp(EDGE_DP);
-        float y = AndroidUtilities.rectTmp.centerY() - size / 2f;
-        x = Math.max(0, Math.min(x, host.getMeasuredWidth() - size - dp(4)));
-        y = Math.max(0, Math.min(y, host.getMeasuredHeight() - host.getPaddingBottom() - size));
-        toggle.setTranslationX(x);
-        toggle.setTranslationY(y);
+        final float maxX = host.getMeasuredWidth() - size - dp(4);
+        final float maxY = host.getMeasuredHeight() - host.getPaddingBottom() - size;
+        final float dockedX = AndroidUtilities.rectTmp.right + dp(EDGE_DP);
+        final float dockedY = AndroidUtilities.rectTmp.centerY() - size / 2f;
+        final float expandedX = AndroidUtilities.rectTmp.left - dp(8);
+        final float expandedY = AndroidUtilities.rectTmp.top - dp(8);
+        final float x = expandedX + (dockedX - expandedX) * factor;
+        final float y = expandedY + (dockedY - expandedY) * factor;
+        toggle.setTranslationX(Math.max(dp(4), Math.min(x, maxX)));
+        toggle.setTranslationY(Math.max(0, Math.min(y, maxY)));
     }
 
     private void setExpanded(boolean expand) {
