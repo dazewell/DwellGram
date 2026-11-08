@@ -91,7 +91,10 @@ public final class CompactVideoRecorder {
 
         // padding (the recording bar), insets and the host re-picking the circle's size all arrive as relayouts,
         // which don't otherwise reach the transforms
-        host.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> refresh());
+        host.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            layoutToggle(); // also expanded, which refresh() leaves alone
+            refresh();
+        });
     }
 
     // Re-applies the presentation if the dock or the circle's size moved under a settled circle. The host also
@@ -230,8 +233,8 @@ public final class CompactVideoRecorder {
 
     // Puts the toggle by the circle as it is drawn now. The host calls this whenever it moves the circle.
     // Docked, it sits to the circle's right, where the screen is free. Expanded, the circle spans nearly the
-    // whole width, so it goes to the top-left corner of the circle's square instead: clear of the arc there, and
-    // away from the centred hint above and the controls below. In between it slides with the factor.
+    // whole width, so it goes off the circle's top-left instead: clear of the arc, and away from the centred
+    // hint above and the controls below. In between it slides with the factor.
     public void layoutToggle() {
         if (!session) {
             return;
@@ -242,8 +245,15 @@ public final class CompactVideoRecorder {
         final float maxY = host.getMeasuredHeight() - host.getPaddingBottom() - size;
         final float dockedX = AndroidUtilities.rectTmp.right + dp(EDGE_DP);
         final float dockedY = AndroidUtilities.rectTmp.centerY() - size / 2f;
-        final float expandedX = AndroidUtilities.rectTmp.left - dp(8);
-        final float expandedY = AndroidUtilities.rectTmp.top - dp(8);
+        // up-left of the centre by the ring's outer radius (R + 8dp + half its stroke) plus a gap and the button's
+        // own radius, at 45 degrees where the room allows; the rise is capped so the button never reaches past
+        // circleTop - 16dp, under the hold-to-send label, which is what pushes it sideways on a small circle
+        final float r = AndroidUtilities.rectTmp.width() / 2f;
+        final float d = r + dp(8) + dp(2) + dp(4) + size / 2f;
+        final float dy = Math.max(0f, Math.min(d * 0.7071f, r - dp(8)));
+        final float dx = (float) Math.sqrt(d * d - dy * dy);
+        final float expandedX = AndroidUtilities.rectTmp.centerX() - dx - size / 2f;
+        final float expandedY = AndroidUtilities.rectTmp.centerY() - dy - size / 2f;
         final float x = expandedX + (dockedX - expandedX) * factor;
         final float y = expandedY + (dockedY - expandedY) * factor;
         toggle.setTranslationX(Math.max(dp(4), Math.min(x, maxX)));
