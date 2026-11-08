@@ -71,7 +71,8 @@ if ($CheckBot -or (-not $id -and $username)) {
         $token = [System.Net.NetworkCredential]::new('', $secure).Password
     }
     $api = "https://api.telegram.org/bot$token"
-    $chatRef = if ($id) { "-100$id" } else { "@$username" }
+    # Resolve by username when there is one, so a given id is checked against it below.
+    $chatRef = if ($username) { "@$username" } else { "-100$id" }
 
     $chat = (Invoke-RestMethod "$api/getChat" -Method Post -Body @{ chat_id = $chatRef }).result
     if ($chat.type -ne 'channel') { throw "$chatRef is a $($chat.type), not a channel" }
