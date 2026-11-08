@@ -1415,6 +1415,8 @@ public class ChatActivityEnterView extends FrameLayout implements
             periodDrawable = new CaptionContainerView.PeriodDrawable();
             periodDrawable.setCallback(this);
             periodDrawable.setValue(1, voiceOnce, false);
+            // NagramX: the stock "1" centres its line box, not its ink, and reads off-centre in the round button
+            com.dazewell.gram.helpers.PeriodGlyphCentering.centerInk(periodDrawable, "1");
 
             lockOutlinePaint.setStyle(Paint.Style.STROKE);
             lockOutlinePaint.setStrokeCap(Paint.Cap.ROUND);
