@@ -1071,8 +1071,9 @@ final class CameraMemoCover extends FrameLayout {
     // Top centre: a blinking red dot and the clock while capturing, a pause or stop glyph and its word otherwise
     private void drawStatus(Canvas canvas) {
         float baseline = statusBaseline();
-        // Over a lit front flash the white would wash out
-        boolean dark = darkInk();
+        // Over a lit front flash the white would wash out. Not over the viewfinder, which draws over the flash: with no
+        // strip above it tall enough for a row, the clock sits on the picture.
+        boolean dark = darkInk() && (viewfinder.getWidth() == 0 || baseline + AndroidUtilities.dp(4) <= viewfinder.getTop());
         int ink = dark ? 0xff000000 : 0xffffffff;
         dimTextPaint.setColor(dark ? 0xb3000000 : 0xb3ffffff);
         dimTextPaint.setShadowLayer(AndroidUtilities.dp(3), 0, 0, dark ? 0 : 0x99000000);
