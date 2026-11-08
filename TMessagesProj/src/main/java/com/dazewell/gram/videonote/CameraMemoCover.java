@@ -274,6 +274,7 @@ final class CameraMemoCover extends FrameLayout {
         sendButton.setContentDescription(LocaleController.getString(R.string.Send));
         sendButton.setOnClickListener(v -> {
             ChatActivity c = chatRef.get();
+            refresh(); // the gate as of now: a rollover since the last tick starts a segment too short to send
             if (c != null && sendButton.isEnabled() && CameraMemo.send(c)) {
                 committed = true;
                 committedAt = SystemClock.elapsedRealtime();
@@ -574,10 +575,10 @@ final class CameraMemoCover extends FrameLayout {
 
     private void onPauseClick() {
         ChatActivity chat = chatRef.get();
+        refresh(); // as the send button: the gate as of now, not as of the last tick
         if (chat == null || !pauseButton.isEnabled()) {
             return;
         }
-        readRecorder();
         if (recording || isPaused()) {
             pauseIntentAt = SystemClock.elapsedRealtime();
             chat.toggleRecordingPause();
