@@ -502,7 +502,7 @@ surface caps the gap above it at 6dp (`:753`); reply/edit strips keep the full p
 
 Shrinking the disc instead was tried and dropped. Animating its painted inset moves the primary reservation
 (`InputSatellites.java:69`) across the 4dp publication threshold in steps, and that reserve is the toolbar's end
-padding (`ComposerToolbarLayout.java:1079`), so the fixed trailing buttons jump during the fold. Any future resize
+padding (`ComposerToolbarLayout.java:1076`), so the fixed trailing buttons jump during the fold. Any future resize
 of the disc has to keep that reservation on the construction-time inset.
 
 *(Established 2026-11-08, `#composer-rest-size`.)*

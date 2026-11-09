@@ -134,7 +134,7 @@ The Material Design 3 composer can run as a flat panel edge to edge along the bo
 
 ### One-row composer at rest <!-- #composer-inline-rest --> <!-- #glass-composer-fold --> <!-- #composer-rest-size -->
 
-With the keyboard down and the compose box empty, the composer folds into one row: Leading buttons, field, Trailing buttons, mic. Opening the keyboard restores two rows. Under Material Design 3 the field matches the full-size send button, with less padding above. Under Liquid Glass, the text pill fits between the button capsules and stretches back out as the keyboard opens.
+With the keyboard down and the compose box empty, the composer folds into one row: Leading buttons, field, Trailing buttons, mic. Opening the keyboard restores two rows. Under Material Design 3 the field and buttons match the full-size send button at any panel scale, with less padding above. Under Liquid Glass, the text pill fits between the button capsules and stretches back out as the keyboard opens.
 
 ### Composer toolbar layout editor <!-- #composer-layout --> <!-- #composer-layout-tap-toggle --> <!-- #composer-leading-2slot -->
 

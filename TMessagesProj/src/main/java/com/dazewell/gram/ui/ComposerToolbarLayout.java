@@ -2094,7 +2094,6 @@ public final class ComposerToolbarLayout extends FrameLayout {
         private long slideHoldStart;
         protected int occupiedChildCount;
         private boolean swallowingTouch;
-        private float childDrawScale = 1f;
 
         SlidingLinearLayout(Context context) {
             super(context);
@@ -2106,28 +2105,6 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
         boolean isOccupied(View child) {
             return child.getVisibility() != GONE;
-        }
-
-        void setChildDrawScale(float scale) {
-            if (childDrawScale != scale) {
-                childDrawScale = scale;
-                invalidate();
-            }
-        }
-
-        @Override
-        protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
-            if (childDrawScale == 1f) {
-                return super.drawChild(canvas, child, drawingTime);
-            }
-            // Around each button's own centre, so the row's spacing and every tap target stay where layout put them.
-            final int count = canvas.save();
-            canvas.scale(childDrawScale, childDrawScale,
-                    child.getLeft() + child.getTranslationX() + child.getWidth() / 2f,
-                    child.getTop() + child.getTranslationY() + child.getHeight() / 2f);
-            final boolean result = super.drawChild(canvas, child, drawingTime);
-            canvas.restoreToCount(count);
-            return result;
         }
 
         @Override
@@ -2355,8 +2332,34 @@ public final class ComposerToolbarLayout extends FrameLayout {
     private static final class CollapsingLinearLayout extends SlidingLinearLayout {
         private View contextGroup;
 
+        private float childDrawScale = 1f;
+
         CollapsingLinearLayout(Context context) {
             super(context);
+        }
+
+        void setChildDrawScale(float scale) {
+            if (childDrawScale != scale) {
+                childDrawScale = scale;
+                invalidate();
+            }
+        }
+
+        @Override
+        protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
+            if (childDrawScale == 1f) {
+                return super.drawChild(canvas, child, drawingTime);
+            }
+            // Around each button's own centre, so the row's spacing and every tap target stay where layout put them.
+            // The pivot is read only when this slot re-records, which onDescendantInvalidated below forces on every
+            // slide or translation of a child; that is why the scale lives here rather than on SlidingLinearLayout.
+            final int count = canvas.save();
+            canvas.scale(childDrawScale, childDrawScale,
+                    child.getLeft() + child.getTranslationX() + child.getWidth() / 2f,
+                    child.getTop() + child.getTranslationY() + child.getHeight() / 2f);
+            final boolean result = super.drawChild(canvas, child, drawingTime);
+            canvas.restoreToCount(count);
+            return result;
         }
 
         // The attach wrapper is a plain LinearLayout whose own visibility and alpha stay put while its
