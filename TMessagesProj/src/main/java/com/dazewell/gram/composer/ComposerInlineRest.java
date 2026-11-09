@@ -301,6 +301,7 @@ public final class ComposerInlineRest {
         if (!morphing) {
             progress = compact ? 0f : 1f;
             toolbar.setMiddleAlpha(compact ? 0f : 1f);
+            toolbar.setRestWeight(1f - progress);
         }
         return overflowChanged;
     }
@@ -327,6 +328,7 @@ public final class ComposerInlineRest {
         progress = target - (target - morphFromProgress) * remaining;
         // The scrolling zone comes back in the second half, once the field has left the row it reappears in.
         toolbar.setMiddleAlpha(compact ? 0f : Math.max(0, (progress - 0.5f) * 2f));
+        toolbar.setRestWeight(1f - progress);
         if (remaining <= 0) {
             // Not finished yet: this frame's island height still has to go out, and the history pin reads morphing()
             // while it does. settleIfDone() lets go once it has.
@@ -349,6 +351,7 @@ public final class ComposerInlineRest {
         startDelta = bottomDelta = 0;
         progress = compact ? 0f : 1f;
         toolbar.setMiddleAlpha(compact ? 0f : 1f);
+        toolbar.setRestWeight(1f - progress);
         setMorphView(null);
         if (wasMorphing) {
             toolbar.invalidate();
