@@ -710,6 +710,15 @@ public final class ComposerMd3Surface {
 
         if (drawPill && inputFactor > 0) {
             rect.set(fieldLeft, pill.top + topViewHeight + dp(FIELD_INSET), fieldRight, pill.bottom - dp(FIELD_INSET));
+            if (fold != null) {
+                final float compact = fold.md3RestFraction(enterView.getEditField());
+                final float center = pill.bottom + toolsInset
+                        - dp(fold.primaryColumnBottomDp(ChatActivityEnterView.DEFAULT_HEIGHT))
+                        - dp(ChatActivityEnterView.DEFAULT_HEIGHT) / 2f;
+                final float half = fold.md3RestHeightPx(enterView.getEditField()) / 2f;
+                rect.top += (center - half - rect.top) * compact;
+                rect.bottom += (center + half - rect.bottom) * compact;
+            }
             final float fieldRadius = Math.min(fieldRadius(), rect.height() / 2f);
             if (alpha > 0 && !rect.isEmpty()) {
                 inputFieldPath.addRoundRect(rect, fieldRadius, fieldRadius, Path.Direction.CW);

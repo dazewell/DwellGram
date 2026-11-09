@@ -4,10 +4,14 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 
 import com.dazewell.gram.ui.ComposerToolbarLayout;
+import com.dazewell.gram.ui.InputSatellites;
+import com.dazewell.gram.helpers.InterfaceStyleController;
 
 import org.telegram.messenger.LocaleController;
 import org.telegram.ui.Components.ChatActivityEnterView;
@@ -42,6 +46,7 @@ public final class ComposerInlineRest {
     private static final long MORPH_TIMEOUT = FOLD_DURATION + 150;
 
     private final ComposerToolbarLayout toolbar;
+    private float primaryPaintInset = Float.NaN;
     private boolean compact;
     private boolean held;
     private boolean morphing;
@@ -173,6 +178,47 @@ public final class ComposerInlineRest {
     /** The send column's bottom margin, in dp, centring it on the tools row it sits in. */
     public int primaryColumnBottomDp(int columnHeightDp) {
         return Math.max(0, (toolbar.rowHeightDp() - columnHeightDp) / 2);
+    }
+
+    /** A little padding around the toolbar's glyph, without changing any control's touch bounds. */
+    public int md3RestHeightPx(@Nullable TextView field) {
+        return Math.max(dp(toolbar.rowHeightDp() / 2 + 8), field != null ? field.getLineHeight() + dp(8) : 0);
+    }
+
+    public float md3RestFraction(@Nullable TextView field) {
+        // Large input text keeps the original surfaces rather than spilling out of a compact field.
+        return InterfaceStyleController.applyComposer() && toolsRowShown() && !overflow && field != null
+                && md3RestHeightPx(field) <= org.telegram.messenger.AndroidUtilities.dpf2(38) ? 1f - progress : 0f;
+    }
+
+    public float primaryPaintInsetPx(@Nullable TextView field, int openInsetDp) {
+        final float open = org.telegram.messenger.AndroidUtilities.dpf2(openInsetDp);
+        final float rest = (dp(ChatActivityEnterView.DEFAULT_HEIGHT) - md3RestHeightPx(field)) / 2f;
+        return open + (rest - open) * md3RestFraction(field);
+    }
+
+    /** Publish paint geometry together; the primary slot and its enlarged hit target stay intact. */
+    public void updatePrimaryPaint(@Nullable TextView field, int openInsetDp,
+                                   ChatActivityEnterView.SendButton send, org.telegram.ui.Components.chat.SendButtonBlockedByTypingView blocked,
+                                   ChatActivityEnterView.SendButton done, ImageView outline, View record,
+                                   InputSatellites satellites) {
+        if (!InterfaceStyleController.applyComposer()) {
+            return;
+        }
+        final float inset = primaryPaintInsetPx(field, openInsetDp);
+        if (send != null) send.setBackgroundInset(inset);
+        if (blocked != null) blocked.setBackgroundInset(inset);
+        if (done != null) done.setBackgroundInset(inset);
+        // The record background lives in the child's display list, which a parent redraw alone does not refresh.
+        if (primaryPaintInset != inset) {
+            primaryPaintInset = inset;
+            if (record != null) record.invalidate();
+        }
+        final int padding = Math.round(inset);
+        if (outline != null && outline.getPaddingLeft() != padding) {
+            outline.setPadding(padding, padding, padding, padding);
+        }
+        satellites.setContentInset(padding);
     }
 
     /**

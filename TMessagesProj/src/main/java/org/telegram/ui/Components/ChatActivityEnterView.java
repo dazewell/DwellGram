@@ -3588,7 +3588,10 @@ public class ChatActivityEnterView extends FrameLayout implements
 
                     // NagramX: the glass record disc fills its band-sized slot, just like send.
                     // MD3 keeps the inset that leaves its surrounding island visible.
-                    final float margin = composerToolbarEnabled ? dpf2(composerPrimaryInset()) : 0;
+                    // NagramX: the resting disc shares the field's painted height, with its touch slot intact.
+                    final float margin = composerInlineRest != null
+                            ? composerInlineRest.primaryPaintInsetPx(messageEditText, composerPrimaryInset())
+                            : composerToolbarEnabled ? dpf2(composerPrimaryInset()) : 0;
                     final float size = getMeasuredHeight() - 2 * margin;
                     final float r = size / 2f;
                     paint.setColor(getThemedColor(Theme.key_chat_messagePanelSend));
@@ -18361,6 +18364,11 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     @Override
     protected void dispatchDraw(Canvas canvas) {
+        // NagramX: publish the fold's paint inset before the primary controls and their reserved edge are drawn.
+        if (composerInlineRest != null) {
+            composerInlineRest.updatePrimaryPaint(messageEditText, composerPrimaryInset(), sendButton,
+                    sendButtonBlockedByTypingView, doneButton, sendOutlineView, audioVideoButtonContainer, inputSatellites);
+        }
         if (publishComposerPrimaryOffset() && !composerPrimaryGeometryPosted) {
             composerPrimaryGeometryPosted = true;
             post(() -> {

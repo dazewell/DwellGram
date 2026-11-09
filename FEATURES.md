@@ -132,7 +132,7 @@ Send and the mic sit at the end of the composer's button row. Under Liquid Glass
 
 The Material Design 3 composer can run as a flat panel edge to edge along the bottom, resting straight on the keyboard instead of floating as an island. The field, reply strip and selection buttons share one corner radius. Pick *Composer style* → Floating or Docked under Chat settings → Composer Toolbar → Panel, where the preview shows it. Defaults to Floating.
 
-### One-row composer at rest <!-- #composer-inline-rest --> <!-- #glass-composer-fold -->
+### One-row composer at rest <!-- #composer-inline-rest --> <!-- #glass-composer-fold --> <!-- #composer-rest-size -->
 
 With the keyboard down and the compose box empty, the composer folds into one row: Leading buttons, field, Trailing buttons, mic. Opening the keyboard grows it back to two rows. Under Liquid Glass, the text pill shrinks into the gap between the button capsules and stretches back out as the keyboard opens.
 

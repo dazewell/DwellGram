@@ -493,6 +493,18 @@ crowded for the send circle's capsule, which then sits above the toolbar beside 
 (`ComposerInlineRest.java:223-225`, `ChatActivityEnterView.java:4394`).
 *(Established 2026-10-29, `#glass-composer-fold`.)*
 
+## MD3 resting field and primary size are paint geometry, separate from touch bounds
+
+`ComposerInlineRest.md3RestHeightPx` (`ComposerInlineRest.java:184`) shares a compact height between
+the field surface (`ComposerMd3Surface.java:714`) and primary insets (`ComposerInlineRest.java:194`).
+The height accommodates the input line; above the existing 38dp primary diameter it keeps the open geometry
+(`ComposerInlineRest.java:188`). `updatePrimaryPaint` (`:201`) publishes the inset to send, blocked-send,
+done and outline, and invalidates the record child's display list when it changes. The primary layout slot
+and the surface's touch reach remain independent. Style checks must use `InterfaceStyleController.applyComposer()`;
+`hasGlassCapsules()` only reports whether glass drawables are attached.
+
+*(Established 2026-11-08, `#composer-rest-size`.)*
+
 ## The glass composer shares measured cell geometry across bubbles, the folded field and primary controls
 
 `ComposerToolbarLayout.buttonSize()` floors glass cells at the painted band diameter as well as the
