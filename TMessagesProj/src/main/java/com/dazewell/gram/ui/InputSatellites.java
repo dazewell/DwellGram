@@ -36,8 +36,8 @@ public final class InputSatellites {
     }
 
     /**
-     * How far inside its slot each right-column control draws itself, in px. Everything published here is the
-     * drawn control's edge rather than the slot's, so callers can inset off it once instead of guessing.
+     * Layout inset captured when the primary controls are created, in px. Fold painting can change its inset
+     * without moving this reserved edge and the fixed toolbar buttons beside it.
      */
     public void setContentInset(int inset) {
         contentInset = inset;
@@ -131,7 +131,7 @@ public final class InputSatellites {
             return 0;
         }
         if (view instanceof ChatActivityEnterView.SendButton) {
-            return ((ChatActivityEnterView.SendButton) view).getVisualWidth();
+            return ((ChatActivityEnterView.SendButton) view).getVisualWidth(contentInset);
         }
         return Math.max(0, view.getWidth() - 2 * contentInset);
     }

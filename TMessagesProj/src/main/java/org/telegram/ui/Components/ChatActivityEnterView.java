@@ -18364,10 +18364,10 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     @Override
     protected void dispatchDraw(Canvas canvas) {
-        // NagramX: publish the fold's paint inset before the primary controls and their reserved edge are drawn.
+        // NagramX: refresh fold painting without changing the toolbar's reserved primary slot.
         if (composerInlineRest != null) {
             composerInlineRest.updatePrimaryPaint(messageEditText, composerPrimaryInset(), sendButton,
-                    sendButtonBlockedByTypingView, doneButton, sendOutlineView, audioVideoButtonContainer, inputSatellites);
+                    sendButtonBlockedByTypingView, doneButton, sendOutlineView, audioVideoButtonContainer);
         }
         if (publishComposerPrimaryOffset() && !composerPrimaryGeometryPosted) {
             composerPrimaryGeometryPosted = true;
@@ -19138,12 +19138,13 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
 
         public int getVisualWidth() {
-            // NagramX (#composer-input): report the drawn control, not its slot. This is what the text and the
-            // review panel are held off, and checkBackgroundRect() floors at the same inset height, so the two
-            // agree in the price-widened state too. Identical to the slot at inset zero. Reads the
-            // band-sized disc when the composer sized one (#glass-lone-circle), so the hold-off
-            // tracks the disc that actually draws.
-            final float height = backgroundFollowsCircle ? getCircleHeight() : dpf2(DEFAULT_HEIGHT) - 2 * backgroundInset;
+            // NagramX: report the painted control, including the price pill and the explicit glass disc.
+            return getVisualWidth(backgroundInset);
+        }
+
+        // NagramX: layout keeps its original inset while the fold animates the painted one.
+        public int getVisualWidth(float inset) {
+            final float height = backgroundFollowsCircle ? getCircleHeight() : dpf2(DEFAULT_HEIGHT) - 2 * inset;
             float width = Math.max(height, dpf2(10 + 10) + priceText.getAnimateToWidth());
             return Math.round(lerp(width, height, sameWidthFactor));
         }

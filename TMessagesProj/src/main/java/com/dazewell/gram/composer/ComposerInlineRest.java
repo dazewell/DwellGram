@@ -10,7 +10,6 @@ import android.widget.TextView;
 import androidx.annotation.Nullable;
 
 import com.dazewell.gram.ui.ComposerToolbarLayout;
-import com.dazewell.gram.ui.InputSatellites;
 import com.dazewell.gram.helpers.InterfaceStyleController;
 
 import org.telegram.messenger.LocaleController;
@@ -200,8 +199,7 @@ public final class ComposerInlineRest {
     /** Publish paint geometry together; the primary slot and its enlarged hit target stay intact. */
     public void updatePrimaryPaint(@Nullable TextView field, int openInsetDp,
                                    ChatActivityEnterView.SendButton send, org.telegram.ui.Components.chat.SendButtonBlockedByTypingView blocked,
-                                   ChatActivityEnterView.SendButton done, ImageView outline, View record,
-                                   InputSatellites satellites) {
+                                   ChatActivityEnterView.SendButton done, ImageView outline, View record) {
         if (!InterfaceStyleController.applyComposer()) {
             return;
         }
@@ -218,7 +216,6 @@ public final class ComposerInlineRest {
         if (outline != null && outline.getPaddingLeft() != padding) {
             outline.setPadding(padding, padding, padding, padding);
         }
-        satellites.setContentInset(padding);
     }
 
     /**

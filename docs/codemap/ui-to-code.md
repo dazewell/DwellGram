@@ -495,10 +495,10 @@ crowded for the send circle's capsule, which then sits above the toolbar beside 
 
 ## MD3 resting field and primary size are paint geometry, separate from touch bounds
 
-`ComposerInlineRest.md3RestHeightPx` (`ComposerInlineRest.java:184`) shares a compact height between
-the field surface (`ComposerMd3Surface.java:716`) and primary insets (`ComposerInlineRest.java:194`).
+`ComposerInlineRest.md3RestHeightPx` (`ComposerInlineRest.java:183`) shares a compact height between
+the field surface (`ComposerMd3Surface.java:716`) and primary insets (`ComposerInlineRest.java:193`).
 The height accommodates the input line; above the existing 38dp primary diameter it keeps the open geometry
-(`ComposerInlineRest.java:188`). `updatePrimaryPaint` (`:201`) publishes the inset to send, blocked-send,
+(`ComposerInlineRest.java:187`). `updatePrimaryPaint` (`:200`) publishes the inset to send, blocked-send,
 done and outline, and invalidates the record child's display list when it changes. The primary layout slot
 and the surface's touch reach remain independent. Style checks must use `InterfaceStyleController.applyComposer()`;
 `hasGlassCapsules()` only reports whether glass drawables are attached.
@@ -506,6 +506,12 @@ The MD3 input surface also caps the gap above the compact field at 6dp (`Compose
 reply/edit strips retain the full panel top. This changes painted bounds, leaving the controls' touch slots intact.
 During a fold the pill already follows the text, so `restFieldVerticalInset` (`ComposerMd3Surface.java:736`)
 changes its height symmetrically. Anchoring it to the stationary primary row would move the background below the text.
+
+The primary reservation uses the construction-time inset (`InputSatellites.java:42`, `:134`), with the
+same price and glass-circle width calculation (`ChatActivityEnterView.java:19146`). Feeding the animated
+paint inset into this measurement crosses the 4dp publication threshold (`InputSatellites.java:70`) in steps.
+That reserve becomes toolbar end padding (`ComposerToolbarLayout.java:1078`), making the fixed trailing
+buttons jump during the fold. Their layout reservation therefore stays independent of the painted size.
 
 *(Established 2026-11-08, `#composer-rest-size`.)*
 
