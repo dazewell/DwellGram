@@ -70,6 +70,7 @@ public final class ComposerMd3Surface {
     // The field is drawn this far inside the 44dp text row top and bottom, so it is 42dp and shares the
     // row's centre with the send circle.
     private static final int FIELD_INSET = 1;
+    private static final int REST_FIELD_TOP_PADDING = 6;
     // The island reaches this far past the text row and the tools row, and the field sits the same 3dp in
     // from its leading edge, so the field has an even margin on three sides.
     private static final int ISLAND_PADDING = 2;
@@ -458,7 +459,8 @@ public final class ComposerMd3Surface {
         if (inputFactor > 0) {
             weight += inputFactor;
             left += pillLeft * inputFactor;
-            top += (pill.top - pad) * inputFactor;
+            // Shortening the field also releases the space above it; the controls retain their full touch slots.
+            top += (pill.top - pad + restTopTrim(pill, topViewHeight)) * inputFactor;
             right += pillRight * inputFactor;
             bottom += (pill.bottom + toolsInset + pad) * inputFactor;
         }
@@ -712,9 +714,7 @@ public final class ComposerMd3Surface {
             rect.set(fieldLeft, pill.top + topViewHeight + dp(FIELD_INSET), fieldRight, pill.bottom - dp(FIELD_INSET));
             if (fold != null) {
                 final float compact = fold.md3RestFraction(enterView.getEditField());
-                final float center = pill.bottom + toolsInset
-                        - dp(fold.primaryColumnBottomDp(ChatActivityEnterView.DEFAULT_HEIGHT))
-                        - dp(ChatActivityEnterView.DEFAULT_HEIGHT) / 2f;
+                final float center = restFieldCenterY(pill, fold);
                 final float half = fold.md3RestHeightPx(enterView.getEditField()) / 2f;
                 rect.top += (center - half - rect.top) * compact;
                 rect.bottom += (center + half - rect.bottom) * compact;
@@ -735,6 +735,22 @@ public final class ComposerMd3Surface {
             }
         }
     }
+    private float restFieldCenterY(Rect pill, ComposerInlineRest fold) {
+        return pill.bottom + toolsInset - dp(fold.primaryColumnBottomDp(ChatActivityEnterView.DEFAULT_HEIGHT))
+                - dp(ChatActivityEnterView.DEFAULT_HEIGHT) / 2f;
+    }
+
+    private float restTopTrim(Rect pill, float topViewHeight) {
+        final ComposerInlineRest fold = enterView != null ? enterView.getComposerInlineRest() : null;
+        // Reply and edit strips still need the full top of the panel.
+        if (fold == null || topViewHeight > 0) {
+            return 0;
+        }
+        final float fieldTop = restFieldCenterY(pill, fold) - fold.md3RestHeightPx(enterView.getEditField()) / 2f;
+        return Math.max(0, fieldTop - dp(REST_FIELD_TOP_PADDING) - (pill.top - islandPadding()))
+                * fold.md3RestFraction(enterView.getEditField());
+    }
+
     /**
      * The layout editor's stand-in for the island, frosted over the preview's wallpaper when a factory is
      * given. Like the Liquid Glass preview it shows the configured blur whatever the account's blur state.
