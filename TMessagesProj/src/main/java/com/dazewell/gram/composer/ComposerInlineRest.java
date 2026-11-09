@@ -4,10 +4,12 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 
 import com.dazewell.gram.ui.ComposerToolbarLayout;
+import com.dazewell.gram.helpers.InterfaceStyleController;
 
 import org.telegram.messenger.LocaleController;
 import org.telegram.ui.Components.ChatActivityEnterView;
@@ -40,6 +42,9 @@ public final class ComposerInlineRest {
     private static final long FOLD_DURATION = 450;
     // A morph whose height never animated (nothing to animate between) still has to let go of its offsets.
     private static final long MORPH_TIMEOUT = FOLD_DURATION + 150;
+    // The send disc's keyboard-open diameter (DEFAULT_HEIGHT less ChatActivityEnterView.COMPOSER_PRIMARY_INSET each
+    // side). The resting field grows to it, so the disc keeps its size and the row reads as one height.
+    private static final int MD3_REST_HEIGHT = ChatActivityEnterView.DEFAULT_HEIGHT - 2 * 3;
 
     private final ComposerToolbarLayout toolbar;
     private boolean compact;
@@ -175,6 +180,16 @@ public final class ComposerInlineRest {
         return Math.max(0, (toolbar.rowHeightDp() - columnHeightDp) / 2);
     }
 
+    public int md3RestHeightPx(@Nullable TextView field) {
+        return Math.max(dp(MD3_REST_HEIGHT), field != null ? field.getLineHeight() + dp(8) : 0);
+    }
+
+    public float md3RestFraction(@Nullable TextView field) {
+        // Large input text keeps the original surfaces rather than spilling out of a compact field.
+        return InterfaceStyleController.applyComposer() && toolsRowShown() && !overflow && field != null
+                && md3RestHeightPx(field) <= dp(MD3_REST_HEIGHT) ? 1f - progress : 0f;
+    }
+
     /**
      * Sets the enter view's height animation up for the change it is about to animate: the fold's pace while a fold is
      * under way, the stock one for everything else. Read at each animateTo, so a fold re-aimed midway keeps its pace.
@@ -286,6 +301,7 @@ public final class ComposerInlineRest {
         if (!morphing) {
             progress = compact ? 0f : 1f;
             toolbar.setMiddleAlpha(compact ? 0f : 1f);
+            toolbar.setRestWeight(1f - progress);
         }
         return overflowChanged;
     }
@@ -312,6 +328,7 @@ public final class ComposerInlineRest {
         progress = target - (target - morphFromProgress) * remaining;
         // The scrolling zone comes back in the second half, once the field has left the row it reappears in.
         toolbar.setMiddleAlpha(compact ? 0f : Math.max(0, (progress - 0.5f) * 2f));
+        toolbar.setRestWeight(1f - progress);
         if (remaining <= 0) {
             // Not finished yet: this frame's island height still has to go out, and the history pin reads morphing()
             // while it does. settleIfDone() lets go once it has.
@@ -334,6 +351,7 @@ public final class ComposerInlineRest {
         startDelta = bottomDelta = 0;
         progress = compact ? 0f : 1f;
         toolbar.setMiddleAlpha(compact ? 0f : 1f);
+        toolbar.setRestWeight(1f - progress);
         setMorphView(null);
         if (wasMorphing) {
             toolbar.invalidate();

@@ -489,6 +489,17 @@ public final class ComposerToolbarLayout extends FrameLayout {
         }
     }
 
+    /**
+     * How folded the composer is, 0 open to 1 at rest. Under MD3 the leading and trailing buttons are drawn at their
+     * 100% size at rest, the size the send button never leaves, so the one-row composer reads as one height whatever
+     * the panel scale. Paint only: cells, touch slots and padding keep the scaled layout.
+     */
+    public void setRestWeight(float weight) {
+        final float scale = InterfaceStyleController.applyComposer() ? 1f + (1f / glyphScale() - 1f) * weight : 1f;
+        startSlot.setChildDrawScale(scale);
+        endSlot.setChildDrawScale(scale);
+    }
+
     /** How far the leading zone reaches in from the row's start edge, in px; 0 while it is empty, -1 before layout. */
     public int leadingExtent() {
         return controls.restLeading;
@@ -2321,8 +2332,34 @@ public final class ComposerToolbarLayout extends FrameLayout {
     private static final class CollapsingLinearLayout extends SlidingLinearLayout {
         private View contextGroup;
 
+        private float childDrawScale = 1f;
+
         CollapsingLinearLayout(Context context) {
             super(context);
+        }
+
+        void setChildDrawScale(float scale) {
+            if (childDrawScale != scale) {
+                childDrawScale = scale;
+                invalidate();
+            }
+        }
+
+        @Override
+        protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
+            if (childDrawScale == 1f) {
+                return super.drawChild(canvas, child, drawingTime);
+            }
+            // Around each button's own centre, so the row's spacing and every tap target stay where layout put them.
+            // The pivot is read only when this slot re-records, which onDescendantInvalidated below forces on every
+            // slide or translation of a child; that is why the scale lives here rather than on SlidingLinearLayout.
+            final int count = canvas.save();
+            canvas.scale(childDrawScale, childDrawScale,
+                    child.getLeft() + child.getTranslationX() + child.getWidth() / 2f,
+                    child.getTop() + child.getTranslationY() + child.getHeight() / 2f);
+            final boolean result = super.drawChild(canvas, child, drawingTime);
+            canvas.restoreToCount(count);
+            return result;
         }
 
         // The attach wrapper is a plain LinearLayout whose own visibility and alpha stay put while its
