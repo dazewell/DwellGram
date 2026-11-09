@@ -263,7 +263,7 @@ public final class ComposerInlineRest {
      * {@link #isOverflow()} changed, so the enter view can move the send column.
      */
     public boolean layoutField(View field, @Nullable View richPreview, boolean wantsRest, int openStart, int sendReserve,
-                               int openBottom, float currentHeight, float currentTarget) {
+                               int openBottom, float currentHeight, float currentTarget, int account) {
         // A glass row too crowded for the send circle's capsule gap keeps two rows, the circle beside the field as
         // before. The slots are measured without the reserve, so dropping it can't flip this back.
         final int fixed = toolbar.fixedSlotsWidth();
@@ -291,6 +291,7 @@ public final class ComposerInlineRest {
         }
         held = !shown;
         final boolean rest = shown ? wantsRest && !over && fits(field) && !toolbar.hasMiddleLeading() : compact;
+        smokeRestPaint(account, field, rest);
         final ViewGroup.LayoutParams params = field.getLayoutParams();
         boolean flipped = false;
         float fromStart = 0, fromBottom = 0;
@@ -430,6 +431,30 @@ public final class ComposerInlineRest {
                 params.bottomMargin = bottom;
             }
             view.setLayoutParams(params);
+        }
+    }
+
+    private int smokeAccount = -1;
+    private boolean smokeExpected, smokeCompeting;
+
+    private void smokeRestPaint(int account, View field, boolean rest) {
+        if (smokeAccount != account) {
+            smokeAccount = account;
+            smokeExpected = smokeCompeting = false;
+            android.util.Log.i("NagramX", "NAX_SMOKE_composer-rest-size BEGIN account=" + account
+                    + " build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING
+                    + " package=" + org.telegram.messenger.BuildConfig.APPLICATION_ID + " scenario=rest-paint");
+        }
+        final boolean eligible = InterfaceStyleController.applyComposer() && toolsRowShown() && !overflow
+                && field instanceof TextView && md3RestHeightPx((TextView) field) <= org.telegram.messenger.AndroidUtilities.dpf2(38);
+        if (rest && eligible && !smokeExpected) {
+            smokeExpected = true;
+            android.util.Log.i("NagramX", "NAX_SMOKE_composer-rest-size EXPECTED compact account=" + account);
+            android.util.Log.i("NagramX", "NAX_SMOKE_composer-rest-size END account=" + account);
+        } else if ((!rest || !eligible) && !smokeCompeting) {
+            smokeCompeting = true;
+            android.util.Log.i("NagramX", "NAX_SMOKE_composer-rest-size COMPETING account=" + account
+                    + " rest=" + rest + " eligible=" + eligible);
         }
     }
 }
