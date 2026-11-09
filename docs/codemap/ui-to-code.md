@@ -502,8 +502,10 @@ The height accommodates the input line; above the existing 38dp primary diameter
 done and outline, and invalidates the record child's display list when it changes. The primary layout slot
 and the surface's touch reach remain independent. Style checks must use `InterfaceStyleController.applyComposer()`;
 `hasGlassCapsules()` only reports whether glass drawables are attached.
-The MD3 input surface also trims its top to 6dp above the compact field (`ComposerMd3Surface.java:743`);
+The MD3 input surface also caps the gap above the compact field at 6dp (`ComposerMd3Surface.java:746`);
 reply/edit strips retain the full panel top. This changes painted bounds, leaving the controls' touch slots intact.
+During a fold the pill already follows the text, so `restFieldVerticalInset` (`ComposerMd3Surface.java:736`)
+changes its height symmetrically. Anchoring it to the stationary primary row would move the background below the text.
 
 *(Established 2026-11-08, `#composer-rest-size`.)*
 

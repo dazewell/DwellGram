@@ -712,13 +712,10 @@ public final class ComposerMd3Surface {
 
         if (drawPill && inputFactor > 0) {
             rect.set(fieldLeft, pill.top + topViewHeight + dp(FIELD_INSET), fieldRight, pill.bottom - dp(FIELD_INSET));
-            if (fold != null) {
-                final float compact = fold.md3RestFraction(enterView.getEditField());
-                final float center = restFieldCenterY(pill, fold);
-                final float half = fold.md3RestHeightPx(enterView.getEditField()) / 2f;
-                rect.top += (center - half - rect.top) * compact;
-                rect.bottom += (center + half - rect.bottom) * compact;
-            }
+            // The pill already follows the moving text; only its height changes during the fold.
+            final float inset = restFieldVerticalInset(pill, topViewHeight);
+            rect.top += inset;
+            rect.bottom -= inset;
             final float fieldRadius = Math.min(fieldRadius(), rect.height() / 2f);
             if (alpha > 0 && !rect.isEmpty()) {
                 inputFieldPath.addRoundRect(rect, fieldRadius, fieldRadius, Path.Direction.CW);
@@ -735,9 +732,15 @@ public final class ComposerMd3Surface {
             }
         }
     }
-    private float restFieldCenterY(Rect pill, ComposerInlineRest fold) {
-        return pill.bottom + toolsInset - dp(fold.primaryColumnBottomDp(ChatActivityEnterView.DEFAULT_HEIGHT))
-                - dp(ChatActivityEnterView.DEFAULT_HEIGHT) / 2f;
+
+    private float restFieldVerticalInset(Rect pill, float topViewHeight) {
+        final ComposerInlineRest fold = enterView != null ? enterView.getComposerInlineRest() : null;
+        if (fold == null) {
+            return 0;
+        }
+        final float height = pill.bottom - pill.top - topViewHeight - 2 * dp(FIELD_INSET);
+        return (height - fold.md3RestHeightPx(enterView.getEditField())) / 2f
+                * fold.md3RestFraction(enterView.getEditField());
     }
 
     private float restTopTrim(Rect pill, float topViewHeight) {
@@ -746,7 +749,7 @@ public final class ComposerMd3Surface {
         if (fold == null || topViewHeight > 0) {
             return 0;
         }
-        final float fieldTop = restFieldCenterY(pill, fold) - fold.md3RestHeightPx(enterView.getEditField()) / 2f;
+        final float fieldTop = pill.top + dp(FIELD_INSET) + restFieldVerticalInset(pill, topViewHeight);
         return Math.max(0, fieldTop - dp(REST_FIELD_TOP_PADDING) - (pill.top - islandPadding()))
                 * fold.md3RestFraction(enterView.getEditField());
     }
