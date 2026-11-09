@@ -11429,7 +11429,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     TextUtils.isEmpty(messageEditText.getText()) && !(keyboardVisible || waitingForKeyboardOpen || isPopupShowing()) && !messageEditExpanded && !richDraftActive
                             && (com.dazewell.gram.helpers.InterfaceStyleController.applyComposer() || !topViewShowed),
                     inset, getComposerPrimaryEndInset(), dp(composerToolbarHeight() + COMPOSER_TOOLBAR_GAP), animatorInputFieldHeight.getFactor(),
-                    animatorInputFieldHeight.getToFactor(), currentAccount)) {
+                    animatorInputFieldHeight.getToFactor())) {
                 applyComposerReplacementGeometry();
             }
             return;
