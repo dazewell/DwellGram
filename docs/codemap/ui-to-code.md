@@ -493,25 +493,17 @@ crowded for the send circle's capsule, which then sits above the toolbar beside 
 (`ComposerInlineRest.java:223-225`, `ChatActivityEnterView.java:4394`).
 *(Established 2026-10-29, `#glass-composer-fold`.)*
 
-## MD3 resting field and primary size are paint geometry, separate from touch bounds
+## MD3 resting field grows to the send disc; the disc's inset never animates
 
-`ComposerInlineRest.md3RestHeightPx` (`ComposerInlineRest.java:183`) shares a compact height between
-the field surface (`ComposerMd3Surface.java:716`) and primary insets (`ComposerInlineRest.java:193`).
-The height accommodates the input line; above the existing 38dp primary diameter it keeps the open geometry
-(`ComposerInlineRest.java:187`). `updatePrimaryPaint` (`:200`) publishes the inset to send, blocked-send,
-done and outline, and invalidates the record child's display list when it changes. The primary layout slot
-and the surface's touch reach remain independent. Style checks must use `InterfaceStyleController.applyComposer()`;
-`hasGlassCapsules()` only reports whether glass drawables are attached.
-The MD3 input surface also caps the gap above the compact field at 6dp (`ComposerMd3Surface.java:746`);
-reply/edit strips retain the full panel top. This changes painted bounds, leaving the controls' touch slots intact.
-During a fold the pill already follows the text, so `restFieldVerticalInset` (`ComposerMd3Surface.java:736`)
-changes its height symmetrically. Anchoring it to the stationary primary row would move the background below the text.
+`ComposerInlineRest.md3RestHeightPx` (`ComposerInlineRest.java:183`) sizes the folded field to the send disc's
+keyboard-open 38dp diameter, or the input line plus 8dp if that is taller, in which case the fold keeps the open
+geometry (`:190`). The field shrinks symmetrically around the moving text (`ComposerMd3Surface.java:736`) and the
+surface caps the gap above it at 6dp (`:753`); reply/edit strips keep the full panel top. Touch slots are untouched.
 
-The primary reservation uses the construction-time inset (`InputSatellites.java:42`, `:134`), with the
-same price and glass-circle width calculation (`ChatActivityEnterView.java:19146`). Feeding the animated
-paint inset into this measurement crosses the 4dp publication threshold (`InputSatellites.java:70`) in steps.
-That reserve becomes toolbar end padding (`ComposerToolbarLayout.java:1078`), making the fixed trailing
-buttons jump during the fold. Their layout reservation therefore stays independent of the painted size.
+Shrinking the disc instead was tried and dropped. Animating its painted inset moves the primary reservation
+(`InputSatellites.java:69`) across the 4dp publication threshold in steps, and that reserve is the toolbar's end
+padding (`ComposerToolbarLayout.java:1079`), so the fixed trailing buttons jump during the fold. Any future resize
+of the disc has to keep that reservation on the construction-time inset.
 
 *(Established 2026-11-08, `#composer-rest-size`.)*
 
