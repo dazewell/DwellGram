@@ -56,6 +56,11 @@ HEADER_TITLE_BUDGET = 120
 SLEEP_THRESHOLD = 300
 MAX_FLOOD_WAIT = 900
 
+# The update channel keeps this many builds per package; older APK and update
+# posts are deleted after each publish. Anything else in the channel, such as
+# the emoji catalog's posts, is never touched.
+KEEP_UPDATES = 3
+
 def find_apk(artifact_path: Path, abi: str) -> Path | None:
     return next((apk for apk in sorted(artifact_path.rglob("*.apk")) if abi in apk.name), None)
 
@@ -346,17 +351,75 @@ async def publish_update(client: "Client", sent, caption: str = "") -> None:
         matched = match_variants(sent)
         # The last album message carries the caption, which the app shows as the changelog.
         changelog_id = sent[-1].id
+        newest_id = changelog_id
         for build_label, _ in VARIANTS:
-            await client.send_message(
+            posted = await client.send_message(
                 chat_id,
                 get_update_metadata(UPDATE_TAGS[build_label], version[0], version[1], build_timestamp,
                                     matched[build_label].id, changelog_id),
                 parse_mode=ParseMode.DISABLED,
             )
+            newest_id = max(newest_id, posted.id)
         print(f"Published self-update metadata for {version[0]} to {chat_id}.", flush=True)
     except Exception as e:
         # The APKs are already delivered; a broken update post must not fail that.
         print(f"::warning::self-update metadata not published: {e}", flush=True)
+        return
+    try:
+        await prune_updates(client, chat_id, newest_id)
+    except Exception as e:
+        # Pruning is housekeeping; the next publish retries it.
+        print(f"::warning::old update posts not pruned: {e}", flush=True)
+
+def parse_update_post(text: str):
+    # Returns (tag, referenced message ids) for an update post this script wrote,
+    # or None for anything else in the channel.
+    for tag in UPDATE_TAGS.values():
+        prefix = f"#{tag} "
+        if text.startswith(prefix):
+            try:
+                payload = json.loads(text[len(prefix):])
+                refs = [int(v) for v in payload["document"].values()] + [int(payload["message"])]
+            except (ValueError, KeyError, TypeError, AttributeError):
+                return None
+            return tag, refs
+    return None
+
+def is_apk_post(message) -> bool:
+    name = getattr(getattr(message, "document", None), "file_name", None) or ""
+    return name.endswith(".apk")
+
+def find_prunable(messages, keep: int = KEEP_UPDATES) -> list[int]:
+    # Every package must still have `keep` builds left; the cutoff is the oldest
+    # message any kept update post points at, so a kept build never loses its
+    # APK or changelog. Only APK posts and this script's update posts below the
+    # cutoff are returned.
+    posts = {}
+    for m in messages:
+        parsed = parse_update_post(getattr(m, "text", None) or "")
+        if parsed:
+            posts.setdefault(parsed[0], []).append((m.id, parsed[1]))
+    if len(posts) < len(UPDATE_TAGS) or any(len(p) < keep for p in posts.values()):
+        return []
+    cutoff = None
+    for entries in posts.values():
+        entries.sort(reverse=True)
+        oldest_kept = min(min(refs + [mid]) for mid, refs in entries[:keep])
+        cutoff = oldest_kept if cutoff is None else min(cutoff, oldest_kept)
+    return sorted(
+        m.id for m in messages
+        if m.id < cutoff and (is_apk_post(m) or parse_update_post(getattr(m, "text", None) or ""))
+    )
+
+async def prune_updates(client: "Client", chat_id: int, newest_id: int) -> None:
+    messages = []
+    for start in range(1, newest_id + 1, 200):
+        batch = await client.get_messages(chat_id, list(range(start, min(start + 200, newest_id + 1))))
+        messages.extend(m for m in batch if m and not getattr(m, "empty", False))
+    doomed = find_prunable(messages)
+    for i in range(0, len(doomed), 100):
+        await client.delete_messages(chat_id, doomed[i:i + 100])
+    print(f"Pruned {len(doomed)} old update posts from {chat_id}.", flush=True)
 
 def get_client(bot_token: str):
     return Client(
