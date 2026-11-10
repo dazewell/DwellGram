@@ -88,6 +88,10 @@ android {
                 'en', 'ar', 'de', 'es', 'es-rES', 'fa-rIR', 'in-rID', 'it', 'it-rIT', 'ja-rJP',
                 'ko', 'nl', 'pl-rPL', 'pt-rBR', 'ru-rRU', 'tr-rTR', 'uk-rUA', 'vi-rVN', 'zh-rCN', 'zh-rTW'
         ]
+        // NagramX: EmojiPack opens emoji.pack with AssetManager.openFd(), which fails on a
+        // compressed asset. Upstream sets this in each TMessagesProj_App* module; this fork
+        // builds from TMessagesProj alone, so it has to live here.
+        noCompress += "pack"
     }
 
     packaging {
