@@ -91,6 +91,8 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
     private final SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("nekoemojis", Context.MODE_PRIVATE);
     private final HashMap<String, Pair<EmojiPackInfo, Boolean[]>> loadingEmojiPacks = new HashMap<>();
     private final CopyOnWriteArrayList<EmojiPackLoadListener> listeners = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<EmojiPacksLoadedListener> packsLoadedListeners = new CopyOnWriteArrayList<>();
+    private final java.util.HashSet<String> refreshingPacks = new java.util.HashSet<>();
 
     private String emojiPack;
     private static Typeface systemEmojiTypeface;
@@ -381,6 +383,9 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
     }
 
     public void loadEmojisInfo(EmojiPacksLoadedListener listener) {
+        // NagramX: the catalog now comes over the network, so the settings screen can open while
+        // the startup load is still running. Keep every caller and answer them all on completion.
+        packsLoadedListeners.add(listener);
         if (loadingPack) {
             return;
         }
@@ -390,7 +395,11 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
         loadEmojiPackInfo();
         getInstance().load((res, error) -> AndroidUtilities.runOnUIThread(() -> {
             loadingPack = false;
-            listener.emojiPacksLoaded(error);
+            var waiting = new ArrayList<>(packsLoadedListeners);
+            packsLoadedListeners.clear();
+            for (var waiter : waiting) {
+                waiter.emojiPacksLoaded(error);
+            }
         }));
     }
 
@@ -470,7 +479,10 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
     }
 
     public boolean isPackDownloaded(EmojiPackInfo pack) {
-        return EmojiHelper.getEmojiDir(pack.getPackId(), pack.getPackVersion()).exists();
+        // NagramX: an empty directory is what an interrupted install leaves; treating it as
+        // downloaded showed "Installing" forever with no way to retry.
+        var list = EmojiHelper.getEmojiDir(pack.getPackId(), pack.getPackVersion()).list();
+        return list != null && list.length > 0;
     }
 
     public boolean isPackInstalled(EmojiPackInfo pack) {
@@ -500,15 +512,18 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
     }
 
     public boolean isEmojiPackDownloading(EmojiPackInfo pack) {
-        return FileLoader.getInstance(currentAccount).isLoadingFile(FileLoader.getAttachFileName(pack.getFileDocument()));
+        var attachName = FileLoader.getAttachFileName(pack.getFileDocument());
+        return refreshingPacks.contains(attachName) || FileLoader.getInstance(currentAccount).isLoadingFile(attachName);
     }
 
     public void installDownloadedEmoji(EmojiPackInfo pack, boolean update) {
         var emojiDir = EmojiHelper.getEmojiDir(pack.packId, pack.packVersion);
-        emojiDir.mkdir();
         File old = new File(pack.fileLocation);
         File newFile = new File(emojiDir, EMOJI_FONT_NAME);
+        // NagramX: the directory alone counts as downloaded (isPackDownloaded), so creating it
+        // before the source was known to exist left the row on "Installing" for good.
         if (old.isFile() && old.exists() && old.canRead()) {
+            emojiDir.mkdir();
             try (FileInputStream inputStream = new FileInputStream(old)) {
                 AndroidUtilities.copyFile(inputStream, newFile);
             } catch (IOException e) {
@@ -732,6 +747,24 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
         return EMOJI_TAG;
     }
 
+    // NagramX: the catalog is read from the fork's own channel, the one the updater uses. Pack
+    // previews and files are fetched by message id and their file references expire, so a list
+    // cached from a channel nothing can reach any more only ever shows blurred thumbnails.
+    @Override
+    protected boolean isSourceEnabled() {
+        return com.dazewell.gram.selfupdate.SelfUpdate.isAvailable();
+    }
+
+    @Override
+    protected long getChannelId() {
+        return com.dazewell.gram.selfupdate.SelfUpdate.channelId();
+    }
+
+    @Override
+    protected String getChannelUsername() {
+        return com.dazewell.gram.selfupdate.SelfUpdate.channelUsername();
+    }
+
     private void checkAccount() {
         AndroidUtilities.runOnUIThread(() -> {
             if (currentAccount != UserConfig.selectedAccount) {
@@ -749,7 +782,7 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
     private void getNewVersionMessagesCallback(Delegate delegate, ArrayList<EmojiPackInfo> packs, TLObject response) {
         if (response != null) {
             var res = (TLRPC.messages_Messages) response;
-            getMessagesController().removeDeletedMessagesFromArray(CHANNEL_METADATA_ID, res.messages);
+            getMessagesController().removeDeletedMessagesFromArray(getChannelId(), res.messages);
             var documents = new HashMap<Integer, TLRPC.Document>();
             for (var message : res.messages) {
                 if (message.media == null || message.media.document == null) {
@@ -790,6 +823,11 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
     protected void onLoadSuccess(ArrayList<JSONObject> responses, Delegate delegate) {
         var json = !responses.isEmpty() ? responses.get(0) : null;
         if (json == null) {
+            // NagramX: a channel with no #emojiv2 post still has to complete the load, or
+            // loadingPack stays set and no later catalog load runs. The cached packs stay.
+            if (delegate != null) {
+                delegate.onTLResponse(null, null);
+            }
             return;
         }
 
@@ -813,7 +851,7 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
             }
 
             var req = new TLRPC.TL_channels_getMessages();
-            req.channel = getMessagesController().getInputChannel(CHANNEL_METADATA_ID);
+            req.channel = getMessagesController().getInputChannel(getChannelId());
             req.id.addAll(previews.values());
             req.id.addAll(files.values());
             getConnectionsManager().sendRequest(req, (response1, error1) -> {
@@ -851,14 +889,11 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
                     }
                     int reason = (Integer) args[1];
                     if (reason == 0) {
-                        // NagramX: with the metadata channel disabled this reload always returns
-                        // an empty result without touching emojiPacksInfo, so getEmojiPackInfo
-                        // below still finds the previously cached pack and the id comparison
-                        // passes against itself — this block still re-issues one downloadPack
-                        // call with the same stale file reference, it is not a no-op. Harmless in
-                        // practice: a second failure here early-returns via params[1] above, and
-                        // isEmojiPackDownloading asks FileLoader rather than this map, so there is
-                        // no stuck spinner either way.
+                        // NagramX: on a build with no update channel this reload returns an empty
+                        // result without touching emojiPacksInfo, so the id comparison below passes
+                        // against the cached pack and one downloadPack retries the same stale file
+                        // reference. Harmless: a second failure early-returns via params[1] above,
+                        // and isEmojiPackDownloading asks FileLoader, so no spinner gets stuck.
                         EmojiHelper.getInstance().load((res, error) -> AndroidUtilities.runOnUIThread(() -> {
                             EmojiPackInfo newPack = EmojiHelper.getInstance().getEmojiPackInfo(pack.getPackId());
                             if (newPack == null) {
@@ -871,6 +906,11 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
                         }));
                     }
                 } else {
+                    // NagramX: the file can finish elsewhere than getPathToAttach, e.g. when it is
+                    // opened from the chat; the notification carries where it really landed.
+                    if (args.length > 1 && args[1] instanceof File loaded && loaded.isFile()) {
+                        pack.fileLocation = loaded.getAbsolutePath();
+                    }
                     installDownloadedEmoji(pack, params[0]);
                 }
             }
@@ -885,9 +925,46 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
 
     public void downloadPack(EmojiPackInfo pack, boolean update, boolean tried) {
         EmojiHelper.mkDirs();
-        loadingEmojiPacks.put(FileLoader.getAttachFileName(pack.fileDocument), Pair.create(pack, new Boolean[]{update, tried}));
+        var attachName = FileLoader.getAttachFileName(pack.fileDocument);
+        if (refreshingPacks.contains(attachName)) {
+            return;
+        }
+        loadingEmojiPacks.put(attachName, Pair.create(pack, new Boolean[]{update, tried}));
         checkAccount();
-        FileLoader.getInstance(currentAccount).loadFile(pack.getFileDocument(), pack, FileLoader.PRIORITY_NORMAL, 0);
+        int account = UserConfig.selectedAccount;
+        // NagramX: a file already on disk needs no fresh reference, and a build with no channel
+        // has nothing to re-read, so both load as before, offline included.
+        if (!isSourceEnabled() || FileLoader.getInstance(account).getPathToAttach(pack.getFileDocument()).exists()) {
+            FileLoader.getInstance(account).loadFile(pack.getFileDocument(), pack, FileLoader.PRIORITY_NORMAL, 0);
+            return;
+        }
+        // NagramX: the cached document's file reference may have expired, and FileRefController
+        // cannot refresh one whose parent is an EmojiPackInfo, so the load stalled at 0 bytes.
+        // Re-read the post on the account that downloads and load it with its MessageObject
+        // parent, which the controller can refresh. The cached document stays the fallback.
+        // refreshingPacks covers the gap before FileLoader starts, so the row keeps its spinner
+        // and a second tap does not send a second request.
+        refreshingPacks.add(attachName);
+        var req = new TLRPC.TL_channels_getMessages();
+        req.channel = org.telegram.messenger.MessagesController.getInstance(account).getInputChannel(getChannelId());
+        req.id.add(pack.fileId);
+        org.telegram.tgnet.ConnectionsManager.getInstance(account).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+            refreshingPacks.remove(attachName);
+            Object parent = pack;
+            TLRPC.Document document = pack.getFileDocument();
+            if (response instanceof TLRPC.messages_Messages res) {
+                for (var message : res.messages) {
+                    if (message.id == pack.fileId && message.media != null && message.media.document != null
+                            && message.media.document.id == document.id) {
+                        document = message.media.document;
+                        pack.fileDocument = document;
+                        parent = new org.telegram.messenger.MessageObject(account, message, false, false);
+                        break;
+                    }
+                }
+            }
+            FileLoader.getInstance(account).loadFile(document, parent, FileLoader.PRIORITY_NORMAL, 0);
+        }));
     }
 
     public void checkEmojiPacks() {
