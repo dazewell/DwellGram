@@ -732,6 +732,24 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
         return EMOJI_TAG;
     }
 
+    // NagramX: the catalog is read from the fork's own channel, the one the updater uses. Pack
+    // previews and files are fetched by message id and their file references expire, so a list
+    // cached from a channel nothing can reach any more only ever shows blurred thumbnails.
+    @Override
+    protected boolean isSourceEnabled() {
+        return com.dazewell.gram.selfupdate.SelfUpdate.isAvailable();
+    }
+
+    @Override
+    protected long getChannelId() {
+        return com.dazewell.gram.selfupdate.SelfUpdate.channelId();
+    }
+
+    @Override
+    protected String getChannelUsername() {
+        return com.dazewell.gram.selfupdate.SelfUpdate.channelUsername();
+    }
+
     private void checkAccount() {
         AndroidUtilities.runOnUIThread(() -> {
             if (currentAccount != UserConfig.selectedAccount) {
@@ -749,7 +767,7 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
     private void getNewVersionMessagesCallback(Delegate delegate, ArrayList<EmojiPackInfo> packs, TLObject response) {
         if (response != null) {
             var res = (TLRPC.messages_Messages) response;
-            getMessagesController().removeDeletedMessagesFromArray(CHANNEL_METADATA_ID, res.messages);
+            getMessagesController().removeDeletedMessagesFromArray(getChannelId(), res.messages);
             var documents = new HashMap<Integer, TLRPC.Document>();
             for (var message : res.messages) {
                 if (message.media == null || message.media.document == null) {
@@ -813,7 +831,7 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
             }
 
             var req = new TLRPC.TL_channels_getMessages();
-            req.channel = getMessagesController().getInputChannel(CHANNEL_METADATA_ID);
+            req.channel = getMessagesController().getInputChannel(getChannelId());
             req.id.addAll(previews.values());
             req.id.addAll(files.values());
             getConnectionsManager().sendRequest(req, (response1, error1) -> {
@@ -851,14 +869,11 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
                     }
                     int reason = (Integer) args[1];
                     if (reason == 0) {
-                        // NagramX: with the metadata channel disabled this reload always returns
-                        // an empty result without touching emojiPacksInfo, so getEmojiPackInfo
-                        // below still finds the previously cached pack and the id comparison
-                        // passes against itself — this block still re-issues one downloadPack
-                        // call with the same stale file reference, it is not a no-op. Harmless in
-                        // practice: a second failure here early-returns via params[1] above, and
-                        // isEmojiPackDownloading asks FileLoader rather than this map, so there is
-                        // no stuck spinner either way.
+                        // NagramX: on a build with no update channel this reload returns an empty
+                        // result without touching emojiPacksInfo, so the id comparison below passes
+                        // against the cached pack and one downloadPack retries the same stale file
+                        // reference. Harmless: a second failure early-returns via params[1] above,
+                        // and isEmojiPackDownloading asks FileLoader, so no spinner gets stuck.
                         EmojiHelper.getInstance().load((res, error) -> AndroidUtilities.runOnUIThread(() -> {
                             EmojiPackInfo newPack = EmojiHelper.getInstance().getEmojiPackInfo(pack.getPackId());
                             if (newPack == null) {
