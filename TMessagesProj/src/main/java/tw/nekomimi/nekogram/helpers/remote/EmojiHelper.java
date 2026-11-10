@@ -470,7 +470,10 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
     }
 
     public boolean isPackDownloaded(EmojiPackInfo pack) {
-        return EmojiHelper.getEmojiDir(pack.getPackId(), pack.getPackVersion()).exists();
+        // NagramX: an empty directory is what an interrupted install leaves; treating it as
+        // downloaded showed "Installing" forever with no way to retry.
+        var list = EmojiHelper.getEmojiDir(pack.getPackId(), pack.getPackVersion()).list();
+        return list != null && list.length > 0;
     }
 
     public boolean isPackInstalled(EmojiPackInfo pack) {
@@ -505,10 +508,12 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
 
     public void installDownloadedEmoji(EmojiPackInfo pack, boolean update) {
         var emojiDir = EmojiHelper.getEmojiDir(pack.packId, pack.packVersion);
-        emojiDir.mkdir();
         File old = new File(pack.fileLocation);
         File newFile = new File(emojiDir, EMOJI_FONT_NAME);
+        // NagramX: the directory alone counts as downloaded (isPackDownloaded), so creating it
+        // before the source was known to exist left the row on "Installing" for good.
         if (old.isFile() && old.exists() && old.canRead()) {
+            emojiDir.mkdir();
             try (FileInputStream inputStream = new FileInputStream(old)) {
                 AndroidUtilities.copyFile(inputStream, newFile);
             } catch (IOException e) {
@@ -886,6 +891,11 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
                         }));
                     }
                 } else {
+                    // NagramX: the file can finish elsewhere than getPathToAttach, e.g. when it is
+                    // opened from the chat; the notification carries where it really landed.
+                    if (args.length > 1 && args[1] instanceof File loaded && loaded.isFile()) {
+                        pack.fileLocation = loaded.getAbsolutePath();
+                    }
                     installDownloadedEmoji(pack, params[0]);
                 }
             }
@@ -902,7 +912,30 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
         EmojiHelper.mkDirs();
         loadingEmojiPacks.put(FileLoader.getAttachFileName(pack.fileDocument), Pair.create(pack, new Boolean[]{update, tried}));
         checkAccount();
-        FileLoader.getInstance(currentAccount).loadFile(pack.getFileDocument(), pack, FileLoader.PRIORITY_NORMAL, 0);
+        // NagramX: the cached document's file reference may have expired, and FileRefController
+        // cannot refresh one whose parent is an EmojiPackInfo, so the load stalled at 0 bytes.
+        // Re-read the post on the account that downloads and load it with its MessageObject
+        // parent, which the controller can refresh. The cached document stays the fallback.
+        int account = UserConfig.selectedAccount;
+        var req = new TLRPC.TL_channels_getMessages();
+        req.channel = org.telegram.messenger.MessagesController.getInstance(account).getInputChannel(getChannelId());
+        req.id.add(pack.fileId);
+        org.telegram.tgnet.ConnectionsManager.getInstance(account).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+            Object parent = pack;
+            TLRPC.Document document = pack.getFileDocument();
+            if (response instanceof TLRPC.messages_Messages res) {
+                for (var message : res.messages) {
+                    if (message.id == pack.fileId && message.media != null && message.media.document != null
+                            && message.media.document.id == document.id) {
+                        document = message.media.document;
+                        pack.fileDocument = document;
+                        parent = new org.telegram.messenger.MessageObject(account, message, false, false);
+                        break;
+                    }
+                }
+            }
+            FileLoader.getInstance(account).loadFile(document, parent, FileLoader.PRIORITY_NORMAL, 0);
+        }));
     }
 
     public void checkEmojiPacks() {
