@@ -361,9 +361,9 @@ The camera flip, zoom, flash and infinite recording controls in the video messag
 
 While a round video records hands-free or waits paused in its preview, tap it to pause or resume, or hold it until it buzzes and let go to send. Slide off to back out. While recording, swipe up or down to zoom and left or right to flip cameras. The hint above it shrinks after a few sends. N-Settings → Chat → Camera → *Video Message Gestures*, on by default.
 
-### Compact video message recording <!-- #compact-video-recording -->
+### Compact video message recording <!-- #compact-video-recording --> <!-- #compact-video-resize -->
 
-A round video can record as a small circle docked at the bottom left, so you can keep scrolling, copying and reading the chat. The button above the flip button collapses or expands the recorder at any point of a recording. The *Compact Recording* toggle in the camera choice popup (off by default, remembered) starts recordings from that popup already collapsed.
+A round video can record as a small circle docked at the bottom left, so you can keep using the chat. Pinch the docked circle to resize it; the size is remembered. The button above the flip button collapses or expands the recorder at any point of a recording. The *Compact Recording* toggle in the camera choice popup (off by default, remembered) starts recordings from that popup already collapsed.
 
 ### Don't lose an unsent video message <!-- #video-draft-guard --> <!-- #video-pause-grace -->
 
