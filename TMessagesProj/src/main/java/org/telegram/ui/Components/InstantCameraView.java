@@ -5046,6 +5046,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             return false;
         }
         holdToSend.onTouchEvent(ev, cameraContainer); // NagramX (#video-hold-send): observes only; pinch-to-zoom below still needs the DOWN
+        if (compactRecorder != null && compactRecorder.onResizeTouch(ev)) return true; // NagramX (#compact-video-resize): docked, a pinch resizes instead of zooming; after the hold sees the second finger and cancels
 
         if (ev.getAction() == MotionEvent.ACTION_DOWN && delegate != null) {
             if (videoPlayer != null && !holdToSend.ownsPreviewTaps()) { // NagramX (#video-hold-send): else the preview's taps are the hold's

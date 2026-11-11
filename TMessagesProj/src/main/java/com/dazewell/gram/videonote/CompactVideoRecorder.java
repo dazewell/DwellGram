@@ -26,7 +26,7 @@ import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
 
 /**
- * The round video recorder's compact presentation: the live circle shrunk to COMPACT_DP and docked at the bottom
+ * The round video recorder's compact presentation: the live circle shrunk to the saved size (COMPACT_DP until pinched) and docked at the bottom
  * left, above the recording bar, with the chat behind it left touchable. A recording opens compact only when the
  * camera-choice popup started it with Compact Recording on; the host passes that in at the fresh open and this
  * keeps it until the recorder is hidden for good, so pause, resume and an infinite rollover all keep it. Any other
@@ -38,7 +38,11 @@ import org.telegram.ui.Components.LayoutHelper;
  * resulting on-screen circle is computed, for hit tests, the arc, the hint and the send transition.
  *
  * A 48dp button beside the circle expands it to the stock recorder and collapses it back without touching the
- * capture. Expanding changes this recording only, never the saved setting. UI thread only.
+ * capture. Expanding changes this recording only, never the saved setting.
+ *
+ * A two-finger pinch that starts on the docked circle resizes it, its bottom-left corner staying on the dock, and
+ * the size is saved for every later compact recording. Docked, that pinch replaces the stock one-off pinch zoom;
+ * expanded, pinch still zooms. UI thread only.
  */
 public final class CompactVideoRecorder {
 
@@ -57,6 +61,9 @@ public final class CompactVideoRecorder {
     }
 
     public static final int COMPACT_DP = 112;
+    // the pinch's range; the top end also gives way to the full circle and to the room beside and above the dock
+    private static final int MIN_DP = 72;
+    private static final int MAX_DP = 280;
     private static final int EDGE_DP = 12;
     // a 48dp target around a 44dp disc, the size of the flip button it stacks on
     private static final int TOGGLE_DP = 48;
@@ -84,6 +91,12 @@ public final class CompactVideoRecorder {
     // the dock relative to the circle's layout centre, which a width-only relayout moves while the dock stays put
     private float lastOffsetX = Float.NaN, lastOffsetY = Float.NaN;
     private int lastSize = -1;
+    // the docked diameter: the saved size, read at each fresh open, then the live one while a pinch runs
+    private float sizePx = dp(COMPACT_DP);
+    private boolean resizing;
+    private int resizeId1 = -1, resizeId2 = -1;
+    private float resizeStartDistance, resizeStartPx;
+    private boolean resizeMoved;
 
     public CompactVideoRecorder(FrameLayout host, View circle, Host callback) {
         this.host = host;
@@ -188,6 +201,9 @@ public final class CompactVideoRecorder {
         factor = compact ? 1f : 0f;
         lastOffsetX = lastOffsetY = Float.NaN;
         lastSize = -1;
+        resizing = false;
+        final int savedDp = xyz.nextalone.nagram.NaConfig.INSTANCE.getCompactVideoRecordingSize().Int();
+        sizePx = dp(Math.max(MIN_DP, Math.min(MAX_DP, savedDp)));
         toggle.setVisibility(offered ? View.VISIBLE : View.GONE);
         toggle.setAlpha(0f);
         updateToggleIcon();
@@ -200,6 +216,8 @@ public final class CompactVideoRecorder {
             return;
         }
         cancelAnimator();
+        finishResize(); // hidden mid-pinch (the recording limit): keep the size it reached
+        resizing = false;
         available = false;
         session = false;
         expanded = false;
@@ -221,7 +239,7 @@ public final class CompactVideoRecorder {
         if (factor == 0f || size <= 0) {
             return 1f;
         }
-        final float target = Math.min(1f, dp(COMPACT_DP) / (float) size);
+        final float target = Math.min(1f, compactPx() / (float) size);
         return 1f + (target - 1f) * factor;
     }
 
@@ -272,6 +290,84 @@ public final class CompactVideoRecorder {
             return ev.getX() >= x && ev.getX() < x + toggle.getWidth() && ev.getY() >= y && ev.getY() < y + toggle.getHeight();
         }
         return false;
+    }
+
+    // The host's onTouchEvent asks this before its own pinch zoom. A second finger landing while docked starts a
+    // resize instead (the first finger's DOWN already had to land on the circle, per acceptsDown), and every event
+    // of it is consumed here. Returns false for anything that isn't a resize, which the host handles as before.
+    public boolean onResizeTouch(MotionEvent ev) {
+        switch (ev.getActionMasked()) {
+            case MotionEvent.ACTION_POINTER_DOWN:
+                if (!resizing && ev.getPointerCount() == 2 && isCompact() && animator == null && callback.canChangePresentation()) {
+                    resizeId1 = ev.getPointerId(0);
+                    resizeId2 = ev.getPointerId(1);
+                    resizeStartDistance = Math.max(1f, (float) Math.hypot(ev.getX(1) - ev.getX(0), ev.getY(1) - ev.getY(0)));
+                    resizeStartPx = compactPx();
+                    resizeMoved = false;
+                    resizing = true;
+                }
+                return resizing;
+            case MotionEvent.ACTION_MOVE: {
+                if (!resizing || resizeId1 < 0) {
+                    return resizing;
+                }
+                final int i1 = ev.findPointerIndex(resizeId1), i2 = ev.findPointerIndex(resizeId2);
+                if (i1 < 0 || i2 < 0 || !isCompact() || !callback.canChangePresentation()) {
+                    finishResize();
+                    return true;
+                }
+                final float ratio = (float) Math.hypot(ev.getX(i2) - ev.getX(i1), ev.getY(i2) - ev.getY(i1)) / resizeStartDistance;
+                // two fingers resting on the circle aren't a resize, and mustn't save a size clamped to today's room
+                resizeMoved |= Math.abs(ratio - 1f) > 0.05f;
+                if (!resizeMoved) {
+                    return true;
+                }
+                final float next = clampSize(resizeStartPx * ratio);
+                if (next != sizePx) {
+                    sizePx = next;
+                    callback.applyPresentation();
+                    // the dock moved with the size; keep refresh() from reading that as a relayout
+                    lastOffsetX = dockCenterX() - layoutCenterX();
+                    lastOffsetY = dockCenterY() - layoutCenterY();
+                }
+                return true;
+            }
+            case MotionEvent.ACTION_POINTER_UP:
+                if (resizing) {
+                    final int id = ev.getPointerId(ev.getActionIndex());
+                    if (id == resizeId1 || id == resizeId2) {
+                        finishResize();
+                    }
+                }
+                return resizing;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                if (resizing) {
+                    finishResize();
+                    resizing = false;
+                    return true;
+                }
+                return false;
+            default:
+                return resizing;
+        }
+    }
+
+    // Saves the size the pinch ended on. resizing stays set until the last finger lifts, so a finger left down
+    // can't go on to start a zoom or a hold.
+    private void finishResize() {
+        if (resizeId1 < 0) {
+            return;
+        }
+        resizeId1 = resizeId2 = -1;
+        if (!resizeMoved) {
+            return;
+        }
+        sizePx = compactPx();
+        final int sizeDp = Math.round(sizePx / AndroidUtilities.density);
+        if (sizeDp != xyz.nextalone.nagram.NaConfig.INSTANCE.getCompactVideoRecordingSize().Int()) {
+            xyz.nextalone.nagram.NaConfig.INSTANCE.getCompactVideoRecordingSize().setConfigInt(sizeDp);
+        }
     }
 
     // Follows the circle's fades, which the host and the chat animate on it directly.
@@ -369,6 +465,28 @@ public final class CompactVideoRecorder {
         toggle.setContentDescription(LocaleController.getString(expanded ? R.string.AccDescrCompactRecordingCollapse : R.string.AccDescrCompactRecordingExpand));
     }
 
+    // The docked diameter as it can be drawn now: the saved or pinched size, within MIN_DP and the room the dock has.
+    private float compactPx() {
+        return clampSize(sizePx);
+    }
+
+    private float clampSize(float px) {
+        float max = dp(MAX_DP);
+        final int full = circle.getLayoutParams() != null ? circle.getLayoutParams().width : 0;
+        if (full > 0) {
+            max = Math.min(max, full);
+        }
+        if (host.getMeasuredWidth() > 0) {
+            final androidx.core.graphics.Insets safe = safeInsets();
+            // beside it: the edge gap, the toggle and a gap either side of that; above it: up to the action bar,
+            // less the hold-to-send label's room over the circle
+            final float width = host.getMeasuredWidth() - safe.left - safe.right - dp(EDGE_DP * 3 + TOGGLE_DP);
+            final float height = host.getMeasuredHeight() - host.getPaddingBottom() - dockTop() - dp(64);
+            max = Math.min(max, Math.min(width, height));
+        }
+        return Math.max(dp(MIN_DP), Math.min(max, px));
+    }
+
     private float layoutCenterX() {
         return circle.getWidth() > 0 ? circle.getLeft() + circle.getWidth() / 2f : host.getMeasuredWidth() / 2f;
     }
@@ -380,18 +498,23 @@ public final class CompactVideoRecorder {
     // EDGE_DP in from the left edge and above the recording bar, which the host keeps as its bottom padding
     // (that padding already ends 12dp above the bar). Kept clear of the system bars, a cutout and the action bar.
     private float dockCenterX() {
-        final float half = dp(COMPACT_DP) / 2f;
+        final float half = compactPx() / 2f;
         final float x = safeInsets().left + dp(EDGE_DP) + half;
         return Math.min(x, Math.max(half, host.getMeasuredWidth() - half));
     }
 
     private float dockCenterY() {
-        final float half = dp(COMPACT_DP) / 2f;
-        final int[] location = new int[2];
-        host.getLocationInWindow(location);
-        final float top = Math.max(safeInsets().top, AndroidUtilities.statusBarHeight) + ActionBar.getCurrentActionBarHeight() - location[1] + dp(8);
+        final float half = compactPx() / 2f;
+        final float top = dockTop();
         final float y = host.getMeasuredHeight() - host.getPaddingBottom() - half;
         return Math.min(Math.max(y, top + half), Math.max(top + half, host.getMeasuredHeight() - half));
+    }
+
+    // the highest the docked circle may reach, in the host's coordinates: 8dp under the action bar
+    private float dockTop() {
+        final int[] location = new int[2];
+        host.getLocationInWindow(location);
+        return Math.max(safeInsets().top, AndroidUtilities.statusBarHeight) + ActionBar.getCurrentActionBarHeight() - location[1] + dp(8);
     }
 
     private androidx.core.graphics.Insets safeInsets() {

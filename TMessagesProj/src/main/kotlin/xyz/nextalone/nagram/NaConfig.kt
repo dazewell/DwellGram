@@ -1145,6 +1145,13 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    // The docked circle's diameter in dp, set by pinching it; clamped where CompactVideoRecorder reads it
+    val compactVideoRecordingSize =
+        addConfig(
+            "CompactVideoRecordingSize",
+            ConfigItem.configTypeInt,
+            112
+        )
     val infiniteRecordingCeiling =
         addConfig(
             "InfiniteRecordingCeiling",
