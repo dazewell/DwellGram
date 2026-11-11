@@ -298,6 +298,13 @@ public class NekoEmojiSettingsActivity extends BaseNekoSettingsActivity implemen
     }
 
     @Override
+    public void downloadFailed(EmojiHelper.EmojiPackInfo pack) {
+        if (BulletinFactory.canShowBulletin(this)) {
+            BulletinFactory.of(this).createErrorBulletin(getString(R.string.ErrorOccurred)).show();
+        }
+    }
+
+    @Override
     public void startDocumentSelectActivity() {
         try {
             Intent photoPickerIntent = new Intent(Intent.ACTION_GET_CONTENT);

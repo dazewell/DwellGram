@@ -3100,3 +3100,16 @@ top..bottom (`AnimatedTextView.java:370`). Shift it through the drawable's own
 the glyph bounds, rather than by eye.
 
 *(Established 2026-11-07, `#compact-video-recording`, `#video-zoom`, `#once-glyph-fix`.)*
+
+## A file reference that failed once can hang the next attempt
+
+`FileRefController.requestReference` records each waiter in `locationRequester`
+and `parentRequester`, and only sends a request when both entries are new
+(`FileRefController.java:444`). A parent type it cannot refresh falls through to
+`sendErrorToObject` (`:718`), which fails the operation (`:1076`) but leaves both
+entries behind. The next load of that file with the same parent object returns
+at `:444` with no error, so the operation waits forever at 0 bytes.
+
+Only load through a parent the controller can refresh, such as a `MessageObject`.
+
+*(Established 2026-11-10, `#emoji-catalog-fix`.)*
