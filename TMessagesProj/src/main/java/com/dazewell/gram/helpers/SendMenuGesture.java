@@ -44,7 +44,6 @@ public final class SendMenuGesture {
             if (dy > threshold && dy > dx) {
                 // Cancel before opening: releasing this drag must never reach the send click.
                 cancel(event, original);
-                android.util.Log.i("NagramX", "NAX_SMOKE_remember-send-action PATH vertical-drag");
                 view.performLongClick();
                 return true;
             }
