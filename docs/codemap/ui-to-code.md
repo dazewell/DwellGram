@@ -681,15 +681,32 @@ The two branches remain otherwise **not equivalent**: the cached popup's
 schedule handler still drops `scheduleRepeatPeriod` (passes `0`, pre-existing,
 out of scope) where `ItemOptions`'s passes it through, and the cached rows still
 have **no checked state and no tap-to-disarm** — arming from there is possible,
-but clearing an armed slot from that menu is only ever the master switch's
-`disarmAll()`, never a re-tap on the same row. That's a deliberate, stated
-asymmetry (adding checked state to a popup built once and reused across opens
+but a re-tap on the same row does not clear it. The separate Send row now clears
+the current account before sending; the master switch still uses `disarmAll()`.
+That's a deliberate, stated asymmetry (adding checked state to a popup built once and reused across opens
 is real scope growth), not an oversight — see the comment at the master row's
 click handler.
 
-*(Updated 2026-09-17.)*
+*(Updated 2026-11-11, `#remember-send-action`.)*
 
-### The Remember master toggle is the one thing deliberately wired into both
+### Plain Send and vertical drag reuse the existing send menu
+
+The composer-local `SendButton` subclass delegates touch recognition to
+`SendMenuGesture` at `ChatActivityEnterView.java:3874`. It keeps the shared
+button's accepted DOWN hit test, cancels the button's touch stream before
+calling its existing long-click action, and consumes release. Its
+`performLongClick()` override stops drag recognition after a stationary hold.
+
+Both menu branches offer Send while an alternate is armed. The cached forward
+popup clears only `currentAccount` at `ChatActivityEnterView.java:5976` and
+refreshes row visibility on each open at `:6140`. The ordinary preview menu's
+Send row at `:6411` clears the same slot and shares the preview plain-send
+callback at `:6325`, preserving its dismissal handling and normal send defaults.
+Stories remain outside the remembered-action context.
+
+*(Established 2026-11-11, `#remember-send-action`.)*
+
+### The Remember master toggle has separate implementations in both menus
 
 `#remember-send-action`'s master switch is inserted into **both** branches of
 `onSendLongClick` (starts `ChatActivityEnterView.java:5764`) — the `ItemOptions`
