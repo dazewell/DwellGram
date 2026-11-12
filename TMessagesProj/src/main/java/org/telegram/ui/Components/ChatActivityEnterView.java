@@ -3870,6 +3870,20 @@ public class ChatActivityEnterView extends FrameLayout implements
         });
 
         sendButton = new SendButton(context, isInScheduleMode() ? R.drawable.input_schedule : R.drawable.send_plane_24, resourcesProvider, true) {
+            // NagramX: keep drag recognition local so other SendButton consumers retain their gestures.
+            private final com.dazewell.gram.helpers.SendMenuGesture menuGesture = new com.dazewell.gram.helpers.SendMenuGesture();
+
+            @Override
+            public boolean onTouchEvent(MotionEvent event) {
+                return menuGesture.onTouchEvent(this, event, isRememberSendActionContextEligible(), super::onTouchEvent);
+            }
+
+            @Override
+            public boolean performLongClick() {
+                menuGesture.onLongClick();
+                return super.performLongClick();
+            }
+
             @Override
             public boolean isInScheduleMode() {
                 return ChatActivityEnterView.this.isInScheduleMode();
@@ -5874,6 +5888,8 @@ public class ChatActivityEnterView extends FrameLayout implements
     // right after this popup is built) since the config can change from the settings page in between.
     private LinearLayout rememberMasterRowCached;
     private Switch rememberMasterSwitchCached;
+    // NagramX: cached forward menus must re-check whether there is an alternate action to clear.
+    private ActionBarMenuSubItem plainSendButtonCached;
     private boolean onSendLongClick(View view) {
         if (isInScheduleMode() || parentFragment != null && parentFragment.getChatMode() == ChatActivity.MODE_QUICK_REPLIES || animatorEphemeralMessageVisibility.getValue()) {
             return false;
@@ -5950,6 +5966,20 @@ public class ChatActivityEnterView extends FrameLayout implements
                     ActionBarPopupWindow.GapView rememberGap = new ActionBarPopupWindow.GapView(getContext(), resourcesProvider);
                     rememberGap.setTag(R.id.object_tag, 1);
                     sendPopupLayout.addView(rememberGap, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 8));
+                }
+
+                // NagramX: plain send clears the account's remembered choice in the forward menu too.
+                if (isRememberSendActionContextEligible()) {
+                    plainSendButtonCached = new ActionBarMenuSubItem(getContext(), true, false, resourcesProvider);
+                    plainSendButtonCached.setTextAndIcon(getString(R.string.Send), R.drawable.send_plane_24);
+                    plainSendButtonCached.setMinimumWidth(dp(196));
+                    plainSendButtonCached.setOnClickListener(v -> {
+                        RememberedSendAction.disarm(currentAccount);
+                        updateSendButtonArmedState();
+                        sendMessage();
+                        if (sendPopupWindow != null) sendPopupWindow.dismiss();
+                    });
+                    sendPopupLayout.addView(plainSendButtonCached, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
                 }
 
                 boolean scheduleButtonValue = parentFragment != null && parentFragment.canScheduleMessage();
@@ -6105,6 +6135,10 @@ public class ChatActivityEnterView extends FrameLayout implements
                 if (delegate != null) {
                     delegate.onSendLongClick();
                 }
+            }
+            // NagramX: this popup survives sends and settings changes between opens.
+            if (plainSendButtonCached != null) {
+                plainSendButtonCached.setVisibility(getEligibleArmedSendAction() != RememberedSendAction.NONE ? VISIBLE : GONE);
             }
             if (actionScheduleButton != null) {
                 actionScheduleButton.setVisibility(voiceOnce ? View.GONE : View.VISIBLE);
@@ -6287,7 +6321,8 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (containsSendMessage && audioToSend == null) {
             messageSendPreview.setEditText(messageEditText, this::drawMessageEditText, canvas -> drawBackground(canvas, false));
         }
-        messageSendPreview.setSendButton(sendButton, true, v -> {
+        // NagramX: the menu shortcut shares the preview's plain-send and dismissal behavior.
+        final Runnable plainSendFromPreview = () -> {
             sentFromPreview = System.currentTimeMillis();
             sendingFromPreviewPlainButton = true;
             final boolean shownDialog;
@@ -6304,7 +6339,8 @@ public class ChatActivityEnterView extends FrameLayout implements
                 AndroidUtilities.cancelRunOnUIThread(dismissSendPreview);
                 AndroidUtilities.runOnUIThread(dismissSendPreview, 500);
             }
-        });
+        };
+        messageSendPreview.setSendButton(sendButton, true, v -> plainSendFromPreview.run());
         if ((containsSendMessage || putCameraTexture) && dialog_id >= 0) {
             messageSendPreview.allowEffectSelector(parentFragment);
             messageSendPreview.setEffectId(effectId);
@@ -6370,6 +6406,15 @@ public class ChatActivityEnterView extends FrameLayout implements
             });
             options.addView(holdRow, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
             options.addGap();
+        }
+
+        // NagramX: selecting plain Send both sends now and makes the next tap plain again.
+        if (armedBeforeMenu != RememberedSendAction.NONE) {
+            options.add(R.drawable.send_plane_24, getString(R.string.Send), () -> {
+                RememberedSendAction.disarm(currentAccount);
+                updateSendButtonArmedState();
+                plainSendFromPreview.run();
+            });
         }
 
         if (scheduleButtonValue) {
