@@ -5891,6 +5891,8 @@ public class ChatActivityEnterView extends FrameLayout implements
     // NagramX: cached forward menus must re-check whether there is an alternate action to clear.
     private ActionBarMenuSubItem plainSendButtonCached;
     private boolean onSendLongClick(View view) {
+        // NagramX: temporary reachability markers for the send-menu smoke build.
+        android.util.Log.i("NagramX", "NAX_SMOKE_remember-send-action BEGIN scenario=send-menu build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING + " package=" + org.telegram.messenger.BuildConfig.APPLICATION_ID + " account=" + currentAccount);
         if (isInScheduleMode() || parentFragment != null && parentFragment.getChatMode() == ChatActivity.MODE_QUICK_REPLIES || animatorEphemeralMessageVisibility.getValue()) {
             return false;
         }
@@ -5978,6 +5980,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                         updateSendButtonArmedState();
                         sendMessage();
                         if (sendPopupWindow != null) sendPopupWindow.dismiss();
+                        android.util.Log.i("NagramX", "NAX_SMOKE_remember-send-action END plain-send cached");
                     });
                     sendPopupLayout.addView(plainSendButtonCached, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48));
                 }
@@ -6139,6 +6142,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             // NagramX: this popup survives sends and settings changes between opens.
             if (plainSendButtonCached != null) {
                 plainSendButtonCached.setVisibility(getEligibleArmedSendAction() != RememberedSendAction.NONE ? VISIBLE : GONE);
+                android.util.Log.i("NagramX", "NAX_SMOKE_remember-send-action PATH cached-row visible=" + (plainSendButtonCached.getVisibility() == VISIBLE));
             }
             if (actionScheduleButton != null) {
                 actionScheduleButton.setVisibility(voiceOnce ? View.GONE : View.VISIBLE);
@@ -6410,10 +6414,12 @@ public class ChatActivityEnterView extends FrameLayout implements
 
         // NagramX: selecting plain Send both sends now and makes the next tap plain again.
         if (armedBeforeMenu != RememberedSendAction.NONE) {
+            android.util.Log.i("NagramX", "NAX_SMOKE_remember-send-action PATH preview-row visible=true");
             options.add(R.drawable.send_plane_24, getString(R.string.Send), () -> {
                 RememberedSendAction.disarm(currentAccount);
                 updateSendButtonArmedState();
                 plainSendFromPreview.run();
+                android.util.Log.i("NagramX", "NAX_SMOKE_remember-send-action END plain-send preview");
             });
         }
 
@@ -8321,6 +8327,7 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     // NagramX (#video-hold-send): the send button's click, shared with a hold on the paused round video preview
     public void performSendButtonClick() {
+        android.util.Log.i("NagramX", "NAX_SMOKE_remember-send-action COMPETING composer-click");
         if (isSendClickIgnored()) {
             return;
         }
