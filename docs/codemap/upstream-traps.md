@@ -2699,16 +2699,22 @@ width. `EditTextBoldCursor.computeVerticalScrollOffset` now returns the saved of
 The spoiler pass in the same method had the same blind spot through `getScrollY()`: its clip and cull rect
 covered only the first screen of the layout, and since the text under a spoiler is clipped out before
 `super.onDraw`, the lines below it drew as nothing at all. It reads `computeVerticalScrollOffset()` now
-(`EditTextEffects.java:374`). The `clipToPadding` branch (`:314`) still sees 0 and so never runs in a field
+(`EditTextEffects.java:375`). The `clipToPadding` branch (`:314`) still sees 0 and so never runs in a field
 drawn by `EditTextBoldCursor`.
 
 Spoiler bounds are layout coordinates, while `TextView` draws a layout shorter than its box lower down by its
 gravity. The one-line composer is centred in a 44dp floor (`ChatActivityEnterView.java:7456`, `:11457`), so its
 spoilers sat a few dp above the text, more at smaller text sizes. `spoilerOffsetY()` adds that offset to the clip
-and the draw (`EditTextEffects.java:392`, used at `:324` and `:378`). Quote blocks (`:331`) and the spoiler
+and the draw (`EditTextEffects.java:393`, used at `:324` and `:379`). Quote blocks (`:331`) and the spoiler
 tap detector (`SpoilersClickDetector.java:27-30`) do not apply it.
 
 *(Established 2026-11-13, `#composer-spoiler-fix`; read from the code, both fixes confirmed on a device, PR 617.)*
+
+A revealed spoiler in an edit field is a text background (`TextStyleSpan.java:76`), and `TextView` draws the
+selection highlight under the text, so that background hid any selection inside it.
+`drawRevealedSpoilerSelection` draws that part of the highlight again on top (`EditTextEffects.java:407`).
+
+*(Established 2026-11-13, `#composer-spoiler-fix`; read from the code, not yet seen on a device.)*
 
 ## Only one bulletin is visible app-wide, and an undo bar's delayed action fires when another replaces it
 

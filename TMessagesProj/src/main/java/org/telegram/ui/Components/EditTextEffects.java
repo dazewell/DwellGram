@@ -346,6 +346,7 @@ public class EditTextEffects extends EditText {
             AnimatedEmojiSpan.drawAnimatedEmojis(canvas, getLayout(), animatedEmojiDrawables, 0, spoilers, computeVerticalScrollOffset() - AndroidUtilities.dp(6), computeVerticalScrollOffset() + computeVerticalScrollExtent(), 0, 1f, animatedEmojiColorFilter);
             canvas.restore();
         }
+        drawRevealedSpoilerSelection(canvas, spoilerOffsetY);
         canvas.restore();
 
         if (!spoilers.isEmpty()) {
@@ -397,6 +398,36 @@ public class EditTextEffects extends EditText {
         }
         final int free = getMeasuredHeight() - super.getExtendedPaddingTop() - super.getExtendedPaddingBottom() - layout.getHeight();
         return free <= 0 ? 0 : gravity == android.view.Gravity.BOTTOM ? free : free >> 1;
+    }
+
+    // NagramX: a revealed spoiler paints a background behind its text, over the selection highlight TextView
+    // draws under the text, so a selection inside one could not be seen. Draw that part of the highlight on top.
+    private Path spoilerSelectionPath;
+    private android.graphics.Paint spoilerSelectionPaint;
+    private void drawRevealedSpoilerSelection(Canvas canvas, int offsetY) {
+        final Layout layout = getLayout();
+        final Editable text = getText();
+        final int start = Math.min(getSelectionStart(), getSelectionEnd());
+        final int end = Math.max(getSelectionStart(), getSelectionEnd());
+        if (!isSpoilersRevealed || !isFocused() || layout == null || text == null || start < 0 || start == end) {
+            return;
+        }
+        if (spoilerSelectionPath == null) {
+            spoilerSelectionPath = new Path();
+            spoilerSelectionPaint = new android.graphics.Paint();
+        }
+        spoilerSelectionPaint.setColor(getHighlightColor());
+        canvas.save();
+        canvas.translate(getPaddingLeft(), offsetY);
+        for (TextStyleSpan span : text.getSpans(start, end, TextStyleSpan.class)) {
+            final int from = Math.max(start, text.getSpanStart(span));
+            final int to = Math.min(end, text.getSpanEnd(span));
+            if (span.isSpoiler() && from < to) {
+                layout.getSelectionPath(from, to, spoilerSelectionPath);
+                canvas.drawPath(spoilerSelectionPath, spoilerSelectionPaint);
+            }
+        }
+        canvas.restore();
     }
 
     public void updateAnimatedEmoji(boolean force) {
