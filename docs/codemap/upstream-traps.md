@@ -2695,7 +2695,7 @@ width. `EditTextBoldCursor.computeVerticalScrollOffset` now returns the saved of
 (`EditTextBoldCursor.java:746`). The `getScrollY()` reads in the same method (`EditTextEffects.java:314`, `:371`)
 still see 0.
 
-*(Established 2026-11-13, `#composer-emoji-scroll-fix`; read from the code, not traced on a device.)*
+*(Established 2026-11-13, `#composer-emoji-scroll-fix`; read from the code, fix confirmed on a device, PR 616.)*
 
 ## Only one bulletin is visible app-wide, and an undo bar's delayed action fires when another replaces it
 
