@@ -2667,8 +2667,8 @@ list stayed at the bottom on a device. The Message Triggers page does this
 
 ## A scrolled composer draft draws above the field, and only the fade hides it
 
-`EditTextBoldCursor.onDraw` zeroes `mScrollY` around `super.onDraw` (`EditTextBoldCursor.java:879`) and
-has the first `getExtendedPaddingTop`/`Bottom` calls return 0 and `-scrollY` (`:726-741`, armed at `:888`),
+`EditTextBoldCursor.onDraw` zeroes `mScrollY` around `super.onDraw` (`EditTextBoldCursor.java:889`) and
+has the first `getExtendedPaddingTop`/`Bottom` calls return 0 and `-scrollY` (`:726-741`, armed at `:898`),
 so `TextView` never clips the top: the lines a long draft has scrolled past are drawn above the edit text.
 Nothing in the composer clips them except `ChatActivityEnterView.drawChild`'s cut at the input row's top
 (`ChatActivityEnterView.java:5211`) and `drawMessageEditText`'s layer and 14dp top fade (`:19144-19145`). Any edge
