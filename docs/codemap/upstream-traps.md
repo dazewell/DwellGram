@@ -2687,6 +2687,16 @@ Anything else this method reads from outside the container needs the same treatm
 
 *(Established 2026-10-15, `#composer-text-clip-fix`.)*
 
+The same zeroing blinds anything inside `super.onDraw` that asks the view where it is scrolled.
+`EditTextEffects.onDraw` culls animated emoji against `computeVerticalScrollOffset()` plus the scroll extent
+(`EditTextEffects.java:345`), which read 0 there, so `AnimatedEmojiHolder.draw` skipped every emoji below the
+first screen of a scrolled draft as out of bounds (`AnimatedEmojiSpan.java:480`) and left a gap of the right
+width. `EditTextBoldCursor.computeVerticalScrollOffset` now returns the saved offset while that draw runs
+(`EditTextBoldCursor.java:746`). The `getScrollY()` reads in the same method (`EditTextEffects.java:314`, `:371`)
+still see 0.
+
+*(Established 2026-11-13, `#composer-emoji-scroll-fix`; read from the code, not traced on a device.)*
+
 ## Only one bulletin is visible app-wide, and an undo bar's delayed action fires when another replaces it
 
 `Bulletin.show()` hides whatever bulletin is currently visible, on any screen (`Bulletin.java:288`). An

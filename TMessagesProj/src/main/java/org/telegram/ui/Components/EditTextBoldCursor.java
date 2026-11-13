@@ -740,6 +740,16 @@ public class EditTextBoldCursor extends EditTextEffects {
         return super.getExtendedPaddingBottom();
     }
 
+    // NagramX: onDraw zeroes mScrollY around super.onDraw, and the animated emoji bounds check in there
+    // reads this, so in a scrolled field every emoji below the first screen of text was skipped as off-screen.
+    @Override
+    protected int computeVerticalScrollOffset() {
+        if (drawInMaim && mScrollYField != null && scrollY != Integer.MAX_VALUE) {
+            return scrollY;
+        }
+        return super.computeVerticalScrollOffset();
+    }
+
     private int lastTouchX = -1;
     @Override
     public boolean onTouchEvent(MotionEvent event) {
