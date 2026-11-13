@@ -2714,7 +2714,7 @@ A revealed spoiler in an edit field is a text background (`TextStyleSpan.java:76
 selection highlight under the text, so that background hid any selection inside it.
 `drawRevealedSpoilerSelection` draws that part of the highlight again on top (`EditTextEffects.java:407`).
 
-*(Established 2026-11-13, `#composer-spoiler-fix`; read from the code, not yet seen on a device.)*
+*(Established 2026-11-13, `#composer-spoiler-fix`; read from the code, fix confirmed on a device, PR 617.)*
 
 ## Only one bulletin is visible app-wide, and an undo bar's delayed action fires when another replaces it
 
