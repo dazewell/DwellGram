@@ -316,11 +316,12 @@ public class EditTextEffects extends EditText {
         }
 
         final int spoilerPaddingLeft = getPaddingLeft();
+        final int spoilerOffsetY = spoilerOffsetY();
         if (!spoilers.isEmpty()) {
             path.rewind();
             for (SpoilerEffect eff : spoilers) {
                 Rect bounds = eff.getBounds();
-                path.addRect(bounds.left + spoilerPaddingLeft, bounds.top, bounds.right + spoilerPaddingLeft, bounds.bottom, Path.Direction.CW);
+                path.addRect(bounds.left + spoilerPaddingLeft, bounds.top + spoilerOffsetY, bounds.right + spoilerPaddingLeft, bounds.bottom + spoilerOffsetY, Path.Direction.CW);
             }
             canvas.clipPath(path, Region.Op.DIFFERENCE);
         }
@@ -368,10 +369,13 @@ public class EditTextEffects extends EditText {
                 canvas.restore();
             }
 
-            rect.set(0, (int) (getScrollY() - super.getExtendedPaddingTop() - offsetY), getWidth(), (int) (getMeasuredHeight() + getScrollY() + super.getExtendedPaddingBottom() - offsetY));
+            // NagramX: EditTextBoldCursor zeroes mScrollY for the length of this draw, so getScrollY() reads 0 here and
+            // every spoiler below the first screen of a scrolled draft was clipped away, text and all.
+            final int spoilerScrollY = computeVerticalScrollOffset();
+            rect.set(0, (int) (spoilerScrollY - super.getExtendedPaddingTop() - offsetY), getWidth(), (int) (getMeasuredHeight() + spoilerScrollY + super.getExtendedPaddingBottom() - offsetY));
             canvas.save();
             canvas.clipRect(rect);
-            canvas.translate(spoilerPaddingLeft, 0);
+            canvas.translate(spoilerPaddingLeft, spoilerOffsetY);
             for (SpoilerEffect eff : spoilers) {
                 Rect b = eff.getBounds();
                 if (rect.top <= b.bottom && rect.bottom >= b.top || b.top <= rect.bottom && b.bottom >= rect.top) {
@@ -381,6 +385,18 @@ public class EditTextEffects extends EditText {
             }
             canvas.restore();
         }
+    }
+
+    // NagramX: TextView draws a layout shorter than its box lower down, by its gravity. Spoiler bounds are layout
+    // coordinates, so in the one-line composer they sat above the text and left the bottom of the line bare.
+    private int spoilerOffsetY() {
+        final Layout layout = getLayout();
+        final int gravity = getGravity() & android.view.Gravity.VERTICAL_GRAVITY_MASK;
+        if (layout == null || gravity == android.view.Gravity.TOP) {
+            return 0;
+        }
+        final int free = getMeasuredHeight() - super.getExtendedPaddingTop() - super.getExtendedPaddingBottom() - layout.getHeight();
+        return free <= 0 ? 0 : gravity == android.view.Gravity.BOTTOM ? free : free >> 1;
     }
 
     public void updateAnimatedEmoji(boolean force) {
