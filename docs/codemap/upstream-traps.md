@@ -2667,8 +2667,8 @@ list stayed at the bottom on a device. The Message Triggers page does this
 
 ## A scrolled composer draft draws above the field, and only the fade hides it
 
-`EditTextBoldCursor.onDraw` zeroes `mScrollY` around `super.onDraw` (`EditTextBoldCursor.java:879`) and
-has the first `getExtendedPaddingTop`/`Bottom` calls return 0 and `-scrollY` (`:726-741`, armed at `:888`),
+`EditTextBoldCursor.onDraw` zeroes `mScrollY` around `super.onDraw` (`EditTextBoldCursor.java:889`) and
+has the first `getExtendedPaddingTop`/`Bottom` calls return 0 and `-scrollY` (`:726-741`, armed at `:898`),
 so `TextView` never clips the top: the lines a long draft has scrolled past are drawn above the edit text.
 Nothing in the composer clips them except `ChatActivityEnterView.drawChild`'s cut at the input row's top
 (`ChatActivityEnterView.java:5211`) and `drawMessageEditText`'s layer and 14dp top fade (`:19144-19145`). Any edge
@@ -2686,6 +2686,16 @@ lines until a new line or a scroll redrew the container (traced on device, `#com
 Anything else this method reads from outside the container needs the same treatment.
 
 *(Established 2026-10-15, `#composer-text-clip-fix`.)*
+
+The same zeroing blinds anything inside `super.onDraw` that asks the view where it is scrolled.
+`EditTextEffects.onDraw` culls animated emoji against `computeVerticalScrollOffset()` plus the scroll extent
+(`EditTextEffects.java:345`), which read 0 there, so `AnimatedEmojiHolder.draw` skipped every emoji below the
+first screen of a scrolled draft as out of bounds (`AnimatedEmojiSpan.java:480`) and left a gap of the right
+width. `EditTextBoldCursor.computeVerticalScrollOffset` now returns the saved offset while that draw runs
+(`EditTextBoldCursor.java:746`). The `getScrollY()` reads in the same method (`EditTextEffects.java:314`, `:371`)
+still see 0.
+
+*(Established 2026-11-13, `#composer-emoji-scroll-fix`; read from the code, fix confirmed on a device, PR 616.)*
 
 ## Only one bulletin is visible app-wide, and an undo bar's delayed action fires when another replaces it
 
