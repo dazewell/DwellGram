@@ -2708,7 +2708,7 @@ spoilers sat a few dp above the text, more at smaller text sizes. `spoilerOffset
 and the draw (`EditTextEffects.java:392`, used at `:324` and `:378`). Quote blocks (`:331`) and the spoiler
 tap detector (`SpoilersClickDetector.java:27-30`) do not apply it.
 
-*(Established 2026-11-13, `#composer-spoiler-fix`; read from the code, not yet seen on a device.)*
+*(Established 2026-11-13, `#composer-spoiler-fix`; read from the code, both fixes confirmed on a device, PR 617.)*
 
 ## Only one bulletin is visible app-wide, and an undo bar's delayed action fires when another replaces it
 
