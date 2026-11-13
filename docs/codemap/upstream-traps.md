@@ -2689,13 +2689,32 @@ Anything else this method reads from outside the container needs the same treatm
 
 The same zeroing blinds anything inside `super.onDraw` that asks the view where it is scrolled.
 `EditTextEffects.onDraw` culls animated emoji against `computeVerticalScrollOffset()` plus the scroll extent
-(`EditTextEffects.java:345`), which read 0 there, so `AnimatedEmojiHolder.draw` skipped every emoji below the
+(`EditTextEffects.java:346`), which read 0 there, so `AnimatedEmojiHolder.draw` skipped every emoji below the
 first screen of a scrolled draft as out of bounds (`AnimatedEmojiSpan.java:480`) and left a gap of the right
 width. `EditTextBoldCursor.computeVerticalScrollOffset` now returns the saved offset while that draw runs
-(`EditTextBoldCursor.java:746`). The `getScrollY()` reads in the same method (`EditTextEffects.java:314`, `:371`)
-still see 0.
+(`EditTextBoldCursor.java:746`).
 
 *(Established 2026-11-13, `#composer-emoji-scroll-fix`; read from the code, fix confirmed on a device, PR 616.)*
+
+The spoiler pass in the same method had the same blind spot through `getScrollY()`: its clip and cull rect
+covered only the first screen of the layout, and since the text under a spoiler is clipped out before
+`super.onDraw`, the lines below it drew as nothing at all. It reads `computeVerticalScrollOffset()` now
+(`EditTextEffects.java:375`). The `clipToPadding` branch (`:314`) still sees 0 and so never runs in a field
+drawn by `EditTextBoldCursor`.
+
+Spoiler bounds are layout coordinates, while `TextView` draws a layout shorter than its box lower down by its
+gravity. The one-line composer is centred in a 44dp floor (`ChatActivityEnterView.java:7456`, `:11457`), so its
+spoilers sat a few dp above the text, more at smaller text sizes. `spoilerOffsetY()` adds that offset to the clip
+and the draw (`EditTextEffects.java:393`, used at `:324` and `:379`). Quote blocks (`:331`) and the spoiler
+tap detector (`SpoilersClickDetector.java:27-30`) do not apply it.
+
+*(Established 2026-11-13, `#composer-spoiler-fix`; read from the code, both fixes confirmed on a device, PR 617.)*
+
+A revealed spoiler in an edit field is a text background (`TextStyleSpan.java:76`), and `TextView` draws the
+selection highlight under the text, so that background hid any selection inside it.
+`drawRevealedSpoilerSelection` draws that part of the highlight again on top (`EditTextEffects.java:407`).
+
+*(Established 2026-11-13, `#composer-spoiler-fix`; read from the code, fix confirmed on a device, PR 617.)*
 
 ## Only one bulletin is visible app-wide, and an undo bar's delayed action fires when another replaces it
 
