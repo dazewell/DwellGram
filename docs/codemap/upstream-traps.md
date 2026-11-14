@@ -2685,6 +2685,12 @@ the input showed this: with the collapsed row's top baked in, short drafts vanis
 lines until a new line or a scroll redrew the container (traced on device, `#composer-text-clip-fix`, PR 529).
 Anything else this method reads from outside the container needs the same treatment.
 
+The MD3 field is painted 1dp (`FIELD_INSET`) inside the row on both edges (`ComposerMd3Surface.java:72`, `:723`),
+while the text was clipped at the row's top and, with the tools row on, at the edit text's bottom, which is the
+pill's bottom. A scrolled draft therefore showed a sliver of its lines past the field's shaded edge, top and
+bottom. Both clips now come in by `ComposerMd3Surface.textClipInset()` (`:186`; `ChatActivityEnterView.java:5293`,
+`:2934`), which is 0 outside MD3. *(`#composer-text-border-fix`.)*
+
 *(Established 2026-10-15, `#composer-text-clip-fix`.)*
 
 The same zeroing blinds anything inside `super.onDraw` that asks the view where it is scrolled.

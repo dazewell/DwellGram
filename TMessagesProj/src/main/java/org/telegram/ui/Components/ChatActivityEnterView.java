@@ -2930,7 +2930,8 @@ public class ChatActivityEnterView extends FrameLayout implements
                         if (composerInlineRest != null) {
                             canvas.translate(composerInlineRest.fieldOffsetX(), composerInlineRest.fieldOffsetY());
                         }
-                        canvas.clipRect(0, -getHeight(), getWidth(), child.getY() + child.getHeight());
+                        // NagramX: less the MD3 field's inset, so the last line stops at the field's painted bottom.
+                        canvas.clipRect(0, -getHeight(), getWidth(), child.getY() + child.getHeight() - com.dazewell.gram.composer.ComposerMd3Surface.textClipInset());
                         final boolean result = drawMessageEditText(canvas, () -> super.drawChild(canvas, child, drawingTime));
                         canvas.restore();
                         return result;
@@ -5288,7 +5289,8 @@ public class ChatActivityEnterView extends FrameLayout implements
             final float separatorY = getHeight() - animatorInputFieldHeight.getFactor();
             canvas.save();
             if (child == textFieldContainer) {
-                canvas.clipRect(0, separatorY, getMeasuredWidth(), getHeight());
+                // NagramX: the MD3 field is painted 1dp inside the row, and a scrolled draft drew over that edge.
+                canvas.clipRect(0, separatorY + com.dazewell.gram.composer.ComposerMd3Surface.textClipInset(), getMeasuredWidth(), getHeight());
             }
             if (child == topView) {
                 canvas.clipRect(0, 0, getMeasuredWidth(), separatorY);
