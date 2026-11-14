@@ -731,6 +731,7 @@ public final class ComposerMd3Surface {
                 canvas.drawRect(0, underKeyboard.top, width, underKeyboard.top + Math.max(1, dp(0.66f)), dividerPaint);
             }
         }
+        ComposerBorderProbe.log(host, enterView, inputFieldPath, pill, islandPadding());
     }
 
     private float restFieldVerticalInset(Rect pill, float topViewHeight) {
