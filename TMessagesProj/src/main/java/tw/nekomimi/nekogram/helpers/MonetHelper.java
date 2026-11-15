@@ -89,6 +89,10 @@ public class MonetHelper {
         put("n2_800", android.R.color.system_neutral2_800);
         put("n2_900", android.R.color.system_neutral2_900);
         put("n2_1000", android.R.color.system_neutral2_1000);
+        // NagramX: DwellBoard's Gboard-style keyboard background, so a composer resting on it reads as one surface.
+        // Same roles and pre-Android 14 fallback tones as DwellBoard's GboardColors.getSurface().
+        put("monetGboardSurfaceLight", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_container_light : android.R.color.system_neutral1_50);
+        put("monetGboardSurfaceDark", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_container_dark : android.R.color.system_neutral1_900);
         put("monetRedLight", R.color.monetRedLight);
         put("monetRedDark", R.color.monetRedDark);
         put("monetRedCall", R.color.monetRedCall);

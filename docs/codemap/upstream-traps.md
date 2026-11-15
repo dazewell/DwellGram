@@ -3148,3 +3148,15 @@ at `:444` with no error, so the operation waits forever at 0 bytes.
 Only load through a parent the controller can refresh, such as a `MessageObject`.
 
 *(Established 2026-11-10, `#emoji-catalog-fix`.)*
+
+## A Monet token in an `.attheme` must start with `a`, `n` or `monet`
+
+`Theme.getThemeFileValues()` (`Theme.java:7778`) passes a value to
+`MonetHelper.getColor()` only when it starts with `a`, `n` or `monet`
+(`Theme.java:7818`). Any other value goes to `Utilities.parseInt()` (`:7821`)
+and comes out as 0, which is transparent. Registering a new token in
+`MonetHelper`'s `ids` map is not enough. A token named `gboardSurfaceDark`
+painted the composer black on device. `Tools/scripts/VerifyExteraThemes.java`
+now fails on such a token.
+
+*(Established 2026-11-14, `#gboard-themes`.)*

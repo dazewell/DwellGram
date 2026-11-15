@@ -4174,6 +4174,33 @@ public class Theme {
             themeInfo.isDark = ThemeInfo.DARK;
             themes.add(themeInfo);
             themesDict.put("Extera Dark", themeInfo);
+
+            // NagramX: the Extera pair with the composer and emoji panel on Gboard's keyboard background, as DwellBoard draws it.
+            themeInfo = new ThemeInfo();
+            themeInfo.name = "Gboard Light";
+            themeInfo.assetName = "monet_gboard_light.attheme";
+            themeInfo.previewBackgroundColor = MonetHelper.getColor("n1_0");
+            themeInfo.previewInColor = MonetHelper.getColor("n1_50");
+            themeInfo.previewOutColor = MonetHelper.getColor("a1_600");
+            themeInfo.sortIndex = 11;
+            themeInfo.monetKind = ThemeInfo.MONET_LIGHT;
+            themeInfo.monetFamily = ThemeInfo.MONET_FAMILY_EXTERA;
+            themeInfo.isDark = ThemeInfo.LIGHT;
+            themes.add(themeInfo);
+            themesDict.put("Gboard Light", themeInfo);
+
+            themeInfo = new ThemeInfo();
+            themeInfo.name = "Gboard Dark";
+            themeInfo.assetName = "monet_gboard_dark.attheme";
+            themeInfo.previewBackgroundColor = MonetHelper.getColor("n1_900");
+            themeInfo.previewInColor = MonetHelper.getColor("n1_800");
+            themeInfo.previewOutColor = MonetHelper.getColor("a1_200");
+            themeInfo.sortIndex = 12;
+            themeInfo.monetKind = ThemeInfo.MONET_DARK;
+            themeInfo.monetFamily = ThemeInfo.MONET_FAMILY_EXTERA;
+            themeInfo.isDark = ThemeInfo.DARK;
+            themes.add(themeInfo);
+            themesDict.put("Gboard Dark", themeInfo);
         }
 
         String themesString = themeConfig.getString("themes2", null);
