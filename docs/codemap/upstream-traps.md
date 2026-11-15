@@ -3160,3 +3160,19 @@ painted the composer black on device. `Tools/scripts/VerifyExteraThemes.java`
 now fails on such a token.
 
 *(Established 2026-11-14, `#gboard-themes`.)*
+
+## Typed emoji only get the emoji pack once something spans them
+
+The selected emoji pack (or system emoji) is drawn only for text carrying an
+`Emoji.EmojiSpan` (`Emoji.java:153`). Unspanned emoji fall back to the system
+font. Upstream spans typed text in the composer only when one change inserts
+more than one char (`ChatActivityEnterView.java:7640`, same gate at
+`PhotoViewerCaptionEnterView.java:304`), so a lone `U+26A1` stays plain while
+`U+26A1 U+FE0F` gets the pack, and one message shows two different bolts. The
+photo caption's watcher never spans typed text at all
+(`CaptionContainerView.java:334`). Every one of these fields extends
+`EditTextCaption`, which now registers `TypedEmojiSpanWatcher` in its
+constructor (`EditTextCaption.java:131`). Keep it there: it must run before the
+subclass watchers.
+
+*(Established 2026-11-15, `#emoji-pack-typing-fix`.)*
