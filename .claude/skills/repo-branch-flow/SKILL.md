@@ -103,7 +103,8 @@ Revisit if collaborators gain triage.
 Mandatory preflight before issue work:
 
 ```powershell
-$repo = gh repo view --json nameWithOwner -q .nameWithOwner
+$repo = gh repo view (git remote get-url origin) --json nameWithOwner -q .nameWithOwner
+if (-not $repo) { throw 'could not resolve origin' }
 $n    = 254              # issue number
 $slug = 'eventschedule-bolt-refresh'   # the issue's declared branch slug
 

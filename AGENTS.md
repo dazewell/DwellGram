@@ -24,9 +24,11 @@ conflict.
   `nbase` holds the latest upstream snapshot; `base` is frozen history. Never
   commit to any of them directly.
 - **Never write this repo's name or owner into an instruction.** The repo has
-  been renamed before. Resolve it at run time —
-  `$repo = gh repo view --json nameWithOwner -q .nameWithOwner` — and use
-  `$repo` wherever a command needs `owner/name`. Process ids are `repo-*`.
+  been renamed before. Resolve it from `origin` at run time, since a bare
+  `gh repo view` may pick a configured default (this is a fork):
+  `$repo = gh repo view (git remote get-url origin) --json nameWithOwner -q .nameWithOwner`.
+  Stop if `$repo` is empty, and pass it to every `gh` command and script that
+  takes a repo. Process ids are `repo-*`.
 - dazewell works on **Windows**. Give shell commands in **PowerShell**.
 
 ## Hard constraints
