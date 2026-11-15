@@ -57,6 +57,8 @@ public final class ComposerMd3Surface {
     private static final float FIELD_ON_SURFACE_BLEND = 0.08f;
     // Lightening reads weaker per percent than darkening, so a dark theme's field takes a bigger step.
     private static final float FIELD_ON_SURFACE_BLEND_DARK = 0.14f;
+    /** Under a Gboard theme, how far the reply strip moves from the surface toward the field's key color. */
+    private static final float STRIP_TOWARD_FIELD = 0.5f;
     // The composer keeps this share of the blur the Blur strength setting asks for, so a bright bubble passing
     // under it cannot glow through: the 0.5-1 alpha range becomes 0.65-1.
     private static final float FROST_SHARE = 0.7f;
@@ -330,9 +332,9 @@ public final class ComposerMd3Surface {
         final boolean dark = theme.assetName.contains("dark");
         final int gboardSurface = tw.nekomimi.nekogram.helpers.MonetHelper.getColor(dark ? "monetGboardSurfaceDark" : "monetGboardSurfaceLight");
         if (surfaceColor() != ColorUtils.setAlphaComponent(gboardSurface, 255)) return null;
-        return tw.nekomimi.nekogram.helpers.MonetHelper.getColor(field
-                ? (dark ? "monetGboardKeyDark" : "monetGboardKeyLight")
-                : (dark ? "monetGboardStripDark" : "monetGboardStripLight"));
+        final int key = tw.nekomimi.nekogram.helpers.MonetHelper.getColor(dark ? "monetGboardKeyDark" : "monetGboardKeyLight");
+        // The strip sits halfway from the surface to the field: lighter and calmer than the surface, still short of the field.
+        return field ? key : ColorUtils.blendARGB(ColorUtils.setAlphaComponent(gboardSurface, 255), ColorUtils.setAlphaComponent(key, 255), STRIP_TOWARD_FIELD);
     }
 
     private int shadowColor() {
