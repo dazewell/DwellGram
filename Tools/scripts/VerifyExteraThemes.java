@@ -75,6 +75,11 @@ public class VerifyExteraThemes {
         ok &= checkValidKeyParity("monet_extera_light.attheme", "monet_extera_dark.attheme", validKeys);
         ok &= checkInt32RoundTrip("monet_extera_light.attheme");
         ok &= checkInt32RoundTrip("monet_extera_dark.attheme");
+        // Gboard Light/Dark are the Extera assets with two panel colors swapped in.
+        ok &= checkSuperset("monet_extera_light.attheme", "monet_gboard_light.attheme");
+        ok &= checkSuperset("monet_extera_dark.attheme", "monet_gboard_dark.attheme");
+        ok &= checkValues("monet_gboard_light.attheme", vocabulary);
+        ok &= checkValues("monet_gboard_dark.attheme", vocabulary);
 
         System.out.println(ok ? "OK" : "FAILED");
         if (!ok) {

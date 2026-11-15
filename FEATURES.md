@@ -418,6 +418,8 @@ Extera Light and Extera Dark bring [exteraGram](https://github.com/exteraSquad/e
 <img height="260" alt="chat rendered in the Extera Light theme" src="docs/images/features/extera-light.png" />
 <img height="260" alt="the same chat rendered in the Extera Dark theme" src="docs/images/features/extera-dark.png" />
 
+### Gboard themes <!-- #gboard-themes -->
+
 ### Monet wallpaper pattern <!-- #monet-pattern-tile -->
 
 You can apply a chat pattern over your live Material You color. Turn it off by opening the tile and clearing the pattern.
