@@ -9319,7 +9319,11 @@ public class ChatActivity extends BaseFragment implements
             };
             button.setOrientation(LinearLayout.HORIZONTAL);
             ViewHelper.setPadding(button, 12, 0, 12, 0);
-            editView.addButton(button, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT));
+            // NagramX: the MD3 reply strip paints one card behind both buttons, so packed to the left they read as
+            // loose text crowding the accent; split the spare width evenly and centre each button in its share.
+            final boolean md3Strip = com.dazewell.gram.helpers.InterfaceStyleController.applyComposer();
+            button.setGravity(md3Strip ? Gravity.CENTER : Gravity.NO_GRAVITY);
+            editView.addButton(button, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, md3Strip ? 1f : 0f));
 
             final ImageView imageView = new ImageView(context);
             imageView.setScaleType(ImageView.ScaleType.CENTER);
