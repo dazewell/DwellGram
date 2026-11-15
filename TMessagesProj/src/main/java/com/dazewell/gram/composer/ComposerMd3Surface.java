@@ -277,14 +277,32 @@ public final class ComposerMd3Surface {
 
     /** The 6% on-surface tint laid over the island, so it tones a frosted island and an opaque one alike. */
     private int containerOverlay() {
+        final Integer gboard = gboardTone("Strip");
+        if (gboard != null) return gboard;
         final int onSurface = Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider);
         return ColorUtils.setAlphaComponent(onSurface, Math.round(255 * CONTAINER_ON_SURFACE_BLEND));
     }
 
     /** The field's on-surface tint laid over the island, one step above the strip's: darker in a light theme, lighter in a dark one. */
     private int fieldOverlay() {
+        final Integer gboard = gboardTone("Key");
+        if (gboard != null) return gboard;
         final int onSurface = Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider);
         return ColorUtils.setAlphaComponent(onSurface, Math.round(255 * (isDark() ? FIELD_ON_SURFACE_BLEND_DARK : FIELD_ON_SURFACE_BLEND)));
+    }
+
+    /**
+     * Under a Gboard theme the field and strip are opaque keyboard tones instead of on-surface tints, so the field
+     * reads as one of the keyboard's keys. Only while the panel really is the Gboard surface: a chat's own theme
+     * repaints the panel, and then the usual tints apply.
+     */
+    @Nullable
+    private Integer gboardTone(String role) {
+        final Theme.ThemeInfo theme = Theme.getActiveTheme();
+        if (theme == null || theme.assetName == null || !theme.assetName.startsWith("monet_gboard_")) return null;
+        final String mode = theme.assetName.contains("dark") ? "Dark" : "Light";
+        if (surfaceColor() != ColorUtils.setAlphaComponent(tw.nekomimi.nekogram.helpers.MonetHelper.getColor("monetGboardSurface" + mode), 255)) return null;
+        return tw.nekomimi.nekogram.helpers.MonetHelper.getColor("monetGboard" + role + mode);
     }
 
     private int shadowColor() {
