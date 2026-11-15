@@ -1,17 +1,17 @@
 ---
-name: nagramx-branch-flow
-description: "Dazewell's git / integration / upstream-sync model for NagramX (dazewell/DwellGram; parent DrKLO/Telegram; NextAlone/Nagram proposal target; risin42/NagramX historical). Trigger for branches/worktrees, one change = one branch = one session, mandatory #tag, discoverability, upstream proposals, sync, ci.yml/staging.yml gates, <YYYY-MM-DD>_<slug> names, no force-push, follow-up commits, merge authority, batch landing, and phone-triggered sync-build-Telegram automation. Companion to nagramx-workflow."
+name: repo-branch-flow
+description: "Dazewell's git / integration / upstream-sync model for this fork (origin; parent DrKLO/Telegram; NextAlone/Nagram proposal target; risin42/NagramX historical). Trigger for branches/worktrees, one change = one branch = one session, mandatory #tag, discoverability, upstream proposals, sync, ci.yml/staging.yml gates, <YYYY-MM-DD>_<slug> names, no force-push, follow-up commits, merge authority, batch landing, and phone-triggered sync-build-Telegram automation. Companion to repo-workflow."
 ---
 
-# NagramX branch & integration flow
+# Branch & integration flow
 
 Current model: **one change = one dated branch = one session**, running start to
 finish with subagents. No coordinator branches.
 
 ## Topology
 
-Remotes: `origin` is `dazewell/DwellGram`; old `dazewell/NagramX` redirects but
-is not a command target. Upstream is `DrKLO/Telegram` `master`, fetched by URL
+Remotes: `origin` is this fork; resolve its `owner/name` as `$repo` (`AGENTS.md`)
+rather than writing it out, since the repo has been renamed before. Upstream is `DrKLO/Telegram` `master`, fetched by URL
 by `sync-upstream.yml`; no remote is needed.
 
 Branches: `dev` is trunk/build source/durable history; features and upstream
@@ -103,7 +103,7 @@ Revisit if collaborators gain triage.
 Mandatory preflight before issue work:
 
 ```powershell
-$repo = 'dazewell/DwellGram'
+$repo = gh repo view --json nameWithOwner -q .nameWithOwner
 $n    = 254              # issue number
 $slug = 'eventschedule-bolt-refresh'   # the issue's declared branch slug
 
@@ -153,7 +153,7 @@ no matching remote branch, open PR, or live session; remove label and explain.
 
 ## Start and work
 
-Use sibling worktree `..\NagramX-<slug>` for iterative features; main clone for
+Use sibling worktree `..\<repo>-<slug>` for iterative features; main clone for
 one-shot CI/workflow tweaks, small fixes, tuning, or docs. When unsure, use a
 worktree. Hooks are shared; `post-checkout` fast-forwards a new worktree to the server's `origin/dev`.
 
@@ -162,14 +162,14 @@ git switch dev; git pull --ff-only origin dev          # trunk already carries u
 git config core.hooksPath .githooks                     # once per clone, if not set
 
 git switch -c <YYYY-MM-DD>_<slug> dev                   # in place: cut the change branch from the trunk
-git worktree add -b <YYYY-MM-DD>_<slug> ..\NagramX-<slug> dev   # or a sibling worktree
-cd ..\NagramX-<slug>                                    # work here; the main clone stays on dev
-# ...nagramx-workflow steps: design review, hooks, compile, code review...
+git worktree add -b <YYYY-MM-DD>_<slug> ..\<repo>-<slug> dev   # or a sibling worktree
+cd ..\<repo>-<slug>                                    # work here; the main clone stays on dev
+# ...repo-workflow steps: design review, hooks, compile, code review...
 ```
 
 `FEATURES.md` rides in the same branch. Before self-managed worktree removal
-(`git worktree remove ..\NagramX-<slug>` from the main clone, then
-`git worktree prune`), stop/verify processes per `nagramx-process-lifecycle`;
+(`git worktree remove ..\<repo>-<slug>` from the main clone, then
+`git worktree prune`), stop/verify processes per `repo-process-lifecycle`;
 app-managed worktrees use only `archive_session`.
 
 ## PR, builds, and review
@@ -259,7 +259,7 @@ git fetch origin refs/pull/<N>/head:<local>
 ```
 
 Preflight settings live:
-`gh api repos/dazewell/DwellGram --jq '{squash:.allow_squash_merge, msg:.squash_merge_commit_message, title:.squash_merge_commit_title}'`.
+`gh api "repos/$repo" --jq '{squash:.allow_squash_merge, msg:.squash_merge_commit_message, title:.squash_merge_commit_title}'`.
 Stop unless `allow_squash_merge` is `true` and `squash_merge_commit_message` is
 `COMMIT_MESSAGES`; otherwise `#slug` tags can vanish with CI green.
 `squash_merge_commit_title` is `PR_TITLE`, so PR title is permanent history.
@@ -276,7 +276,7 @@ Merge-time gate:
 $deadline = (Get-Date).AddMinutes(10)
 do {
   $LASTEXITCODE = 1
-  .\.github\scripts\test-merge-preflight.ps1 -Repository dazewell/DwellGram `
+  .\.github\scripts\test-merge-preflight.ps1 -Repository $repo `
     -PullRequest $n -ExpectedHead $approvedHead -ExpectedBranch $branch
   if ($LASTEXITCODE -eq 0) { break }
   if ($LASTEXITCODE -ne 1) { throw 'Merge preflight has a terminal blocker; re-review and re-approve before landing.' }
@@ -345,7 +345,7 @@ PR to `dev`, merge, delete. If user-visible, update the existing `FEATURES.md`.
 ## Sync from upstream
 
 ```powershell
-gh workflow run sync-upstream.yml --repo dazewell/DwellGram
+gh workflow run sync-upstream.yml --repo $repo
 ```
 
 It fetches Telegram `master` and wraps its tree in one `dazegram-sync`-authored
@@ -397,7 +397,7 @@ git rebase --onto nagram-reference/dev <branch-point> <YYYY-MM-DD>_<slug>-pr   #
 git checkout nagram-reference/dev -- FEATURES.md          # drop the fork-only doc hunk
 git rebase -i nagram-reference/dev                        # squash to one clean commit
 git push origin <YYYY-MM-DD>_<slug>-pr
-gh pr create --repo NextAlone/Nagram --base dev --head dazewell:<YYYY-MM-DD>_<slug>-pr
+gh pr create --repo NextAlone/Nagram --base dev --head <owner>:<YYYY-MM-DD>_<slug>-pr
 ```
 
 Delete the `-pr` branch after merge. Strip only `FEATURES.md`.
@@ -426,10 +426,10 @@ captions include GitHub Models summary via `GITHUB_TOKEN` (`models: read`,
 optional `AI_MODEL`), trimmed for Telegram's 1024-char cap.
 
 Phone sync: GitHub mobile or bot POST to
-`/repos/dazewell/DwellGram/actions/workflows/sync-upstream.yml/dispatches` with
+`/repos/<owner>/<repo>/actions/workflows/sync-upstream.yml/dispatches` with
 fine-grained PAT (Actions read/write only).
 
 ## Keeping this current
 
 When flow changes, edit this file in the same session and keep `CLAUDE.md`,
-`nagramx-workflow`, and memory maps in sync.
+`repo-workflow`, and memory maps in sync.

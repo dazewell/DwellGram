@@ -31,4 +31,4 @@ constrains `org.telegram.**` does not apply. This is where new logic belongs.
   off it. State written from more than one thread needs a stated
   interleaving story before it is written, not after review finds it.
 
-Full rules: `AGENTS.md` and the `nagramx-workflow` skill.
+Full rules: `AGENTS.md` and the `repo-workflow` skill.

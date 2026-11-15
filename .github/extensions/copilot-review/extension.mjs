@@ -39,7 +39,7 @@ await joinSession({
         {
             name: "request_copilot_review",
             description:
-                "Request a billed Copilot code review on a NagramX pull request. Call it only when the " +
+                "Request a billed Copilot code review on a pull request in this repo. Call it only when the " +
                 "current head is good enough for an external review: architect round 2 has cleared and " +
                 "ci.yml is green on the head. At most two per PR; the second only after pushing fixes " +
                 "for Important-or-above findings. Skip it on doc- or process-only PRs unless dazewell " +

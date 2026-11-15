@@ -1,9 +1,9 @@
 ---
-name: nagramx-workflow
-description: "Dazewell's process for adding or changing anything in the NagramX repo (a personal Telegram-for-Android fork, GitHub dazewell/DwellGram). Trigger this whenever work touches that repo: adding a feature, fixing a bug, preparing a commit or PR for it, or when dazewell references \"the usual process\" for NagramX. Also trigger when he gives new or corrected guidance about how this workflow should run — this file is meant to be edited, not just read. Covers: the one-change-one-session rule and why child sessions were dropped, the reuse-first / minimal-footprint hook style with concrete hook points and config surfaces, the two review rounds, the compile gate and its CI fallback, the fallback-not-migration rule, temporary diagnostics and the smoke build, the FEATURES.md entry, on-device testing, and when a PR actually gets opened."
+name: repo-workflow
+description: "Dazewell's process for adding or changing anything in this repo (a personal Telegram-for-Android fork). Trigger this whenever work touches that repo: adding a feature, fixing a bug, preparing a commit or PR for it, or when dazewell references \"the usual process\" for NagramX. Also trigger when he gives new or corrected guidance about how this workflow should run — this file is meant to be edited, not just read. Covers: the one-change-one-session rule and why child sessions were dropped, the reuse-first / minimal-footprint hook style with concrete hook points and config surfaces, the two review rounds, the compile gate and its CI fallback, the fallback-not-migration rule, temporary diagnostics and the smoke build, the FEATURES.md entry, on-device testing, and when a PR actually gets opened."
 ---
 
-# NagramX contribution workflow
+# Contribution workflow
 
 `AGENTS.md` holds the repo's facts and hard rules — read it first, and do not
 expect them repeated here. This file is the **procedure**: what a change looks
@@ -23,8 +23,8 @@ sessions became the single largest source of lost time on this repo, ahead of
 any bug. Published practice agrees for work shaped like ours: sequential,
 same-file, dependency-heavy changes belong in one session.
 
-**Subagents are how you buy context back.** `nagramx-scout` for read-only recon,
-`nagramx-ux` for behaviour and placement, `nagramx-architect` for both review
+**Subagents are how you buy context back.** `repo-scout` for read-only recon,
+`repo-ux` for behaviour and placement, `repo-architect` for both review
 rounds. They report into your trace without flooding it, and none can commit.
 Give each an objective, an output format and explicit boundaries.
 
@@ -37,17 +37,17 @@ them one at a time in one session.
 
 ### 1. Recon, then design review (round 1 of 2)
 
-Dispatch `nagramx-scout` and check `FEATURES.md` and `docs/codemap/` before
+Dispatch `repo-scout` and check `FEATURES.md` and `docs/codemap/` before
 asking dazewell anything — by grep, never reading either whole. **If it already
 ships, stop and say so** — that is a good outcome. For a change that adds or
-alters a user-visible surface, run `nagramx-ux` next so the questions you ask
+alters a user-visible surface, run `repo-ux` next so the questions you ask
 are about real design forks rather than mechanics; a bug fix restoring intended
 behaviour skips it.
 
-Then put the plan to `nagramx-architect` (round 1) **before writing a line**:
+Then put the plan to `repo-architect` (round 1) **before writing a line**:
 does this fight the architecture, will it survive the next upstream merge, is
 there a simpler hook point, does something equivalent already ship? The persona
-and the checklist live in `nagramx-code-review`. Do not start implementing until
+and the checklist live in `repo-code-review`. Do not start implementing until
 you and that reviewer are aligned — a plan defect caught here costs a paragraph;
 caught after implementation it costs the branch.
 
@@ -87,7 +87,7 @@ before the first push. One change per branch. The repo auto-deletes the branch
 at merge, and its range stays recoverable via `refs/pull/<N>/head`.
 
 Topology, the `#tag` every commit carries, sync and the no-force-push rule are
-normative in `nagramx-branch-flow`.
+normative in `repo-branch-flow`.
 
 ### 3. Implement with minimum footprint
 
@@ -191,20 +191,20 @@ move on until it is clean, and never claim you compiled something you did not �
 show the command and the tail of its output.
 
 Gradle daemon and cleanup obligations are normative in
-`nagramx-process-lifecycle`.
+`repo-process-lifecycle`.
 
 ### 5. Code review (round 2 of 2)
 
 Once it compiles — or once it is pushed and `ci.yml` is the gate — take the
-**real diff** back to `nagramx-architect`, on a **stronger model** than the one
+**real diff** back to `repo-architect`, on a **stronger model** than the one
 that wrote the code: a model tends to be blind to its own mistakes in the same
 places. Models, effort and the inline exception for small diffs are in
-`.github/agents/nagramx-implementer.agent.md`.
+`.github/agents/repo-implementer.agent.md`.
 
 Round 2 reviews **the whole, on the final state of the code** — not only the
 latest diff. A change that arrived as a dozen small fixes reads fine
 hunk-by-hunk and can still leave a muddled state machine. A separate final-state
-pass runs only when a "when line-fixing stops" trigger in `nagramx-code-review`
+pass runs only when a "when line-fixing stops" trigger in `repo-code-review`
 fired.
 
 Verify each finding before implementing it — a reviewer can be wrong for *this*
@@ -247,12 +247,12 @@ actually checked against this branch.
 ### 7. Commit
 
 Subject style, the `#<slug>` tag and the append-only rule are in `AGENTS.md`;
-the exempt set and the full protocol are in `nagramx-branch-flow`.
+the exempt set and the full protocol are in `repo-branch-flow`.
 
 ### 8. Merge-forward, don't rebase in the loop
 
 `dev` is the trunk. Bring `dev` into your branch when you need what landed
-there; never rebase a pushed branch. Details in `nagramx-branch-flow`.
+there; never rebase a pushed branch. Details in `repo-branch-flow`.
 
 ### 9. Open a PR into `dev` — that *is* the preview build
 
@@ -270,7 +270,7 @@ the run, so re-applying it requests a fresh build.
 
 PR mechanics — requesting the billed Copilot review, its budget, the severity
 floor, and thread resolution — are normative in
-`.github/agents/nagramx-implementer.agent.md` and are not restated here.
+`.github/agents/repo-implementer.agent.md` and are not restated here.
 
 **Request the verification build only once review has settled** — round 2 clean,
 any final-state pass clean, nothing Important or above outstanding. An APK
@@ -315,12 +315,12 @@ the markers exist, and treat only a disconnected phone as the reason you cannot
 read one. The capture protocol, the retention and privacy rules, the three
 independent cleanup checks and the evidence-grading labels are in
 [`diagnostics.md`](diagnostics.md); the process mechanics are normative in
-`nagramx-process-lifecycle`.
+`repo-process-lifecycle`.
 ### 10. Land it
 
 Landing into `dev` is dazewell's decision by default. The merge procedure, and
 the narrow conditional authority under which a session holding a named approval
-may press the button, are normative in `nagramx-branch-flow`. **Never write
+may press the button, are normative in `repo-branch-flow`. **Never write
 "ready to merge"** — nothing in this pipeline
 establishes it, because nobody ran the app. Say what you actually verified.
 

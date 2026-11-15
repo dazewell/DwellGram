@@ -1,6 +1,6 @@
 # Device diagnostics and traced smoke cycles
 
-Reference for the `nagramx-workflow` skill. Load this when a change adds a
+Reference for the `repo-workflow` skill. Load this when a change adds a
 decision point you cannot verify by reading the diff, or when you are running an
 ADB-traced smoke cycle. Everything here is normative; the pipeline steps that
 invoke it are steps 3a and 9a in `SKILL.md`.
@@ -59,7 +59,7 @@ test. Only device *connectivity* is optional, so offer a traced cycle whenever
 the markers exist, and treat only a disconnected phone as the reason you cannot
 read one.
 
-**ADB mechanics live entirely in `nagramx-process-lifecycle`** and are not
+**ADB mechanics live entirely in `repo-process-lifecycle`** and are not
 restated here: pinning the target serial, holding the exact process identity,
 keeping the capture's working directory and output under an absolute `$env:TEMP`
 path outside every worktree, the bounded-capture protocol (declared wall-clock
@@ -72,7 +72,7 @@ Prefer timestamp-bounded reads over `logcat -c`, which destroys the device's
 buffer for every other consumer. Detect a truncated capture by the END marker's
 absence, not by a byte-count guess.
 
-**Collateral scope is DwellGram, not the phone.** The host-side filter may add a
+**Collateral scope is the app, not the phone.** The host-side filter may add a
 narrow allowlist of system tags naming the package (`AndroidRuntime`,
 `ActivityManager`, `ActivityTaskManager`, ANR and tombstone lines) — nothing
 broader, because raw ambient logcat carries other apps' PII-adjacent lines that

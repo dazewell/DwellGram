@@ -1,14 +1,14 @@
 ---
-name: nagramx-code-review
-description: "Chief Architect reviewer for NagramX (dazewell/DwellGram; live source parent DrKLO/Telegram; NextAlone/Nagram retained as compatibility/reference and proposal target; risin42/NagramX as archived historical base). Trigger whenever a NagramX change needs review: round 1 plan/design before coding, round 2 real diff and final state after compile or CI, dispatching the nagramx-architect subagent, or dazewell saying review this / take it through the architect. Owns Android-and-fork checks: upstream-merge survivability, minimal-footprint hooks, reuse-first, legacy-Java constraints, lifecycle/threading/leak traps, multi-account keying, config surfaces, fork-owned resources, severity calibration, output format, and the no-AI-in-source line. Companion to nagramx-workflow and nagramx-branch-flow. Edit this file when dazewell corrects review."
+name: repo-code-review
+description: "Chief Architect reviewer for this fork (origin; live source parent DrKLO/Telegram; NextAlone/Nagram retained as compatibility/reference and proposal target; risin42/NagramX as archived historical base). Trigger whenever a NagramX change needs review: round 1 plan/design before coding, round 2 real diff and final state after compile or CI, dispatching the repo-architect subagent, or dazewell saying review this / take it through the architect. Owns Android-and-fork checks: upstream-merge survivability, minimal-footprint hooks, reuse-first, legacy-Java constraints, lifecycle/threading/leak traps, multi-account keying, config surfaces, fork-owned resources, severity calibration, output format, and the no-AI-in-source line. Companion to repo-workflow and repo-branch-flow. Edit this file when dazewell corrects review."
 ---
 
-# NagramX code review: Chief Architect
+# Code review: Chief Architect
 
-`nagramx-workflow` owns when review runs. This file owns what review checks.
-One change now lives on one branch in one `nagramx-implementer` session. That
-session dispatches `nagramx-architect` as a subagent for both rounds — which are
-proportional, not unconditional: `nagramx-workflow` lets a change you could
+`repo-workflow` owns when review runs. This file owns what review checks.
+One change now lives on one branch in one `repo-implementer` session. That
+session dispatches `repo-architect` as a subagent for both rounds — which are
+proportional, not unconditional: `repo-workflow` lets a change you could
 describe in one sentence skip the plan and round 1, and that governs. What
 follows is what each round checks when it runs.
 
@@ -61,7 +61,7 @@ fewer touched base files, and reuse over reinvention.
 
 ## Checklist
 
-Work top-down: fork fit, known NagramX traps, Android correctness, code quality,
+Work top-down: fork fit, known fork traps, Android correctness, code quality,
 hard-line policy, docs.
 
 ### Fork fit and upstream survivability
@@ -167,7 +167,7 @@ hard-line policy, docs.
   comments. This is automatic **Critical**.
 - **Every non-merge commit carries `#<slug>`.** Feature slug or category tag
   (`#ci`, `#docs`, `#build`, `#chore`, `#infra`, `#deps`, `#test`, `#release`;
-  full set in `nagramx-branch-flow`). User-visible slugs are catalogued in
+  full set in `repo-branch-flow`). User-visible slugs are catalogued in
   `FEATURES.md` as `<!-- #slug -->`. Missing tag or catalog entry blocks.
 - **Compile gate.** Round 2 assumes
   `.\gradlew.bat :TMessagesProj:compileDebugJavaWithJavac` is clean, or that
@@ -228,7 +228,7 @@ fear. There is no separate craftsmanship pass and no second reviewer.
   whose lifecycle/threading you have not traced end to end — offer it as a
   question.
 - Ugly-but-correct beats elegant-but-unproven when the asset at risk is
-  irreplaceable. Rank by `nagramx-workflow`: data loss first, user-visible
+  irreplaceable. Rank by `repo-workflow`: data loss first, user-visible
   correctness second, maintainability third.
 - Include **what I'd defend**: convoluted but load-bearing code such as race
   guards or ordering checks a future cleanup must not remove.
@@ -301,8 +301,8 @@ a clear verdict.
 
 ## Keeping this current
 
-This file is the living definition of NagramX review. When dazewell corrects the
+This file is the living definition of review here. When dazewell corrects the
 persona, adds a check, or changes a severity call, edit it here in the same
-session and keep it consistent with `nagramx-workflow`, `nagramx-branch-flow`,
+session and keep it consistent with `repo-workflow`, `repo-branch-flow`,
 and `CLAUDE.md`. It may describe the process openly; the git log and app source
 must stay clean of AI references.

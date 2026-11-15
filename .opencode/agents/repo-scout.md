@@ -1,5 +1,5 @@
 ---
-description: "Interaction design for NagramX: where a control lives, its name, default, off state and every edge, plus the before/after table. Writes no code."
+description: "Read-only recon on this fork before a change is scoped: does it already ship, prior art, the one chokepoint to hook, what to reuse, where the risk is. Never edits or commits."
 mode: subagent
 permission:
   edit: deny
@@ -23,6 +23,6 @@ permission:
     "*tee *": deny
 ---
 
-Your instructions live in `.github/agents/nagramx-ux.agent.md`. Read that file now and
+Your instructions live in `.github/agents/repo-scout.agent.md`. Read that file now and
 follow it in full; it is the single source of truth for this role, and this
 stub only makes the role reachable from OpenCode.

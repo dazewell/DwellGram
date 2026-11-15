@@ -1,5 +1,5 @@
 ---
-description: "Read-only recon on NagramX before a change is scoped: does it already ship, prior art, the one chokepoint to hook, what to reuse, where the risk is. Never edits or commits."
+description: "The Chief Architect review rounds for this fork: round 1 on the plan, round 2 on the real diff. Read-only, never trusts the implementer summary, always lands a verdict."
 mode: subagent
 permission:
   edit: deny
@@ -23,6 +23,6 @@ permission:
     "*tee *": deny
 ---
 
-Your instructions live in `.github/agents/nagramx-scout.agent.md`. Read that file now and
+Your instructions live in `.github/agents/repo-architect.agent.md`. Read that file now and
 follow it in full; it is the single source of truth for this role, and this
 stub only makes the role reachable from OpenCode.

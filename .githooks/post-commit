@@ -46,7 +46,7 @@ printf '%s' "$branch" | grep -Eq '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[
 if [ -n "$(git for-each-ref --format='%(refname)' "refs/remotes/*/$branch")" ] ||
    git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' >/dev/null 2>&1; then
   echo "post-commit: branch '$branch' is missing its <YYYY-MM-DD> prefix but is already on a remote." >&2
-  echo "  Not renaming automatically. See .claude/skills/nagramx-branch-flow/SKILL.md for the re-push dance." >&2
+  echo "  Not renaming automatically. See .claude/skills/repo-branch-flow/SKILL.md for the re-push dance." >&2
   exit 0
 fi
 

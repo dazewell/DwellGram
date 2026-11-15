@@ -1,5 +1,5 @@
 ---
-description: "The Chief Architect review rounds for NagramX: round 1 on the plan, round 2 on the real diff. Read-only, never trusts the implementer summary, always lands a verdict."
+description: "Interaction design for this fork: where a control lives, its name, default, off state and every edge, plus the before/after table. Writes no code."
 mode: subagent
 permission:
   edit: deny
@@ -23,6 +23,6 @@ permission:
     "*tee *": deny
 ---
 
-Your instructions live in `.github/agents/nagramx-architect.agent.md`. Read that file now and
+Your instructions live in `.github/agents/repo-ux.agent.md`. Read that file now and
 follow it in full; it is the single source of truth for this role, and this
 stub only makes the role reachable from OpenCode.

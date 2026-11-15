@@ -21,4 +21,4 @@ an upstream one costs a merge conflict.
   you are reaching for a new layout file, check how the nearest comparable
   screen is built first — it almost certainly is not.
 
-Full rules: `AGENTS.md` and the `nagramx-workflow` skill.
+Full rules: `AGENTS.md` and the `repo-workflow` skill.
