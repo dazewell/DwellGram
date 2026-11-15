@@ -184,6 +184,11 @@ public class VerifyExteraThemes {
             // Utilities.parseInt() (likely 0) - same silent failure class as a bad token.
             return false;
         }
+        if (!(v.startsWith("a") || v.startsWith("n") || v.startsWith("monet"))) {
+            // Theme.getThemeFileValues() only hands values with these prefixes to MonetHelper;
+            // anything else goes to Utilities.parseInt() and becomes 0 (#gboard-themes).
+            return false;
+        }
 
         Matcher alpha = Pattern.compile("^(.*)\\((\\d{1,3})\\)$").matcher(v);
         if (alpha.matches()) {
