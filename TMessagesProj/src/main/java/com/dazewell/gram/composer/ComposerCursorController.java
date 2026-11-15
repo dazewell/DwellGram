@@ -53,7 +53,7 @@ public final class ComposerCursorController {
     private EditTextCaption field;
     private ComposerCursorNavigation navigation;
     private boolean destroyed, pending, active, selecting, tapWaiting;
-    private int generation, pointer = -1, anchor, focus, axis = -1;
+    private int generation, pointer = -1, anchor, focus, axis = -1, taps;
     private float downX, downY, lastX, lastY, remainder;
     private float tapX, tapY;
     private long downTime, tapTime;
@@ -195,12 +195,15 @@ public final class ComposerCursorController {
     private boolean onTouch(MotionEvent event) {
         int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_DOWN) {
-            boolean second = tapWaiting && event.getEventTime() - tapTime <= ViewConfiguration.getDoubleTapTimeout()
+            boolean chained = tapWaiting && event.getEventTime() - tapTime <= ViewConfiguration.getDoubleTapTimeout()
                     && Math.hypot(event.getRawX() - tapX, event.getRawY() - tapY)
                     <= ViewConfiguration.get(button.getContext()).getScaledDoubleTapSlop();
+            int count = chained ? taps + 1 : 1;
             cancel();
             if (!available()) return true;
-            snapshot(second);
+            taps = count;
+            // A drag from an existing selection extends it instead of collapsing it.
+            snapshot(count > 1 || field.getSelectionStart() != field.getSelectionEnd());
             pointer = event.getPointerId(0);
             downX = lastX = event.getRawX();
             downY = lastY = event.getRawY();
@@ -239,22 +242,34 @@ public final class ComposerCursorController {
         }
         if (action == MotionEvent.ACTION_UP) {
             boolean quickTap = pending && event.getEventTime() - downTime < ViewConfiguration.getLongPressTimeout();
-            boolean selectWord = quickTap && selecting;
-            int[] word = selectWord ? navigation.wordAt(focus) : null;
+            int count = taps;
+            boolean collapse = quickTap && count == 1 && anchor != focus;
+            int[] word = quickTap && count == 2 ? navigation.wordAt(focus) : null;
             float x = event.getRawX(), y = event.getRawY();
             long time = event.getEventTime();
             cancel();
-            if (selectWord) {
-                if (word != null) {
-                    Selection.setSelection(field.getText(), word[0], word[1]);
-                    field.bringPointIntoView(word[1]);
-                    field.invalidate();
-                }
-            } else if (quickTap) {
-                tapWaiting = true;
-                tapX = x;
-                tapY = y;
-                tapTime = time;
+            if (!quickTap) return true;
+            if (count >= 3) {
+                Selection.selectAll(field.getText());
+                field.invalidate();
+                return true;
+            }
+            if (collapse) {
+                Selection.setSelection(field.getText(), focus);
+                field.bringPointIntoView(focus);
+                field.invalidate();
+            } else if (word != null) {
+                Selection.setSelection(field.getText(), word[0], word[1]);
+                field.bringPointIntoView(word[1]);
+                field.invalidate();
+            }
+            // Keep the tap chain open so the next tap counts as the second or third.
+            taps = count;
+            tapWaiting = true;
+            tapX = x;
+            tapY = y;
+            tapTime = time;
+            if (count == 1 && !collapse) {
                 final int token = generation;
                 hintCallback = () -> {
                     if (token == generation && tapWaiting && available()) {
