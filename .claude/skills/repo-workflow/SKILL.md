@@ -274,18 +274,14 @@ floor, and thread resolution — are normative in
 
 **Request the verification build only once review has settled** — round 2 clean,
 any final-state pass clean, nothing Important or above outstanding. An APK
-requested earlier is stale the moment a later round finds a Critical — a
-build-then-review ordering once had dazewell test a build three subsequent
-Criticals invalidated.
+requested earlier is stale the moment a later round finds a Critical.
 
 **A UI-facing change earns a second, earlier build first — the smoke build.**
 Review reads the diff; it cannot see whether a control's precondition is ever
-true on a device, which is how a fully-reviewed feature shipped unreachable
-(above). So for anything a user can see or tap, once it compiles,
+true on a device. So for anything a user can see or tap, once it compiles,
 request a build and ask **one** question: does the control appear, and can you
 reach it? Not correctness, not edge cases — reachability only. Round 2 and any
-final-state pass run **after** that comes back positive; there is no point
-reviewing the craftsmanship of code nobody can reach.
+final-state pass run **after** that comes back positive.
 
 The smoke build is disposable by design and is never described as a build to
 verify behaviour against. A UI-facing change costs at most two builds, one per
@@ -293,17 +289,15 @@ purpose, never two for the same purpose. A change with no user-visible surface
 gets no smoke build at all.
 
 **When a build is up, ask for the test explicitly — never bury it in a
-handback.** A test request is a *blocking* request for dazewell's hands, and
-prose he has to read to the end to discover is prose he may not reach for hours.
-Issue an explicit `ask_user` prompt: it interrupts deliberately, stays visibly
-unanswered until he acts, and his reply comes back attached to the question.
+handback.** Issue an explicit `ask_user` prompt; it stays visibly unanswered
+until he acts. **Never ask without a build already requested**:
+any turn asking him to try anything on device, smoke, verification or an
+informal "does it look right?", has itself applied `build-apk` (re-applied if a
+run consumed it) and gives the Staging build run link.
 
 Make it **specific and short**: which build to install (variant, and the PR or
 commit it came from), the exact thing to try, and what a pass versus a fail
-looks like. "Please test the build" wastes the interruption; "Install the
-Unofficial build from PR #244, arm three videos on one trigger in one chat, then
-send that trigger from another account — all three should send one after the
-other" spends it well. **One round at a time** — a list of six checks is a task,
+looks like. **One round at a time** — a list of six checks is a task,
 not a question, and it stalls. The same applies to any request for his hands or
 eyes, such as a screenshot for `FEATURES.md`.
 

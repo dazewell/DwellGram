@@ -481,10 +481,8 @@ acts on, so it is the one that has to be honest. Never imply you have seen the
 app running; you have no device and no emulator.
 
 **If the handback needs his hands, ask explicitly.** The `Needs you` line is a
-record, not a request — it does not interrupt. Follow the handback with an
-`ask_user` prompt naming which build to install, the exact thing to try, and
-what a pass or a fail looks like. **One round at a time**; a list of six checks
-is a task, not a question, and it stalls.
+record, not a request — it does not interrupt. Follow it with the `ask_user`
+prompt `repo-workflow` §9 specifies, build requested in that same turn.
 
 Always include the process ledger. A missing ledger reads as "assume something
 is still running" to whoever tears this session down.
