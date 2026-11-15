@@ -64,7 +64,7 @@ public final class ComposerMd3Surface {
     private static final int STRIP_ACCENT = 3;
     private static final int STRIP_ACCENT_INSET = 6;
     // The strip's gap to the island edge above it and to the field below it, kept equal. Docked it matches the
-    // field's own gap under the panel top. Either way the strip sits within 1dp of the upstream close button's centre.
+    // field's own gap under the panel top. The reply row is moved onto the strip's centre by topViewContentShift().
     private static final int STRIP_GAP = 5;
     private static final int DOCKED_STRIP_GAP = 6;
     // Island radius minus the 3dp margin, so the field and the reply strip sit concentric in the island.
@@ -187,6 +187,28 @@ public final class ComposerMd3Surface {
      */
     public static int textClipInset() {
         return InterfaceStyleController.applyComposer() ? dp(FIELD_INSET) : 0;
+    }
+
+    /** The strip's top, from the top view's top: its gap below the island edge, which sits islandPadding above. */
+    private static float stripTop(boolean docked) {
+        return dp(docked ? DOCKED_STRIP_GAP : STRIP_GAP) - dp(docked ? DOCKED_ISLAND_PADDING : ISLAND_PADDING);
+    }
+
+    /** The strip's bottom, from the top view's top: its gap above the field, which sits FIELD_INSET below the top view. */
+    private static float stripBottom(boolean docked, float topViewHeight) {
+        return topViewHeight - (dp(docked ? DOCKED_STRIP_GAP : STRIP_GAP) - dp(FIELD_INSET));
+    }
+
+    /**
+     * How far the enter view moves its top view (reply, edit, forward, link preview, and the close button) so the
+     * row's centre lands on the strip's. Derived from the strip's own edges, so retuning its gaps moves the row too.
+     */
+    public static float topViewContentShift() {
+        if (!InterfaceStyleController.applyComposer()) {
+            return 0;
+        }
+        final boolean docked = InterfaceStyleController.dockedComposer();
+        return (stripTop(docked) + stripBottom(docked, 0)) / 2f;
     }
 
     // The island shows one of these at a time; their alpha is how ChatActivity cross-fades between them,
@@ -724,9 +746,8 @@ public final class ComposerMd3Surface {
             fieldRight = columnRight + (restRight + (openRight - restRight) * open - columnRight) * shown;
         }
 
-        final int stripGap = dp(docked ? DOCKED_STRIP_GAP : STRIP_GAP);
-        final float stripTop = pill.top + stripGap - islandPadding();
-        final float stripBottom = pill.top + topViewHeight - (stripGap - dp(FIELD_INSET));
+        final float stripTop = pill.top + stripTop(docked);
+        final float stripBottom = pill.top + stripBottom(docked, topViewHeight);
         if (drawPill && inputFactor > 0 && stripBottom > stripTop) {
             // Reply, edit, forward and link preview all share this top view, so one strip covers them.
             final float stripAlpha = alpha * inputFactor * topViewProgress;
