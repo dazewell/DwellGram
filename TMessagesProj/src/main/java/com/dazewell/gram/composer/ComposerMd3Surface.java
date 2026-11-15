@@ -800,8 +800,11 @@ public final class ComposerMd3Surface {
             return 0;
         }
         final float height = pill.bottom - pill.top - topViewHeight - 2 * dp(FIELD_INSET);
+        // Under a reply or edit strip the field keeps its full height, so its gap below the strip stays the strip's
+        // own gap above; fades with the strip.
+        final float underStrip = enterView.getTopViewEnterProgress();
         return (height - fold.md3RestHeightPx(enterView.getEditField())) / 2f
-                * fold.md3RestFraction(enterView.getEditField());
+                * fold.md3RestFraction(enterView.getEditField()) * (1f - underStrip);
     }
 
     private float restTopTrim(Rect pill, float topViewHeight) {
