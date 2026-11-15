@@ -418,9 +418,9 @@ Extera Light and Extera Dark bring [exteraGram](https://github.com/exteraSquad/e
 <img height="260" alt="chat rendered in the Extera Light theme" src="docs/images/features/extera-light.png" />
 <img height="260" alt="the same chat rendered in the Extera Dark theme" src="docs/images/features/extera-dark.png" />
 
-### Gboard themes <!-- #gboard-themes -->
+### Gboard themes <!-- #gboard-themes --> <!-- #gboard-composer-shades -->
 
-Gboard Light and Gboard Dark are Extera Light and Extera Dark with the composer and emoji panel painted in Gboard's keyboard background color, so the composer runs straight into the keyboard with no seam. Made to match DwellBoard's "Gboard style" themes. Pick them under Chat Settings, next to the Extera themes; Android 12 and newer.
+Gboard Light and Gboard Dark are Extera Light and Extera Dark with the composer and emoji panel painted in Gboard's keyboard background color, so the composer runs into the keyboard without a seam. With the MD3 composer, the input field takes the letter keys' color and the reply strip a tone between the two. Made to match DwellBoard's "Gboard style" themes. Pick them under Chat Settings; Android 12 and newer.
 
 ### Monet wallpaper pattern <!-- #monet-pattern-tile -->
 

@@ -93,6 +93,9 @@ public class MonetHelper {
         // Same roles and pre-Android 14 fallback tones as DwellBoard's GboardColors.getSurface().
         put("monetGboardSurfaceLight", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_container_light : android.R.color.system_neutral1_50);
         put("monetGboardSurfaceDark", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_container_dark : android.R.color.system_neutral1_900);
+        // NagramX: the MD3 composer's input field takes the keyboard's letter-key color (GboardColors.getKeySurface()).
+        put("monetGboardKeyLight", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_container_lowest_light : android.R.color.system_neutral1_0);
+        put("monetGboardKeyDark", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_bright_dark : android.R.color.system_neutral2_800);
         put("monetRedLight", R.color.monetRedLight);
         put("monetRedDark", R.color.monetRedDark);
         put("monetRedCall", R.color.monetRedCall);

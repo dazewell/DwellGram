@@ -57,14 +57,18 @@ public final class ComposerMd3Surface {
     private static final float FIELD_ON_SURFACE_BLEND = 0.08f;
     // Lightening reads weaker per percent than darkening, so a dark theme's field takes a bigger step.
     private static final float FIELD_ON_SURFACE_BLEND_DARK = 0.14f;
+    /** Under a Gboard theme, how far the reply strip moves from the surface toward the field's key color. */
+    private static final float STRIP_TOWARD_FIELD = 0.5f;
     // The composer keeps this share of the blur the Blur strength setting asks for, so a bright bubble passing
     // under it cannot glow through: the 0.5-1 alpha range becomes 0.65-1.
     private static final float FROST_SHARE = 0.7f;
     private static final int STRIP_RADIUS = 10;
     private static final int STRIP_ACCENT = 3;
     private static final int STRIP_ACCENT_INSET = 6;
-    // Inset top and bottom inside the 48dp top view, which centres the strip on the upstream close button.
-    private static final int STRIP_INSET = 3;
+    // The strip's gap to the island edge above it and to the field below it, kept equal. Docked it matches the
+    // field's own gap under the panel top. The reply row is moved onto the strip's centre by topViewContentShift().
+    private static final int STRIP_GAP = 5;
+    private static final int DOCKED_STRIP_GAP = 6;
     // Island radius minus the 3dp margin, so the field and the reply strip sit concentric in the island.
     private static final int FIELD_RADIUS = 10;
     // The field is drawn this far inside the 44dp text row top and bottom, so it is 42dp and shares the
@@ -187,6 +191,30 @@ public final class ComposerMd3Surface {
         return InterfaceStyleController.applyComposer() ? dp(FIELD_INSET) : 0;
     }
 
+    /** The strip's top, from the top view's top: its gap below the island edge, which sits islandPadding above. */
+    private static float stripTop(boolean docked) {
+        return dp(docked ? DOCKED_STRIP_GAP : STRIP_GAP) - dp(docked ? DOCKED_ISLAND_PADDING : ISLAND_PADDING);
+    }
+
+    /** The strip's bottom, from the top view's top: its gap above the field, which sits FIELD_INSET below the top view. */
+    private static float stripBottom(boolean docked, float topViewHeight) {
+        return topViewHeight - (dp(docked ? DOCKED_STRIP_GAP : STRIP_GAP) - dp(FIELD_INSET));
+    }
+
+    /**
+     * How far the enter view moves its top view (reply, edit, forward, link preview, and the close button) so the
+     * row's centre lands on the strip's. Derived from the strip's own edges, so retuning its gaps moves the row too.
+     * Only the chat composer draws the strip; other enter views keep their top view where it was.
+     */
+    public static float topViewContentShift(boolean chatComposer) {
+        if (!chatComposer || !InterfaceStyleController.applyComposer()) {
+            return 0;
+        }
+        final boolean docked = InterfaceStyleController.dockedComposer();
+        // Whole pixels, so the reply text is not drawn on a half pixel.
+        return Math.round((stripTop(docked) + stripBottom(docked, 0)) / 2f);
+    }
+
     // The island shows one of these at a time; their alpha is how ChatActivity cross-fades between them,
     // so it is also how this surface decides which run the island wraps. The host supplies the window insets.
     public void bind(ChatInputViewsContainer host, ChatActivityEnterView enterView, View channelButtons, View actionButtons) {
@@ -275,16 +303,38 @@ public final class ComposerMd3Surface {
         return ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), 255);
     }
 
-    /** The 6% on-surface tint laid over the island, so it tones a frosted island and an opaque one alike. */
+    /** The 6% on-surface tint laid over the island, so it tones a frosted island and an opaque one alike; a Gboard theme's opaque tone instead. */
     private int containerOverlay() {
+        final Integer gboard = gboardTone(false);
+        if (gboard != null) return gboard;
         final int onSurface = Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider);
         return ColorUtils.setAlphaComponent(onSurface, Math.round(255 * CONTAINER_ON_SURFACE_BLEND));
     }
 
-    /** The field's on-surface tint laid over the island, one step above the strip's: darker in a light theme, lighter in a dark one. */
+    /** The field's on-surface tint laid over the island, one step above the strip's: darker in a light theme, lighter in a dark one; a Gboard theme's opaque tone instead. */
     private int fieldOverlay() {
+        final Integer gboard = gboardTone(true);
+        if (gboard != null) return gboard;
         final int onSurface = Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider);
         return ColorUtils.setAlphaComponent(onSurface, Math.round(255 * (isDark() ? FIELD_ON_SURFACE_BLEND_DARK : FIELD_ON_SURFACE_BLEND)));
+    }
+
+    /**
+     * Under a Gboard theme the field and strip are opaque keyboard tones instead of on-surface tints, so the field
+     * reads as one of the keyboard's keys. Only while the panel really is the Gboard surface: a chat's own theme
+     * repaints the panel, and then the usual tints apply.
+     */
+    @Nullable
+    private Integer gboardTone(boolean field) {
+        final Theme.ThemeInfo theme = Theme.getActiveTheme();
+        if (theme == null || theme.assetName == null || !theme.assetName.startsWith("monet_gboard_")) return null;
+        // Constant token names, so a draw under a Gboard theme builds no strings here.
+        final boolean dark = theme.assetName.contains("dark");
+        final int gboardSurface = tw.nekomimi.nekogram.helpers.MonetHelper.getColor(dark ? "monetGboardSurfaceDark" : "monetGboardSurfaceLight");
+        if (surfaceColor() != ColorUtils.setAlphaComponent(gboardSurface, 255)) return null;
+        final int key = tw.nekomimi.nekogram.helpers.MonetHelper.getColor(dark ? "monetGboardKeyDark" : "monetGboardKeyLight");
+        // The strip sits halfway from the surface to the field: lighter and calmer than the surface, still short of the field.
+        return field ? key : ColorUtils.blendARGB(ColorUtils.setAlphaComponent(gboardSurface, 255), ColorUtils.setAlphaComponent(key, 255), STRIP_TOWARD_FIELD);
     }
 
     private int shadowColor() {
@@ -704,10 +754,12 @@ public final class ComposerMd3Surface {
             fieldRight = columnRight + (restRight + (openRight - restRight) * open - columnRight) * shown;
         }
 
-        if (drawPill && inputFactor > 0 && topViewHeight > dp(STRIP_INSET * 2)) {
+        final float stripTop = pill.top + stripTop(docked);
+        final float stripBottom = pill.top + stripBottom(docked, topViewHeight);
+        if (drawPill && inputFactor > 0 && stripBottom > stripTop) {
             // Reply, edit, forward and link preview all share this top view, so one strip covers them.
             final float stripAlpha = alpha * inputFactor * topViewProgress;
-            rect.set(columnLeft, pill.top + dp(STRIP_INSET), columnRight, pill.top + topViewHeight - dp(STRIP_INSET));
+            rect.set(columnLeft, stripTop, columnRight, stripBottom);
             final float stripRadius = Math.min(stripRadius(), rect.height() / 2f);
             fillPaint.setColor(Theme.multAlpha(container, stripAlpha));
             canvas.drawRoundRect(rect, stripRadius, stripRadius, fillPaint);
@@ -748,8 +800,11 @@ public final class ComposerMd3Surface {
             return 0;
         }
         final float height = pill.bottom - pill.top - topViewHeight - 2 * dp(FIELD_INSET);
+        // Under a reply or edit strip the field keeps its full height, so its gap below the strip stays the strip's
+        // own gap above; fades with the strip.
+        final float underStrip = enterView.getTopViewEnterProgress();
         return (height - fold.md3RestHeightPx(enterView.getEditField())) / 2f
-                * fold.md3RestFraction(enterView.getEditField());
+                * fold.md3RestFraction(enterView.getEditField()) * (1f - underStrip);
     }
 
     private float restTopTrim(Rect pill, float topViewHeight) {
