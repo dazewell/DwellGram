@@ -11,12 +11,12 @@ This file covers only what is specific to Claude Code.
 ## Skills
 
 The process lives in `.claude/skills/`, loaded on demand:
-`nagramx-workflow` (what a change looks like), `nagramx-investigation` (a
-question answered rather than built), `nagramx-branch-flow` (where
-commits live and how they move), `nagramx-code-review` (what the review rounds
-check), `nagramx-process-lifecycle` (any process you start, and cleanup),
-`nagramx-session-handoff` (abandoning a session mid-change) and
-`nagramx-session-pickup` (continuing a branch someone else left).
+`repo-workflow` (what a change looks like), `repo-investigation` (a
+question answered rather than built), `repo-branch-flow` (where
+commits live and how they move), `repo-code-review` (what the review rounds
+check), `repo-process-lifecycle` (any process you start, and cleanup),
+`repo-session-handoff` (abandoning a session mid-change) and
+`repo-session-pickup` (continuing a branch someone else left).
 
 Invoke the skill for the job rather than working from memory.
 
@@ -25,18 +25,18 @@ Invoke the skill for the job rather than working from memory.
 The `request_copilot_review` tool is a Copilot CLI extension
 (`.github/extensions/copilot-review/`). Claude Code doesn't load it, so run the
 script it wraps: `.\.github\scripts\request-copilot-review.ps1 -PullRequest <n> -Wait`.
-When and how often is in `nagramx-branch-flow`.
+When and how often is in `repo-branch-flow`.
 
 ## Subagents
 
 `.claude/agents/` mirrors the specialists as thin stubs that read their
 `.github/agents/` counterpart and follow it, so there is one source of truth per
-role: `nagramx-scout` (read-only recon), `nagramx-ux` (behaviour and placement),
-`nagramx-architect` (both review rounds).
+role: `repo-scout` (read-only recon), `repo-ux` (behaviour and placement),
+`repo-architect` (both review rounds).
 
 Drive a change from the main conversation — it owns the branch and writes the
 code — and delegate the read-and-judge work to those subagents. That is the
-same shape as the Copilot CLI side, where `nagramx-implementer` is the agent
+same shape as the Copilot CLI side, where `repo-implementer` is the agent
 that owns a change end to end.
 
 ## Imported audit agents are not part of the pipeline

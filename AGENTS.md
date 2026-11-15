@@ -1,4 +1,4 @@
-# AGENTS.md — NagramX
+# AGENTS.md
 
 Facts an agent cannot guess from the code. Everything here is load-bearing; if a
 line stops being true, fix it rather than working around it.
@@ -10,7 +10,7 @@ down, the file is too long — cut, don't add.
 
 ## What this is
 
-NagramX is dazewell's personal fork of **Telegram for Android** (`dazewell/DwellGram`),
+This repo is dazewell's personal fork of **Telegram for Android**,
 downstream of NekoX. It is a ~1M-line legacy **Java** app in one huge Gradle
 module, and it **merges from upstream regularly**. That last fact drives almost
 every rule below: every line you touch in a base fork file is a future rebase
@@ -23,6 +23,12 @@ conflict.
 - Upstream is stock **DrKLO/Telegram**. Branch `dev` is the integration branch;
   `nbase` holds the latest upstream snapshot; `base` is frozen history. Never
   commit to any of them directly.
+- **Never write this repo's name or owner into an instruction.** The repo has
+  been renamed before. Resolve it from `origin` at run time, since a bare
+  `gh repo view` may pick a configured default (this is a fork):
+  `$repo = gh repo view (git remote get-url origin) --json nameWithOwner -q .nameWithOwner`.
+  Stop if `$repo` is empty, and pass it to every `gh` command and script that
+  takes a repo. Process ids are `repo-*`.
 - dazewell works on **Windows**. Give shell commands in **PowerShell**.
 
 ## Hard constraints
@@ -103,7 +109,7 @@ skipped gate passed.
   never automatic**: request it once the head is worth an outside review, only
   through the `request_copilot_review` tool or the script it wraps,
   `.github/scripts/request-copilot-review.ps1`. Budget and timing are in
-  `nagramx-branch-flow`.
+  `repo-branch-flow`.
 - **Close every review point before handoff**: fix it, or reply explaining why
   not, then resolve the thread. Verify none remain unresolved.
 - User-visible change ⇒ its `FEATURES.md` entry ships in the same PR (70 words
@@ -138,16 +144,16 @@ length.
 
 | Skill | Owns |
 |---|---|
-| `.claude/skills/nagramx-workflow/SKILL.md` | What a change looks like, start to finish |
-| `.claude/skills/nagramx-investigation/SKILL.md` | A question answered rather than built |
-| `.claude/skills/nagramx-branch-flow/SKILL.md` | Where commits live and how they move |
-| `.claude/skills/nagramx-code-review/SKILL.md` | What the review rounds check |
-| `.claude/skills/nagramx-process-lifecycle/SKILL.md` | Any process you start, and cleanup |
-| `.claude/skills/nagramx-session-handoff/SKILL.md` | Abandoning a session mid-change, leaving state behind |
-| `.claude/skills/nagramx-session-pickup/SKILL.md` | Continuing a branch or PR someone else left |
+| `.claude/skills/repo-workflow/SKILL.md` | What a change looks like, start to finish |
+| `.claude/skills/repo-investigation/SKILL.md` | A question answered rather than built |
+| `.claude/skills/repo-branch-flow/SKILL.md` | Where commits live and how they move |
+| `.claude/skills/repo-code-review/SKILL.md` | What the review rounds check |
+| `.claude/skills/repo-process-lifecycle/SKILL.md` | Any process you start, and cleanup |
+| `.claude/skills/repo-session-handoff/SKILL.md` | Abandoning a session mid-change, leaving state behind |
+| `.claude/skills/repo-session-pickup/SKILL.md` | Continuing a branch or PR someone else left |
 
-`.claude/skills/nagramx-workflow/diagnostics.md` is loaded on demand from
-`nagramx-workflow` for device probes and traced smoke cycles.
+`.claude/skills/repo-workflow/diagnostics.md` is loaded on demand from
+`repo-workflow` for device probes and traced smoke cycles.
 `.github/instructions/*.instructions.md` attach automatically to the files they
 scope — upstream base files, fork-owned packages, resources, and the build file.
 
@@ -159,9 +165,9 @@ irrelevant while files load on demand.
 
 - **Always-on** (`AGENTS.md` + `CLAUDE.md` + the running agent file): **≤ 40 KB**.
   Today 39 KB.
-- **Typical change** (always-on + `nagramx-workflow`): **≤ 60 KB**. Today 59 KB.
-- Each skill body stays within Anthropic's 10–20 KB guidance. `nagramx-branch-flow`
-  (20.5 KB) and `nagramx-process-lifecycle` (20.5 KB) sit just over and are not to
+- **Typical change** (always-on + `repo-workflow`): **≤ 60 KB**. Today 59 KB.
+- Each skill body stays within Anthropic's 10–20 KB guidance. `repo-branch-flow`
+  (20.5 KB) and `repo-process-lifecycle` (20.5 KB) sit just over and are not to
   grow; anything added to either buys its room by cutting.
 
 Over budget means cut, not append. Prefer a rule line over a retelling: an
@@ -172,10 +178,10 @@ history stays greppable without carrying the story.
 `docs/codemap/` is the UI→code map, upstream traps and disproven hypotheses.
 
 **Driving a change, on any tool:** your role is
-`.github/agents/nagramx-implementer.agent.md` — read it first if your tool did
+`.github/agents/repo-implementer.agent.md` — read it first if your tool did
 not load it as your agent. A subagent it names that your tool lacks: read that
 role's `.github/agents/` file and do the step yourself.
 
 **One change = one branch = one session.** Use subagents for recon, design and
 review; do not spawn a child session per change. The rationale, and the narrow
-exceptions, are in `nagramx-workflow`.
+exceptions, are in `repo-workflow`.

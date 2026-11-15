@@ -1,6 +1,6 @@
 ---
-name: nagramx-session-pickup
-description: "Dazewell's protocol for starting work on a NagramX change already in progress — a branch or PR an earlier session left unfinished. Trigger it at the start of any session told it is continuing, resuming, picking up, taking over or finishing an existing branch or PR; whenever the working tree is on a dated feature branch carrying commits this session did not write; and when dazewell points at a branch, a PR number or an old change and asks what is left. It applies whether or not a handoff was ever written — an abandoned branch with no handoff is the harder and more common case. Covers: reconstructing state from git, the PR body, CI and review threads rather than from narration; the order to read them in; treating the diff as authoritative over a stale handoff; honouring recorded dead ends; not re-litigating settled hook points, UX rulings or dispositioned findings; not re-reviewing finished work; and confirming the reconstruction before building. The outgoing side is nagramx-session-handoff."
+name: repo-session-pickup
+description: "Dazewell's protocol for starting work on a change already in progress — a branch or PR an earlier session left unfinished. Trigger it at the start of any session told it is continuing, resuming, picking up, taking over or finishing an existing branch or PR; whenever the working tree is on a dated feature branch carrying commits this session did not write; and when dazewell points at a branch, a PR number or an old change and asks what is left. It applies whether or not a handoff was ever written — an abandoned branch with no handoff is the harder and more common case. Covers: reconstructing state from git, the PR body, CI and review threads rather than from narration; the order to read them in; treating the diff as authoritative over a stale handoff; honouring recorded dead ends; not re-litigating settled hook points, UX rulings or dispositioned findings; not re-reviewing finished work; and confirming the reconstruction before building. The outgoing side is repo-session-handoff."
 ---
 
 # Picking up a change already in flight
@@ -9,7 +9,7 @@ You have been pointed at a branch or a PR you did not write. Everything you need
 is on disk and on GitHub; none of it is in your context yet. **Reconstruct
 before you build.**
 
-This is the incoming half of `nagramx-session-handoff`, but it applies equally
+This is the incoming half of `repo-session-handoff`, but it applies equally
 when nobody wrote a handoff at all — a branch abandoned without ceremony, or one
 from weeks ago. That case is the harder one and the more common one.
 
@@ -98,7 +98,7 @@ abandoned, and those are opposite situations.
 you close the question — a session can have left commits or uncommitted work on
 top of what merged, and that is the only copy of it. Say so, point at the PR,
 and ask dazewell what he actually wants — a follow-up is a new dated branch off
-`dev` reusing the same `#<slug>`, per `nagramx-branch-flow`, not a resumption of
+`dev` reusing the same `#<slug>`, per `repo-branch-flow`, not a resumption of
 this one.
 
 **Not merged, ref gone** — closed unmerged, or still open with its head ref
@@ -223,7 +223,7 @@ unresolved finding is the thing you most need to see. Read the resolution state
 through the shared pagination-safe script:
 
 ```powershell
-.\.github\scripts\get-review-threads.ps1 -Repository dazewell/DwellGram -PullRequest $pr.number |
+.\.github\scripts\get-review-threads.ps1 -Repository $repo -PullRequest $pr.number |
   ConvertFrom-Json | ForEach-Object {
     "$($(if ($_.isResolved) { 'resolved' } else { 'OPEN' })) $($_.path):$($_.line)`n$($_.comments.nodes[0].body)`n---"
   }
@@ -244,7 +244,7 @@ confirmation rather than leaving it ambiguous whether you looked.
 is the one step out of order here on purpose, because it is the only one whose
 input a fast-forward can destroy.
 
-Then read `AGENTS.md` and `nagramx-workflow`. You are mid-pipeline, not exempt
+Then read `AGENTS.md` and `repo-workflow`. You are mid-pipeline, not exempt
 from it — the compile gate, the review rounds and the `FEATURES.md` obligation
 all still apply to the finished change.
 
@@ -291,7 +291,7 @@ whole process exists to prevent.
 **Equally, do not re-review the finished parts** *during reconstruction*. A
 fresh crop of Minor observations on already-reviewed code is a cost, not
 thoroughness. This does not excuse the change from round 2 on the **final**
-state that `nagramx-workflow` step 5 requires — it reads the accumulation, including how the inherited code and your new work
+state that `repo-workflow` step 5 requires — it reads the accumulation, including how the inherited code and your new work
 interact, which is exactly what a resumed change is most likely to get wrong.
 
 ## 5. Confirm before you build
@@ -309,7 +309,7 @@ silently and you rebuild the same wall the last session hit.
 ## Then run the normal pipeline
 
 From this point you are an ordinary implementer session on an ordinary change,
-with `nagramx-workflow` governing the rest: compile gate, review round 2 on the
+with `repo-workflow` governing the rest: compile gate, review round 2 on the
 **whole final state** rather than your increment, `FEATURES.md` if user-visible,
 any codemap fact the work established, and the PR.
 

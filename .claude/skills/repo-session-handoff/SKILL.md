@@ -1,13 +1,13 @@
 ---
-name: nagramx-session-handoff
-description: "Dazewell's protocol for abandoning a NagramX session mid-change so a fresh one can continue it on the same branch. Trigger it when dazewell says hand off, wrap up, start fresh, this session is stuck / confused / going in circles, or asks for a handoff; when you have corrected the same problem twice and the context is now full of failed approaches; and before any deliberate session restart on an unfinished change. Covers: what to commit and push before abandoning, opening the PR if none exists, writing the handoff into the PR body under a stable marker so it is the first thing anyone sees, the dead-ends section that is the only part a fresh session cannot reconstruct, updating an existing handoff rather than stacking a second one, and stopping work once the state is stamped. The incoming side is nagramx-session-pickup."
+name: repo-session-handoff
+description: "Dazewell's protocol for abandoning a session mid-change so a fresh one can continue it on the same branch. Trigger it when dazewell says hand off, wrap up, start fresh, this session is stuck / confused / going in circles, or asks for a handoff; when you have corrected the same problem twice and the context is now full of failed approaches; and before any deliberate session restart on an unfinished change. Covers: what to commit and push before abandoning, opening the PR if none exists, writing the handoff into the PR body under a stable marker so it is the first thing anyone sees, the dead-ends section that is the only part a fresh session cannot reconstruct, updating an existing handoff rather than stacking a second one, and stopping work once the state is stamped. The incoming side is repo-session-pickup."
 ---
 
 # Handing a change to a fresh session
 
 A change lives on its **branch**, not in a session. A session can be abandoned
 at any point without losing work, provided it leaves state somewhere durable
-first. This file is the outgoing half; `nagramx-session-pickup` is the incoming
+first. This file is the outgoing half; `repo-session-pickup` is the incoming
 half.
 
 **Why this exists:** once you have corrected the same problem twice, the context
@@ -144,13 +144,13 @@ see *before* it lands leaves its findings open behind a handoff that claims to
 be complete. Wait for it to settle, then reply to each open thread with the fix or
 why it will not be changed — a finding you are deliberately leaving is a fine
 reply, and belongs in the half-done list too — and resolve it. Verify none are
-left, per the `reviewThreads` query in `nagramx-session-pickup`. **Do not request
+left, per the `reviewThreads` query in `repo-session-pickup`. **Do not request
 a Copilot review just to hand off** — it is billed, and an unfinished head is
 not one worth reviewing; record in the handoff how many of the two the PR has
 used.
 
 **Stop every process you started, and say so in the handoff.** This is the one
-step where `nagramx-process-lifecycle` bites hardest: the worktree you are
+step where `repo-process-lifecycle` bites hardest: the worktree you are
 abandoning is about to be removed, and a logcat client, a Gradle daemon or an
 `adb` handle still holding it is exactly how a worktree got corrupted before.
 Run that skill's teardown — stop by exact identity, verify termination, delete

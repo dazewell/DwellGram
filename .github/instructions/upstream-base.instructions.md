@@ -35,4 +35,4 @@ Common hook points, for reference: `ChatActivity` (in-chat overflow menu via
 (app entry, intents, app-lock), `messenger/SharedConfig` (passcode, app-lock
 state).
 
-Full rules: `AGENTS.md` and the `nagramx-workflow` skill.
+Full rules: `AGENTS.md` and the `repo-workflow` skill.

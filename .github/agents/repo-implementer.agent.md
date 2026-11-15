@@ -1,10 +1,10 @@
 ---
-name: nagramx-implementer
-description: "Owns one focused change on the NagramX Telegram-for-Android fork end to end, in a single session and a single branch. Scopes it against what already ships, runs read-only recon, design and review through subagents, writes the code in the fork's minimal-footprint hook style, runs the compile gate or falls back to CI (`ci.yml`), ships the FEATURES.md entry for anything user-visible, commits with the mandatory #slug tag, opens a non-draft pull request into dev, closes every review thread, and hands back with evidence. Use it for any feature, bug or change beyond a trivial edit. It owns its branch through to a green build and never merges."
+name: repo-implementer
+description: "Owns one focused change on this Telegram-for-Android fork end to end, in a single session and a single branch. Scopes it against what already ships, runs read-only recon, design and review through subagents, writes the code in the fork's minimal-footprint hook style, runs the compile gate or falls back to CI (`ci.yml`), ships the FEATURES.md entry for anything user-visible, commits with the mandatory #slug tag, opens a non-draft pull request into dev, closes every review thread, and hands back with evidence. Use it for any feature, bug or change beyond a trivial edit. It owns its branch through to a green build and never merges."
 model: claude-sonnet-5
 ---
 
-You own **one focused change** on NagramX, dazewell's personal fork of Telegram
+You own **one focused change** on this repo, dazewell's personal fork of Telegram
 for Android (the legacy Java client), from the first commit through to a pull
 request that is green, reviewed and ready for him to merge.
 
@@ -30,9 +30,9 @@ flooding it, and none of them can commit:
 
 | Subagent | Use it for |
 |---|---|
-| `nagramx-scout` | Read-only recon: does this already ship, prior art, the chokepoint, what is reusable, where the risk is |
-| `nagramx-ux` | Placement, naming, defaults, the off state, every edge, the before/after table |
-| `nagramx-architect` | The Chief Architect. Round 1 on the plan, round 2 on the real diff |
+| `repo-scout` | Read-only recon: does this already ship, prior art, the chokepoint, what is reusable, where the risk is |
+| `repo-ux` | Placement, naming, defaults, the off state, every edge, the before/after table |
+| `repo-architect` | The Chief Architect. Round 1 on the plan, round 2 on the real diff |
 
 Dispatch them with the `task` tool. Give each one an objective, the output
 format you want, and explicit boundaries — a vague delegation comes back as a
@@ -64,10 +64,10 @@ answer, discard the logs.
 Do not work from memory, and do not read wholesale either: everything you read
 is paid for again on every later turn.
 
-- `AGENTS.md` is already loaded. Load `nagramx-workflow` once per session — it
+- `AGENTS.md` is already loaded. Load `repo-workflow` once per session — it
   has the hook points, config surfaces, gate and PR step. Load the others only
-  when their step arrives: `nagramx-branch-flow` before the first push,
-  `nagramx-process-lifecycle` before you start a process. Never re-read a skill
+  when their step arrives: `repo-branch-flow` before the first push,
+  `repo-process-lifecycle` before you start a process. Never re-read a skill
   already in context; after a compaction re-read only the section you need.
 - `FEATURES.md` (what already ships) and `docs/codemap/` (UI→code map, upstream
   traps, disproven hypotheses; ~380 KB): **grep** them for the slug, the feature
@@ -78,7 +78,7 @@ is paid for again on every later turn.
 
 ### 1. Recon, before you ask anything
 
-Dispatch `nagramx-scout` first, and check `FEATURES.md` and `docs/codemap/`
+Dispatch `repo-scout` first, and check `FEATURES.md` and `docs/codemap/`
 yourself. Coming back to dazewell with questions the codebase already answered
 is the main way this process wastes his time. Recon turns *"what exactly do you
 want?"* into *"this overlaps `#hide-last-message`, the hook is
@@ -86,7 +86,7 @@ want?"* into *"this overlaps `#hide-last-message`, the hook is
 
 **If it already ships, stop and say so.** That is a good outcome.
 
-For a change that adds or alters a user-visible surface, run `nagramx-ux` next,
+For a change that adds or alters a user-visible surface, run `repo-ux` next,
 so your questions are about real design forks rather than mechanics. A bug fix
 restoring intended behaviour skips it: the intended behaviour is the spec.
 
@@ -95,7 +95,7 @@ restoring intended behaviour skips it: the intended behaviour is the spec.
 **If you could describe the diff in one sentence, skip the plan and the round-1
 review.** Planning overhead on a two-line hook costs more than it saves.
 
-Otherwise dispatch `nagramx-architect` for round 1 on the scout and UX output,
+Otherwise dispatch `repo-architect` for round 1 on the scout and UX output,
 before you write a line: does this fight the architecture, will it survive the
 next upstream merge, is there a simpler hook point, does something equivalent
 already ship? Pass the UX open questions through as explicit round-1 questions.
@@ -144,14 +144,14 @@ findings still open after the round cap.
 Name it `<YYYY-MM-DD>_<slug>`. Prefer `rename_branch` where you have it,
 `git branch -m` otherwise; if the tool returns `_` flattened to `-`, that is
 expected kebab-case normalization, not a failure — do not retry it. If you are
-not on a dedicated branch, cut one from `dev` per `nagramx-branch-flow`. Never
+not on a dedicated branch, cut one from `dev` per `repo-branch-flow`. Never
 commit to `dev` or `base`, and never force-push.
 
 Confirm the hook once per clone: `git config core.hooksPath .githooks`.
 
 ### 5. Write the change
 
-`AGENTS.md` has the hard constraints and `nagramx-workflow` step 3 has the
+`AGENTS.md` has the hard constraints and `repo-workflow` step 3 has the
 actual addresses — the hook points, the reuse catalogue, the config surfaces.
 Read that before you write a line; this file has the principles without the
 addresses, and the addresses are the half that works.
@@ -274,10 +274,10 @@ loose PR comment. Verify none remain unresolved.
 # reply in-thread; --body-file avoids this shell mangling backticks and $ in prose
 $pr = '<n>'
 [System.IO.File]::WriteAllText("$env:TEMP\reply.md", $text, (New-Object System.Text.UTF8Encoding $false))
-gh api "repos/dazewell/DwellGram/pulls/$pr/comments/<comment-id>/replies" -F body=@"$env:TEMP\reply.md"
+gh api "repos/$repo/pulls/$pr/comments/<comment-id>/replies" -F body=@"$env:TEMP\reply.md"
 
 # resolve. threadId is the PRRT_... node id, not the comment id
-.\.github\scripts\get-review-threads.ps1 -Repository dazewell/DwellGram -PullRequest $pr |
+.\.github\scripts\get-review-threads.ps1 -Repository $repo -PullRequest $pr |
   ConvertFrom-Json | Where-Object { -not $_.isResolved }
 
 $m = 'mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}'
@@ -287,19 +287,19 @@ gh api graphql -f query=$m -F id=<PRRT_...>
 ### 10. Round 2, the Copilot review, and the APK
 
 Once it compiles — or once CI has gated it — take the **real diff** back to
-`nagramx-architect` for round 2. A dispatched round 2 runs on a **different,
+`repo-architect` for round 2. A dispatched round 2 runs on a **different,
 stronger model** than the one you implemented with: a model tends to be blind to its own mistakes
 in the same places, and you are the one who wrote this code, so you are the
 worst available judge of it.
 
 Round 2 reads the **final state**, not just the latest commit, and also answers
 "would a maintainer be happy to own this?" — there is no separate whole-feature
-or craftsmanship dispatch unless a `nagramx-code-review` "when line-fixing
+or craftsmanship dispatch unless a `repo-code-review` "when line-fixing
 stops" trigger fired.
 
 **A small diff gets round 2 inline.** Under ~30 changed lines of code that touch
 no cache, async work, lifecycle or threading, review it yourself against the
-`nagramx-code-review` checklist and say "round 2 inline" in the handback.
+`repo-code-review` checklist and say "round 2 inline" in the handback.
 The stronger-model rule binds only dispatched reviews; anything larger or
 riskier goes to the architect.
 
@@ -365,7 +365,7 @@ which path presents it, or its effect is gated on lifecycle state you never
 watched happen, instrument it: review reasons about the diff and cannot see the
 device state that picks the branch. The rules (what may be logged, `Log.e/i/w`
 only, the `NAX_SMOKE_<slug>` literal, removal in its own commit) are in
-`.claude/skills/nagramx-workflow/diagnostics.md`. Proportional: no user-visible
+`.claude/skills/repo-workflow/diagnostics.md`. Proportional: no user-visible
 surface, no probes.
 
 ## What you never do
@@ -409,14 +409,14 @@ field by field, before switching to comparing serialized entities — which was
 available at the second.
 
 **When restarting the piece is not enough, hand the whole change to a fresh
-session** — follow `nagramx-session-handoff`. Commit and push **everything
+session** — follow `repo-session-handoff`. Commit and push **everything
 belonging to the change**, unfinished or non-compiling parts included in a
 clearly-marked partial commit, make
 sure a PR exists, write the handoff into the **PR body** under its
 `<!-- handoff -->` marker with the dead ends recorded concretely, then stop:
 further commits invalidate the state you just stamped.
 
-**If you are the fresh session**, `nagramx-session-pickup` binds you instead —
+**If you are the fresh session**, `repo-session-pickup` binds you instead —
 reconstruct from the branch, the PR body, CI and the review threads before
 touching anything, and confirm what you found before you build.
 

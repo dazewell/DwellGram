@@ -19,4 +19,4 @@ applyTo: "TMessagesProj/build.gradle"
 - **Don't touch the signing config** unless that is the change. A wrong key
   builds a valid APK no existing install can update to.
 
-Full rules: `AGENTS.md` and the `nagramx-workflow` skill.
+Full rules: `AGENTS.md` and the `repo-workflow` skill.

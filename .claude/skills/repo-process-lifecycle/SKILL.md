@@ -1,9 +1,9 @@
 ---
-name: nagramx-process-lifecycle
-description: "Dazewell's rule for any process, daemon, or background command an agent starts on the NagramX fork: adb, logcat, Gradle daemons, dev servers, watchers, emulators, detached shells. Trigger it before Start-Process, an async or detached shell, adb, gradlew, an emulator or other long-running command, and before archiving a child session. Binds every agent that can start a process and any coordinator that archives its direct implementer children. Covers: recording the exact PID or native handle at start, stopping promptly, cleanup on success, failure, cancellation, timeout, exact-PID-only stopping, Windows PID-reuse-safe identity checks, ownership-aware daemon shutdown (never an unqualified adb kill-server, gradlew --stop or adb emu kill; only session-owned isolated instances), the process ledger format, and the pre-archive checklist. It exists because a session archived while adb held its worktree open corrupted it."
+name: repo-process-lifecycle
+description: "Dazewell's rule for any process, daemon, or background command an agent starts on this fork: adb, logcat, Gradle daemons, dev servers, watchers, emulators, detached shells. Trigger it before Start-Process, an async or detached shell, adb, gradlew, an emulator or other long-running command, and before archiving a child session. Binds every agent that can start a process and any coordinator that archives its direct implementer children. Covers: recording the exact PID or native handle at start, stopping promptly, cleanup on success, failure, cancellation, timeout, exact-PID-only stopping, Windows PID-reuse-safe identity checks, ownership-aware daemon shutdown (never an unqualified adb kill-server, gradlew --stop or adb emu kill; only session-owned isolated instances), the process ledger format, and the pre-archive checklist. It exists because a session archived while adb held its worktree open corrupted it."
 ---
 
-# NagramX process & session lifecycle
+# Process & session lifecycle
 
 Any session that starts a process follows the starter rules. A coordinator that
 archives a direct implementer child follows the checklist. Usually there is no
