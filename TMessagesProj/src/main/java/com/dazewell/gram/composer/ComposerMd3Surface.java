@@ -63,8 +63,10 @@ public final class ComposerMd3Surface {
     private static final int STRIP_RADIUS = 10;
     private static final int STRIP_ACCENT = 3;
     private static final int STRIP_ACCENT_INSET = 6;
-    // Inset top and bottom inside the 48dp top view, which centres the strip on the upstream close button.
-    private static final int STRIP_INSET = 3;
+    // The strip's gap to the island edge above it and to the field below it, kept equal. Docked it matches the
+    // field's own gap under the panel top. Either way the strip sits within 1dp of the upstream close button's centre.
+    private static final int STRIP_GAP = 5;
+    private static final int DOCKED_STRIP_GAP = 6;
     // Island radius minus the 3dp margin, so the field and the reply strip sit concentric in the island.
     private static final int FIELD_RADIUS = 10;
     // The field is drawn this far inside the 44dp text row top and bottom, so it is 42dp and shares the
@@ -722,10 +724,13 @@ public final class ComposerMd3Surface {
             fieldRight = columnRight + (restRight + (openRight - restRight) * open - columnRight) * shown;
         }
 
-        if (drawPill && inputFactor > 0 && topViewHeight > dp(STRIP_INSET * 2)) {
+        final int stripGap = dp(docked ? DOCKED_STRIP_GAP : STRIP_GAP);
+        final float stripTop = pill.top + stripGap - islandPadding();
+        final float stripBottom = pill.top + topViewHeight - (stripGap - dp(FIELD_INSET));
+        if (drawPill && inputFactor > 0 && stripBottom > stripTop) {
             // Reply, edit, forward and link preview all share this top view, so one strip covers them.
             final float stripAlpha = alpha * inputFactor * topViewProgress;
-            rect.set(columnLeft, pill.top + dp(STRIP_INSET), columnRight, pill.top + topViewHeight - dp(STRIP_INSET));
+            rect.set(columnLeft, stripTop, columnRight, stripBottom);
             final float stripRadius = Math.min(stripRadius(), rect.height() / 2f);
             fillPaint.setColor(Theme.multAlpha(container, stripAlpha));
             canvas.drawRoundRect(rect, stripRadius, stripRadius, fillPaint);
