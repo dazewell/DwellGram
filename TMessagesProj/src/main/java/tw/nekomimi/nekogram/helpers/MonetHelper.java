@@ -94,11 +94,11 @@ public class MonetHelper {
         put("monetGboardSurfaceLight", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_container_light : android.R.color.system_neutral1_50);
         put("monetGboardSurfaceDark", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_container_dark : android.R.color.system_neutral1_900);
         // NagramX: the MD3 composer's input field takes the keyboard's letter-key color (GboardColors.getKeySurface()),
-        // and the reply strip the next tonal step above the surface.
+        // and the reply strip its function-key color (getFunctionalKey()), so the strip stands off the surface.
         put("monetGboardKeyLight", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_container_lowest_light : android.R.color.system_neutral1_0);
         put("monetGboardKeyDark", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_bright_dark : android.R.color.system_neutral2_800);
-        put("monetGboardStripLight", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_container_high_light : android.R.color.system_neutral1_100);
-        put("monetGboardStripDark", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_surface_container_high_dark : android.R.color.system_neutral1_800);
+        put("monetGboardStripLight", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_secondary_container_light : android.R.color.system_accent2_100);
+        put("monetGboardStripDark", Build.VERSION.SDK_INT >= 34 ? android.R.color.system_secondary_container_dark : android.R.color.system_accent2_700);
         put("monetRedLight", R.color.monetRedLight);
         put("monetRedDark", R.color.monetRedDark);
         put("monetRedCall", R.color.monetRedCall);
