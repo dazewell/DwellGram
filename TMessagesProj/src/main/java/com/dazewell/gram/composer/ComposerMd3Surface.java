@@ -202,13 +202,15 @@ public final class ComposerMd3Surface {
     /**
      * How far the enter view moves its top view (reply, edit, forward, link preview, and the close button) so the
      * row's centre lands on the strip's. Derived from the strip's own edges, so retuning its gaps moves the row too.
+     * Only the chat composer draws the strip; other enter views keep their top view where it was.
      */
-    public static float topViewContentShift() {
-        if (!InterfaceStyleController.applyComposer()) {
+    public static float topViewContentShift(boolean chatComposer) {
+        if (!chatComposer || !InterfaceStyleController.applyComposer()) {
             return 0;
         }
         final boolean docked = InterfaceStyleController.dockedComposer();
-        return (stripTop(docked) + stripBottom(docked, 0)) / 2f;
+        // Whole pixels, so the reply text is not drawn on a half pixel.
+        return Math.round((stripTop(docked) + stripBottom(docked, 0)) / 2f);
     }
 
     // The island shows one of these at a time; their alpha is how ChatActivity cross-fades between them,
@@ -299,17 +301,17 @@ public final class ComposerMd3Surface {
         return ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), 255);
     }
 
-    /** The 6% on-surface tint laid over the island, so it tones a frosted island and an opaque one alike. */
+    /** The 6% on-surface tint laid over the island, so it tones a frosted island and an opaque one alike; a Gboard theme's opaque tone instead. */
     private int containerOverlay() {
-        final Integer gboard = gboardTone("Strip");
+        final Integer gboard = gboardTone(false);
         if (gboard != null) return gboard;
         final int onSurface = Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider);
         return ColorUtils.setAlphaComponent(onSurface, Math.round(255 * CONTAINER_ON_SURFACE_BLEND));
     }
 
-    /** The field's on-surface tint laid over the island, one step above the strip's: darker in a light theme, lighter in a dark one. */
+    /** The field's on-surface tint laid over the island, one step above the strip's: darker in a light theme, lighter in a dark one; a Gboard theme's opaque tone instead. */
     private int fieldOverlay() {
-        final Integer gboard = gboardTone("Key");
+        final Integer gboard = gboardTone(true);
         if (gboard != null) return gboard;
         final int onSurface = Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider);
         return ColorUtils.setAlphaComponent(onSurface, Math.round(255 * (isDark() ? FIELD_ON_SURFACE_BLEND_DARK : FIELD_ON_SURFACE_BLEND)));
@@ -321,12 +323,16 @@ public final class ComposerMd3Surface {
      * repaints the panel, and then the usual tints apply.
      */
     @Nullable
-    private Integer gboardTone(String role) {
+    private Integer gboardTone(boolean field) {
         final Theme.ThemeInfo theme = Theme.getActiveTheme();
         if (theme == null || theme.assetName == null || !theme.assetName.startsWith("monet_gboard_")) return null;
-        final String mode = theme.assetName.contains("dark") ? "Dark" : "Light";
-        if (surfaceColor() != ColorUtils.setAlphaComponent(tw.nekomimi.nekogram.helpers.MonetHelper.getColor("monetGboardSurface" + mode), 255)) return null;
-        return tw.nekomimi.nekogram.helpers.MonetHelper.getColor("monetGboard" + role + mode);
+        // Constant token names, so a draw under a Gboard theme builds no strings here.
+        final boolean dark = theme.assetName.contains("dark");
+        final int gboardSurface = tw.nekomimi.nekogram.helpers.MonetHelper.getColor(dark ? "monetGboardSurfaceDark" : "monetGboardSurfaceLight");
+        if (surfaceColor() != ColorUtils.setAlphaComponent(gboardSurface, 255)) return null;
+        return tw.nekomimi.nekogram.helpers.MonetHelper.getColor(field
+                ? (dark ? "monetGboardKeyDark" : "monetGboardKeyLight")
+                : (dark ? "monetGboardStripDark" : "monetGboardStripLight"));
     }
 
     private int shadowColor() {

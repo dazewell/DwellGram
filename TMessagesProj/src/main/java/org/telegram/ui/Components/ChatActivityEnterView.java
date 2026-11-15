@@ -19583,7 +19583,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             final float y = getHeight() - animatorInputFieldHeight.getFactor();
 
             // NagramX: the MD3 composer centres the row on its strip; the shift comes from the strip's own geometry.
-            topView.setTranslationY(y - topView.getMeasuredHeight() * visibility + com.dazewell.gram.composer.ComposerMd3Surface.topViewContentShift());
+            topView.setTranslationY(y - topView.getMeasuredHeight() * visibility + com.dazewell.gram.composer.ComposerMd3Surface.topViewContentShift(parentFragment != null));
             topView.setVisibility(visibility > 0 ? VISIBLE : GONE);
         }
 
