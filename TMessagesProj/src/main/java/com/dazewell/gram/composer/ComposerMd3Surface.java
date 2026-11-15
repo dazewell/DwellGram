@@ -178,6 +178,15 @@ public final class ComposerMd3Surface {
         return InterfaceStyleController.applyComposer() ? new ComposerMd3Surface(resourcesProvider) : null;
     }
 
+    /**
+     * How far inside the text row the enter view clips its text, so a scrolled draft stops at the field's
+     * painted edge rather than the row's. The field sits FIELD_INSET inside the row at the top and inside the
+     * pill's bottom, which is where the edit text ends with the tools row on.
+     */
+    public static int textClipInset() {
+        return InterfaceStyleController.applyComposer() ? dp(FIELD_INSET) : 0;
+    }
+
     // The island shows one of these at a time; their alpha is how ChatActivity cross-fades between them,
     // so it is also how this surface decides which run the island wraps. The host supplies the window insets.
     public void bind(ChatInputViewsContainer host, ChatActivityEnterView enterView, View channelButtons, View actionButtons) {
