@@ -126,6 +126,9 @@ public class EditTextCaption extends EditTextBoldCursor implements FloatingToolb
                 }
             }
         });
+        // NagramX: every caption and composer field extends this, and upstream leaves single-char
+        // typed emoji (and all typed emoji in the photo caption) unspanned, so the emoji pack skips them.
+        addTextChangedListener(new com.dazewell.gram.composer.TypedEmojiSpanWatcher(this));
         setClipToPadding(true);
     }
 
