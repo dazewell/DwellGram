@@ -19458,6 +19458,14 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (!composerToolbarEnabled || inputPrimarySuppressed) {
             return 0;
         }
+        // NagramX (#composer-send-inline): the published offset drops to 0 while every control in the column is shrunk
+        // or faded below half, and one coming back by scale or alpha alone never redraws this view to republish it. With
+        // the field stopping at the column, that painted the field and the reply strip under the mic after the camera
+        // menu; keep the column's resting footprint while it is shown.
+        if (composerInlineRest != null && composerInlineRest.fieldStopsAtColumn()
+                && sendButtonContainer != null && sendButtonContainer.getVisibility() == VISIBLE) {
+            return Math.max(inputSatellites.getPublishedRightOffset(), dp(composerPrimarySize() - composerPrimaryInset()));
+        }
         return inputSatellites.getPublishedRightOffset();
     }
 
