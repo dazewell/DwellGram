@@ -19459,10 +19459,11 @@ public class ChatActivityEnterView extends FrameLayout implements
             return 0;
         }
         // NagramX (#composer-send-inline): the published offset drops to 0 while every control in the column is shrunk
-        // or faded below half, and one coming back by scale or alpha alone never redraws this view to republish it. With
-        // the field stopping at the column, that painted the field and the reply strip under the mic after the camera
-        // menu; keep the column's resting footprint while it is shown.
-        if (composerInlineRest != null && composerInlineRest.fieldStopsAtColumn()
+        // or faded below half, and one coming back by scale or alpha alone can do so without redrawing this view to
+        // republish it. After the camera menu that left the field and the reply strip painted under the mic, so keep
+        // the column's resting footprint while it is shown with the tools row; a recording panel owns the row and
+        // fades the mic for real, so it keeps the live value.
+        if (composerInlineRest != null && !toolbarReplacementVisible
                 && sendButtonContainer != null && sendButtonContainer.getVisibility() == VISIBLE) {
             return Math.max(inputSatellites.getPublishedRightOffset(), dp(composerPrimarySize() - composerPrimaryInset()));
         }
