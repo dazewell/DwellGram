@@ -701,7 +701,7 @@ public final class ComposerMd3Surface {
                               Rect underKeyboard) {
         final int container = containerOverlay();
         // The reply strip stops where the send and close controls begin; so does the field, unless the send column sits
-        // in the tools row (below).
+        // in the tools row with it open (below).
         float columnLeft = pillLeft + fieldSideInset();
         float columnRight = pillRight - fieldSideInset();
         sendSlot.setEmpty();
@@ -720,25 +720,28 @@ public final class ComposerMd3Surface {
                 }
                 if (barVisible && drawPill && inputFactor >= 1f) {
                     // The slot is square at the bottom of the column's row, flush with the enter view's send side.
-                    final float slot = dp(ChatActivityEnterView.DEFAULT_HEIGHT);
+                    final float slot = dp(ComposerGeometry.FIELD_ROW);
                     final float slotLeft = LocaleController.isRTL ? enterView.getLeft() : enterView.getRight() - slot;
-                    // Under both MD3 styles the column sits in the tools row instead, below the pill.
+                    // With the tools row shown the fold places the column, in that row or beside the field, by the same
+                    // margin the enter view lays it out with; pill.bottom + toolsInset is the enter view's bottom.
                     final float slotBottom = rest != null
-                            ? pill.bottom + toolsInset - dp(rest.primaryColumnBottomDp(ChatActivityEnterView.DEFAULT_HEIGHT))
+                            ? pill.bottom + toolsInset - dp(rest.columnBottomDp(ComposerGeometry.FIELD_ROW)) + rest.columnOffsetY()
                             : pill.bottom;
                     sendSlot.set(slotLeft, slotBottom - slot, slotLeft + slot, slotBottom);
                 }
             }
         }
         // The field alone follows the fold: at rest it runs between the leading and trailing buttons, open it
-        // takes the whole row, the send column having gone down to the tools row. The reply strip keeps its column.
+        // takes the whole row, the send column having gone down to the tools row, or stops at the column when that
+        // sits beside it. The reply strip keeps its column.
         // While a panel has the row the field takes the column instead, and eases between the two as it comes and goes.
         float fieldLeft = columnLeft;
         float fieldRight = columnRight;
         final float shown = fold == null ? 0f : rowShown != null ? rowShown.set(fold.toolsRowShown() ? 1f : 0f) : rest != null ? 1f : 0f;
         if (shown > 0) {
-            final float openLeft = pillLeft + fieldSideInset();
-            final float openRight = pillRight - fieldSideInset();
+            final boolean stopsAtColumn = fold.fieldStopsAtColumn();
+            final float openLeft = stopsAtColumn ? columnLeft : pillLeft + fieldSideInset();
+            final float openRight = stopsAtColumn ? columnRight : pillRight - fieldSideInset();
             final int restStart = fold.restFieldStart();
             final int restEnd = fold.restFieldEnd();
             final float restLeft, restRight;
@@ -852,16 +855,20 @@ public final class ComposerMd3Surface {
         return dp(InterfaceStyleController.dockedComposer() ? DOCKED_ISLAND_PADDING : ISLAND_PADDING);
     }
 
-    /** The layout editor's field, stopping the field-to-send gap short of the send slot, {@code sendReserve} from its end. */
+    /**
+     * The layout editor's field, stopping the field-to-send gap short of the send slot, {@code sendReserve} from its end,
+     * or, with no slot beside it (0), the same inset from the end as from the start.
+     */
     public static Drawable previewField(int sendReserve) {
         final ComposerMd3Surface surface = new ComposerMd3Surface(null);
         return new PreviewDrawable() {
             @Override
             public void draw(@NonNull Canvas canvas) {
                 final Rect bounds = getBounds();
+                final int end = sendReserve > 0 ? sendReserve + dp(FIELD_SEND_GAP) : surface.fieldSideInset();
                 // Gravity.END puts the preview's send circle on the right even in RTL: the app does not
                 // declare supportsRtl.
-                surface.rect.set(bounds.left + surface.fieldSideInset(), bounds.top + dp(FIELD_INSET), bounds.right - sendReserve - dp(FIELD_SEND_GAP), bounds.bottom - dp(FIELD_INSET));
+                surface.rect.set(bounds.left + surface.fieldSideInset(), bounds.top + dp(FIELD_INSET), bounds.right - end, bounds.bottom - dp(FIELD_INSET));
                 final float radius = Math.min(surface.fieldRadius(), surface.rect.height() / 2f);
                 surface.fillPaint.setColor(surface.fieldOverlay());
                 canvas.drawRoundRect(surface.rect, radius, radius, surface.fillPaint);

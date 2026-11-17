@@ -480,7 +480,15 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     /** Keeps the send column, which sits at this row's end under the inline-rest composer, clear of the trailing zone. */
     public void setSendReserve(int px) {
-        controls.setSendReserve(px);
+        controls.setSendReserve(px, false);
+    }
+
+    /**
+     * The same, for a reserve the caller moves a step per frame (#composer-send-inline: send leaving the row as the field
+     * opens). The trailing zone follows it at once rather than being held and eased like a slot change.
+     */
+    public void setSendReserveFollowing(int px) {
+        controls.setSendReserve(px, true);
     }
 
     public void setMiddleAlpha(float alpha) {
@@ -505,9 +513,12 @@ public final class ComposerToolbarLayout extends FrameLayout {
         return controls.restLeading;
     }
 
-    /** How far the trailing zone, plus the send reserve, reaches in from the row's end edge, in px; -1 before layout. */
-    public int trailingExtent() {
-        return controls.restTrailing;
+    /**
+     * How far the trailing zone, plus a send reserve of {@code sendReserve} px, reaches in from the row's end edge; -1
+     * before layout. Measured against the reserve asked for rather than the one applied, which a fold moves every frame.
+     */
+    public int trailingExtent(int sendReserve) {
+        return controls.restTrailing < 0 ? -1 : controls.restTrailing + controls.appliedSendReserve(sendReserve);
     }
 
     /** The send-as avatar or the bot menu pill: both head the scrolling zone, which the one-row layout drops. */
@@ -1073,17 +1084,24 @@ public final class ComposerToolbarLayout extends FrameLayout {
             requestLayout();
         }
 
-        // The reserve rides the end padding, which onMeasure and onLayout already take the slots' room from.
-        void setSendReserve(int px) {
+        // NagramX (#glass-composer-fold): the reserve ends at the send circle's drawn edge, and under Glass that
+        // circle is a disc of its own, so the trailing capsule painted to the reserve touched it. One capsule
+        // gap more keeps the same spacing every other pair of capsules has.
+        int appliedSendReserve(int px) {
             px = Math.max(0, px);
-            // NagramX (#glass-composer-fold): the reserve ends at the send circle's drawn edge, and under Glass that
-            // circle is a disc of its own, so the trailing capsule painted to the reserve touched it. One capsule
-            // gap more keeps the same spacing every other pair of capsules has.
-            if (px > 0 && !InterfaceStyleController.applyComposer()) {
-                px += gapPx;
-            }
+            return px > 0 && !InterfaceStyleController.applyComposer() ? px + gapPx : px;
+        }
+
+        // The reserve rides the end padding, which onMeasure and onLayout already take the slots' room from.
+        void setSendReserve(int px, boolean following) {
+            px = appliedSendReserve(px);
             if (sendReservePx == px) {
                 return;
+            }
+            // A followed reserve is not a slot change: shift the remembered anchor with it, so onLayout finds no jump to
+            // hold and ease. Only the LTR end slot is anchored to the padding the reserve rides; in RTL it is the start slot.
+            if (following && hasRightAnchoredLeft && rightAnchoredSlot == endSlot) {
+                previousRightAnchoredLeft -= px - sendReservePx;
             }
             sendReservePx = px;
             setPaddingRelative(sidePaddingPx, verticalPaddingPx, sidePaddingPx + px, verticalPaddingPx);
@@ -1385,7 +1403,8 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 endSlot.layout(contentRight - endWidth, contentTop, contentRight, contentBottom);
             }
             int leading = startWidth > 0 ? getPaddingStart() + startWidth : 0;
-            int trailing = getPaddingEnd() + endWidth;
+            // Without the send reserve, which a fold can move every frame; trailingExtent() adds back the one asked for.
+            int trailing = sidePaddingPx + endWidth;
             // The fit check also reads the row's width, which rotation and multi-window move on their own.
             if (leading != restLeading || trailing != restTrailing || getWidth() != restWidth) {
                 restLeading = leading;

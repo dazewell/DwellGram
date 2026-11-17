@@ -124,7 +124,7 @@ Style buttons (Bold, Italic, Monospace, Strikethrough, Underline, Spoiler, Quote
 
 <img height="180" alt="compose field with a phrase selected, so the action bubbles in the row below render enabled rather than greyed out" src="docs/images/features/composer-toolbar-live.png" />
 
-### Send and mic placement <!-- #composer-input -->
+### Send and mic placement <!-- #composer-input --> <!-- #composer-send-inline -->
 
 Send and the mic sit at the end of the composer's button row. Under Liquid Glass, when there is no button row or it is too crowded, they move inside the text pill, drawn slightly in from its rounded end so a thin ring of glass shows around them.
 

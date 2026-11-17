@@ -687,15 +687,18 @@ public class ChatActivityEnterView extends FrameLayout implements
     private static int composerToolbarHeight() {
         return com.dazewell.gram.ui.ComposerToolbarLayout.height();
     }
-    private static final int COMPOSER_TOOLBAR_GAP = 2;
+    // The field's bottom margin with two rows: the tools row and its gap, as ComposerGeometry measures them.
+    private static int composerFieldBottomDp() {
+        return com.dazewell.gram.composer.ComposerGeometry.fieldBottomDp();
+    }
     // How far the island's bottom sits off the keyboard while the composer row owns it. The row holds its own
     // capsule 2dp inside itself, so this lands about 4dp of visible glass-to-keyboard gap.
     private static final int COMPOSER_TOOLBAR_ISLAND_BOTTOM = 2;
-    private static final int COMPOSER_TEXT_HORIZONTAL_INSET = 16;
+    private static final int COMPOSER_TEXT_HORIZONTAL_INSET = com.dazewell.gram.composer.ComposerGeometry.TEXT_INSET;
     // The normal row's 9/10 padding centers its line box half a dp above the pill.
     private static final float COMPOSER_TEXT_OPTICAL_OFFSET = 0.5f;
     // How far the send/mic control is drawn inside its slot, so a ring of the input's glass stays visible around it.
-    private static final int COMPOSER_PRIMARY_INSET = 3;
+    private static final int COMPOSER_PRIMARY_INSET = com.dazewell.gram.composer.ComposerGeometry.SEND_INSET;
     private boolean composerPrimaryGeometryPosted;
     private boolean composerPrimaryReady;
 
@@ -2973,6 +2976,17 @@ public class ChatActivityEnterView extends FrameLayout implements
                 if (!destroyed) {
                     applyComposerTextGeometry();
                 }
+            }, dy -> {
+                // (#composer-send-inline): the column rides the fold with the field; nothing else moves it on Y.
+                if (sendButtonContainer != null) {
+                    sendButtonContainer.setTranslationY(dy);
+                }
+                if (sendOutlineView != null) {
+                    sendOutlineView.setTranslationY(dy);
+                }
+                if (doneButton != null) {
+                    doneButton.setTranslationY(dy);
+                }
             });
         }
 
@@ -4465,12 +4479,12 @@ public class ChatActivityEnterView extends FrameLayout implements
     // NagramX (#composer-toolbar): the primary column rides above the toolbar, except while a record or review
     // panel owns the row: there is no toolbar under it then, so it drops to the bottom.
     private int getPrimaryColumnBottomMargin() {
-        // NagramX (#composer-inline-rest): there the column sits in the tools row in both states, so it never moves.
-        // (#glass-composer-fold): unless a glass row is too crowded for it, when it goes back above the toolbar.
-        if (!toolbarReplacementVisible && composerInlineRest != null && !composerInlineRest.isOverflow()) {
-            return composerInlineRest.primaryColumnBottomDp(composerPrimarySize());
+        // NagramX (#composer-inline-rest): the fold decides between the tools row and beside the field
+        // (#glass-composer-fold: a crowded glass row; #composer-send-inline: the setting, while not folded).
+        if (!toolbarReplacementVisible && composerInlineRest != null) {
+            return composerInlineRest.columnBottomDp(composerPrimarySize());
         }
-        return toolbarReplacementVisible ? 0 : composerToolbarHeight() + COMPOSER_TOOLBAR_GAP;
+        return toolbarReplacementVisible ? 0 : composerFieldBottomDp();
     }
 
     @SuppressLint("AppCompatCustomView")
@@ -7483,7 +7497,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             }
         });
         messageEditTextContainer.addView(messageEditText, 1, composerToolbarEnabled
-                ? LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 0, 0, 0, composerToolbarHeight() + COMPOSER_TOOLBAR_GAP)
+                ? LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 0, 0, 0, composerFieldBottomDp())
                 : LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 52, 0, isChat ? 50 : 2, 1.5f));
         if (composerFormattingActions != null) {
             composerFormattingActions.refresh();
@@ -7497,7 +7511,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         richDraftPreview.setPadding(dp(8), dp(9), dp(8), dp(10));
         richDraftPreview.setOnClickListener(v -> openRichEditor());
         messageEditTextContainer.addView(richDraftPreview, 2, composerToolbarEnabled
-                ? LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 0, 0, 0, composerToolbarHeight() + COMPOSER_TOOLBAR_GAP)
+                ? LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 0, 0, 0, composerFieldBottomDp())
                 : LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 52 - 8, 0, (isChat ? 50 : 2) - 8, 1.5f));
         if (composerToolbarEnabled) {
             applyComposerTextGeometry();
@@ -7990,7 +8004,7 @@ public class ChatActivityEnterView extends FrameLayout implements
     private int getExpandedInputHeight() {
         return Math.max(dp(DEFAULT_HEIGHT),
             expandedInputBudget - (isTopViewVisible() ? topView.getLayoutParams().height : 0)
-                - (composerToolbarEnabled ? dp(composerToolbarHeight() + COMPOSER_TOOLBAR_GAP) : 0) - dp(3));
+                - (composerToolbarEnabled ? dp(composerFieldBottomDp()) : 0) - dp(3));
     }
 
     private boolean shownAiButton;
@@ -11467,12 +11481,12 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
         // NagramX (#composer-inline-rest): the floating composer lays the field out itself, in the tools row at rest.
         // (#glass-composer-fold): the glass one keeps its reply or edit bar over the open field, and moves the send
-        // column when its row runs out of room for it.
+        // column when its row runs out of room for it, or (#composer-send-inline) when Send is set beside the field.
         if (composerInlineRest != null) {
             if (composerInlineRest.layoutField(messageEditText, richDraftPreview,
                     TextUtils.isEmpty(messageEditText.getText()) && !(keyboardVisible || waitingForKeyboardOpen || isPopupShowing()) && !messageEditExpanded && !richDraftActive
                             && (com.dazewell.gram.helpers.InterfaceStyleController.applyComposer() || !topViewShowed),
-                    inset, getComposerPrimaryEndInset(), dp(composerToolbarHeight() + COMPOSER_TOOLBAR_GAP), animatorInputFieldHeight.getFactor(),
+                    inset, getComposerPrimaryEndInset(), dp(composerFieldBottomDp()), composerPrimarySize(), animatorInputFieldHeight.getFactor(),
                     animatorInputFieldHeight.getToFactor())) {
                 applyComposerReplacementGeometry();
             }
@@ -19409,7 +19423,7 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public int getInputBubbleBottomInset() {
-        final int inset = composerToolbarEnabled && !toolbarReplacementVisible ? dp(composerToolbarHeight() + COMPOSER_TOOLBAR_GAP) : 0;
+        final int inset = composerToolbarEnabled && !toolbarReplacementVisible ? dp(composerFieldBottomDp()) : 0;
         // NagramX (#composer-inline-rest): at rest the field shares the tools row, so the row leaves the inset with the island.
         return composerInlineRest != null ? Math.round(inset * composerInlineRest.progress()) : inset;
     }

@@ -493,6 +493,22 @@ crowded for the send circle's capsule, which then sits above the toolbar beside 
 (`ComposerInlineRest.java:223-225`, `ChatActivityEnterView.java:4394`).
 *(Established 2026-10-29, `#glass-composer-fold`.)*
 
+Where the send column sits is decided once, by `ComposerInlineRest.columnBottomDp` (`ComposerInlineRest.java:188`):
+the enter view lays the column out with it (`ChatActivityEnterView.java:4485`) and the MD3 surface aims its touch
+slot by it (`ComposerMd3Surface.java:728`). It answers "beside the field" while a glass row is crowded or, with
+*Send button* → Beside the field (`InterfaceStyleController.java:61`), while the composer is not folded
+(`ComposerInlineRest.java:172`). At rest that mode folds exactly like the default; opening moves the column's margin
+up at the flip and draws it back down by the fold's remaining share through `translationY` on the three column views
+(`ComposerInlineRest.java:337`, `:354`; `ChatActivityEnterView.java:2982`), and eases the tools row's send reserve
+out frame by frame (`ComposerInlineRest.java:223`). That per-frame reserve is why the toolbar's trailing extent is
+stored without it (`ComposerToolbarLayout.java:1407`, `:520`), and why a followed reserve shifts the trailing slot's
+remembered anchor (`:1104`): otherwise every frame reads as a slot change and the slot's hold-and-ease lags the fold.
+The field's open edge keys off the setting, not the fold state (`ComposerInlineRest.java:180`,
+`ComposerMd3Surface.java:742`), so it does not jump at the flip. The measurements the enter view, the fold, the
+surface and the layout editor's preview share (field row, send inset, row gap, text inset, the field's bottom over
+the tools row) live in `ComposerGeometry` (`ComposerGeometry.java:27`).
+*(Established 2026-11-17, `#composer-send-inline`.)*
+
 ## MD3 resting field grows to the send disc; the disc's inset never animates
 
 `ComposerInlineRest.md3RestHeightPx` (`ComposerInlineRest.java:183`) sizes the folded field to the send disc's

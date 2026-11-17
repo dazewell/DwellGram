@@ -1620,6 +1620,12 @@ object NaConfig {
             ConfigItem.configTypeInt,
             0 // 0 floating island, 1 docked panel; anything else reads as floating
         )
+    val composerSendPlacement =
+        addConfig(
+            "ComposerSendPlacement",
+            ConfigItem.configTypeInt,
+            0 // 0 at the end of the tools row, 1 beside the open field; anything else reads as 0
+        )
     val interfaceStyleApplyBottomNavigation =
         addConfig(
             "InterfaceStyleApplyBottomNavigation",
