@@ -9432,7 +9432,9 @@ public class ChatActivityEnterView extends FrameLayout implements
         if (composerToolbarEnabled) {
             com.dazewell.gram.ui.ComposerToolbarLayout.applyPanelIconBox(attachButton, targetRes);
         }
-        if (duration == 0) {
+        // NagramX (#glass-attach-flash-fix): an untagged button still shows the glyph it was built with, so there is no
+        // menu glyph to fade from. The toolbar's pinned paperclip stays fully visible, so that fade showed on first erase.
+        if (duration == 0 || composerToolbarEnabled && oldStatus == null && !use) {
             attachButton.setImageResource(targetRes);
         } else {
             setImageDrawableWithAnimation(attachButton, fromRes, targetRes, duration);
