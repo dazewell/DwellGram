@@ -1459,8 +1459,14 @@ public class ComposerLayoutActivity extends BaseFragment {
             body.setFocusable(false);
             body.setClickable(false);
             body.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
-            input.addView(body, LayoutHelper.createFrame(
-                    LayoutHelper.MATCH_PARENT, ComposerGeometry.FIELD_ROW, Gravity.TOP | Gravity.START));
+            // The Glass pill stops a bubble gap short of a send disc beside it, as ComposerInlineRest.glassPillEdges
+            // ends it in a chat, rather than running under the disc.
+            final int glassEnd = besideField && !InterfaceStyleController.applyComposer()
+                    ? dp(sendFootprint()) + toolbar.bubbleGapPx() : 0;
+            FrameLayout.LayoutParams bodyParams = (FrameLayout.LayoutParams) LayoutHelper.createFrame(
+                    LayoutHelper.MATCH_PARENT, ComposerGeometry.FIELD_ROW, Gravity.TOP | Gravity.START);
+            bodyParams.setMarginEnd(glassEnd);
+            input.addView(body, bodyParams);
 
             TextView hint = new TextView(getContext());
             // Typed-looking text in the field's own text colour rather than the placeholder, so the
@@ -1478,7 +1484,7 @@ public class ComposerLayoutActivity extends BaseFragment {
             // The real field's text sits TEXT_INSET in from the enter view on the start side, and on the end side too,
             // past the send disc's footprint (InputSatellites' published right offset) when the disc is beside it.
             hintParams.setMarginStart(dp(ComposerGeometry.TEXT_INSET));
-            hintParams.setMarginEnd(dp((besideField ? sendFootprint() : 0) + ComposerGeometry.TEXT_INSET));
+            hintParams.setMarginEnd(Math.max(0, dp((besideField ? sendFootprint() : 0) + ComposerGeometry.TEXT_INSET) - glassEnd));
             body.addView(hint, hintParams);
             stage.addView(input, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, ComposerGeometry.FIELD_ROW,
                     Gravity.TOP | Gravity.START));
