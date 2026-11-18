@@ -752,6 +752,15 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
             if (cached != null) {
                 cached.delete();
             }
+            // getPathToAttach reads the path database of the selected account only, so after an
+            // account switch it misses a refresh download saved under its own name in the files dir.
+            String docName = pack.getFileDocument() != null ? FileLoader.getDocumentFileName(pack.getFileDocument()) : null;
+            if (!TextUtils.isEmpty(docName)) {
+                File inFiles = new File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_FILES), docName);
+                if (inFiles.isFile()) {
+                    inFiles.delete();
+                }
+            }
             typefaceCache.remove(pack.getPackId());
             if (pack.getPackId().equals(emojiPack)) {
                 setEmojiPack("default", false);
