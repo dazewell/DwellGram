@@ -1030,8 +1030,48 @@ public final class ComposerToolbarLayout extends FrameLayout {
             if (checkSlotOccupancy(false)) {
                 requestLayout();
             }
+            smokeTrace();
             return true;
         };
+
+        // NAX_SMOKE_glass-composer-fold-fix: temporary probe, logs the trailing zone only when it changes.
+        private String smokeLast;
+        private static String smokeChild(View c) {
+            return c.getClass().getSimpleName() + "{v=" + c.getVisibility() + " w=" + c.getWidth() + " a=" + Math.round(c.getAlpha() * 100)
+                    + " sx=" + Math.round(c.getScaleX() * 100) + " tx=" + Math.round(c.getTranslationX()) + "}";
+        }
+        private void smokeTrace() {
+            if (endSlot == null) {
+                return;
+            }
+            StringBuilder b = new StringBuilder();
+            b.append("slot{l=").append(endSlot.getLeft()).append(" w=").append(endSlot.getWidth())
+                    .append(" mw=").append(endSlot.getMeasuredWidth()).append(" tx=").append(Math.round(endSlot.getTranslationX())).append("}");
+            b.append(" hold=").append(holdingBounds).append(" pend=").append(Math.round(pendingEndShift))
+                    .append(" anim=").append(boundsAnimator != null).append(" prevL=").append(previousRightAnchoredLeft)
+                    .append(" reserve=").append(sendReservePx).append(" padR=").append(getPaddingRight());
+            for (int i = 0; i < endSlot.getChildCount(); i++) {
+                View c = endSlot.getChildAt(i);
+                b.append(" [").append(i).append(endSlot.isOccupied(c) ? "*" : "").append(smokeChild(c));
+                if (c instanceof ViewGroup && c == trailingContextGroup) {
+                    ViewGroup g = (ViewGroup) c;
+                    b.append(" in:");
+                    for (int j = 0; j < g.getChildCount(); j++) {
+                        b.append(' ').append(smokeChild(g.getChildAt(j)));
+                    }
+                }
+                b.append(']');
+            }
+            b.append(" ctx=").append(Math.round(bubbleLeft[BUBBLE_CONTEXT])).append("..").append(Math.round(bubbleRight[BUBBLE_CONTEXT]))
+                    .append(bubbleOccupied[BUBBLE_CONTEXT] ? "" : "(off)")
+                    .append(" trail=").append(Math.round(bubbleLeft[BUBBLE_TRAILING])).append("..").append(Math.round(bubbleRight[BUBBLE_TRAILING]))
+                    .append(bubbleOccupied[BUBBLE_TRAILING] ? "" : "(off)");
+            String sig = b.toString();
+            if (!sig.equals(smokeLast)) {
+                smokeLast = sig;
+                android.util.Log.i("NaxSmoke", "NAX_SMOKE_glass-composer-fold-fix FRAME t=" + SystemClock.uptimeMillis() + " " + sig);
+            }
+        }
 
         ControlsLayout(Context context) {
             super(context);

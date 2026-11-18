@@ -7624,6 +7624,7 @@ public class ChatActivityEnterView extends FrameLayout implements
 
             @Override
             public void onTextChanged(CharSequence charSequence, int start, int before, int count) {
+                android.util.Log.i("NaxSmoke", "NAX_SMOKE_glass-composer-fold-fix TEXT t=" + android.os.SystemClock.uptimeMillis() + " len=" + charSequence.length() + " before=" + before + " count=" + count + " build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING + " app=" + org.telegram.messenger.BuildConfig.APPLICATION_ID + " acc=" + currentAccount); // NAX_SMOKE_glass-composer-fold-fix
                 if (ignorePrevTextChange) {
                     return;
                 }
@@ -18554,7 +18555,9 @@ public class ChatActivityEnterView extends FrameLayout implements
             if (attachLayout != null) {
                 attachLayout.setTranslationX(0);
                 attachLayout.setAlpha(attachLayoutAlpha * attachLayoutPaddingAlpha);
+                int smokeVis = attachLayout.getVisibility(); // NAX_SMOKE_glass-composer-fold-fix
                 attachLayout.setVisibility(attachLayout.getAlpha() > 0 ? View.VISIBLE : View.GONE);
+                if (smokeVis != attachLayout.getVisibility()) android.util.Log.i("NaxSmoke", "NAX_SMOKE_glass-composer-fold-fix ATTACHVIS t=" + android.os.SystemClock.uptimeMillis() + " vis=" + attachLayout.getVisibility() + " a=" + attachLayoutAlpha + " pa=" + attachLayoutPaddingAlpha, new Throwable());
             }
             if (attachButton != null) {
                 attachButton.setTranslationX(0);
