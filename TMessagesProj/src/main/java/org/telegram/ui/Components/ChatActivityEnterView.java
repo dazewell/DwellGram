@@ -11530,6 +11530,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     inset, composerPrimaryLaidOutEndInset(), dp(composerFieldBottomDp()), composerPrimarySize(), animatorInputFieldHeight.getFactor(),
                     animatorInputFieldHeight.getToFactor())) {
                 applyComposerReplacementGeometry();
+                onChangedInputPrimaryWidth(); // NagramX (#composer-send-inline): a crowded flip moves the drawn inset too
             }
             return;
         }
