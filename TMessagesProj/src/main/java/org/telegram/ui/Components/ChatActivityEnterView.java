@@ -2976,14 +2976,13 @@ public class ChatActivityEnterView extends FrameLayout implements
                 if (!destroyed) {
                     applyComposerTextGeometry();
                 }
-            }, dy -> {
-                // (#composer-send-inline): the column rides the fold with the field; nothing else moves it on Y.
-                if (sendButtonContainer != null) {
-                    sendButtonContainer.setTranslationY(dy);
-                }
-                if (sendOutlineView != null) {
-                    sendOutlineView.setTranslationY(dy);
-                }
+            }, (dy, scale) -> {
+                // (#composer-send-inline): the column rides the fold with the field; nothing else moves it on Y. Its
+                // scale composes with the ephemeral-message squeeze, which scales the same two views. Done keeps its
+                // own show animation's scale.
+                final float ephemeral = animatorEphemeralMessageVisibility.getFloatValue();
+                moveComposerColumnView(sendButtonContainer, dy, scale, lerp(1, 0.79f, ephemeral));
+                moveComposerColumnView(sendOutlineView, dy, scale, lerp(0.79f, 1, ephemeral));
                 if (doneButton != null) {
                     doneButton.setTranslationY(dy);
                 }
@@ -4488,6 +4487,20 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     private static final int TOP_CLOSE_RESERVE = 48;
+
+    // NagramX (#composer-send-inline): moves one of the send column's views with the fold. A fold scale below 1 is drawn
+    // about the column's own square, at the view's bottom end, not the middle of a container wider than the column.
+    private void moveComposerColumnView(View view, float dy, float foldScale, float ownScale) {
+        if (view == null) {
+            return;
+        }
+        view.setTranslationY(dy);
+        final float half = dp(composerPrimarySize()) / 2f;
+        view.setPivotX(foldScale < 1f ? view.getWidth() - half : view.getWidth() / 2f);
+        view.setPivotY(foldScale < 1f ? view.getHeight() - half : view.getHeight() / 2f);
+        view.setScaleX(foldScale * ownScale);
+        view.setScaleY(foldScale * ownScale);
+    }
 
     // NagramX (#composer-toolbar): the primary column rides above the toolbar, except while a record or review
     // panel owns the row: there is no toolbar under it then, so it drops to the bottom.
@@ -19596,6 +19609,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             sendButtonContainer.setScaleY(lerp(1, 0.79f, factor));
             sendOutlineView.setScaleX(lerp(0.79f, 1, factor));
             sendOutlineView.setScaleY(lerp(0.79f, 1, factor));
+            if (composerInlineRest != null) composerInlineRest.refreshColumn(); // NagramX: composes with the fold's cap
             if (inputPrimarySuppressed) {
                 sendOutlineView.setVisibility(GONE);
             } else {

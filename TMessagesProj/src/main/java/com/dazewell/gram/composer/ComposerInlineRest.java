@@ -47,9 +47,12 @@ public final class ComposerInlineRest {
     // disc keeps its size and the row reads as one height.
     private static final int MD3_REST_HEIGHT = ComposerGeometry.FIELD_ROW - 2 * ComposerGeometry.SEND_INSET;
 
-    /** Moves the send column by {@code dy} px from where it is laid out; 0 puts it back. */
+    /**
+     * Moves the send column by {@code dy} px from where it is laid out, 0 putting it back, and draws it at
+     * {@code scale} of its laid-out size about its own square.
+     */
     public interface ColumnMover {
-        void moveColumn(float dy);
+        void moveColumn(float dy, float scale);
     }
 
     private final ComposerToolbarLayout toolbar;
@@ -67,6 +70,7 @@ public final class ComposerInlineRest {
     private int fullReserve;
     // The column margin last handed to the enter view, in dp; -1 until the first layoutField.
     private int columnBottomDp = -1;
+    private int columnSizeDp;
     // The column's laid-out move at the running flip, in px; drawn back by its remaining share, like the field's.
     private float columnDelta;
     private int foldId;
@@ -210,6 +214,19 @@ public final class ComposerInlineRest {
         return morphing && besideSetting ? columnDelta * remaining : 0;
     }
 
+    /**
+     * How large the send column is drawn, of its laid-out size. Beside the field it is never taller than the field row:
+     * a Glass column scaled above 100% would stand past the composer's top and be cut. With Send set beside the field
+     * it eases there as the field opens, on the fold's own progress; in the tools row it keeps the buttons' size.
+     */
+    public float columnScale() {
+        if (!toolsRowShown() || columnSizeDp <= ComposerGeometry.FIELD_ROW) {
+            return 1f;
+        }
+        final float beside = crowded ? 1f : besideSetting ? progress : 0f;
+        return 1f - (1f - (float) ComposerGeometry.FIELD_ROW / columnSizeDp) * beside;
+    }
+
     /** 1 with two rows, 0 with one, eased between them while the island morphs. */
     public float progress() {
         return progress;
@@ -251,9 +268,14 @@ public final class ComposerInlineRest {
         }
     }
 
+    /** Re-applies the column's offset and scale, for the enter view after something else wrote them. */
+    public void refreshColumn() {
+        moveColumn();
+    }
+
     private void moveColumn() {
-        if (besideSetting && columnMover != null) {
-            columnMover.moveColumn(columnOffsetY());
+        if (columnMover != null) {
+            columnMover.moveColumn(columnOffsetY(), columnScale());
         }
     }
 
@@ -317,6 +339,7 @@ public final class ComposerInlineRest {
         crowded = toolbar.hasGlassCapsules() && sendReserve > 0 && fixed >= 0
                 && fixed + sendReserve + toolbar.bubbleGapPx() > toolbar.rowWidth();
         fullReserve = sendReserve;
+        columnSizeDp = columnDp;
         final boolean over = crowded;
         // While a panel replaces the tools row the field is GONE, so a flip would change no height and only run a
         // phantom morph on the timeout. Hold the fold; the enter view asks again once the row comes back, and that
@@ -390,6 +413,8 @@ public final class ComposerInlineRest {
         }
         // Last, once the fold has its progress: a chat that opens folded keeps the column's room in the row.
         applyReserve(false);
+        // And the column's size, which a crowded flip or a panel taking the row changes without a fold.
+        moveColumn();
         final boolean columnChanged = column != columnBottomDp;
         columnBottomDp = column;
         return columnChanged;
