@@ -2976,15 +2976,20 @@ public class ChatActivityEnterView extends FrameLayout implements
                 if (!destroyed) {
                     applyComposerTextGeometry();
                 }
-            }, (dy, scale) -> {
+            }, (dx, dy, scale) -> {
                 // (#composer-send-inline): the column rides the fold with the field; nothing else moves it on Y. Its
-                // scale composes with the ephemeral-message squeeze, which scales the same two views. Done keeps its
-                // own show animation's scale.
+                // scale composes with the ephemeral-message squeeze, which scales the same two views. Done's own show
+                // animation owns its scale until the pop lands at full alpha, and refreshes this when it ends.
                 final float ephemeral = animatorEphemeralMessageVisibility.getFloatValue();
-                moveComposerColumnView(sendButtonContainer, dy, scale, lerp(1, 0.79f, ephemeral));
-                moveComposerColumnView(sendOutlineView, dy, scale, lerp(0.79f, 1, ephemeral));
+                moveComposerColumnView(sendButtonContainer, dx, dy, scale, lerp(1, 0.79f, ephemeral));
+                moveComposerColumnView(sendOutlineView, dx, dy, scale, lerp(0.79f, 1, ephemeral));
                 if (doneButton != null) {
+                    doneButton.setTranslationX(dx);
                     doneButton.setTranslationY(dy);
+                    if (doneButton.getAlpha() >= 1f) {
+                        doneButton.setScaleX(scale);
+                        doneButton.setScaleY(scale);
+                    }
                 }
             });
         }
@@ -4484,19 +4489,32 @@ public class ChatActivityEnterView extends FrameLayout implements
     // (ChatActivity's end margins), so a column wider than that shrinks the square rather than overlapping them.
     // The panel stays right-anchored in RTL, as upstream.
     public FrameLayout.LayoutParams createTopCloseLayoutParams() {
-        final int column = composerPrimarySize();
+        final int column = composerInlineRest != null ? composerInlineRest.drawnColumnDp(composerPrimarySize()) : composerPrimarySize();
         final int size = Math.min(column, 2 * TOP_CLOSE_RESERVE - column);
         return LayoutHelper.createFrame(size, size, Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0, (column - size) / 2f, 0);
     }
 
     private static final int TOP_CLOSE_RESERVE = 48;
 
+    // NagramX (#composer-send-inline): the scale the send column is drawn at, for Done, which shows in its place.
+    private float composerColumnScale() {
+        return composerInlineRest != null ? composerInlineRest.columnScale() : 1f;
+    }
+
+    // NagramX (#composer-send-inline): hands Done the live scale once its pop lands, in case the fold moved meanwhile.
+    private void refreshComposerColumn() {
+        if (composerInlineRest != null) {
+            composerInlineRest.refreshColumn();
+        }
+    }
+
     // NagramX (#composer-send-inline): moves one of the send column's views with the fold. Both already scale about the
     // column's square: the send container keeps its pivot there on resize, and the outline is the square itself.
-    private void moveComposerColumnView(View view, float dy, float foldScale, float ownScale) {
+    private void moveComposerColumnView(View view, float dx, float dy, float foldScale, float ownScale) {
         if (view == null) {
             return;
         }
+        view.setTranslationX(dx);
         view.setTranslationY(dy);
         view.setScaleX(foldScale * ownScale);
         view.setScaleY(foldScale * ownScale);
@@ -11512,9 +11530,10 @@ public class ChatActivityEnterView extends FrameLayout implements
             if (composerInlineRest.layoutField(messageEditText, richDraftPreview,
                     TextUtils.isEmpty(messageEditText.getText()) && !(keyboardVisible || waitingForKeyboardOpen || isPopupShowing()) && !messageEditExpanded && !richDraftActive
                             && (com.dazewell.gram.helpers.InterfaceStyleController.applyComposer() || !topViewShowed),
-                    inset, getComposerPrimaryEndInset(), dp(composerFieldBottomDp()), composerPrimarySize(), animatorInputFieldHeight.getFactor(),
+                    inset, composerPrimaryLaidOutEndInset(), dp(composerFieldBottomDp()), composerPrimarySize(), animatorInputFieldHeight.getFactor(),
                     animatorInputFieldHeight.getToFactor())) {
                 applyComposerReplacementGeometry();
+                onChangedInputPrimaryWidth(); // NagramX (#composer-send-inline): a crowded flip moves the drawn inset too
             }
             return;
         }
@@ -13006,7 +13025,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             doneButton.setScaleX(0.1f);
             doneButton.setScaleY(0.1f);
             doneButton.setAlpha(0.0f);
-            doneButton.animate().alpha(1f).scaleX(1).scaleY(1).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
+            doneButton.animate().alpha(1f).scaleX(composerColumnScale()).scaleY(composerColumnScale()).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).withEndAction(this::refreshComposerColumn).start(); // NagramX: drawn like send
             updateFieldRight(lastAttachVisible);
 
             currentLimit = accountInstance.getMessagesController().getMaxMessageLength();
@@ -13198,7 +13217,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             doneButton.setScaleX(0.1f);
             doneButton.setScaleY(0.1f);
             doneButton.setAlpha(0.0f);
-            doneButton.animate().alpha(1f).scaleX(1).scaleY(1).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start();
+            doneButton.animate().alpha(1f).scaleX(composerColumnScale()).scaleY(composerColumnScale()).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).withEndAction(this::refreshComposerColumn).start(); // NagramX: drawn like send
             updateFieldRight(lastAttachVisible);
 
             CharSequence editingText;
@@ -19481,6 +19500,12 @@ public class ChatActivityEnterView extends FrameLayout implements
     // adds its own side padding on top, which lands its content the same few dp inside the text as on the
     // start side — and keeps the callout's arrow, which tracks the text and not the panel, within its body.
     public int getComposerPrimaryEndInset() {
+        // NagramX (#composer-send-inline): the drawn width; beside the field the column is drawn at the Glass beside-disc size.
+        final int laidOut = composerPrimaryLaidOutEndInset();
+        return composerInlineRest != null ? composerInlineRest.drawnEndInset(laidOut) : laidOut;
+    }
+
+    private int composerPrimaryLaidOutEndInset() {
         if (!composerToolbarEnabled || inputPrimarySuppressed) {
             return 0;
         }
@@ -19609,7 +19634,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             sendButtonContainer.setScaleY(lerp(1, 0.79f, factor));
             sendOutlineView.setScaleX(lerp(0.79f, 1, factor));
             sendOutlineView.setScaleY(lerp(0.79f, 1, factor));
-            if (composerInlineRest != null) composerInlineRest.refreshColumn(); // NagramX: composes with the fold's cap
+            if (composerInlineRest != null) composerInlineRest.refreshColumn(); // NagramX: composes with the fold's beside scale
             if (inputPrimarySuppressed) {
                 sendOutlineView.setVisibility(GONE);
             } else {
