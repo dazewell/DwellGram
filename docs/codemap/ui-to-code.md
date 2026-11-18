@@ -494,7 +494,7 @@ crowded for the send circle's capsule, which then sits above the toolbar beside 
 *(Established 2026-10-29, `#glass-composer-fold`.)*
 
 Where the send column sits is decided once, by `ComposerInlineRest.columnBottomDp` (`ComposerInlineRest.java:208`):
-the enter view lays the column out with it (`ChatActivityEnterView.java:4511`) and the MD3 surface aims its touch
+the enter view lays the column out with it (`ChatActivityEnterView.java:4508`) and the MD3 surface aims its touch
 slot by it (`ComposerMd3Surface.java:728`). It answers "beside the field" while a glass row is crowded or, with
 *Send button* → Beside the field (`InterfaceStyleController.java:61`), while the composer is not folded
 (`ComposerInlineRest.java:192`). At rest that mode folds exactly like the default; opening moves the column's margin
@@ -512,12 +512,12 @@ the column's centre line, capped to the 48dp the edit controls leave it (`ChatAc
 `ChatActivity.java:9250`), so under Glass its disc stays on the send disc's centre line at any scale. Beside the field the column is
 never drawn taller than the 44dp field row, so a Glass column above 100% scales down as it rises
 (`ComposerInlineRest.java:222`) about its own square (`ChatActivityEnterView.java:4493`); the ephemeral-message
-squeeze writes the same two views' scale, so it re-applies the composite after its own (`:19612`).
+squeeze writes the same two views' scale, so it re-applies the composite after its own (`:19609`).
 Trap: the column's published width reads 0 whenever every column control is below half alpha or scale
-(`InputSatellites.java:129`), and it republishes only from the enter view's `dispatchDraw` (`ChatActivityEnterView.java:18451`)
-or `refreshComposerPrimaryOffset` (`:19514`), so a control coming back by scale or alpha alone can leave it stuck at 0.
+(`InputSatellites.java:129`), and it republishes only from the enter view's `dispatchDraw` (`ChatActivityEnterView.java:18448`)
+or `refreshComposerPrimaryOffset` (`:19511`), so a control coming back by scale or alpha alone can leave it stuck at 0.
 After the mic's camera menu that painted the field and reply strip under the mic, so `getComposerPrimaryEndInset`
-floors it at the column's resting width while the tools row is shown (`:19492`); fixed on device, the dipping control
+floors it at the column's resting width while the tools row is shown (`:19489`); fixed on device, the dipping control
 itself was not traced.
 *(Established 2026-11-17, `#composer-send-inline`.)*
 
@@ -525,7 +525,7 @@ itself was not traced.
 
 `ComposerInlineRest.md3RestHeightPx` (`ComposerInlineRest.java:282`) sizes the folded field to the send disc's
 keyboard-open 38dp diameter, or the input line plus 8dp if that is taller, in which case the fold keeps the open
-geometry (`:267`). The field shrinks symmetrically around the moving text (`ComposerMd3Surface.java:809`) and the
+geometry (`:289`). The field shrinks symmetrically around the moving text (`ComposerMd3Surface.java:809`) and the
 surface caps the gap above it at 6dp (`:820`); reply/edit strips keep the full panel top. Touch slots are untouched.
 
 Shrinking the disc instead was tried and dropped. Animating its painted inset moves the primary reservation

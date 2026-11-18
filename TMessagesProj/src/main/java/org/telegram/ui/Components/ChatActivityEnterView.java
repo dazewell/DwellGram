@@ -4488,16 +4488,13 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     private static final int TOP_CLOSE_RESERVE = 48;
 
-    // NagramX (#composer-send-inline): moves one of the send column's views with the fold. A fold scale below 1 is drawn
-    // about the column's own square, at the view's bottom end, not the middle of a container wider than the column.
+    // NagramX (#composer-send-inline): moves one of the send column's views with the fold. Both already scale about the
+    // column's square: the send container keeps its pivot there on resize, and the outline is the square itself.
     private void moveComposerColumnView(View view, float dy, float foldScale, float ownScale) {
         if (view == null) {
             return;
         }
         view.setTranslationY(dy);
-        final float half = dp(composerPrimarySize()) / 2f;
-        view.setPivotX(foldScale < 1f ? view.getWidth() - half : view.getWidth() / 2f);
-        view.setPivotY(foldScale < 1f ? view.getHeight() - half : view.getHeight() / 2f);
         view.setScaleX(foldScale * ownScale);
         view.setScaleY(foldScale * ownScale);
     }
