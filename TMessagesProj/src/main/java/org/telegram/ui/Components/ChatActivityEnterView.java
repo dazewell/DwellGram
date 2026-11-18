@@ -10820,7 +10820,9 @@ public class ChatActivityEnterView extends FrameLayout implements
                                         scheduledButton.setPivotX(dp(DEFAULT_HEIGHT));
                                         animators.add(ObjectAnimator.ofFloat(scheduledButton, View.ALPHA, 1.0f));
                                         animators.add(ObjectAnimator.ofFloat(scheduledButton, View.SCALE_X, 1.0f));
-                                        animators.add(animateScheduledTranslationX(dp(DEFAULT_HEIGHT)));
+                                        // NagramX (#glass-composer-fold-fix): the toolbar row places this button itself and
+                                        // reconcileScheduleButton snaps it back to 0, so a slide only dents the trailing bubble.
+                                        animators.add(animateScheduledTranslationX(composerToolbarEnabled ? 0 : dp(DEFAULT_HEIGHT)));
                                     } else {
                                         scheduledButton.setTag(null);
                                         animators.add(ObjectAnimator.ofFloat(scheduledButton, View.ALPHA, 0.0f));
