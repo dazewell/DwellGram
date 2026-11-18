@@ -520,8 +520,8 @@ itself was not traced.
 
 `ComposerInlineRest.md3RestHeightPx` (`ComposerInlineRest.java:260`) sizes the folded field to the send disc's
 keyboard-open 38dp diameter, or the input line plus 8dp if that is taller, in which case the fold keeps the open
-geometry (`:267`). The field shrinks symmetrically around the moving text (`ComposerMd3Surface.java:736`) and the
-surface caps the gap above it at 6dp (`:753`); reply/edit strips keep the full panel top. Touch slots are untouched.
+geometry (`:267`). The field shrinks symmetrically around the moving text (`ComposerMd3Surface.java:809`) and the
+surface caps the gap above it at 6dp (`:820`); reply/edit strips keep the full panel top. Touch slots are untouched.
 
 Shrinking the disc instead was tried and dropped. Animating its painted inset moves the primary reservation
 (`InputSatellites.java:69`) across the 4dp publication threshold in steps, and that reserve is the toolbar's end
