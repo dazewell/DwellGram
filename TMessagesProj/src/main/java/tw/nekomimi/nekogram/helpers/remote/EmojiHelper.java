@@ -744,7 +744,7 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
         org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
             String prefix = pack.getPackId() + "_v";
             for (File dir : getAllEmojis()) {
-                if (dir.getName().startsWith(prefix)) {
+                if (dir.getName().startsWith(prefix) && !isValidCustomPack(dir)) {
                     deleteFolder(dir);
                 }
             }
