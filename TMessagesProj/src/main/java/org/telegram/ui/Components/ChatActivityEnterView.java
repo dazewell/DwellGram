@@ -2979,13 +2979,17 @@ public class ChatActivityEnterView extends FrameLayout implements
             }, (dx, dy, scale) -> {
                 // (#composer-send-inline): the column rides the fold with the field; nothing else moves it on Y. Its
                 // scale composes with the ephemeral-message squeeze, which scales the same two views. Done's own show
-                // animation scales it, aiming at the column's.
+                // animation owns its scale until the pop lands at full alpha, and refreshes this when it ends.
                 final float ephemeral = animatorEphemeralMessageVisibility.getFloatValue();
                 moveComposerColumnView(sendButtonContainer, dx, dy, scale, lerp(1, 0.79f, ephemeral));
                 moveComposerColumnView(sendOutlineView, dx, dy, scale, lerp(0.79f, 1, ephemeral));
                 if (doneButton != null) {
                     doneButton.setTranslationX(dx);
                     doneButton.setTranslationY(dy);
+                    if (doneButton.getAlpha() >= 1f) {
+                        doneButton.setScaleX(scale);
+                        doneButton.setScaleY(scale);
+                    }
                 }
             });
         }
@@ -4492,6 +4496,13 @@ public class ChatActivityEnterView extends FrameLayout implements
     // NagramX (#composer-send-inline): the scale the send column is drawn at, for Done, which shows in its place.
     private float composerColumnScale() {
         return composerInlineRest != null ? composerInlineRest.columnScale() : 1f;
+    }
+
+    // NagramX (#composer-send-inline): hands Done the live scale once its pop lands, in case the fold moved meanwhile.
+    private void refreshComposerColumn() {
+        if (composerInlineRest != null) {
+            composerInlineRest.refreshColumn();
+        }
     }
 
     // NagramX (#composer-send-inline): moves one of the send column's views with the fold. Both already scale about the
@@ -13010,7 +13021,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             doneButton.setScaleX(0.1f);
             doneButton.setScaleY(0.1f);
             doneButton.setAlpha(0.0f);
-            doneButton.animate().alpha(1f).scaleX(composerColumnScale()).scaleY(composerColumnScale()).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start(); // NagramX: drawn like send
+            doneButton.animate().alpha(1f).scaleX(composerColumnScale()).scaleY(composerColumnScale()).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).withEndAction(this::refreshComposerColumn).start(); // NagramX: drawn like send
             updateFieldRight(lastAttachVisible);
 
             currentLimit = accountInstance.getMessagesController().getMaxMessageLength();
@@ -13202,7 +13213,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             doneButton.setScaleX(0.1f);
             doneButton.setScaleY(0.1f);
             doneButton.setAlpha(0.0f);
-            doneButton.animate().alpha(1f).scaleX(composerColumnScale()).scaleY(composerColumnScale()).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).start(); // NagramX: drawn like send
+            doneButton.animate().alpha(1f).scaleX(composerColumnScale()).scaleY(composerColumnScale()).setDuration(150).setInterpolator(CubicBezierInterpolator.DEFAULT).withEndAction(this::refreshComposerColumn).start(); // NagramX: drawn like send
             updateFieldRight(lastAttachVisible);
 
             CharSequence editingText;
@@ -19619,7 +19630,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             sendButtonContainer.setScaleY(lerp(1, 0.79f, factor));
             sendOutlineView.setScaleX(lerp(0.79f, 1, factor));
             sendOutlineView.setScaleY(lerp(0.79f, 1, factor));
-            if (composerInlineRest != null) composerInlineRest.refreshColumn(); // NagramX: composes with the fold's cap
+            if (composerInlineRest != null) composerInlineRest.refreshColumn(); // NagramX: composes with the fold's beside scale
             if (inputPrimarySuppressed) {
                 sendOutlineView.setVisibility(GONE);
             } else {
