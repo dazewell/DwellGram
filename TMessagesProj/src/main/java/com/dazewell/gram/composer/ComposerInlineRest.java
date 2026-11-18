@@ -231,23 +231,23 @@ public final class ComposerInlineRest {
 
     /** The field's end edge at rest, in px from the toolbar's end. */
     public int restFieldEnd() {
-        return Math.max(0, toolbar.trailingExtent(reserveAt(0f)));
+        return Math.max(0, toolbar.trailingExtent(restReserve()));
     }
 
-    // The tools row's send reserve with the composer this far open: the column's width while it sits in the row, and,
-    // with Send beside the field, eased out as the column rises so the trailing buttons follow it.
-    private int reserveAt(float open) {
-        if (crowded) {
-            return 0;
-        }
-        return besideSetting ? Math.round(fullReserve * (1f - open)) : fullReserve;
+    // The tools row's send reserve at rest: the column's width, none while a crowded glass row keeps it beside the field.
+    private int restReserve() {
+        return crowded ? 0 : fullReserve;
     }
 
+    // With Send beside the field the reserve eases out as the column rises, so the trailing buttons follow it. The
+    // toolbar scales the reserve as it applies it, so Glass's capsule gap eases out with the rest.
     private void applyReserve(boolean following) {
+        final int full = restReserve();
+        final float share = besideSetting ? 1f - progress : 1f;
         if (following) {
-            toolbar.setSendReserveFollowing(reserveAt(progress));
+            toolbar.setSendReserveFollowing(full, share);
         } else {
-            toolbar.setSendReserve(reserveAt(progress));
+            toolbar.setSendReserve(full, share);
         }
     }
 
@@ -470,7 +470,7 @@ public final class ComposerInlineRest {
     private boolean fits(View field) {
         final View row = field.getParent() instanceof View ? (View) field.getParent() : null;
         final int leading = toolbar.leadingExtent();
-        final int trailing = toolbar.trailingExtent(reserveAt(0f));
+        final int trailing = toolbar.trailingExtent(restReserve());
         if (row == null || row.getWidth() <= 0 || leading < 0 || trailing < 0) {
             return true;
         }

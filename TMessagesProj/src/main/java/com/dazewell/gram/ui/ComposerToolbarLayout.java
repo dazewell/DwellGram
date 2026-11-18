@@ -480,15 +480,24 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     /** Keeps the send column, which sits at this row's end under the inline-rest composer, clear of the trailing zone. */
     public void setSendReserve(int px) {
-        controls.setSendReserve(px, false);
+        controls.setSendReserve(px, 1f, false);
     }
 
     /**
-     * The same, for a reserve the caller moves a step per frame (#composer-send-inline: send leaving the row as the field
-     * opens). The trailing zone follows it at once rather than being held and eased like a slot change.
+     * The same with only {@code share} of it applied (#composer-send-inline: send leaving the row as the field opens).
+     * The share scales the reserve as applied, Glass's capsule gap included, so the gap eases out with it instead of
+     * dropping on the last frame.
      */
-    public void setSendReserveFollowing(int px) {
-        controls.setSendReserve(px, true);
+    public void setSendReserve(int px, float share) {
+        controls.setSendReserve(px, share, false);
+    }
+
+    /**
+     * The same, for a share the caller moves a step per frame. The trailing zone follows it at once rather than being
+     * held and eased like a slot change.
+     */
+    public void setSendReserveFollowing(int px, float share) {
+        controls.setSendReserve(px, share, true);
     }
 
     public void setMiddleAlpha(float alpha) {
@@ -1093,8 +1102,8 @@ public final class ComposerToolbarLayout extends FrameLayout {
         }
 
         // The reserve rides the end padding, which onMeasure and onLayout already take the slots' room from.
-        void setSendReserve(int px, boolean following) {
-            px = appliedSendReserve(px);
+        void setSendReserve(int px, float share, boolean following) {
+            px = Math.round(appliedSendReserve(px) * Math.max(0f, Math.min(1f, share)));
             if (sendReservePx == px) {
                 return;
             }
