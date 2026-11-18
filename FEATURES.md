@@ -466,6 +466,8 @@ Long-press most settings in N-Settings and choose *Pin to Settings* to put a sho
 
 ### Delete a downloaded emoji set <!-- #emoji-pack-delete -->
 
+Long-press a downloaded set under N-Settings → Chat → Emoji sets to delete it from the device, then tap the row to download a fresh copy. Deleting the set in use switches back to the default emoji. Always available.
+
 ## Updates
 
 ### Self-update from staging builds <!-- #self-update --> <!-- #update-interval -->
