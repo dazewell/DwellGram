@@ -507,6 +507,12 @@ The field's open edge keys off the setting, not the fold state (`ComposerInlineR
 `ComposerMd3Surface.java:742`), so it does not jump at the flip. The measurements the enter view, the fold, the
 surface and the layout editor's preview share (field row, send inset, row gap, text inset, the field's bottom over
 the tools row) live in `ComposerGeometry` (`ComposerGeometry.java:27`).
+Trap: the column's published width reads 0 whenever every column control is below half alpha or scale
+(`InputSatellites.java:129`), and it republishes only from the enter view's `dispatchDraw` (`ChatActivityEnterView.java:18425`)
+or `refreshComposerPrimaryOffset` (`:19488`), so a control coming back by scale or alpha alone can leave it stuck at 0.
+After the mic's camera menu that painted the field and reply strip under the mic, so `getComposerPrimaryEndInset`
+floors it at the column's resting width while the tools row is shown (`:19466`); fixed on device, the dipping control
+itself was not traced.
 *(Established 2026-11-17, `#composer-send-inline`.)*
 
 ## MD3 resting field grows to the send disc; the disc's inset never animates
