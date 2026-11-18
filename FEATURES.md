@@ -464,6 +464,8 @@ Another bulletin that appears while the Stash bar or the scheduling countdown is
 
 Long-press most settings in N-Settings and choose *Pin to Settings* to put a shortcut to one on the main Settings screen, under N-Settings. Tap it to jump to the setting, long-press to unpin; tap the *Pinned settings* header to fold the list. Up to eight pins, and nothing shows until you pin one.
 
+### Delete a downloaded emoji set <!-- #emoji-pack-delete -->
+
 ## Updates
 
 ### Self-update from staging builds <!-- #self-update --> <!-- #update-interval -->

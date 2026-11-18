@@ -737,6 +737,35 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
         }
     }
 
+    // NagramX: removes a downloaded catalog pack so a broken one can be fetched again. The copy in
+    // the media cache goes too, or downloadPack would reinstall that same file straight from disk.
+    // Runs on globalQueue because that is the only thread Emoji.loadEmoji reads typefaceCache on.
+    public void deleteDownloadedPack(EmojiPackInfo pack, Runnable onDone) {
+        org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+            String prefix = pack.getPackId() + "_v";
+            for (File dir : getAllEmojis()) {
+                if (dir.getName().startsWith(prefix)) {
+                    deleteFolder(dir);
+                }
+            }
+            File cached = pack.getFileDocument() != null ? FileLoader.getInstance(currentAccount).getPathToAttach(pack.getFileDocument()) : null;
+            if (cached != null) {
+                cached.delete();
+            }
+            typefaceCache.remove(pack.getPackId());
+            if (pack.getPackId().equals(emojiPack)) {
+                setEmojiPack("default", false);
+            }
+            AndroidUtilities.runOnUIThread(() -> {
+                if (cached != null) {
+                    pack.fileLocation = cached.getAbsolutePath();
+                }
+                reloadEmoji();
+                onDone.run();
+            });
+        });
+    }
+
     @Override
     protected void onError(String text, Delegate delegate) {
         delegate.onTLResponse(null, text);

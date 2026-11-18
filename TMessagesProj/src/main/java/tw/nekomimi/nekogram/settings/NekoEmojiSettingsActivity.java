@@ -119,6 +119,25 @@ public class NekoEmojiSettingsActivity extends BaseNekoSettingsActivity implemen
             listAdapter.toggleSelected(position);
             return true;
         }
+        // NagramX: a downloaded pack can go bad on disk while still counting as installed, and
+        // nothing downloads it again. Deleting it lets a tap on the row fetch a fresh copy.
+        if (position >= emojiPacksStartRow && position < emojiPacksEndRow && !listAdapter.hasSelected()) {
+            EmojiHelper.EmojiPackInfo pack = (EmojiHelper.EmojiPackInfo) ((EmojiSetCell) view).getPack();
+            if (EmojiHelper.getInstance().isPackDownloaded(pack) && !EmojiHelper.getInstance().isEmojiPackDownloading(pack)) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+                builder.setTitle(LocaleController.formatString(R.string.DeleteStickerSetsAlertTitle, pack.getPackName()));
+                builder.setMessage(getString(R.string.EmojiSetDeleteDownloadedInfo));
+                builder.setPositiveButton(getString(R.string.Delete), (d, w) -> EmojiHelper.getInstance().deleteDownloadedPack(pack, () -> {
+                    listAdapter.notifyEmojiSetsChanged();
+                    listAdapter.notifyItemChanged(useSystemEmojiRow, PARTIAL);
+                }));
+                builder.setNegativeButton(getString(R.string.Cancel), null);
+                AlertDialog dialog = builder.create();
+                showDialog(dialog);
+                dialog.redPositive();
+                return true;
+            }
+        }
         return super.onItemLongClick(view, position, x, y);
     }
 
