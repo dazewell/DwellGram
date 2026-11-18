@@ -131,7 +131,7 @@ public class NekoEmojiSettingsActivity extends BaseNekoSettingsActivity implemen
                     // A tap on the row before the delete finishes would race it with a download.
                     AlertDialog progressDialog = new AlertDialog(getParentActivity(), 3);
                     progressDialog.setCanCancel(false);
-                    progressDialog.showDelayed(300);
+                    progressDialog.show();
                     EmojiHelper.getInstance().deleteDownloadedPack(pack, () -> {
                         progressDialog.dismiss();
                         listAdapter.notifyEmojiSetsChanged();
