@@ -3183,8 +3183,8 @@ In toolbar mode the Scheduled button's `setTranslationX` override draws at 0 but
 offset, which `getTranslationX()` returns (`ChatActivityEnterView.java:4134`). The Glass bubble spans read that
 getter (`ComposerToolbarLayout.java:1983`), so every stock write meant for the old floating layout dented the
 trailing panel while the icon stayed put: the Quick Schedule slide as Send appears (`ChatActivityEnterView.java:10825`, reached only with
-Use Input Menu off), the slow-mode branch (`:10745`) and the record transition (`:11963`). The override now
+Use Input Menu off), the instant send-shown branch (`:11026`), the slow-mode branch (`:10745`) and the record transition (`:11963`). The override now
 stores 0 in toolbar mode too (`:4143`), so those call sites stay stock. Spaces never showed it, since
 whitespace does not swap mic for Send.
 
-*(Established 2026-11-17, `#glass-composer-fold-fix`. Code-read; no device trace.)*
+*(Established 2026-11-17, `#glass-composer-fold-fix`. Code-read; no device trace. The fix was confirmed visually on device with Use Input Menu off.)*
