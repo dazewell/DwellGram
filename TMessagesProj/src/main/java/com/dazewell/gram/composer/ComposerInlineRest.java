@@ -129,8 +129,7 @@ public final class ComposerInlineRest {
         // Open, the pill is the field's row alone; with the send column beside it, it stops a gap short of the column
         // as the MD3 field does, weighed by the composer's fade like the rest ease below so search's bar never pops.
         boolean moved = false;
-        final int inset = rest.fieldStopsAtColumn() ? enterView.getComposerPrimaryEndInset() : 0;
-        final int column = inset > 0 ? inset + rest.columnGrowthPx(rest.columnSizeDp) : 0;
+        final int column = rest.fieldStopsAtColumn() ? enterView.getComposerPrimaryEndInset() : 0;
         if (column > 0) {
             if (LocaleController.isRTL) {
                 open[0] = Math.round(open[0] + Math.max(0, enterView.getLeft() + column + gap - open[0]) * shown);
@@ -215,45 +214,51 @@ public final class ComposerInlineRest {
         return morphing && besideSetting ? columnDelta * remaining : 0;
     }
 
-    /**
-     * How large the send column is drawn, of its laid-out size. Beside the field it is drawn at the field row's height,
-     * so the disc matches the pill next to it: a Glass column sized to the tool buttons is shorter than the row below
-     * 100% and would stand past the composer's top above it. With Send set beside the field it eases there as the
-     * field opens, on the fold's own progress; in the tools row it keeps the buttons' size.
+    /*
+     * The send column is laid out at the tool buttons' size (Glass) or 44dp (MD3) and never re-laid out by the fold.
+     * Beside the field it is drawn at the field row's height instead, scaled by besideScale and holding its end edge,
+     * so everything that measures the column must read the drawn measures below, never the laid-out size: the open
+     * field's end, the glass pill, the suggestion strip (through the enter view's public end inset), the reply close
+     * control and the Done button. Only the tools row's send reserve keeps the laid-out width, because the column is
+     * at full size whenever it sits in the row.
      */
-    public float columnScale() {
-        if (!toolsRowShown() || columnSizeDp <= 0 || columnSizeDp == ComposerGeometry.FIELD_ROW) {
-            return 1f;
-        }
-        final float beside = crowded ? 1f : besideSetting ? progress : 0f;
-        return 1f - (1f - (float) ComposerGeometry.FIELD_ROW / columnSizeDp) * beside;
+
+    // The scale a column columnDp tall is drawn at while the field stops at it; 1 elsewhere and whenever it already
+    // matches the row, which is always under MD3. A recording or review panel owning the row draws it full size.
+    private float besideScale(int columnDp) {
+        return fieldStopsAtColumn() && columnDp > 0 && columnDp != ComposerGeometry.FIELD_ROW
+                ? (float) ComposerGeometry.FIELD_ROW / columnDp : 1f;
     }
 
     /**
-     * How far the send column is drawn along the row while {@link #columnScale()} grows it, in px: the column scales
-     * about its own square, so this holds its end edge where the tools row's capsules end and it grows into the field.
+     * How large the send column is drawn, of its laid-out size: {@link #besideScale} beside the field, eased there
+     * with Send set beside it on the fold's own progress, and full size in the tools row.
+     */
+    public float columnScale() {
+        final float beside = crowded ? 1f : besideSetting ? progress : 0f;
+        return toolsRowShown() ? 1f - (1f - besideScale(columnSizeDp)) * beside : 1f;
+    }
+
+    /**
+     * How far the send column is drawn along the row, in px, so that scaling about its own square keeps its end edge
+     * on the tools row's end, where the capsules below it end.
      */
     public float columnOffsetX() {
-        final float scale = columnScale();
-        if (scale <= 1f) {
-            return 0;
-        }
-        final float x = (scale - 1f) * dp(columnSizeDp) / 2f;
+        final float x = (columnScale() - 1f) * dp(columnSizeDp) / 2f;
         return LocaleController.isRTL ? x : -x;
     }
 
-    /**
-     * The width the send column's disc is drawn at, from its end edge, while the field stops at it: the field row's
-     * height when the column is laid out shorter than that, as {@link #columnOffsetX()} draws it, else its own.
-     */
-    public int drawnColumnDp(int columnDp) {
-        return fieldStopsAtColumn() ? Math.max(columnDp, ComposerGeometry.FIELD_ROW) : columnDp;
+    /** The column's drawn width from the row's end, in px, for a laid-out end inset of {@code laidOutPx}. */
+    public int drawnEndInset(int laidOutPx) {
+        return toolsRowShown() ? Math.round(laidOutPx * besideScale(columnSizeDp)) : laidOutPx;
     }
 
-    // How much wider than its laid-out slot a column columnDp tall is drawn beside the field, in px, which the open
-    // field and the glass pill stop short of as well as the slot.
-    private int columnGrowthPx(int columnDp) {
-        return columnDp > 0 && columnDp < ComposerGeometry.FIELD_ROW ? dp(ComposerGeometry.FIELD_ROW) - dp(columnDp) : 0;
+    /**
+     * The drawn size of a column laid out {@code columnDp} square, in dp. Takes the size rather than reading the last
+     * layout's, so it holds before the first one.
+     */
+    public int drawnColumnDp(int columnDp) {
+        return Math.round(columnDp * besideScale(columnDp));
     }
 
     /** 1 with two rows, 0 with one, eased between them while the island morphs. */
@@ -412,7 +417,7 @@ public final class ComposerInlineRest {
         // Under Liquid Glass the pill's painted edge sits a capsule gap past the zone, so the text is inset from that.
         final int restInset = toolbar.hasGlassCapsules() ? toolbar.bubbleGapPx() + dp(GLASS_TEXT_INSET) : dp(TEXT_INSET);
         final int start = rest && restFieldStart() > 0 ? restFieldStart() + restInset : openStart;
-        final int end = rest ? restFieldEnd() + restInset : fieldStopsAtColumn() ? sendReserve + columnGrowthPx(columnDp) + openStart : openStart;
+        final int end = rest ? restFieldEnd() + restInset : fieldStopsAtColumn() ? drawnEndInset(sendReserve) + openStart : openStart;
         final int bottom = rest ? restBottom(field) : openBottom;
         final int column = columnBottomDp(columnDp);
         if (flipped) {
