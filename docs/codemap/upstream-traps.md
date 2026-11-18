@@ -3176,3 +3176,16 @@ constructor (`EditTextCaption.java:131`). Keep it there: it must run before the
 subclass watchers.
 
 *(Established 2026-11-15, `#emoji-pack-typing-fix`.)*
+
+## The composer toolbar owns the Scheduled button's translationX
+
+In the toolbar the Scheduled button is a configurable trailing cell, and the Glass trailing bubble
+follows each cell's drawn left edge, `getLeft() + translationX` (`ComposerToolbarLayout.java:1979`).
+Stock checkSendButton still slides that button by a slot width for the old floating layout. The Quick
+Schedule Button branch did it as Send appeared (`ChatActivityEnterView.java:10824`), so the trailing
+panel shrank for 100ms until `reconcileScheduleButton` put it back to 0 in toolbar mode (`:11619`).
+Spaces alone never showed it, since whitespace does not swap mic for Send. Any new
+`animateScheduledTranslationX` or `setTranslationX` on it needs the same `composerToolbarEnabled` test.
+Confirmed visually only, no device trace.
+
+*(Established 2026-11-17, `#glass-composer-fold-fix`.)*
