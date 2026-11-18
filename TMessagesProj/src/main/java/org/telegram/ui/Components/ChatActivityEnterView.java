@@ -4476,13 +4476,18 @@ public class ChatActivityEnterView extends FrameLayout implements
                 composerPrimarySize(), Gravity.BOTTOM | endGravity, 0, 0, 0, getPrimaryColumnBottomMargin());
     }
 
-    // NagramX (#composer-send-inline): the reply/edit panel's close control is a square of the send column's size at
-    // the panel's right edge, centred in its 48dp row, so under Glass its disc (InputSatellites pads a square into a
-    // circle) shares the send disc's centre line at any panel scale. The panel stays right-anchored in RTL, as upstream.
+    // NagramX (#composer-send-inline): the reply/edit panel's close control is a square centred on the send column's
+    // centre line, in its 48dp row, so under Glass its disc (InputSatellites pads a square into a circle) lines up
+    // with the send disc at any panel scale. It stays inside the 48dp the edit and suggestion controls leave it
+    // (ChatActivity's end margins), so a column wider than that shrinks the square rather than overlapping them.
+    // The panel stays right-anchored in RTL, as upstream.
     public FrameLayout.LayoutParams createTopCloseLayoutParams() {
-        final int size = composerPrimarySize();
-        return LayoutHelper.createFrame(size, size, Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        final int column = composerPrimarySize();
+        final int size = Math.min(column, 2 * TOP_CLOSE_RESERVE - column);
+        return LayoutHelper.createFrame(size, size, Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0, (column - size) / 2f, 0);
     }
+
+    private static final int TOP_CLOSE_RESERVE = 48;
 
     // NagramX (#composer-toolbar): the primary column rides above the toolbar, except while a record or review
     // panel owns the row: there is no toolbar under it then, so it drops to the bottom.

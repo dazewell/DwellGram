@@ -494,7 +494,7 @@ crowded for the send circle's capsule, which then sits above the toolbar beside 
 *(Established 2026-10-29, `#glass-composer-fold`.)*
 
 Where the send column sits is decided once, by `ComposerInlineRest.columnBottomDp` (`ComposerInlineRest.java:204`):
-the enter view lays the column out with it (`ChatActivityEnterView.java:4493`) and the MD3 surface aims its touch
+the enter view lays the column out with it (`ChatActivityEnterView.java:4498`) and the MD3 surface aims its touch
 slot by it (`ComposerMd3Surface.java:728`). It answers "beside the field" while a glass row is crowded or, with
 *Send button* → Beside the field (`InterfaceStyleController.java:61`), while the composer is not folded
 (`ComposerInlineRest.java:188`). At rest that mode folds exactly like the default; opening moves the column's margin
@@ -507,14 +507,14 @@ The field's open edge keys off the setting, not the fold state (`ComposerInlineR
 `ComposerMd3Surface.java:742`), so it does not jump at the flip; the open Glass pill stops a capsule gap short of the
 column by the same test (`ComposerInlineRest.java:128`). The measurements the enter view, the fold, the
 surface and the layout editor's preview share (field row, send inset, row gap, text inset, the field's bottom over
-the tools row) live in `ComposerGeometry` (`ComposerGeometry.java:27`). The reply/edit panel's close control is a square
-of the column's size at the panel's right edge, centred in its 48dp row (`ChatActivityEnterView.java:4482`, used at
+the tools row) live in `ComposerGeometry` (`ComposerGeometry.java:27`). The reply/edit panel's close control is a square on
+the column's centre line, capped to the 48dp the edit controls leave it (`ChatActivityEnterView.java:4484`, used at
 `ChatActivity.java:9250`), so under Glass its disc stays on the send disc's centre line at any scale.
 Trap: the column's published width reads 0 whenever every column control is below half alpha or scale
-(`InputSatellites.java:129`), and it republishes only from the enter view's `dispatchDraw` (`ChatActivityEnterView.java:18433`)
-or `refreshComposerPrimaryOffset` (`:19496`), so a control coming back by scale or alpha alone can leave it stuck at 0.
+(`InputSatellites.java:129`), and it republishes only from the enter view's `dispatchDraw` (`ChatActivityEnterView.java:18438`)
+or `refreshComposerPrimaryOffset` (`:19501`), so a control coming back by scale or alpha alone can leave it stuck at 0.
 After the mic's camera menu that painted the field and reply strip under the mic, so `getComposerPrimaryEndInset`
-floors it at the column's resting width while the tools row is shown (`:19474`); fixed on device, the dipping control
+floors it at the column's resting width while the tools row is shown (`:19479`); fixed on device, the dipping control
 itself was not traced.
 *(Established 2026-11-17, `#composer-send-inline`.)*
 

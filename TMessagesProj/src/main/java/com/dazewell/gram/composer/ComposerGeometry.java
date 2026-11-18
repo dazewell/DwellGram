@@ -28,8 +28,11 @@ public final class ComposerGeometry {
         return ComposerToolbarLayout.height() + ROW_GAP;
     }
 
-    /** The send column's bottom margin while it sits beside the field, centred on the field row's single line. */
+    /**
+     * The send column's bottom margin while it sits beside the field, centred on the field row's single line. A column
+     * taller than the row (Glass above 100%) hangs evenly over both of its edges rather than sitting high.
+     */
     public static int fieldRowColumnBottomDp(int columnDp) {
-        return fieldBottomDp() + Math.max(0, (FIELD_ROW - columnDp) / 2);
+        return Math.max(0, fieldBottomDp() + (FIELD_ROW - columnDp) / 2);
     }
 }
