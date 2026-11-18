@@ -123,14 +123,14 @@ public final class ComposerInlineRest {
         // clear between the capsule and the pill.
         final int gap = rest.toolbar.bubbleGapPx() - pad;
         // Open, the pill is the field's row alone; with the send column beside it, it stops a gap short of the column
-        // as the MD3 field does, rather than running on under the circle.
+        // as the MD3 field does, weighed by the composer's fade like the rest ease below so search's bar never pops.
         boolean moved = false;
         final int column = rest.fieldStopsAtColumn() ? enterView.getComposerPrimaryEndInset() : 0;
         if (column > 0) {
             if (LocaleController.isRTL) {
-                open[0] = Math.max(open[0], enterView.getLeft() + column + gap);
+                open[0] = Math.round(open[0] + Math.max(0, enterView.getLeft() + column + gap - open[0]) * shown);
             } else {
-                open[1] = Math.min(open[1], enterView.getRight() - column - gap);
+                open[1] = Math.round(open[1] - Math.max(0, open[1] - (enterView.getRight() - column - gap)) * shown);
             }
             moved = true;
         }
@@ -149,7 +149,7 @@ public final class ComposerInlineRest {
             restRight = enterView.getRight() - restEnd - gap;
         }
         if (restRight - restLeft <= 2 * pad) {
-            return false;
+            return moved;
         }
         open[0] = Math.round(restLeft + (open[0] - restLeft) * t);
         open[1] = Math.round(restRight + (open[1] - restRight) * t);
