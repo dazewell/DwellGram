@@ -4138,6 +4138,9 @@ public class ChatActivityEnterView extends FrameLayout implements
             public void setTranslationX(float translationX) {
                 innerTranslationX = translationX;
                 if (composerToolbarEnabled) {
+                    // NagramX (#glass-composer-fold-fix): the toolbar's Glass bubble reads getTranslationX(), so a stored
+                    // offset the row never draws dented the trailing panel while Send came in.
+                    innerTranslationX = 0;
                     super.setTranslationX(0);
                     return;
                 }
