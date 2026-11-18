@@ -1596,6 +1596,8 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     spannableStringBuilder.setSpan(new ForegroundColorSpanThemable(Theme.key_chats_name, resourcesProvider), 0, Math.min(spannableStringBuilder.length(), messageNameString.length() + 1), 0);
                     buttonString = spannableStringBuilder;
                 }
+                // NagramX: service text such as a pinned quote keeps its newlines and wrapped this one-line row over the tags; copy first, it can be the chat's own messageText.
+                buttonString = AndroidUtilities.replaceNewLines(new SpannableStringBuilder(buttonString));
                 currentMessagePaint = Theme.dialogs_messagePaint[paintIndex];
             } else if (!TextUtils.isEmpty(customMessage)) {
                 draftMessage = null;
