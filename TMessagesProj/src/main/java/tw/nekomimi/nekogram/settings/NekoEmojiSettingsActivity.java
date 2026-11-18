@@ -127,10 +127,17 @@ public class NekoEmojiSettingsActivity extends BaseNekoSettingsActivity implemen
                 AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                 builder.setTitle(LocaleController.formatString(R.string.DeleteStickerSetsAlertTitle, pack.getPackName()));
                 builder.setMessage(getString(R.string.EmojiSetDeleteDownloadedInfo));
-                builder.setPositiveButton(getString(R.string.Delete), (d, w) -> EmojiHelper.getInstance().deleteDownloadedPack(pack, () -> {
-                    listAdapter.notifyEmojiSetsChanged();
-                    listAdapter.notifyItemChanged(useSystemEmojiRow, PARTIAL);
-                }));
+                builder.setPositiveButton(getString(R.string.Delete), (d, w) -> {
+                    // A tap on the row before the delete finishes would race it with a download.
+                    AlertDialog progressDialog = new AlertDialog(getParentActivity(), 3);
+                    progressDialog.setCanCancel(false);
+                    progressDialog.showDelayed(300);
+                    EmojiHelper.getInstance().deleteDownloadedPack(pack, () -> {
+                        progressDialog.dismiss();
+                        listAdapter.notifyEmojiSetsChanged();
+                        listAdapter.notifyItemChanged(useSystemEmojiRow, PARTIAL);
+                    });
+                });
                 builder.setNegativeButton(getString(R.string.Cancel), null);
                 AlertDialog dialog = builder.create();
                 showDialog(dialog);
