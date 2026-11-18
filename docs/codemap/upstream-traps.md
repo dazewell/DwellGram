@@ -3177,13 +3177,25 @@ subclass watchers.
 
 *(Established 2026-11-15, `#emoji-pack-typing-fix`.)*
 
+## The Scheduled button reports a translationX it never draws
+
+In toolbar mode the Scheduled button's `setTranslationX` override draws at 0 but used to keep the requested
+offset, which `getTranslationX()` returns (`ChatActivityEnterView.java:4134`). The Glass bubble spans read that
+getter (`ComposerToolbarLayout.java:1983`), so every stock write meant for the old floating layout dented the
+trailing panel while the icon stayed put: the Quick Schedule slide as Send appears (`ChatActivityEnterView.java:10827`, reached only with
+Use Input Menu off), the instant send-shown branch (`:11028`), the slow-mode branch (`:10747`) and the record transition (`:11965`). The override now
+stores 0 in toolbar mode too (`:4143`), so those call sites stay stock. Spaces never showed it, since
+whitespace does not swap mic for Send.
+
+*(Established 2026-11-17, `#glass-composer-fold-fix`. Code-read; no device trace. The fix was confirmed visually on device with Use Input Menu off.)*
+
 ## The attach button's first return fades from the menu glyph
 
 `checkAttachButton(false, 150)` crossfades the paperclip in from `ic_ab_other`, and skips itself only once
-the button's tag records the plain-attach state (`ChatActivityEnterView.java:9384`). The button is built
+the button's tag records the plain-attach state (`ChatActivityEnterView.java:9387`). The button is built
 untagged, already showing the paperclip. Stock hides that crossfade under the attach fade-in. The toolbar's
-pinned paperclip never fades, and `pinAttachButton` only re-tags it from the menu state (`:9365`). So the
-first Send-to-mic return in a chat (`:11324`) drew the "⋯" glyph over a visible paperclip for 150ms. Later
-erases were silent once the tag was set. An untagged button now swaps without the fade in toolbar mode (`:9437`).
+pinned paperclip never fades, and `pinAttachButton` only re-tags it from the menu state (`:9368`). So the
+first Send-to-mic return in a chat (`:11327`) drew the "⋯" glyph over a visible paperclip for 150ms. Later
+erases were silent once the tag was set. An untagged button now swaps without the fade in toolbar mode (`:9440`).
 
 *(Established 2026-11-17, `#glass-attach-flash-fix`. Code-read; no device trace. The fix was confirmed visually on device.)*
