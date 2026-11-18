@@ -23,7 +23,8 @@ import me.vkryl.android.animator.FactorAnimator;
  * between the leading and trailing zones, so the island, or the docked panel, is one row. Under Liquid Glass the pill
  * narrows into the gap between the tool capsules instead of covering them. Opening the keyboard grows
  * it back to two rows, the field rising out of the row while the buttons stay put. The send column sits at the end
- * of the tools row in both states, so it never moves either.
+ * of the tools row in both states, so it never moves either; with Send beside the field (#composer-send-inline) it rises
+ * with the field instead, and the trailing buttons slide out into the end of the row it leaves.
  * <p>
  * Nothing here runs a clock of its own. The flip changes the field's margins, the enter view's height animation
  * eases the island to its new height, and every offset below is that animation's remaining share, so the field,
@@ -42,16 +43,36 @@ public final class ComposerInlineRest {
     private static final long FOLD_DURATION = 450;
     // A morph whose height never animated (nothing to animate between) still has to let go of its offsets.
     private static final long MORPH_TIMEOUT = FOLD_DURATION + 150;
-    // The send disc's keyboard-open diameter (DEFAULT_HEIGHT less ChatActivityEnterView.COMPOSER_PRIMARY_INSET each
-    // side). The resting field grows to it, so the disc keeps its size and the row reads as one height.
-    private static final int MD3_REST_HEIGHT = ChatActivityEnterView.DEFAULT_HEIGHT - 2 * 3;
+    // The send disc's keyboard-open diameter, its slot less its inset each side. The resting field grows to it, so the
+    // disc keeps its size and the row reads as one height.
+    private static final int MD3_REST_HEIGHT = ComposerGeometry.FIELD_ROW - 2 * ComposerGeometry.SEND_INSET;
+
+    /**
+     * Moves the send column by {@code dy} px from where it is laid out, 0 putting it back, and draws it at
+     * {@code scale} of its laid-out size about its own square.
+     */
+    public interface ColumnMover {
+        void moveColumn(float dy, float scale);
+    }
 
     private final ComposerToolbarLayout toolbar;
+    @Nullable
+    private final ColumnMover columnMover;
+    // The setting, read once: changing it rebuilds every chat's views on leaving the layout editor.
+    private final boolean besideSetting = InterfaceStyleController.sendBesideField();
     private boolean compact;
     private boolean held;
     private boolean morphing;
     private boolean pendingFinish;
-    private boolean overflow;
+    // A glass tools row too narrow for the send capsule: send sits beside the field and the composer never folds.
+    private boolean crowded;
+    // The send column's width as last published, which the tools row keeps clear while the column sits in it.
+    private int fullReserve;
+    // The column margin last handed to the enter view, in dp; -1 until the first layoutField.
+    private int columnBottomDp = -1;
+    private int columnSizeDp;
+    // The column's laid-out move at the running flip, in px; drawn back by its remaining share, like the field's.
+    private float columnDelta;
     private int foldId;
     private boolean awaitingTarget;
     private float staleTarget;
@@ -65,8 +86,9 @@ public final class ComposerInlineRest {
     private View morphView;
     private final Runnable morphTimeout = this::finishMorph;
 
-    private ComposerInlineRest(ComposerToolbarLayout toolbar, Runnable onGeometryChanged) {
+    private ComposerInlineRest(ComposerToolbarLayout toolbar, Runnable onGeometryChanged, @Nullable ColumnMover columnMover) {
         this.toolbar = toolbar;
+        this.columnMover = columnMover;
         toolbar.setOnRestGeometryChanged(onGeometryChanged);
     }
 
@@ -75,22 +97,24 @@ public final class ComposerInlineRest {
      * a chat keep their layout. The docked panel's top follows the island's, so it folds with it while its bottom stays put.
      */
     @Nullable
-    public static ComposerInlineRest createIfEnabled(@Nullable ComposerToolbarLayout toolbar, boolean inChat, Runnable onGeometryChanged) {
+    public static ComposerInlineRest createIfEnabled(@Nullable ComposerToolbarLayout toolbar, boolean inChat, Runnable onGeometryChanged,
+                                                     @Nullable ColumnMover columnMover) {
         if (toolbar == null || !inChat) {
             return null;
         }
-        return new ComposerInlineRest(toolbar, onGeometryChanged);
+        return new ComposerInlineRest(toolbar, onGeometryChanged, columnMover);
     }
 
     /**
      * The Liquid Glass pill's bounds for this frame, in container's coordinates. open holds the drawable's left, right,
      * top and bottom as laid out, and pad its padding; all four are rewritten, eased from the gap between the tool
-     * capsules, at their height, at rest to open. False, with open untouched, while the composer is open or hidden, or
-     * a panel holds the tools row.
+     * capsules, at their height, at rest to open. Open, only the end moves, and only while the send column sits beside
+     * the field. False, with open untouched, while the composer is hidden or a panel holds the tools row, or it is
+     * open with nothing to move.
      */
     public static boolean glassPillEdges(@Nullable ChatActivityEnterView enterView, View container, int pad, int[] open) {
         final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
-        if (rest == null || !rest.toolsRowShown() || rest.progress >= 1f || rest.overflow) {
+        if (rest == null || !rest.toolsRowShown()) {
             return false;
         }
         // In-chat search hides the composer but draws its bar on this same drawable, so the fold only shows as much
@@ -99,10 +123,25 @@ public final class ComposerInlineRest {
         if (shown <= 0f) {
             return false;
         }
-        final float t = 1f - (1f - rest.progress) * shown;
         // Each capsule paints half the reserved gap past its zone, so a full gap from the zone leaves the other half
         // clear between the capsule and the pill.
         final int gap = rest.toolbar.bubbleGapPx() - pad;
+        // Open, the pill is the field's row alone; with the send column beside it, it stops a gap short of the column
+        // as the MD3 field does, weighed by the composer's fade like the rest ease below so search's bar never pops.
+        boolean moved = false;
+        final int column = rest.fieldStopsAtColumn() ? enterView.getComposerPrimaryEndInset() : 0;
+        if (column > 0) {
+            if (LocaleController.isRTL) {
+                open[0] = Math.round(open[0] + Math.max(0, enterView.getLeft() + column + gap - open[0]) * shown);
+            } else {
+                open[1] = Math.round(open[1] - Math.max(0, open[1] - (enterView.getRight() - column - gap)) * shown);
+            }
+            moved = true;
+        }
+        if (rest.progress >= 1f || rest.crowded) {
+            return moved;
+        }
+        final float t = 1f - (1f - rest.progress) * shown;
         final int restStart = rest.restFieldStart();
         final int restEnd = rest.restFieldEnd();
         final int restLeft, restRight;
@@ -114,7 +153,7 @@ public final class ComposerInlineRest {
             restRight = enterView.getRight() - restEnd - gap;
         }
         if (restRight - restLeft <= 2 * pad) {
-            return false;
+            return moved;
         }
         open[0] = Math.round(restLeft + (open[0] - restLeft) * t);
         open[1] = Math.round(restRight + (open[1] - restRight) * t);
@@ -146,9 +185,46 @@ public final class ComposerInlineRest {
         return compact;
     }
 
-    /** True while the glass tools row has no room for the send circle, which then sits beside the open field instead. */
-    public boolean isOverflow() {
-        return overflow;
+    /**
+     * True while the send column sits beside the open field rather than at the tools row's end: always while a glass row
+     * has no room for its capsule, and with Send beside the field set, whenever the composer is not folded.
+     */
+    public boolean sendBesideField() {
+        return crowded || besideSetting && !compact;
+    }
+
+    /**
+     * True when the open field stops short of the send column rather than running the whole row. Unlike
+     * {@link #sendBesideField()} it holds through a fold, so the field's open edge never jumps at the flip.
+     */
+    public boolean fieldStopsAtColumn() {
+        return crowded || besideSetting;
+    }
+
+    /**
+     * The send column's bottom margin, in dp, for a column {@code columnDp} tall: centred on the field row beside it, or
+     * on the tools row it sits in. The enter view lays the column out with it and the MD3 surface aims its slot by it.
+     */
+    public int columnBottomDp(int columnDp) {
+        return sendBesideField() ? ComposerGeometry.fieldRowColumnBottomDp(columnDp) : Math.max(0, (toolbar.rowHeightDp() - columnDp) / 2);
+    }
+
+    /** How far the send column is drawn from its laid-out place while a fold carries it, in px. */
+    public float columnOffsetY() {
+        return morphing && besideSetting ? columnDelta * remaining : 0;
+    }
+
+    /**
+     * How large the send column is drawn, of its laid-out size. Beside the field it is never taller than the field row:
+     * a Glass column scaled above 100% would stand past the composer's top and be cut. With Send set beside the field
+     * it eases there as the field opens, on the fold's own progress; in the tools row it keeps the buttons' size.
+     */
+    public float columnScale() {
+        if (!toolsRowShown() || columnSizeDp <= ComposerGeometry.FIELD_ROW) {
+            return 1f;
+        }
+        final float beside = crowded ? 1f : besideSetting ? progress : 0f;
+        return 1f - (1f - (float) ComposerGeometry.FIELD_ROW / columnSizeDp) * beside;
     }
 
     /** 1 with two rows, 0 with one, eased between them while the island morphs. */
@@ -172,12 +248,35 @@ public final class ComposerInlineRest {
 
     /** The field's end edge at rest, in px from the toolbar's end. */
     public int restFieldEnd() {
-        return Math.max(0, toolbar.trailingExtent());
+        return Math.max(0, toolbar.trailingExtent(restReserve()));
     }
 
-    /** The send column's bottom margin, in dp, centring it on the tools row it sits in. */
-    public int primaryColumnBottomDp(int columnHeightDp) {
-        return Math.max(0, (toolbar.rowHeightDp() - columnHeightDp) / 2);
+    // The tools row's send reserve at rest: the column's width, none while a crowded glass row keeps it beside the field.
+    private int restReserve() {
+        return crowded ? 0 : fullReserve;
+    }
+
+    // With Send beside the field the reserve eases out as the column rises, so the trailing buttons follow it. The
+    // toolbar scales the reserve as it applies it, so Glass's capsule gap eases out with the rest.
+    private void applyReserve(boolean following) {
+        final int full = restReserve();
+        final float share = besideSetting ? 1f - progress : 1f;
+        if (following) {
+            toolbar.setSendReserveFollowing(full, share);
+        } else {
+            toolbar.setSendReserve(full, share);
+        }
+    }
+
+    /** Re-applies the column's offset and scale, for the enter view after something else wrote them. */
+    public void refreshColumn() {
+        moveColumn();
+    }
+
+    private void moveColumn() {
+        if (columnMover != null) {
+            columnMover.moveColumn(columnOffsetY(), columnScale());
+        }
     }
 
     public int md3RestHeightPx(@Nullable TextView field) {
@@ -186,7 +285,7 @@ public final class ComposerInlineRest {
 
     public float md3RestFraction(@Nullable TextView field) {
         // Large input text keeps the original surfaces rather than spilling out of a compact field.
-        return InterfaceStyleController.applyComposer() && toolsRowShown() && !overflow && field != null
+        return InterfaceStyleController.applyComposer() && toolsRowShown() && !crowded && field != null
                 && md3RestHeightPx(field) <= dp(MD3_REST_HEIGHT) ? 1f - progress : 0f;
     }
 
@@ -227,20 +326,21 @@ public final class ComposerInlineRest {
 
     /**
      * Decides between one row and two and lays the field out for it. {@code openStart} is the field's start inset
-     * with two rows, which is also its end inset there, since the send column has moved down to the tools row.
-     * {@code openBottom} is its bottom margin with two rows, the tools row's height plus its gap. Returns true when
-     * {@link #isOverflow()} changed, so the enter view can move the send column.
+     * with two rows, which is also its end inset there unless the send column sits beside the field, when it adds
+     * {@code sendReserve}. {@code openBottom} is its bottom margin with two rows, the tools row's height plus its gap.
+     * {@code columnDp} is the send column's height. Returns true when {@link #columnBottomDp(int)} changed, so the enter
+     * view can move the send column.
      */
     public boolean layoutField(View field, @Nullable View richPreview, boolean wantsRest, int openStart, int sendReserve,
-                               int openBottom, float currentHeight, float currentTarget) {
+                               int openBottom, int columnDp, float currentHeight, float currentTarget) {
         // A glass row too crowded for the send circle's capsule gap keeps two rows, the circle beside the field as
         // before. The slots are measured without the reserve, so dropping it can't flip this back.
         final int fixed = toolbar.fixedSlotsWidth();
-        final boolean over = toolbar.hasGlassCapsules() && sendReserve > 0 && fixed >= 0
+        crowded = toolbar.hasGlassCapsules() && sendReserve > 0 && fixed >= 0
                 && fixed + sendReserve + toolbar.bubbleGapPx() > toolbar.rowWidth();
-        final boolean overflowChanged = over != overflow;
-        overflow = over;
-        toolbar.setSendReserve(over ? 0 : sendReserve);
+        fullReserve = sendReserve;
+        columnSizeDp = columnDp;
+        final boolean over = crowded;
         // While a panel replaces the tools row the field is GONE, so a flip would change no height and only run a
         // phantom morph on the timeout. Hold the fold; the enter view asks again once the row comes back, and that
         // first answer snaps, since the field was never drawn where a morph would start it.
@@ -262,7 +362,7 @@ public final class ComposerInlineRest {
         final boolean rest = shown ? wantsRest && !over && fits(field) && !toolbar.hasMiddleLeading() : compact;
         final ViewGroup.LayoutParams params = field.getLayoutParams();
         boolean flipped = false;
-        float fromStart = 0, fromBottom = 0;
+        float fromStart = 0, fromBottom = 0, fromColumn = 0;
         if (rest != compact) {
             compact = rest;
             toolbar.setRestCompact(rest);
@@ -271,6 +371,9 @@ public final class ComposerInlineRest {
                 final ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;
                 fromStart = margins.getMarginStart() + (morphing ? startDelta * remaining : 0);
                 fromBottom = margins.bottomMargin - (morphing ? bottomDelta * remaining : 0);
+                // The column too, measured up from the bottom like its margin; a margin not yet handed out has no
+                // place to start from, so the column lands without a move.
+                fromColumn = columnBottomDp < 0 ? -1 : dp(columnBottomDp) - columnOffsetY();
                 flipped = true;
             } else {
                 finishMorph();
@@ -280,12 +383,14 @@ public final class ComposerInlineRest {
         // Under Liquid Glass the pill's painted edge sits a capsule gap past the zone, so the text is inset from that.
         final int restInset = toolbar.hasGlassCapsules() ? toolbar.bubbleGapPx() + dp(GLASS_TEXT_INSET) : dp(TEXT_INSET);
         final int start = rest && restFieldStart() > 0 ? restFieldStart() + restInset : openStart;
-        final int end = rest ? restFieldEnd() + restInset : over ? sendReserve + openStart : openStart;
+        final int end = rest ? restFieldEnd() + restInset : fieldStopsAtColumn() ? sendReserve + openStart : openStart;
         final int bottom = rest ? restBottom(field) : openBottom;
+        final int column = columnBottomDp(columnDp);
         if (flipped) {
             foldId++;
             startDelta = fromStart - start;
             bottomDelta = bottom - fromBottom;
+            columnDelta = fromColumn < 0 ? 0 : dp(column) - fromColumn;
             morphFromHeight = currentHeight;
             staleTarget = currentTarget;
             awaitingTarget = true;
@@ -293,6 +398,9 @@ public final class ComposerInlineRest {
             morphing = true;
             remaining = 1f;
             setMorphView(field);
+            // The enter view moves the column to its new margin as soon as this returns, and the height animation may
+            // not tick for a few frames yet, so hold it where it was drawn from now.
+            moveColumn();
         }
         applyMargins(field, start, end, bottom);
         if (richPreview != null) {
@@ -303,7 +411,13 @@ public final class ComposerInlineRest {
             toolbar.setMiddleAlpha(compact ? 0f : 1f);
             toolbar.setRestWeight(1f - progress);
         }
-        return overflowChanged;
+        // Last, once the fold has its progress: a chat that opens folded keeps the column's room in the row.
+        applyReserve(false);
+        // And the column's size, which a crowded flip or a panel taking the row changes without a fold.
+        moveColumn();
+        final boolean columnChanged = column != columnBottomDp;
+        columnBottomDp = column;
+        return columnChanged;
     }
 
     /**
@@ -329,6 +443,8 @@ public final class ComposerInlineRest {
         // The scrolling zone comes back in the second half, once the field has left the row it reappears in.
         toolbar.setMiddleAlpha(compact ? 0f : Math.max(0, (progress - 0.5f) * 2f));
         toolbar.setRestWeight(1f - progress);
+        applyReserve(true);
+        moveColumn();
         if (remaining <= 0) {
             // Not finished yet: this frame's island height still has to go out, and the history pin reads morphing()
             // while it does. settleIfDone() lets go once it has.
@@ -348,10 +464,12 @@ public final class ComposerInlineRest {
         morphing = false;
         pendingFinish = false;
         remaining = 0;
-        startDelta = bottomDelta = 0;
+        startDelta = bottomDelta = columnDelta = 0;
         progress = compact ? 0f : 1f;
         toolbar.setMiddleAlpha(compact ? 0f : 1f);
         toolbar.setRestWeight(1f - progress);
+        applyReserve(true);
+        moveColumn();
         setMorphView(null);
         if (wasMorphing) {
             toolbar.invalidate();
@@ -377,7 +495,7 @@ public final class ComposerInlineRest {
     private boolean fits(View field) {
         final View row = field.getParent() instanceof View ? (View) field.getParent() : null;
         final int leading = toolbar.leadingExtent();
-        final int trailing = toolbar.trailingExtent();
+        final int trailing = toolbar.trailingExtent(restReserve());
         if (row == null || row.getWidth() <= 0 || leading < 0 || trailing < 0) {
             return true;
         }

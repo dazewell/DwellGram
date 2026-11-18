@@ -378,6 +378,10 @@
     <string name="ComposerStyleFloating">Floating</string>
     <string name="ComposerStyleDocked">Docked</string>
     <string name="ComposerStyleInfo">Floating draws the composer as an island over the chat. Docked runs it edge to edge along the bottom, flat on the keyboard.</string>
+    <string name="ComposerSendPlacement">Send button</string>
+    <string name="ComposerSendPlacementRow">In the button row</string>
+    <string name="ComposerSendPlacementField">Beside the field</string>
+    <string name="ComposerSendPlacementInfo">Beside the field moves Send and the mic up next to the message field while you type, leaving the row below to the toolbar buttons.</string>
     <string name="InterfaceStyleApplyBottomNavigation">Bottom navigation</string>
     <string name="InterfaceStyleApplyBottomNavigationInfo">The Chats, Settings, and Profile bar at the bottom of the screen.</string>
     <string name="InterfaceStyleRoundedNavigation">Rounded navigation</string>

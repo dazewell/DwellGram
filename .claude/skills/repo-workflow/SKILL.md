@@ -80,13 +80,8 @@ drop. Whether it is worth it is dazewell's product decision, not yours.
 
 ### 2. Branch
 
-Cut a short-lived branch off `dev`, named `<YYYY-MM-DD>_<short-slug>` — **the
-date prefix is mandatory**; `_` or `-` between date and slug (tooling normalizes
-it), hyphens inside the slug. An undated `require-password` is wrong: fix it
-before the first push. One change per branch. The repo auto-deletes the branch
-at merge, and its range stays recoverable via `refs/pull/<N>/head`.
-
-Topology, the `#tag` every commit carries, sync and the no-force-push rule are
+Cut `<YYYY-MM-DD>_<slug>` off `dev`, one change per branch (naming in
+`AGENTS.md`). Topology, the `#tag` every commit carries, sync and the no-force-push rule are
 normative in `repo-branch-flow`.
 
 ### 3. Implement with minimum footprint
@@ -185,10 +180,17 @@ remove them in their own commit — are in
 This is proportional: a change with no user-visible surface earns none of it.
 ### 4. Compile gate
 
-The command, the machine budgets and the CI fallback are in `AGENTS.md`. Run it
-in the worktree the change lives in, so it compiles the actual branch. Don't
-move on until it is clean, and never claim you compiled something you did not —
-show the command and the tail of its output.
+Parse-check the changed Java first, from the worktree root (~1 s):
+
+```powershell
+& javac '-XDshould-stop.ifError=PARSE' '-XDshould-stop.ifNoError=PARSE' -d "$env:TEMP\parsecheck" @(git diff --name-only --diff-filter=d HEAD -- '*.java')
+```
+
+It catches syntax, not a missing symbol; Kotlin gets nothing. Green ⇒ commit,
+push and apply `build-apk` at once: `ci.yml` takes about as long as a local cold
+compile (~7 min), so it is the gate and the local Gradle run (`AGENTS.md`) is
+optional. A red CI voids that build; fix it in a new commit before asking
+dazewell to install anything.
 
 Gradle daemon and cleanup obligations are normative in
 `repo-process-lifecycle`.

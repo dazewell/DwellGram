@@ -68,7 +68,7 @@ conflict.
 .\gradlew.bat :TMessagesProj:compileDebugJavaWithJavac
 ```
 
-Run it from the repo root of the worktree your branch is in. On `ZenBoo`
+Optional once a parse check is green (`repo-workflow` step 4). On `ZenBoo`
 (JDK 21 + Android SDK installed) budget ~9 min cold, ~15 s after an edit, and
 don't kill a cold run early. One local build at a time on that machine — check
 `.\gradlew.bat --status` and fall back to CI rather than queueing behind a

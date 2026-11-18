@@ -93,6 +93,8 @@ public class ComposerLayoutActivity extends BaseFragment {
     /** The fullscreen-input swipe switch (#fullscreen-input). */
     private static final int TYPE_SWIPE_EXPAND = 10;
     private static final int TYPE_SENSITIVITY = 11;
+    /** Where Send and the mic sit: at the tools row's end, or beside the open field. Both interface styles. */
+    private static final int TYPE_SEND_PLACEMENT = 12;
     /** Sentinel "zones" for the slider groups, so one header/footer lookup serves all of them. */
     private static final int GROUP_SCALE = -1;
     private static final int GROUP_KEYBOARD_GAP = -2;
@@ -100,6 +102,7 @@ public class ComposerLayoutActivity extends BaseFragment {
     private static final int GROUP_STYLE = -4;
     private static final int GROUP_SWIPE_EXPAND = -5;
     private static final int GROUP_SENSITIVITY = -6;
+    private static final int GROUP_SEND_PLACEMENT = -7;
     private static final int TAB_HEIGHT = 44;
     private boolean panelTab;
 
@@ -122,13 +125,7 @@ public class ComposerLayoutActivity extends BaseFragment {
 
     /** Header text plus the breathing room above and below the capsule, in dp. */
     private static final int PREVIEW_HEADER_HEIGHT = 40;
-    private static final int PREVIEW_INPUT_GAP = 2;
-    private static final int PREVIEW_INPUT_HEIGHT = 44;
     private static final int PREVIEW_PADDING = 12;
-    /** Matches ChatActivityEnterView.COMPOSER_PRIMARY_INSET - the real send button's own background inset
-     * inside its DEFAULT_HEIGHT slot, kept in step so the preview's placeholder end-margin lines up with
-     * where the real field actually stops next to it. */
-    private static final int SEND_BUTTON_INSET_DP = 3;
 
     private static final int[] PREVIEW_ZONES = {
             ComposerButtons.ZONE_START,
@@ -151,8 +148,7 @@ public class ComposerLayoutActivity extends BaseFragment {
     /** One height for the pinned preview and the list's matching top margin, so the two cannot
      * drift apart as the scale changes the capsule's size. */
     private static int previewHeight() {
-        return PREVIEW_HEADER_HEIGHT + ComposerToolbarLayout.height() + PREVIEW_INPUT_GAP
-                + PREVIEW_INPUT_HEIGHT + PREVIEW_PADDING;
+        return PREVIEW_HEADER_HEIGHT + ComposerGeometry.fieldBottomDp() + ComposerGeometry.FIELD_ROW + PREVIEW_PADDING;
     }
 
     private static final int reset_id = 1;
@@ -366,6 +362,8 @@ public class ComposerLayoutActivity extends BaseFragment {
                 items.add(new Item(TYPE_STYLE, GROUP_STYLE, null));
                 items.add(new Item(TYPE_INFO, GROUP_STYLE, null));
             }
+            items.add(new Item(TYPE_SEND_PLACEMENT, GROUP_SEND_PLACEMENT, null));
+            items.add(new Item(TYPE_INFO, GROUP_SEND_PLACEMENT, null));
             items.add(new Item(TYPE_SLIDER_HEADER, GROUP_TEXT_SIZE, null));
             items.add(new Item(TYPE_TEXT_SIZE, GROUP_TEXT_SIZE, null));
             items.add(new Item(TYPE_INFO, GROUP_TEXT_SIZE, null));
@@ -556,7 +554,7 @@ public class ComposerLayoutActivity extends BaseFragment {
             // tap-toggle to fire; everything else (headers, footers, placeholders, the scale slider)
             // has no click behaviour, so it can stay disabled as before.
             final int type = baseType(holder.getItemViewType());
-            return type == TYPE_BUTTON || type == TYPE_STYLE || type == TYPE_SWIPE_EXPAND;
+            return type == TYPE_BUTTON || type == TYPE_STYLE || type == TYPE_SEND_PLACEMENT || type == TYPE_SWIPE_EXPAND;
         }
 
         @Override
@@ -608,9 +606,11 @@ public class ComposerLayoutActivity extends BaseFragment {
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                     break;
                 case TYPE_STYLE:
+                case TYPE_SEND_PLACEMENT:
                     org.telegram.ui.Cells.TextSettingsCell styleCell = new org.telegram.ui.Cells.TextSettingsCell(context);
                     styleCell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-                    styleCell.setOnClickListener(ComposerLayoutActivity.this::showComposerStyleMenu);
+                    styleCell.setOnClickListener(baseType(viewType) == TYPE_STYLE
+                            ? ComposerLayoutActivity.this::showComposerStyleMenu : ComposerLayoutActivity.this::showSendPlacementMenu);
                     view = styleCell;
                     break;
                 case TYPE_SWIPE_EXPAND:
@@ -723,6 +723,10 @@ public class ComposerLayoutActivity extends BaseFragment {
                     ((org.telegram.ui.Cells.TextSettingsCell) holder.itemView).setTextAndValue(
                             LocaleController.getString(R.string.ComposerStyle), composerStyleName(InterfaceStyleController.composerStyle()), false);
                     break;
+                case TYPE_SEND_PLACEMENT:
+                    ((org.telegram.ui.Cells.TextSettingsCell) holder.itemView).setTextAndValue(
+                            LocaleController.getString(R.string.ComposerSendPlacement), sendPlacementName(InterfaceStyleController.sendPlacement()), false);
+                    break;
                 case TYPE_SWIPE_EXPAND:
                     ((org.telegram.ui.Cells.TextCheckCell) holder.itemView).setTextAndCheck(
                             LocaleController.getString(R.string.ComposerSwipeExpand), NaConfig.INSTANCE.getComposerSwipeExpand().Bool(), false);
@@ -762,6 +766,8 @@ public class ComposerLayoutActivity extends BaseFragment {
                 return LocaleController.getString(R.string.InputTextSizeInfo);
             case GROUP_STYLE:
                 return LocaleController.getString(R.string.ComposerStyleInfo);
+            case GROUP_SEND_PLACEMENT:
+                return LocaleController.getString(R.string.ComposerSendPlacementInfo);
             case GROUP_SWIPE_EXPAND:
                 return LocaleController.getString(R.string.ComposerSwipeExpandInfo);
             case ComposerButtons.ZONE_START:
@@ -797,19 +803,40 @@ public class ComposerLayoutActivity extends BaseFragment {
 
     /** The same popup a settings select box opens. The open chats pick the style up through the rebuild on leaving. */
     private void showComposerStyleMenu(View anchor) {
-        final int[] styles = {InterfaceStyleController.COMPOSER_STYLE_FLOATING, InterfaceStyleController.COMPOSER_STYLE_DOCKED};
-        final String[] names = {composerStyleName(styles[0]), composerStyleName(styles[1])};
+        showSelectMenu(anchor, new int[]{InterfaceStyleController.COMPOSER_STYLE_FLOATING, InterfaceStyleController.COMPOSER_STYLE_DOCKED},
+                ComposerLayoutActivity::composerStyleName, InterfaceStyleController.composerStyle(),
+                NaConfig.INSTANCE.getComposerLayoutStyle(), TYPE_STYLE, GROUP_STYLE);
+    }
+
+    private static String sendPlacementName(int placement) {
+        return LocaleController.getString(placement == InterfaceStyleController.SEND_PLACEMENT_FIELD
+                ? R.string.ComposerSendPlacementField : R.string.ComposerSendPlacementRow);
+    }
+
+    private void showSendPlacementMenu(View anchor) {
+        showSelectMenu(anchor, new int[]{InterfaceStyleController.SEND_PLACEMENT_ROW, InterfaceStyleController.SEND_PLACEMENT_FIELD},
+                ComposerLayoutActivity::sendPlacementName, InterfaceStyleController.sendPlacement(),
+                NaConfig.INSTANCE.getComposerSendPlacement(), TYPE_SEND_PLACEMENT, GROUP_SEND_PLACEMENT);
+    }
+
+    /** The same popup a settings select box opens. The open chats pick the choice up through the rebuild on leaving. */
+    private void showSelectMenu(View anchor, int[] values, java.util.function.IntFunction<String> name, int current,
+                                tw.nekomimi.nekogram.config.ConfigItem config, int type, int group) {
+        final String[] names = new String[values.length];
+        for (int i = 0; i < values.length; i++) {
+            names[i] = name.apply(values[i]);
+        }
         final tw.nekomimi.nekogram.ui.PopupBuilder builder = new tw.nekomimi.nekogram.ui.PopupBuilder(anchor);
-        builder.setItems(names, (index, name) -> {
-            final int style = styles[index];
-            if (style != InterfaceStyleController.composerStyle()) {
-                NaConfig.INSTANCE.getComposerLayoutStyle().setConfigInt(style);
+        builder.setItems(names, (index, picked) -> {
+            final int value = values[index];
+            if (value != current) {
+                config.setConfigInt(value);
                 rebuildPending = true;
-                final int position = rowPosition(TYPE_STYLE, GROUP_STYLE);
+                final int position = rowPosition(type, group);
                 if (adapter != null && position >= 0) {
                     adapter.notifyItemChanged(position);
                 }
-                // The preview's island and field are built for one style, so they are rebuilt like on a theme change.
+                // The preview's island, field and send are built for one layout, so they are rebuilt like on a theme change.
                 if (previewCell != null) {
                     previewCell.applyTheme();
                 }
@@ -1378,12 +1405,37 @@ public class ComposerLayoutActivity extends BaseFragment {
                     toolbar.addConfigurable(key, icon, zone, order);
                 }
             }
-            addMockInput();
+            final boolean besideField = InterfaceStyleController.sendBesideField();
+            addMockInput(besideField);
             stage.addView(toolbar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, ComposerToolbarLayout.height(),
-                    Gravity.TOP | Gravity.START, 0, PREVIEW_INPUT_HEIGHT + PREVIEW_INPUT_GAP, 0, 0));
+                    Gravity.TOP | Gravity.START, 0, ComposerGeometry.FIELD_ROW + ComposerGeometry.ROW_GAP, 0, 0));
+            // The open composer, as a chat shows it while typing: Send either beside the field or at the tools row's
+            // end, where the row keeps its trailing buttons clear of it.
+            final int sendTop = besideField ? 0 : ComposerGeometry.FIELD_ROW + ComposerGeometry.ROW_GAP
+                    + (ComposerToolbarLayout.height() - ComposerGeometry.FIELD_ROW) / 2;
+            stage.addView(mockSend(), LayoutHelper.createFrame(ComposerGeometry.FIELD_ROW, ComposerGeometry.FIELD_ROW,
+                    Gravity.TOP | Gravity.END, 0, sendTop, ComposerGeometry.SEND_INSET, 0));
+            if (!besideField) {
+                toolbar.setSendReserve(dp(sendFootprint()));
+            }
         }
 
-        private void addMockInput() {
+        // The send disc's drawn width plus its inset from the end, which the field, or the tools row, keeps clear.
+        private int sendFootprint() {
+            return ComposerGeometry.FIELD_ROW - ComposerGeometry.SEND_INSET;
+        }
+
+        private View mockSend() {
+            ChatActivityEnterView.SendButton send = new ChatActivityEnterView.SendButton(
+                    getContext(), R.drawable.send_plane_24, null, true);
+            send.setBackgroundInset(dp(ComposerGeometry.SEND_INSET));
+            send.setFocusable(false);
+            send.setClickable(false);
+            send.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            return send;
+        }
+
+        private void addMockInput(boolean besideField) {
             FrameLayout input = new FrameLayout(getContext());
             input.setFocusable(false);
             input.setClickable(false);
@@ -1399,16 +1451,16 @@ public class ComposerLayoutActivity extends BaseFragment {
             ComposerGlassProvider bodyGlassColor = new ComposerGlassProvider(UserConfig.selectedAccount, null, false, ComposerGlassProvider.ROLE_COMPOSER);
             FrameLayout body = new FrameLayout(getContext());
             BlurredBackgroundDrawable bodyDrawable = glassFactory.create(body, bodyGlassColor);
-            bodyDrawable.setRadius(InterfaceStyleController.applyComposer() ? 0 : dp(PREVIEW_INPUT_HEIGHT / 2f));
-            // The MD3 field stops short of the send circle, whose drawn left edge is PREVIEW_INPUT_HEIGHT
-            // in from the end once its own inset and margin cancel out.
+            bodyDrawable.setRadius(InterfaceStyleController.applyComposer() ? 0 : dp(ComposerGeometry.FIELD_ROW / 2f));
+            // The MD3 field stops short of a send circle beside it, whose drawn left edge is FIELD_ROW in from the end
+            // once its own inset and margin cancel out, and otherwise runs the whole row.
             body.setBackground(InterfaceStyleController.applyComposer()
-                    ? ComposerMd3Surface.previewField(dp(PREVIEW_INPUT_HEIGHT)) : bodyDrawable);
+                    ? ComposerMd3Surface.previewField(besideField ? dp(ComposerGeometry.FIELD_ROW) : 0) : bodyDrawable);
             body.setFocusable(false);
             body.setClickable(false);
             body.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
             input.addView(body, LayoutHelper.createFrame(
-                    LayoutHelper.MATCH_PARENT, PREVIEW_INPUT_HEIGHT, Gravity.TOP | Gravity.START));
+                    LayoutHelper.MATCH_PARENT, ComposerGeometry.FIELD_ROW, Gravity.TOP | Gravity.START));
 
             TextView hint = new TextView(getContext());
             // Typed-looking text in the field's own text colour rather than the placeholder, so the
@@ -1422,32 +1474,13 @@ public class ComposerLayoutActivity extends BaseFragment {
             hint.setFocusable(false);
             hint.setClickable(false);
             FrameLayout.LayoutParams hintParams = (FrameLayout.LayoutParams) LayoutHelper.createFrame(
-                    LayoutHelper.MATCH_PARENT, PREVIEW_INPUT_HEIGHT, Gravity.TOP | Gravity.START, 0, 0, 0, 0);
-            // Real field: ChatActivityEnterView.COMPOSER_TEXT_HORIZONTAL_INSET (16dp) on the start side.
-            // The 8dp used before was an approximation that read visibly closer to the bubble's edge than
-            // the real field ever sits.
-            int textInsetDp = 16;
-            hintParams.setMarginStart(dp(textInsetDp));
-            // Real field's end inset is InputSatellites' published right offset (the send button's own
-            // drawn footprint, i.e. its slot minus its own background inset on both sides, plus that same
-            // inset again as InputSatellites' own content margin) plus the 16dp text inset on top of that -
-            // not just the slot height plus a flat 3dp, which read the placeholder noticeably closer to the
-            // button than the real field's text ever gets.
-            int sendDrawnWidthDp = PREVIEW_INPUT_HEIGHT - 2 * SEND_BUTTON_INSET_DP;
-            hintParams.setMarginEnd(dp(sendDrawnWidthDp + SEND_BUTTON_INSET_DP + textInsetDp));
+                    LayoutHelper.MATCH_PARENT, ComposerGeometry.FIELD_ROW, Gravity.TOP | Gravity.START, 0, 0, 0, 0);
+            // The real field's text sits TEXT_INSET in from the enter view on the start side, and on the end side too,
+            // past the send disc's footprint (InputSatellites' published right offset) when the disc is beside it.
+            hintParams.setMarginStart(dp(ComposerGeometry.TEXT_INSET));
+            hintParams.setMarginEnd(dp((besideField ? sendFootprint() : 0) + ComposerGeometry.TEXT_INSET));
             body.addView(hint, hintParams);
-
-            ChatActivityEnterView.SendButton send = new ChatActivityEnterView.SendButton(
-                    getContext(), R.drawable.send_plane_24, null, true);
-            send.setBackgroundInset(dp(SEND_BUTTON_INSET_DP));
-            send.setFocusable(false);
-            send.setClickable(false);
-            send.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-            FrameLayout.LayoutParams sendParams = (FrameLayout.LayoutParams) LayoutHelper.createFrame(
-                    PREVIEW_INPUT_HEIGHT, PREVIEW_INPUT_HEIGHT, Gravity.TOP | Gravity.END);
-            sendParams.setMarginEnd(dp(SEND_BUTTON_INSET_DP));
-            body.addView(send, sendParams);
-            stage.addView(input, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, PREVIEW_INPUT_HEIGHT,
+            stage.addView(input, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, ComposerGeometry.FIELD_ROW,
                     Gravity.TOP | Gravity.START));
         }
 

@@ -49,6 +49,19 @@ public class InterfaceStyleController {
         return NaConfig.INSTANCE.getComposerLayoutStyle().Int() == COMPOSER_STYLE_DOCKED ? COMPOSER_STYLE_DOCKED : COMPOSER_STYLE_FLOATING;
     }
 
+    public static final int SEND_PLACEMENT_ROW = 0;
+    public static final int SEND_PLACEMENT_FIELD = 1;
+
+    // Only the two known values; a stale or unknown stored value reads as the tools row.
+    public static int sendPlacement() {
+        return NaConfig.INSTANCE.getComposerSendPlacement().Int() == SEND_PLACEMENT_FIELD ? SEND_PLACEMENT_FIELD : SEND_PLACEMENT_ROW;
+    }
+
+    // Send and mic ride up beside the open field, leaving the tools row to the toolbar buttons. Both interface styles.
+    public static boolean sendBesideField() {
+        return sendPlacement() == SEND_PLACEMENT_FIELD;
+    }
+
     public static boolean applyBottomNavigation() {
         return isMaterialDesign3() && NaConfig.INSTANCE.getInterfaceStyleApplyBottomNavigation().Bool();
     }
