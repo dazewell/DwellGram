@@ -4138,6 +4138,9 @@ public class ChatActivityEnterView extends FrameLayout implements
             public void setTranslationX(float translationX) {
                 innerTranslationX = translationX;
                 if (composerToolbarEnabled) {
+                    // NagramX (#glass-composer-fold-fix): the toolbar's Glass bubble reads getTranslationX(), so a stored
+                    // offset the row never draws dented the trailing panel while Send came in.
+                    innerTranslationX = 0;
                     super.setTranslationX(0);
                     return;
                 }
@@ -10819,9 +10822,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                                         scheduledButton.setPivotX(dp(DEFAULT_HEIGHT));
                                         animators.add(ObjectAnimator.ofFloat(scheduledButton, View.ALPHA, 1.0f));
                                         animators.add(ObjectAnimator.ofFloat(scheduledButton, View.SCALE_X, 1.0f));
-                                        // NagramX (#glass-composer-fold-fix): the toolbar row places this button itself and
-                                        // reconcileScheduleButton snaps it back to 0, so a slide only dents the trailing bubble.
-                                        animators.add(animateScheduledTranslationX(composerToolbarEnabled ? 0 : dp(DEFAULT_HEIGHT)));
+                                        animators.add(animateScheduledTranslationX(dp(DEFAULT_HEIGHT)));
                                     } else {
                                         scheduledButton.setTag(null);
                                         animators.add(ObjectAnimator.ofFloat(scheduledButton, View.ALPHA, 0.0f));
