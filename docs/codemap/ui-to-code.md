@@ -369,7 +369,7 @@ Floating, MD3 adds 2dp to the stock 9dp lift, so the island clears the
 keyboard and emoji panel by the same 9dp as the screen sides; in the Floating style's resting sheet,
 `liftAboveStock()` eases the tools row down to 4dp above the nav bar (`ComposerMd3Surface.java:107-109`,
 `:355-364`, `:369-371`; `ChatInputViewsContainer.java:272-275`;
-`ChatActivityEnterView.java:19222-19232`). The island reaches `topOverhang()`
+`ChatActivityEnterView.java:19234-19244`). The island reaches `topOverhang()`
 above the pill (`ComposerMd3Surface.java:374-376`), so `getInputBubbleHeight()`
 adds it and everything laid out against the composer, including the message
 list padding, clears it (`ChatInputViewsContainer.java:284-291`;
@@ -413,7 +413,7 @@ trash is a Lottie whose stripes are recoloured by layer name to `key_chat_messag
 to fake holes, and its resting stripes share those names, so stock it rests as a hollow can.
 A frosted field has no single colour to match, so on the field they read as bars; under MD3 the
 chat's own enter view paints stripes and can in one composer icon tint, a plain striped glyph
-(`ChatActivityEnterView.java:13528-13529`; `ComposerMd3Surface.java:789-803`;
+(`ChatActivityEnterView.java:13540-13541`; `ComposerMd3Surface.java:789-803`;
 `res/raw/chat_audio_record_delete_2.json`, precomp `Box Grey`). The reply strip shares its column, is centred
 on the upstream close button and carries its accent as a separate rounded bar
 (`:686-697`); under MD3 the close button draws without its glass disc
@@ -425,7 +425,7 @@ called from `ChannelAdminLogActivity.java:1511`. Dropping the island glass
 without painting that run is what blanked channel chats in #409. The reply strip
 stops short of the send column using the existing `getComposerPrimaryEndInset()`, on
 the left under `LocaleController.isRTL` (`ComposerMd3Surface.java:636-652`;
-`ChatActivityEnterView.java:19238`). The field no longer does: under both MD3 styles the
+`ChatActivityEnterView.java:19250`). The field no longer does: under both MD3 styles the
 send column sits at the end of the tools row (next section). The reply strip reads `getTopViewHeight()`
 and `getTopViewEnterProgress()` (`ComposerMd3Surface.java:433-434`), while the
 reply content is placed against the enter view's laid-out height; see
@@ -449,34 +449,34 @@ keep their own provider (`ChatActivity.java:4202`).
 
 `ComposerInlineRest` owns it, one per chat enter view (`ComposerInlineRest.java:100`,
 created at `ChatActivityEnterView.java:2941`). Under both styles the send column sits at the end of
-the tools row, centred on it (`ComposerInlineRest.java:208`, `ChatActivityEnterView.java:4515`), and the
+the tools row, centred on it (`ComposerInlineRest.java:208`, `ChatActivityEnterView.java:4526`), and the
 toolbar's end padding reserves it (`ComposerToolbarLayout.java:962`). Both styles fold: with the field
 empty and no keyboard, panel, fullscreen input or rich draft, the field moves into the tools row between the
 leading and trailing zones and the Scrolling viewport goes INVISIBLE at width 0, its buttons untouched
 (`ComposerInlineRest.java:381`; `ComposerToolbarLayout.java:945`, `:1109`). The decision rides
-`checkBotMenu()`, which every text, keyboard and panel change already calls (`ChatActivityEnterView.java:5157`),
-and `applyComposerTextGeometry()` hands it the field (`:11516`). A row that would leave the field under 96dp,
+`checkBotMenu()`, which every text, keyboard and panel change already calls (`ChatActivityEnterView.java:5168`),
+and `applyComposerTextGeometry()` hands it the field (`:11527`). A row that would leave the field under 96dp,
 or a send-as avatar or bot pill at the head of the Scrolling zone, keeps two rows (`ComposerInlineRest.java:36`,
 `:362`; `ComposerToolbarLayout.java:170`).
 
 The fold has no clock. The margin flip re-measures the edit container, `animatorInputFieldHeight` eases the
 island, at 450ms ease-out for a fold instead of its stock 250ms (`ComposerInlineRest.java:43`, `:331`;
 `ChatActivityEnterView.java:2872`), and the field's draw offset (`:2912`), the tools inset
-(`:19241`) and the surface's field tone (`ComposerMd3Surface.java:684`, `:704`) all read that animation's
+(`:19253`) and the surface's field tone (`ComposerMd3Surface.java:684`, `:704`) all read that animation's
 remaining share (`ComposerInlineRest.java:345`). The morph must not end inside that frame's height tick: the
 `#fullscreen-input` history pin reads `ComposerInlineRest.morphing()` further down the same synchronous call
 (`ChatActivity.java:13760`), and ending first let it arm on the last frame and hold history still against the
-keyboard. It ends in `settleIfDone()`, after `checkUi_IslandTotalHeight()` (`ChatActivityEnterView.java:19354-19359`;
+keyboard. It ends in `settleIfDone()`, after `checkUi_IslandTotalHeight()` (`ChatActivityEnterView.java:19366-19371`;
 `ComposerInlineRest.java:483`, `:490`). Docked needs nothing of its own: the panel takes its top from the
 island's and keeps its bottom on the keyboard or screen edge (`ComposerMd3Surface.java:576`), so it folds from the
 top. A record, review or bot panel replacing the tools row is a third layout the fold does not model: the fold
 holds still while it is up, since a flip on the GONE field would move no height and only run out on the timeout
 (`ComposerInlineRest.java:381`). The enter view tells it as the row goes, which lands any fold still running, and
-again as it returns, to catch up on a keyboard change made meanwhile (`ChatActivityEnterView.java:12633-12635`); the returning decision snaps
+again as it returns, to catch up on a keyboard change made meanwhile (`ChatActivityEnterView.java:12645-12647`); the returning decision snaps
 rather than morphs, since the field was never drawn where a morph would start it,
 and the surface draws the field tone and send slot from the column geometry meanwhile
 (`ComposerMd3Surface.java:641-642`). A record panel's exit keeps the row until it ends, not from when it starts
-(`ChatActivityEnterView.java:12588`; upstream-traps, "The record panel's exit releases the composer at its start"),
+(`ChatActivityEnterView.java:12600`; upstream-traps, "The record panel's exit releases the composer at its start"),
 and the return then eases over 250ms: the tone between the column and the fold (`ComposerMd3Surface.java:669`),
 the field (`ComposerInlineRest.java:390-393`) and the tools row's buttons (`ComposerToolbarLayout.java:1048`).
 The layout editor preview does not show the fold yet.
@@ -488,13 +488,13 @@ morph's progress (`ChatInputViewsContainer.java:364-378`, `ComposerInlineRest.ja
 `inputBubbleFullBounds` keeps touch full-width. In-chat search hides the composer but draws its bar on that
 same drawable, so the narrowing is weighted by the enter view's visibility and alpha (`ComposerInlineRest.java:122`).
 The middle capsule pinches to a droplet in `ComposerToolbarLayout.prepareDroplet` (`ComposerToolbarLayout.java:1589`).
-A reply or edit bar keeps Glass unfolded (`ChatActivityEnterView.java:11338`), and so does a tools row too
+A reply or edit bar keeps Glass unfolded (`ChatActivityEnterView.java:11349`), and so does a tools row too
 crowded for the send circle's capsule, which then sits above the toolbar beside the field
-(`ComposerInlineRest.java:373-374`, `ChatActivityEnterView.java:4515`).
+(`ComposerInlineRest.java:373-374`, `ChatActivityEnterView.java:4526`).
 *(Established 2026-10-29, `#glass-composer-fold`.)*
 
 Where the send column sits is decided once, by `ComposerInlineRest.columnBottomDp` (`ComposerInlineRest.java:208`):
-the enter view lays the column out with it (`ChatActivityEnterView.java:4515`) and the MD3 surface aims its touch
+the enter view lays the column out with it (`ChatActivityEnterView.java:4526`) and the MD3 surface aims its touch
 slot by it (`ComposerMd3Surface.java:728`). It answers "beside the field" while a glass row is crowded or, with
 *Send button* → Beside the field (`InterfaceStyleController.java:61`), while the composer is not folded
 (`ComposerInlineRest.java:192`). At rest that mode folds exactly like the default; opening moves the column's margin
@@ -508,23 +508,23 @@ The field's open edge keys off the setting, not the fold state (`ComposerInlineR
 column by the same test (`ComposerInlineRest.java:132`). The measurements the enter view, the fold, the
 surface and the layout editor's preview share (field row, send inset, row gap, text inset, the field's bottom over
 the tools row) live in `ComposerGeometry` (`ComposerGeometry.java:27`). The reply/edit panel's close control is a square on
-the drawn disc's centre line, capped to the 48dp the edit controls leave it (`ChatActivityEnterView.java:4485`, used at
+the drawn disc's centre line, capped to the 48dp the edit controls leave it (`ChatActivityEnterView.java:4489`, used at
 `ChatActivity.java:9250`), so under Glass its disc stays on the send disc's centre line at any scale.
 Rule: the column is laid out at `composerPrimarySize()` (the tool buttons' size under Glass) and never re-laid out;
 beside the field it is drawn at the 44dp field row's height by one scale, `besideScale` (`ComposerInlineRest.java:228`),
 eased by the fold in `columnScale` (`:237`) and shifted to hold its end edge on the tools row's (`:246`), through the
-one transform writer (`ChatActivityEnterView.java:2979`, `:4499`). Anything that measures the column reads the drawn
-measures, never `composerPrimarySize()`: the public `getComposerPrimaryEndInset` scales the laid-out inset (`:19487`,
+one transform writer (`ChatActivityEnterView.java:2979`, `:4510`). Anything that measures the column reads the drawn
+measures, never `composerPrimarySize()`: the public `getComposerPrimaryEndInset` scales the laid-out inset (`:19499`,
 `ComposerInlineRest.java:252`), which the open field (`:420`), the Glass pill, the suggestion strip and the MD3 surface
-read; the close control uses `drawnColumnDp` (`:260`); Done's show animations aim at the column's scale
-(`ChatActivityEnterView.java:4493`). Only `layoutField`'s send reserve takes the laid-out width
-(`composerPrimaryLaidOutEndInset`, `:19493`), because the column is full size whenever it sits in the row.
-The ephemeral-message squeeze writes the same two views' scale, so it re-applies the composite after its own (`:19622`).
+read; the close control uses `drawnColumnDp` (`:260`); Done's pop aims at the column's scale and the mover then owns it
+(`ChatActivityEnterView.java:4497`, `:2989`). Only `layoutField`'s send reserve takes the laid-out width
+(`composerPrimaryLaidOutEndInset`, `:19505`), because the column is full size whenever it sits in the row.
+The ephemeral-message squeeze writes the same two views' scale, so it re-applies the composite after its own (`:19634`).
 Trap: the column's published width reads 0 whenever every column control is below half alpha or scale
-(`InputSatellites.java:129`), and it republishes only from the enter view's `dispatchDraw` (`ChatActivityEnterView.java:18455`)
-or `refreshComposerPrimaryOffset` (`:19524`), so a control coming back by scale or alpha alone can leave it stuck at 0.
+(`InputSatellites.java:129`), and it republishes only from the enter view's `dispatchDraw` (`ChatActivityEnterView.java:18467`)
+or `refreshComposerPrimaryOffset` (`:19536`), so a control coming back by scale or alpha alone can leave it stuck at 0.
 After the mic's camera menu that painted the field and reply strip under the mic, so `getComposerPrimaryEndInset`
-floors it at the column's resting width while the tools row is shown (`:19502`); fixed on device, the dipping control
+floors it at the column's resting width while the tools row is shown (`:19514`); fixed on device, the dipping control
 itself was not traced.
 *(Established 2026-11-17, `#composer-send-inline`.)*
 
@@ -579,11 +579,11 @@ Geometry anchors: `ComposerToolbarLayout.java:575` (cell floor),
 `:453` (reported band), `:1110` (middle padding),
 `:1404` (prepared bubbles), `:1708` (eligible fixed cells),
 `ComposerInlineRest.java:86` (folded pill),
-`ChatActivityEnterView.java:3563` (record disc),
-`:4402` (primary slot),
-`:18636` and `:19218` (send background).
+`ChatActivityEnterView.java:3567` (record disc),
+`:4406` (primary slot),
+`:18648` and `:19230` (send background).
 Shade anchors: `ChatInputViewsContainer.java:384` →
-`ChatActivityEnterView.java:19390` →
+`ChatActivityEnterView.java:19402` →
 `ComposerToolbarLayout.java:252`, `:1544`;
 droplet `:1589`, redraw propagation `:1336`.
 *(Established 2026-10-30, `#glass-lone-circle`, PR 579.)*
@@ -597,7 +597,7 @@ The recording lock and view-once chips share their `Md3ButtonColorProvider` over
 `key_chat_messagePanelVoiceLockBackground` with the round-video recorder through
 `ControlsView.getRecordingButtonColorProvider` (`ChatActivityEnterView.java:1895`;
 `ChatActivity.java:12258`). The outer accessor initializes the lazy controls first
-(`ChatActivityEnterView.java:5064`): draft restore creates the camera before binding
+(`ChatActivityEnterView.java:5075`): draft restore creates the camera before binding
 the draft (`ChatActivity.java:39875-39889`). The recorder forwards it to the flash/infinite row,
 zoom/flip controls and both front-flash slider backgrounds (`InstantCameraView.java:509-516`).
 The deleted-messages screen
@@ -672,14 +672,14 @@ never meant to change.
 
 ## The composer Send button has two long-press menus, not one
 
-`ChatActivityEnterView.onSendLongClick` (`ChatActivityEnterView.java:5771`)
+`ChatActivityEnterView.onSendLongClick` (`ChatActivityEnterView.java:5782`)
 branches on `isStories || (empty text && a pending forward is attached)`
-(`ChatActivityEnterView.java:5776`). When true, it builds a cached
+(`ChatActivityEnterView.java:5787`). When true, it builds a cached
 `ActionBarPopupWindow`/`ActionBarMenuSubItem` popup (`sendPopupLayout`,
 built once and reused across long-presses). Everything else — ordinary typed
 text in an in-app chat, which is what most users hit — falls through to a
 second, completely separate menu built fresh every time from
-`ItemOptions`/`MessageSendPreview` (`ChatActivityEnterView.java:6207`
+`ItemOptions`/`MessageSendPreview` (`ChatActivityEnterView.java:6218`
 onward). The two duplicate the same three rows (schedule, send-when-online,
 silent) with near-identical eligibility conditions computed independently in
 each branch — a change to the ordinary composer's long-press menu only needs
@@ -692,7 +692,7 @@ Stories or an empty-caption forward-in-progress, both edge cases relative to
 ### Both branches now arm all three per-action rows, not just `ItemOptions`
 
 `#remember-send-action`'s master switch is inserted into **both** branches of
-`onSendLongClick` (starts `ChatActivityEnterView.java:5771`) — the `ItemOptions`
+`onSendLongClick` (starts `ChatActivityEnterView.java:5782`) — the `ItemOptions`
 menu (built from `ItemOptions.makeOptions` at `:6197`) and the cached
 `sendPopupLayout` popup. The three per-action rows (schedule/send-when-online/
 silent) also now arm in **both** branches: the cached popup's three pre-existing
@@ -727,13 +727,13 @@ click handler.
 ### Plain Send and vertical drag reuse the existing send menu
 
 The composer-local `SendButton` subclass delegates touch recognition to
-`SendMenuGesture` at `ChatActivityEnterView.java:3875`. It keeps the shared
+`SendMenuGesture` at `ChatActivityEnterView.java:3879`. It keeps the shared
 button's accepted DOWN hit test, cancels the button's touch stream before
 calling its existing long-click action, and consumes release. Its
 `performLongClick()` override stops drag recognition after a stationary hold.
 
 Both menu branches offer Send while an alternate is armed. The cached forward
-popup clears only `currentAccount` at `ChatActivityEnterView.java:5983` and
+popup clears only `currentAccount` at `ChatActivityEnterView.java:5994` and
 refreshes row visibility on each open at `:6140`. The ordinary preview menu's
 Send row at `:6411` clears the same slot and shares the preview plain-send
 callback at `:6325`, preserving its dismissal handling and normal send defaults.
@@ -744,7 +744,7 @@ Stories remain outside the remembered-action context.
 ### The Remember master toggle has separate implementations in both menus
 
 `#remember-send-action`'s master switch is inserted into **both** branches of
-`onSendLongClick` (starts `ChatActivityEnterView.java:5771`) — the `ItemOptions`
+`onSendLongClick` (starts `ChatActivityEnterView.java:5782`) — the `ItemOptions`
 menu (built from `ItemOptions.makeOptions` at `:6197`) and the cached
 `sendPopupLayout` popup — while the three per-action rows
 (schedule/send-when-online/silent) now arm in both branches too, per the
@@ -845,17 +845,17 @@ before the `OPTION_EDIT` branch runs (`org/telegram/ui/Components/RecyclerListVi
 `org/telegram/ui/ChatActivity.java:2188-2293`). `setEditingMessageObject` consumes
 and unconditionally clears that armed offset at entry, before any early return, so
 a stale offset can never leak into an unrelated `setFieldText` call
-(`org/telegram/ui/Components/ChatActivityEnterView.java:12277-12293`). Only the two
+(`org/telegram/ui/Components/ChatActivityEnterView.java:12289-12305`). Only the two
 edit-fill call sites -- the inline call and the 200ms-delayed field-refresh runnable
 -- route through the edit-only `setFieldTextForEdit(...)` entry point, which carries
 the pre-transform rendered text and offset alongside the field text
-(`org/telegram/ui/Components/ChatActivityEnterView.java:13564`, called at `:13035` and `:13045`).
+(`org/telegram/ui/Components/ChatActivityEnterView.java:13576`, called at `:13035` and `:13045`).
 That entry point validates the offset against the field before applying it -- the
 selection is rejected and falls back to end-of-text if the rendered text no longer
 matches what the field contains after `restoreFormatedDateEntities(...)`, or if the
 offset is out of bounds; every other `setFieldText` caller always lands at
 end-of-text with no dependency on this state at all
-(`org/telegram/ui/Components/ChatActivityEnterView.java:12889-12911`).
+(`org/telegram/ui/Components/ChatActivityEnterView.java:12901-12923`).
 
 The tap offset itself is taken from the text layout hit test in `ChatMessageCell`,
 matching the existing word-boundary behavior and clamping emoji spans before the
@@ -1055,9 +1055,9 @@ from the toolbar's bulk reschedule button below.
 
 Long-pressing the message input bar's Send button in a chat opens the schedule
 sheet through `ChatActivityEnterView.onSendLongClick`
-(`ChatActivityEnterView.java:5575`), whose "Schedule Message" popup item calls
+(`ChatActivityEnterView.java:5586`), whose "Schedule Message" popup item calls
 `AlertsCreator.createScheduleDatePickerDialog`
-(`ChatActivityEnterView.java:5630`). That call enters the 4-arg overload at
+(`ChatActivityEnterView.java:5641`). That call enters the 4-arg overload at
 `AlertsCreator.java:4410` and funnels through five more delegating overloads —
 `:4430` → `:4434` → `:4438` → `:4456` → `:4474` — into the terminal
 implementation at `:4480`, where every schedule sheet is actually built.
@@ -1348,7 +1348,7 @@ them gives it a real hosting fragment and a real chat to key state on:
   argument (stored in the `parentFragment` field, declared
   `ChatActivityEnterView.java:812` as `ChatActivity parentFragment`) and later
   (`ChatActivity.java:8894`) calls `setDialogId(long, int)`
-  (`ChatActivityEnterView.java:8248`) with the real chat's dialogId. This is
+  (`ChatActivityEnterView.java:8259`) with the real chat's dialogId. This is
   the only call site where `parentFragment` is ever non-null and `dialog_id`
   (`ChatActivityEnterView.java:813`) is ever the actual open chat.
 - `DialogsActivity.java:5075` (forward/share comment field),
