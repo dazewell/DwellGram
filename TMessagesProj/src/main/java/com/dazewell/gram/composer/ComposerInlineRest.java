@@ -216,18 +216,18 @@ public final class ComposerInlineRest {
 
     /*
      * The send column is laid out at the tool buttons' size (Glass) or 44dp (MD3) and never re-laid out by the fold.
-     * Beside the field it is drawn at the field row's height instead, scaled by besideScale and holding its end edge,
+     * Beside the field it is drawn at GLASS_BESIDE_DISC instead, scaled by besideScale and holding its end edge,
      * so everything that measures the column must read the drawn measures below, never the laid-out size: the open
      * field's end, the glass pill, the suggestion strip (through the enter view's public end inset), the reply close
      * control and the Done button. Only the tools row's send reserve keeps the laid-out width, because the column is
      * at full size whenever it sits in the row.
      */
 
-    // The scale a column columnDp tall is drawn at while the field stops at it; 1 elsewhere and whenever it already
-    // matches the row, which is always under MD3. A recording or review panel owning the row draws it full size.
+    // The scale a Glass column columnDp tall is drawn at while the field stops at it; 1 elsewhere. MD3 keeps its 44dp
+    // slot and its own inset. A recording or review panel owning the row draws it full size (callers check that).
     private float besideScale(int columnDp) {
-        return fieldStopsAtColumn() && columnDp > 0 && columnDp != ComposerGeometry.FIELD_ROW
-                ? (float) ComposerGeometry.FIELD_ROW / columnDp : 1f;
+        return fieldStopsAtColumn() && columnDp > 0 && !InterfaceStyleController.applyComposer()
+                ? (float) ComposerGeometry.GLASS_BESIDE_DISC / columnDp : 1f;
     }
 
     /**

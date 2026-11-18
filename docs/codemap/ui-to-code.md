@@ -507,11 +507,12 @@ The field's open edge keys off the setting, not the fold state (`ComposerInlineR
 `ComposerMd3Surface.java:742`), so it does not jump at the flip; the open Glass pill stops a capsule gap short of the
 column by the same test (`ComposerInlineRest.java:132`). The measurements the enter view, the fold, the
 surface and the layout editor's preview share (field row, send inset, row gap, text inset, the field's bottom over
-the tools row) live in `ComposerGeometry` (`ComposerGeometry.java:27`). The reply/edit panel's close control is a square on
+the tools row) live in `ComposerGeometry` (`ComposerGeometry.java:32`). The reply/edit panel's close control is a square on
 the drawn disc's centre line, capped to the 48dp the edit controls leave it (`ChatActivityEnterView.java:4489`, used at
 `ChatActivity.java:9250`), so under Glass its disc stays on the send disc's centre line at any scale.
 Rule: the column is laid out at `composerPrimarySize()` (the tool buttons' size under Glass) and never re-laid out;
-beside the field it is drawn at the 44dp field row's height by one scale, `besideScale` (`ComposerInlineRest.java:228`),
+beside the field a Glass column is drawn at `GLASS_BESIDE_DISC`, the field row less 1dp a side so the pill's outline
+stands just proud of it (`ComposerGeometry.java:20`), by one scale, `besideScale` (`ComposerInlineRest.java:228`; MD3 keeps 1),
 eased by the fold in `columnScale` (`:237`) and shifted to hold its end edge on the tools row's (`:246`), through the
 one transform writer (`ChatActivityEnterView.java:2979`, `:4510`). Anything that measures the column reads the drawn
 measures, never `composerPrimarySize()`: the public `getComposerPrimaryEndInset` scales the laid-out inset (`:19499`,

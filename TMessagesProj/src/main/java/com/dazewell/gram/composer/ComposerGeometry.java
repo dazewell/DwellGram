@@ -13,6 +13,11 @@ public final class ComposerGeometry {
 
     /** The field row's height with one line of text, which is also the send column's square slot. */
     public static final int FIELD_ROW = ChatActivityEnterView.DEFAULT_HEIGHT;
+    /**
+     * The Glass send disc's diameter while it sits beside the field: the field row less 1dp each side, so the pill's
+     * outline stands just proud of it rather than the disc reading a hair larger than the pill.
+     */
+    public static final int GLASS_BESIDE_DISC = FIELD_ROW - 2;
     /** How far the MD3 send and mic disc is drawn inside its slot, so a ring of the field shows round it. */
     public static final int SEND_INSET = 3;
     /** The gap between the field row and the tools row below it. */

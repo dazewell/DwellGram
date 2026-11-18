@@ -19497,7 +19497,7 @@ public class ChatActivityEnterView extends FrameLayout implements
     // adds its own side padding on top, which lands its content the same few dp inside the text as on the
     // start side — and keeps the callout's arrow, which tracks the text and not the panel, within its body.
     public int getComposerPrimaryEndInset() {
-        // NagramX (#composer-send-inline): the drawn width; beside the field the column is drawn at the field row's height.
+        // NagramX (#composer-send-inline): the drawn width; beside the field the column is drawn at the Glass beside-disc size.
         final int laidOut = composerPrimaryLaidOutEndInset();
         return composerInlineRest != null ? composerInlineRest.drawnEndInset(laidOut) : laidOut;
     }
