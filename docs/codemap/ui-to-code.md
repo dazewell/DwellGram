@@ -507,8 +507,8 @@ The field's open edge keys off the setting, not the fold state (`ComposerInlineR
 `ComposerMd3Surface.java:742`), so it does not jump at the flip; the open Glass pill stops a capsule gap short of the
 column by the same test (`ComposerInlineRest.java:128`). The measurements the enter view, the fold, the
 surface and the layout editor's preview share (field row, send inset, row gap, text inset, the field's bottom over
-the tools row) live in `ComposerGeometry` (`ComposerGeometry.java:27`). The reply/edit panel's close control takes the
-column's width at the same end and the panel row's height, centred (`ChatActivityEnterView.java:4482`, used at
+the tools row) live in `ComposerGeometry` (`ComposerGeometry.java:27`). The reply/edit panel's close control is a square
+of the column's size at the panel's right edge, centred in its 48dp row (`ChatActivityEnterView.java:4482`, used at
 `ChatActivity.java:9250`), so under Glass its disc stays on the send disc's centre line at any scale.
 Trap: the column's published width reads 0 whenever every column control is below half alpha or scale
 (`InputSatellites.java:129`), and it republishes only from the enter view's `dispatchDraw` (`ChatActivityEnterView.java:18433`)
