@@ -3176,3 +3176,14 @@ constructor (`EditTextCaption.java:131`). Keep it there: it must run before the
 subclass watchers.
 
 *(Established 2026-11-15, `#emoji-pack-typing-fix`.)*
+
+## The attach button's first return fades from the menu glyph
+
+`checkAttachButton(false, 150)` crossfades the paperclip in from `ic_ab_other`, and skips itself only once
+the button's tag records the plain-attach state (`ChatActivityEnterView.java:9384`). The button is built
+untagged, already showing the paperclip. Stock hides that crossfade under the attach fade-in. The toolbar's
+pinned paperclip never fades, and `pinAttachButton` only re-tags it from the menu state (`:9365`). So the
+first Send-to-mic return in a chat (`:11324`) drew the "⋯" glyph over a visible paperclip for 150ms. Later
+erases were silent once the tag was set. An untagged button now swaps without the fade in toolbar mode (`:9437`).
+
+*(Established 2026-11-17, `#glass-attach-flash-fix`. Code-read; no device trace.)*
