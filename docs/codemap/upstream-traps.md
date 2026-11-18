@@ -205,7 +205,7 @@ not traced.
 
 The reply panel's translation and the field's clip read `getHeight()` for that
 reason, and `onLayout` re-places the panel once a new height lands
-(`ChatActivityEnterView.java:5211`, `:18135`, `:19360-19363`). Measure-time code still
+(`ChatActivityEnterView.java:5212`, `:18135`, `:19360-19363`). Measure-time code still
 wants the measured height; any other draw-time reader has to be traced before it
 is switched. Signature: with a reply
 open and the field growing, the reply content rides above its strip and the
@@ -1195,13 +1195,13 @@ completion state and leave a partially held, partially sent album.
 
 `ChatActivityEnterView` builds a fresh `MessageObject.SendAnimationData` for a
 normal (non-forwarding) text send before constructing the params
-(`ChatActivityEnterView.java:9628-9630`), and `of(...)` stores it verbatim
+(`ChatActivityEnterView.java:9629-9631`), and `of(...)` stores it verbatim
 (`SendMessagesHelper.java:12740`). It is a transient UI fly-in hint — the
 composer's on-screen x/y/width/height — carrying no part of the sent message,
 but it is set on ~100% of composer sends. Any allowlist/denylist that treats an
 unrecognised non-default `SendMessageParams` field as "not an ordinary text
 send" must exclude `sendAnimationData` (and `updateStickersOrder`, a local
-recent-emoji reorder flag, `ChatActivityEnterView.java:9650`) or it rejects
+recent-emoji reorder flag, `ChatActivityEnterView.java:9651`) or it rejects
 every real message.
 
 Cost if missed: Ghost Hold's fail-closed backstop `onlyPersistedFieldsSet`
@@ -2257,7 +2257,7 @@ carrying it (`ChatActivity.java:39283`, `:41444`). `encoderTeardownPending`, set
 every terminal stop and cleared by the teardown, a skipped stop (`:2401-2407`) or a
 failed prepare (`:2572`), holds a fresh `showCamera` off (`:1005`). The composer
 refuses the press up front while either the texture or that flag is up
-(`ChatActivityEnterView.java:19524`, called from `:1008`, `:5398`, `:19543` and `:19564`).
+(`ChatActivityEnterView.java:19525`, called from `:1008`, `:5398`, `:19543` and `:19564`).
 The window press was checked on a device.
 
 Upstream `togglePause` also unpaused the recorder before its audio thread came
@@ -2467,7 +2467,7 @@ point, after it was already measured, gets nothing. Its ancestors still carry th
 pass's layout flag, so the request stops there and no new traversal is
 scheduled. The child keeps its stale measurement until something unrelated
 lays the screen out again. Post the request instead when `isLayoutRequested()`
-is already true (`ChatActivityEnterView.java:7746`).
+is already true (`ChatActivityEnterView.java:7747`).
 
 Missed once: the fullscreen input settled 136px short of the header in a chat
 with a pinned message. Its height budget grew when the pinned bar hid, but the
@@ -2671,16 +2671,16 @@ list stayed at the bottom on a device. The Message Triggers page does this
 has the first `getExtendedPaddingTop`/`Bottom` calls return 0 and `-scrollY` (`:726-741`, armed at `:898`),
 so `TextView` never clips the top: the lines a long draft has scrolled past are drawn above the edit text.
 Nothing in the composer clips them except `ChatActivityEnterView.drawChild`'s cut at the input row's top
-(`ChatActivityEnterView.java:5211`) and `drawMessageEditText`'s layer and 14dp top fade (`:19144-19145`). Any edge
+(`ChatActivityEnterView.java:5212`) and `drawMessageEditText`'s layer and 14dp top fade (`:19144-19145`). Any edge
 for that clip or fade has to be the input row's top, which the MD3 field is drawn from too
 (`ComposerMd3Surface.java:704`). The fade used to sit at `messageEditText.getY() + animatedTop`, and
 `animatedTop` stays wherever it was while `waitingForSendingMessageLoad` holds back its reset animator
 (`ChatActivity.java:8829`), so the fade could land across a line in the middle of the field and leave the
-real top as a hard cut. It is now anchored to the row (`ChatActivityEnterView.java:19143-19144`).
+real top as a hard cut. It is now anchored to the row (`ChatActivityEnterView.java:19144-19145`).
 
 That row top reads `animatorInputFieldHeight`, but `drawMessageEditText` runs inside the edit container's display
 list, and `onFactorChanged`'s own `invalidate()` (`:19353`) re-records only the enter view. So a height change must also invalidate
-the container (`ChatActivityEnterView.java:19327`), or the cut keeps the factor from its last recording. Expanding
+the container (`ChatActivityEnterView.java:19328`), or the cut keeps the factor from its last recording. Expanding
 the input showed this: with the collapsed row's top baked in, short drafts vanished and longer ones lost their top
 lines until a new line or a scroll redrew the container (traced on device, `#composer-text-clip-fix`, PR 529).
 Anything else this method reads from outside the container needs the same treatment.
@@ -2688,7 +2688,7 @@ Anything else this method reads from outside the container needs the same treatm
 The MD3 field is painted 1dp (`FIELD_INSET`) inside the row on both edges (`ComposerMd3Surface.java:72`, `:723`),
 while the text was clipped at the row's top and, with the tools row on, at the edit text's bottom, which is the
 pill's bottom. A scrolled draft therefore showed a sliver of its lines past the field's shaded edge, top and
-bottom. Both clips now come in by `ComposerMd3Surface.textClipInset()` (`:186`; `ChatActivityEnterView.java:5293`,
+bottom. Both clips now come in by `ComposerMd3Surface.textClipInset()` (`:186`; `ChatActivityEnterView.java:5294`,
 `:2934`), which is 0 outside MD3. *(`#composer-text-border-fix`.)*
 
 *(Established 2026-10-15, `#composer-text-clip-fix`.)*
@@ -2709,7 +2709,7 @@ covered only the first screen of the layout, and since the text under a spoiler 
 drawn by `EditTextBoldCursor`.
 
 Spoiler bounds are layout coordinates, while `TextView` draws a layout shorter than its box lower down by its
-gravity. The one-line composer is centred in a 44dp floor (`ChatActivityEnterView.java:7456`, `:11457`), so its
+gravity. The one-line composer is centred in a 44dp floor (`ChatActivityEnterView.java:7457`, `:11457`), so its
 spoilers sat a few dp above the text, more at smaller text sizes. `spoilerOffsetY()` adds that offset to the clip
 and the draw (`EditTextEffects.java:393`, used at `:324` and `:379`). Quote blocks (`:331`) and the spoiler
 tap detector (`SpoilersClickDetector.java:27-30`) do not apply it.
@@ -2837,7 +2837,7 @@ through.
 ## Leaving edit mode re-runs checkSendButton, so a hand-set attach state is overwritten in the same call
 
 `setEditingMessageObject`'s exit branch restores the pre-edit draft with `setText` under `ignoreTextChange`
-(`ChatActivityEnterView.java:13181-13184`). That flag does not guard the text watcher's `checkSendButton(true)`
+(`ChatActivityEnterView.java:13182-13185`). That flag does not guard the text watcher's `checkSendButton(true)`
 (`:7497`). `editingMessageObject` is already null by then (`:12910`). So with a non-empty draft the send branch
 runs, and its `pinAttachButton(150)` (`:10589`) cancels `attachButtonAnimator` and pins the paperclip to alpha 1,
 scale 1 (`:9167-9181`). The method's last `updateRichDraftPreview()` does the same when a rich draft comes back: its
@@ -2853,7 +2853,7 @@ straight away. On a linear or `DEFAULT` curve the control draws into a zero-widt
 ## The record panel's exit releases the composer at its start
 
 Upstream's record exit calls `isRecordingStateChanged()` before it builds its animator set: the fast path at
-`ChatActivityEnterView.java:11926`, a cancel at `:12232`. The panel stays VISIBLE and plays the trash, timer and dot
+`ChatActivityEnterView.java:11927`, a cancel at `:12232`. The panel stays VISIBLE and plays the trash, timer and dot
 for up to ~850ms after that, bringing the attach and emoji buttons back only after a 700ms delay, and is hidden in
 `cancelRecordInterfaceInternal()` (`:12522`), which nulls `runningAnimationAudio` (`:12529`) and calls
 `isRecordingStateChanged()` again. Anything that brings the composer back on the first call draws it under the
@@ -3119,7 +3119,7 @@ and judges staleness by it instead, falling back to the name comparison for
 The locked pause and view-once "(1)" buttons centre on
 `controlsView.getMeasuredWidth() - dp2(26)` (`ChatActivityEnterView.java:1576`),
 but `controlsView` is shifted by the composer's right padding
-(`ChatActivityEnterView.java:18412`) and does not reach the screen edge. Anything
+(`ChatActivityEnterView.java:18413`) and does not reach the screen edge. Anything
 in the round-video recorder that should sit in that column (the flip button, the
 compact collapse toggle) must measure it with `getLocationInWindow` on
 `controlsView`, as `InstantZoomControlView.onceColumn` does
@@ -3166,7 +3166,7 @@ now fails on such a token.
 The selected emoji pack (or system emoji) is drawn only for text carrying an
 `Emoji.EmojiSpan` (`Emoji.java:153`). Unspanned emoji fall back to the system
 font. Upstream spans typed text in the composer only when one change inserts
-more than one char (`ChatActivityEnterView.java:7640`, same gate at
+more than one char (`ChatActivityEnterView.java:7641`, same gate at
 `PhotoViewerCaptionEnterView.java:304`), so a lone `U+26A1` stays plain while
 `U+26A1 U+FE0F` gets the pack, and one message shows two different bolts. The
 photo caption's watcher never spans typed text at all
