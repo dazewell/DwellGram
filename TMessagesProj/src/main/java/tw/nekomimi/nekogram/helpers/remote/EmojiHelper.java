@@ -342,6 +342,14 @@ public class EmojiHelper extends BaseRemoteHelper implements NotificationCenter.
         Typeface typeface;
         if (!typefaceCache.containsKey(pack.packId)) {
             File emojiFile = new File(pack.fileLocation);
+            // NagramX: a catalog pack's fileLocation is the download in Telegram's media cache, which
+            // cache cleanup deletes. The copy made at install survives it, so read that one first.
+            if (pack instanceof EmojiPackInfo info) {
+                File installed = new File(getEmojiDir(info.getPackId(), info.getPackVersion()), EMOJI_FONT_NAME);
+                if (installed.isFile()) {
+                    emojiFile = installed;
+                }
+            }
             if (!emojiFile.exists()) {
                 return null;
             }

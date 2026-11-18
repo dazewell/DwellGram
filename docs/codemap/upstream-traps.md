@@ -3149,6 +3149,18 @@ Only load through a parent the controller can refresh, such as a `MessageObject`
 
 *(Established 2026-11-10, `#emoji-catalog-fix`.)*
 
+## A catalog emoji pack's `fileLocation` is a media-cache path
+
+Every catalog load sets a downloaded pack's `fileLocation` to the document's path
+in Telegram's media cache (`EmojiHelper.java:810`), not to the `font.ttf` copied
+into `emojis/<id>_v<n>/` at install. Cache cleanup deletes the cache file, and
+`isPackInstalled` still passes on the copy (`EmojiHelper.java:502`), so nothing
+fetches it again. A typeface read from `fileLocation` is then null and
+`Emoji.loadEmoji` draws system emoji (`Emoji.java:161`). Read the installed copy
+first (`EmojiHelper.java:348`).
+
+*(Established 2026-11-18, `#emoji-pack-cache-fix`; read from the code, not yet confirmed on a device.)*
+
 ## A Monet token in an `.attheme` must start with `a`, `n` or `monet`
 
 `Theme.getThemeFileValues()` (`Theme.java:7778`) passes a value to
