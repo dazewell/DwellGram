@@ -104,12 +104,13 @@ public final class ComposerInlineRest {
     /**
      * The Liquid Glass pill's bounds for this frame, in container's coordinates. open holds the drawable's left, right,
      * top and bottom as laid out, and pad its padding; all four are rewritten, eased from the gap between the tool
-     * capsules, at their height, at rest to open. False, with open untouched, while the composer is open or hidden, or
-     * a panel holds the tools row.
+     * capsules, at their height, at rest to open. Open, only the end moves, and only while the send column sits beside
+     * the field. False, with open untouched, while the composer is hidden or a panel holds the tools row, or it is
+     * open with nothing to move.
      */
     public static boolean glassPillEdges(@Nullable ChatActivityEnterView enterView, View container, int pad, int[] open) {
         final ComposerInlineRest rest = enterView != null ? enterView.getComposerInlineRest() : null;
-        if (rest == null || !rest.toolsRowShown() || rest.progress >= 1f || rest.crowded) {
+        if (rest == null || !rest.toolsRowShown()) {
             return false;
         }
         // In-chat search hides the composer but draws its bar on this same drawable, so the fold only shows as much
@@ -118,10 +119,25 @@ public final class ComposerInlineRest {
         if (shown <= 0f) {
             return false;
         }
-        final float t = 1f - (1f - rest.progress) * shown;
         // Each capsule paints half the reserved gap past its zone, so a full gap from the zone leaves the other half
         // clear between the capsule and the pill.
         final int gap = rest.toolbar.bubbleGapPx() - pad;
+        // Open, the pill is the field's row alone; with the send column beside it, it stops a gap short of the column
+        // as the MD3 field does, rather than running on under the circle.
+        boolean moved = false;
+        final int column = rest.fieldStopsAtColumn() ? enterView.getComposerPrimaryEndInset() : 0;
+        if (column > 0) {
+            if (LocaleController.isRTL) {
+                open[0] = Math.max(open[0], enterView.getLeft() + column + gap);
+            } else {
+                open[1] = Math.min(open[1], enterView.getRight() - column - gap);
+            }
+            moved = true;
+        }
+        if (rest.progress >= 1f || rest.crowded) {
+            return moved;
+        }
+        final float t = 1f - (1f - rest.progress) * shown;
         final int restStart = rest.restFieldStart();
         final int restEnd = rest.restFieldEnd();
         final int restLeft, restRight;
