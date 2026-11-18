@@ -2976,13 +2976,13 @@ public class ChatActivityEnterView extends FrameLayout implements
                 if (!destroyed) {
                     applyComposerTextGeometry();
                 }
-            }, (dy, scale) -> {
+            }, (dx, dy, scale) -> {
                 // (#composer-send-inline): the column rides the fold with the field; nothing else moves it on Y. Its
                 // scale composes with the ephemeral-message squeeze, which scales the same two views. Done keeps its
                 // own show animation's scale.
                 final float ephemeral = animatorEphemeralMessageVisibility.getFloatValue();
-                moveComposerColumnView(sendButtonContainer, dy, scale, lerp(1, 0.79f, ephemeral));
-                moveComposerColumnView(sendOutlineView, dy, scale, lerp(0.79f, 1, ephemeral));
+                moveComposerColumnView(sendButtonContainer, dx, dy, scale, lerp(1, 0.79f, ephemeral));
+                moveComposerColumnView(sendOutlineView, dx, dy, scale, lerp(0.79f, 1, ephemeral));
                 if (doneButton != null) {
                     doneButton.setTranslationY(dy);
                 }
@@ -4481,7 +4481,7 @@ public class ChatActivityEnterView extends FrameLayout implements
     // (ChatActivity's end margins), so a column wider than that shrinks the square rather than overlapping them.
     // The panel stays right-anchored in RTL, as upstream.
     public FrameLayout.LayoutParams createTopCloseLayoutParams() {
-        final int column = composerPrimarySize();
+        final int column = composerInlineRest != null ? composerInlineRest.drawnColumnDp(composerPrimarySize()) : composerPrimarySize();
         final int size = Math.min(column, 2 * TOP_CLOSE_RESERVE - column);
         return LayoutHelper.createFrame(size, size, Gravity.RIGHT | Gravity.CENTER_VERTICAL, 0, 0, (column - size) / 2f, 0);
     }
@@ -4490,10 +4490,11 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     // NagramX (#composer-send-inline): moves one of the send column's views with the fold. Both already scale about the
     // column's square: the send container keeps its pivot there on resize, and the outline is the square itself.
-    private void moveComposerColumnView(View view, float dy, float foldScale, float ownScale) {
+    private void moveComposerColumnView(View view, float dx, float dy, float foldScale, float ownScale) {
         if (view == null) {
             return;
         }
+        view.setTranslationX(dx);
         view.setTranslationY(dy);
         view.setScaleX(foldScale * ownScale);
         view.setScaleY(foldScale * ownScale);

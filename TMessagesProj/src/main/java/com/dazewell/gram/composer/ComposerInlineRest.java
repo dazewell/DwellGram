@@ -48,11 +48,11 @@ public final class ComposerInlineRest {
     private static final int MD3_REST_HEIGHT = ComposerGeometry.FIELD_ROW - 2 * ComposerGeometry.SEND_INSET;
 
     /**
-     * Moves the send column by {@code dy} px from where it is laid out, 0 putting it back, and draws it at
+     * Moves the send column by {@code dx} and {@code dy} px from where it is laid out, 0 putting it back, and draws it at
      * {@code scale} of its laid-out size about its own square.
      */
     public interface ColumnMover {
-        void moveColumn(float dy, float scale);
+        void moveColumn(float dx, float dy, float scale);
     }
 
     private final ComposerToolbarLayout toolbar;
@@ -129,7 +129,8 @@ public final class ComposerInlineRest {
         // Open, the pill is the field's row alone; with the send column beside it, it stops a gap short of the column
         // as the MD3 field does, weighed by the composer's fade like the rest ease below so search's bar never pops.
         boolean moved = false;
-        final int column = rest.fieldStopsAtColumn() ? enterView.getComposerPrimaryEndInset() : 0;
+        final int inset = rest.fieldStopsAtColumn() ? enterView.getComposerPrimaryEndInset() : 0;
+        final int column = inset > 0 ? inset + rest.columnGrowthPx(rest.columnSizeDp) : 0;
         if (column > 0) {
             if (LocaleController.isRTL) {
                 open[0] = Math.round(open[0] + Math.max(0, enterView.getLeft() + column + gap - open[0]) * shown);
@@ -215,16 +216,44 @@ public final class ComposerInlineRest {
     }
 
     /**
-     * How large the send column is drawn, of its laid-out size. Beside the field it is never taller than the field row:
-     * a Glass column scaled above 100% would stand past the composer's top and be cut. With Send set beside the field
-     * it eases there as the field opens, on the fold's own progress; in the tools row it keeps the buttons' size.
+     * How large the send column is drawn, of its laid-out size. Beside the field it is drawn at the field row's height,
+     * so the disc matches the pill next to it: a Glass column sized to the tool buttons is shorter than the row below
+     * 100% and would stand past the composer's top above it. With Send set beside the field it eases there as the
+     * field opens, on the fold's own progress; in the tools row it keeps the buttons' size.
      */
     public float columnScale() {
-        if (!toolsRowShown() || columnSizeDp <= ComposerGeometry.FIELD_ROW) {
+        if (!toolsRowShown() || columnSizeDp <= 0 || columnSizeDp == ComposerGeometry.FIELD_ROW) {
             return 1f;
         }
         final float beside = crowded ? 1f : besideSetting ? progress : 0f;
         return 1f - (1f - (float) ComposerGeometry.FIELD_ROW / columnSizeDp) * beside;
+    }
+
+    /**
+     * How far the send column is drawn along the row while {@link #columnScale()} grows it, in px: the column scales
+     * about its own square, so this holds its end edge where the tools row's capsules end and it grows into the field.
+     */
+    public float columnOffsetX() {
+        final float scale = columnScale();
+        if (scale <= 1f) {
+            return 0;
+        }
+        final float x = (scale - 1f) * dp(columnSizeDp) / 2f;
+        return LocaleController.isRTL ? x : -x;
+    }
+
+    /**
+     * The width the send column's disc is drawn at, from its end edge, while the field stops at it: the field row's
+     * height when the column is laid out shorter than that, as {@link #columnOffsetX()} draws it, else its own.
+     */
+    public int drawnColumnDp(int columnDp) {
+        return fieldStopsAtColumn() ? Math.max(columnDp, ComposerGeometry.FIELD_ROW) : columnDp;
+    }
+
+    // How much wider than its laid-out slot a column columnDp tall is drawn beside the field, in px, which the open
+    // field and the glass pill stop short of as well as the slot.
+    private int columnGrowthPx(int columnDp) {
+        return columnDp > 0 && columnDp < ComposerGeometry.FIELD_ROW ? dp(ComposerGeometry.FIELD_ROW) - dp(columnDp) : 0;
     }
 
     /** 1 with two rows, 0 with one, eased between them while the island morphs. */
@@ -275,7 +304,7 @@ public final class ComposerInlineRest {
 
     private void moveColumn() {
         if (columnMover != null) {
-            columnMover.moveColumn(columnOffsetY(), columnScale());
+            columnMover.moveColumn(columnOffsetX(), columnOffsetY(), columnScale());
         }
     }
 
@@ -383,7 +412,7 @@ public final class ComposerInlineRest {
         // Under Liquid Glass the pill's painted edge sits a capsule gap past the zone, so the text is inset from that.
         final int restInset = toolbar.hasGlassCapsules() ? toolbar.bubbleGapPx() + dp(GLASS_TEXT_INSET) : dp(TEXT_INSET);
         final int start = rest && restFieldStart() > 0 ? restFieldStart() + restInset : openStart;
-        final int end = rest ? restFieldEnd() + restInset : fieldStopsAtColumn() ? sendReserve + openStart : openStart;
+        final int end = rest ? restFieldEnd() + restInset : fieldStopsAtColumn() ? sendReserve + columnGrowthPx(columnDp) + openStart : openStart;
         final int bottom = rest ? restBottom(field) : openBottom;
         final int column = columnBottomDp(columnDp);
         if (flipped) {
