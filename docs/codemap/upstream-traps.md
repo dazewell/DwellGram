@@ -3186,4 +3186,4 @@ pinned paperclip never fades, and `pinAttachButton` only re-tags it from the men
 first Send-to-mic return in a chat (`:11324`) drew the "⋯" glyph over a visible paperclip for 150ms. Later
 erases were silent once the tag was set. An untagged button now swaps without the fade in toolbar mode (`:9437`).
 
-*(Established 2026-11-17, `#glass-attach-flash-fix`. Code-read; no device trace.)*
+*(Established 2026-11-17, `#glass-attach-flash-fix`. Code-read; no device trace. The fix was confirmed visually on device.)*
