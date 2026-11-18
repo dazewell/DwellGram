@@ -1028,4 +1028,5 @@
     <string name="DmSearchInvertedDates">From must be on or before To.</string>
     <string name="DmSearchTermRequired">Enter a search term to search messages.</string>
     <string name="DmSearchPartialResults">%1$s+ results</string>
+    <string name="EmojiSetDeleteDownloadedInfo">The set is removed from this device. Tap it in the list to download it again.</string>
 </resources>
