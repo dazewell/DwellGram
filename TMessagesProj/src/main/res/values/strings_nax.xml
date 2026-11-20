@@ -988,8 +988,8 @@
     <!-- Chat banner for an approaching scheduled send #scheduled-message-banner -->
     <string name="ScheduledMessageBanner">Upcoming scheduled message banner</string>
     <string name="ScheduledMessageBannerNotice">Show a countdown in a chat when a scheduled message is due within five minutes.</string>
-    <string name="ScheduledBannerIn">Scheduled in %1$s</string>
-    <string name="ScheduledBannerUnderMinute">Scheduled in less than a minute</string>
+    <string name="ScheduledBannerCount_one">%1$d message scheduled within 5 minutes · next in %2$s</string>
+    <string name="ScheduledBannerCount_other">%1$d messages scheduled within 5 minutes · next in %2$s</string>
     <string name="ScheduledBannerAccessibility">%1$s. Open Scheduled Messages</string>
     <string name="ScheduleCountdownOne">Scheduled. Sends in %1$s</string>
     <string name="ScheduleCountdownFirst">Scheduled. The first sends in %1$s</string>

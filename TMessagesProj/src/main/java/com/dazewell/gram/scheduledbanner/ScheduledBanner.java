@@ -77,7 +77,7 @@ public final class ScheduledBanner {
                 if (!iconColorSet || iconColor != color) {
                     iconColor = color;
                     iconColorSet = true;
-                    icon.setColorFilter(color, PorterDuff.Mode.MULTIPLY);
+                    icon.setColorFilter(color, PorterDuff.Mode.SRC_IN);
                 }
                 super.dispatchDraw(canvas);
             }
@@ -90,7 +90,8 @@ public final class ScheduledBanner {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setLayoutDirection(LocaleController.isRTL ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        row.setPadding(AndroidUtilities.dp(16), 0, AndroidUtilities.dp(16), 0);
+        row.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(8), AndroidUtilities.dp(16), AndroidUtilities.dp(8));
+        row.setMinimumHeight(AndroidUtilities.dp(40));
         row.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector, resourcesProvider), 1));
         row.setOnClickListener(v -> open.run());
         row.setFocusable(true);
@@ -101,14 +102,13 @@ public final class ScheduledBanner {
         row.addView(icon, iconParams);
         text = new TextView(context);
         text.setTextSize(14);
-        text.setSingleLine(true);
-        text.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        text.setSingleLine(false);
         text.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
         textParams.setMarginStart(AndroidUtilities.dp(12));
         row.addView(text, textParams);
-        panel.addView(row, 0, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, AndroidUtilities.dp(40)));
-        panel.setPriority(row, 0);
+        panel.addView(row, 0, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        panel.setPriority(row, 6);
     }
 
     public void setTopic(long topicId) {
@@ -246,17 +246,30 @@ public final class ScheduledBanner {
             AndroidUtilities.runOnUIThread(tick, remaining - 300000);
             return;
         }
-        String label;
+        int count = 0;
+        long nextEntryDelay = Long.MAX_VALUE;
+        for (int date : dates) {
+            long until = date * 1000L - now;
+            if (until <= 300000) {
+                count++;
+            } else {
+                nextEntryDelay = until - 300000;
+                break;
+            }
+        }
+        String next;
         long delay;
         if (remaining < 60000) {
-            label = LocaleController.getString(R.string.ScheduledBannerUnderMinute);
+            next = LocaleController.getString(R.string.ScheduleCountdownUnderMinute);
             delay = remaining;
         } else {
             int minutes = (int) ((remaining + 59999) / 60000);
-            label = LocaleController.formatString(R.string.ScheduledBannerIn, LocaleController.formatPluralString("Minutes", minutes));
+            next = LocaleController.formatPluralString("Minutes", minutes);
             delay = remaining - (minutes - 1L) * 60000;
             if (minutes == 1) delay = 1;
         }
+        delay = Math.min(delay, nextEntryDelay);
+        String label = LocaleController.formatPluralString("ScheduledBannerCount", count, next);
         text.setText(label);
         row.setContentDescription(LocaleController.formatString(R.string.ScheduledBannerAccessibility, label));
         smokeVisibility(true, "within-window");
