@@ -243,6 +243,8 @@ Selected scheduled messages show pick numbers, which *Send Now* follows; *Resche
 <img height="260" alt="Message Triggers list showing armed triggers with their message-type and text conditions" src="docs/images/features/message-triggers-list.png" />
 <img height="260" alt="the Presets card listing one saved preset by name with a summary of its conditions, above a Save current as preset row" src="docs/images/features/trigger-presets-card.png" />
 
+### Upcoming scheduled message banner <!-- #scheduled-message-banner -->
+
 ### Countdown after scheduling <!-- #scheduled-countdown -->
 
 After you schedule or reschedule a message, a bulletin says how long until it sends, such as *Sends in 3 days, 11 hours and 2 minutes*. When you schedule several at once, like an album or a forwarded set, it counts to the first. Always on.

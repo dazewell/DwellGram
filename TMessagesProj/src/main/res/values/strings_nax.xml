@@ -985,6 +985,10 @@
     <!-- Round video front flash brightness slider #front-flash-brightness -->
     <string name="FrontFlashBrightness">Flash brightness</string>
     <!-- Bulletin after scheduling, counting to the first send #scheduled-countdown -->
+    <!-- Chat banner for an approaching scheduled send #scheduled-message-banner -->
+    <string name="ScheduledBannerIn">Scheduled in %1$s</string>
+    <string name="ScheduledBannerUnderMinute">Scheduled in less than a minute</string>
+    <string name="ScheduledBannerAccessibility">%1$s. Open Scheduled Messages</string>
     <string name="ScheduleCountdownOne">Scheduled. Sends in %1$s</string>
     <string name="ScheduleCountdownFirst">Scheduled. The first sends in %1$s</string>
     <string name="ScheduleCountdownUnderMinute">less than a minute</string>
