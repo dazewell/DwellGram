@@ -25297,6 +25297,7 @@ public class ChatActivity extends BaseFragment implements
                 }
             }
         } else if (id == NotificationCenter.messageSendError) {
+            if (scheduledBanner != null) scheduledBanner.refresh(); // NagramX: the error write is queued before this account-scoped notification
             Integer msgId = (Integer) args[0];
             MessageObject obj = messagesDict[0].get(msgId);
             handleRepostCopyDeleteSendError(obj);

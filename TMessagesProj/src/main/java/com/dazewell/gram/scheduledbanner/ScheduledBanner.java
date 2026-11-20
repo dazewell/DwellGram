@@ -178,7 +178,7 @@ public final class ScheduledBanner {
             SQLiteCursor cursor = null;
             try {
                 cursor = storage.getDatabase().queryFinalized(String.format(Locale.US,
-                        "SELECT data, mid, date FROM scheduled_messages_v2 WHERE uid = %d ORDER BY date ASC", dialogId));
+                        "SELECT data, mid, date FROM scheduled_messages_v2 WHERE uid = %d AND (mid >= 0 OR send_state != 2) ORDER BY date ASC", dialogId));
                 while (!currentQuery.cancelled && enabled() && cursor.next()) {
                     int date = cursor.intValue(2);
                     if (date <= 0 || date >= FIRST_SENTINEL) continue;
