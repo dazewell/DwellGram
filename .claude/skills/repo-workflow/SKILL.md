@@ -274,21 +274,15 @@ PR mechanics — requesting the billed Copilot review, its budget, the severity
 floor, and thread resolution — are normative in
 `.github/agents/repo-implementer.agent.md` and are not restated here.
 
-**Request the verification build only once review has settled** — round 2 clean,
-any final-state pass clean, nothing Important or above outstanding. An APK
-requested earlier is stale the moment a later round finds a Critical.
+**Request the build the moment you want something tested** — dazewell's
+standing rule. Apply `build-apk` as soon as the commit is pushed; do not wait
+for `ci.yml`, a review round or the Copilot review. A red CI or a later fix
+voids that build: re-apply the label on the new head and say which build is
+current. A stale build costs one CI run; waiting costs his time.
 
-**A UI-facing change earns a second, earlier build first — the smoke build.**
-Review reads the diff; it cannot see whether a control's precondition is ever
-true on a device. So for anything a user can see or tap, once it compiles,
-request a build and ask **one** question: does the control appear, and can you
-reach it? Not correctness, not edge cases — reachability only. Round 2 and any
-final-state pass run **after** that comes back positive.
-
-The smoke build is disposable by design and is never described as a build to
-verify behaviour against. A UI-facing change costs at most two builds, one per
-purpose, never two for the same purpose. A change with no user-visible surface
-gets no smoke build at all.
+For a UI-facing change the first ask is reachability only: does the control
+appear, and can you reach it? Review reads the diff and cannot see whether a
+control's precondition is ever true on a device.
 
 **When a build is up, ask for the test explicitly — never bury it in a
 handback.** Issue an explicit `ask_user` prompt; it stays visibly unanswered

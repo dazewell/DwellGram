@@ -348,13 +348,11 @@ REST POST.
 Fix real findings as new commits; note false positives with a reason. Pushing
 no longer re-requests anything.
 
-**Request the on-device APK build only after round 2 and the Copilot review have
-settled** — not before.
-Review can still find Criticals after you think you are done, which makes any
-earlier build stale the moment it lands. "Ready for a build" means a `ci.yml` run
-exists **for the head SHA** and is green, and every thread is resolved. An absent
-run is not a pass; this repo has seen `pull_request` events dropped silently, so
-report an absent run as absent.
+**Request the on-device APK build the moment you want something tested** —
+apply `build-apk` right after the push, before CI, round 2 or the Copilot
+review. A later fix re-applies the label; name the current build when you ask.
+Report a missing `ci.yml` run for the head SHA as absent, never as a pass: this
+repo has seen `pull_request` events dropped silently.
 
 **Never merge.** The merge decision is dazewell's.
 
