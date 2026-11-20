@@ -986,6 +986,8 @@
     <string name="FrontFlashBrightness">Flash brightness</string>
     <!-- Bulletin after scheduling, counting to the first send #scheduled-countdown -->
     <!-- Chat banner for an approaching scheduled send #scheduled-message-banner -->
+    <string name="ScheduledMessageBanner">Upcoming scheduled message banner</string>
+    <string name="ScheduledMessageBannerNotice">Show a countdown in a chat when a scheduled message is due within five minutes.</string>
     <string name="ScheduledBannerIn">Scheduled in %1$s</string>
     <string name="ScheduledBannerUnderMinute">Scheduled in less than a minute</string>
     <string name="ScheduledBannerAccessibility">%1$s. Open Scheduled Messages</string>

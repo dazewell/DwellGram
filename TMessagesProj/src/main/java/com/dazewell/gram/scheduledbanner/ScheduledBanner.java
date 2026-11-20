@@ -1,6 +1,7 @@
 package com.dazewell.gram.scheduledbanner;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.PorterDuff;
 import android.view.Gravity;
@@ -47,6 +48,19 @@ public final class ScheduledBanner {
     private int iconColor;
     private boolean iconColorSet;
     private final Runnable tick = this::render;
+    private Query query;
+    private final SharedPreferences.OnSharedPreferenceChangeListener settingListener = (preferences, key) -> {
+        if (xyz.nextalone.nagram.NaConfig.INSTANCE.getScheduledMessageBanner().key.equals(key)) {
+            AndroidUtilities.runOnUIThread(() -> {
+                if (resumed) refresh();
+            });
+        }
+    };
+
+    private static final class Query {
+        volatile boolean cancelled;
+        Runnable runnable;
+    }
 
     public ScheduledBanner(Context context, ChatActivityTopPanelLayout panel, int account, long dialogId,
                            long topicId, Theme.ResourcesProvider resourcesProvider, Runnable open) {
@@ -100,25 +114,47 @@ public final class ScheduledBanner {
     public void setTopic(long topicId) {
         if (this.topicId == topicId) return;
         this.topicId = topicId;
-        generation++;
-        dates.clear();
-        AndroidUtilities.cancelRunOnUIThread(tick);
-        panel.setViewVisible(row, false, false);
+        clear();
         refresh();
     }
 
     public void resume() {
-        resumed = true;
+        if (!resumed) {
+            resumed = true;
+            tw.nekomimi.nekogram.NekoConfig.getPreferences().registerOnSharedPreferenceChangeListener(settingListener);
+        }
         android.util.Log.i("NagramX", "NAX_SMOKE_scheduled-message-banner BEGIN build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING + " app=" + org.telegram.messenger.BuildConfig.APPLICATION_ID + " scenario=chat account=" + account);
         refresh();
     }
 
     public void pause() {
-        resumed = false;
+        if (resumed) {
+            resumed = false;
+            tw.nekomimi.nekogram.NekoConfig.getPreferences().unregisterOnSharedPreferenceChangeListener(settingListener);
+        }
         android.util.Log.i("NagramX", "NAX_SMOKE_scheduled-message-banner END");
         smokeVisible = null;
+        cancelWork();
+    }
+
+    private boolean enabled() {
+        return xyz.nextalone.nagram.NaConfig.INSTANCE.getScheduledMessageBanner().Bool();
+    }
+
+    private void cancelWork() {
         generation++;
         AndroidUtilities.cancelRunOnUIThread(tick);
+        if (query != null) {
+            query.cancelled = true;
+            MessagesStorage.getInstance(account).getStorageQueue().cancelRunnable(query.runnable);
+            query = null;
+        }
+    }
+
+    private void clear() {
+        cancelWork();
+        dates.clear();
+        panel.setViewVisible(row, false, false);
     }
 
     public void destroy() {
@@ -128,17 +164,25 @@ public final class ScheduledBanner {
 
     /** Called on the UI thread after a matching scheduled update, including the post-commit update. */
     public void refresh() {
+        if (!enabled()) {
+            clear();
+            return;
+        }
         if (!resumed) return;
-        final int queryGeneration = ++generation;
+        cancelWork();
+        final int queryGeneration = generation;
         final long queryTopicId = topicId;
         MessagesStorage storage = MessagesStorage.getInstance(account);
-        storage.getStorageQueue().postRunnable(() -> {
+        Query currentQuery = new Query();
+        query = currentQuery;
+        currentQuery.runnable = () -> {
+            if (currentQuery.cancelled || !enabled()) return;
             ArrayList<Integer> found = new ArrayList<>();
             SQLiteCursor cursor = null;
             try {
                 cursor = storage.getDatabase().queryFinalized(String.format(Locale.US,
                         "SELECT data, mid, date FROM scheduled_messages_v2 WHERE uid = %d ORDER BY date ASC", dialogId));
-                while (cursor.next()) {
+                while (!currentQuery.cancelled && enabled() && cursor.next()) {
                     int date = cursor.intValue(2);
                     if (date <= 0 || date >= FIRST_SENTINEL) continue;
                     NativeByteBuffer data = cursor.byteBufferValue(0);
@@ -160,12 +204,18 @@ public final class ScheduledBanner {
                 if (cursor != null) cursor.dispose();
             }
             AndroidUtilities.runOnUIThread(() -> {
-                if (!resumed || queryGeneration != generation) return;
+                if (!resumed || queryGeneration != generation || currentQuery.cancelled) return;
+                if (!enabled()) {
+                    clear();
+                    return;
+                }
+                query = null;
                 dates.clear();
                 dates.addAll(found);
                 render();
             });
-        });
+        };
+        storage.getStorageQueue().postRunnable(currentQuery.runnable);
     }
 
     private void smokeVisibility(boolean visible, String reason) {
@@ -177,6 +227,10 @@ public final class ScheduledBanner {
 
     private void render() {
         AndroidUtilities.cancelRunOnUIThread(tick);
+        if (!enabled()) {
+            clear();
+            return;
+        }
         if (!resumed) return;
         long now = ConnectionsManager.getInstance(account).getCurrentTimeMillis();
         while (!dates.isEmpty() && dates.get(0) * 1000L <= now) dates.remove(0);
