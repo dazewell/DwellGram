@@ -202,8 +202,8 @@ git diff --name-only origin/<branch>...origin/dev -- 'TMessagesProj/src'
 Empty means dispatch is app-source equivalent; non-empty means merge `dev` first.
 Report trigger/ref. A workflow that never ran is not a pass.
 
-Request behaviour verification only after review is clean. A UI-facing change
-also gets one earlier smoke build after compile, for reachability only.
+Apply `build-apk` the moment something needs testing on device, right after the
+push, without waiting for CI or review; re-apply it after a later fix.
 
 Copilot review is **billed and never automatic**. Request it once architect
 round 2 has cleared and `ci.yml` is green on the head SHA, via the
