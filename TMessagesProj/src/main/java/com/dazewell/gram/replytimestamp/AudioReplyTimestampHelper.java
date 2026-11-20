@@ -29,6 +29,10 @@ public final class AudioReplyTimestampHelper {
         // A paused seek updates the player before the whole-second progress timer resumes.
         long progressMs = mediaController.getProgressMs(playingMessage);
         int progressSeconds = progressMs >= 0 ? (int) (progressMs / 1000L) : playingMessage.audioProgressSec;
+        // Short messages and the first minute of long ones are easy to find without a timestamp.
+        if (playingMessage.getDuration() <= 60 || progressSeconds < 60) {
+            return;
+        }
         int cursor = Math.max(0, enterView.getCursorPosition());
         CharSequence fieldText = enterView.getFieldText();
         String separator = cursor > 0 && fieldText != null && cursor <= fieldText.length()
