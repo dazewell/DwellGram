@@ -230,6 +230,8 @@ Select text in a message and tap *Cite* to drop it into your input box as a quot
 
 ### Audio reply timestamps <!-- #voice-reply-timestamp -->
 
+Reply to a voice message or audio track while it plays and the current position, like *1:23*, goes into your draft, so the other side knows which part you mean. It only appears once playback passes the first minute of a message longer than a minute. Always on.
+
 ### Wider voice messages <!-- #voice-message-width --> <!-- #voice-message-touch-fix -->
 
 Voice messages stretch across most of the chat width, even for short recordings. Outgoing messages leave extra room for selection checkboxes. Transcriptions use the same width as playback. Playback controls stay on the button and waveform, leaving the space below for reactions and swipe to reply. Always on.
