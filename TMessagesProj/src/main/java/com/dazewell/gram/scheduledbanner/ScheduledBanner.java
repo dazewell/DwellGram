@@ -43,7 +43,6 @@ public final class ScheduledBanner {
     private final TextView text;
     private final ArrayList<Integer> dates = new ArrayList<>();
     private boolean resumed;
-    private Boolean smokeVisible;
     private int generation;
     private int iconColor;
     private boolean iconColorSet;
@@ -123,7 +122,6 @@ public final class ScheduledBanner {
             resumed = true;
             tw.nekomimi.nekogram.NekoConfig.getPreferences().registerOnSharedPreferenceChangeListener(settingListener);
         }
-        android.util.Log.i("NagramX", "NAX_SMOKE_scheduled-message-banner BEGIN build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING + " app=" + org.telegram.messenger.BuildConfig.APPLICATION_ID + " scenario=chat account=" + account);
         refresh();
     }
 
@@ -132,8 +130,6 @@ public final class ScheduledBanner {
             resumed = false;
             tw.nekomimi.nekogram.NekoConfig.getPreferences().unregisterOnSharedPreferenceChangeListener(settingListener);
         }
-        android.util.Log.i("NagramX", "NAX_SMOKE_scheduled-message-banner END");
-        smokeVisible = null;
         cancelWork();
     }
 
@@ -218,13 +214,6 @@ public final class ScheduledBanner {
         storage.getStorageQueue().postRunnable(currentQuery.runnable);
     }
 
-    private void smokeVisibility(boolean visible, String reason) {
-        if (smokeVisible == null || smokeVisible != visible) {
-            smokeVisible = visible;
-            android.util.Log.i("NagramX", "NAX_SMOKE_scheduled-message-banner " + (visible ? "EXPECTED" : "COMPETING") + " reason=" + reason);
-        }
-    }
-
     private void render() {
         AndroidUtilities.cancelRunOnUIThread(tick);
         if (!enabled()) {
@@ -235,13 +224,11 @@ public final class ScheduledBanner {
         long now = ConnectionsManager.getInstance(account).getCurrentTimeMillis();
         while (!dates.isEmpty() && dates.get(0) * 1000L <= now) dates.remove(0);
         if (dates.isEmpty()) {
-            smokeVisibility(false, "empty");
             panel.setViewVisible(row, false);
             return;
         }
         long remaining = dates.get(0) * 1000L - now;
         if (remaining > 300000) {
-            smokeVisibility(false, "outside-window");
             panel.setViewVisible(row, false);
             AndroidUtilities.runOnUIThread(tick, remaining - 300000);
             return;
@@ -272,7 +259,6 @@ public final class ScheduledBanner {
         String label = LocaleController.formatPluralString("ScheduledBannerCount", count, next);
         text.setText(label);
         row.setContentDescription(LocaleController.formatString(R.string.ScheduledBannerAccessibility, label));
-        smokeVisibility(true, "within-window");
         panel.setViewVisible(row, true);
         AndroidUtilities.runOnUIThread(tick, Math.max(1, delay));
     }
