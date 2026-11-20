@@ -11410,8 +11410,8 @@ public class ChatActivity extends BaseFragment implements
                 replyOriginalChat = null;
                 isTopic = false;
                 isComments = false;
+                if (scheduledBanner != null) scheduledBanner.setTopic(0); // NagramX: the all-topics tab reuses this chat and its panel
             }
-            if (scheduledBanner != null) scheduledBanner.setTopic(isTopic ? threadMessageId : 0); // NagramX: topic tabs reuse this chat and its panel
 
             if (chatAdapter != null) {
                 if (chatAdapter.botForumStartThreadRow >= 0 && !chatAdapter.needBotForumInfoRow()) {
@@ -38807,6 +38807,7 @@ public class ChatActivity extends BaseFragment implements
         replyOriginalMessageId = originalMessage;
         replyOriginalChat = originalChat;
         isTopic = forumTopic != null;
+        if (scheduledBanner != null) scheduledBanner.setTopic(isTopic ? threadMessageId : 0); // NagramX: topic creation and tabs both reuse this chat
         isComments = replyingMessageObject.messageOwner.fwd_from != null && replyingMessageObject.messageOwner.fwd_from.channel_post != 0 && !isTopic;
         if (isTopic) {
             replyingMessageObject.isTopicMainMessage = true;
