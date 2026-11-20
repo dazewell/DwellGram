@@ -89,8 +89,8 @@ public final class ScheduledBanner {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setLayoutDirection(LocaleController.isRTL ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        row.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(8), AndroidUtilities.dp(16), AndroidUtilities.dp(8));
-        row.setMinimumHeight(AndroidUtilities.dp(40));
+        row.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(2), AndroidUtilities.dp(16), AndroidUtilities.dp(2));
+        row.setMinimumHeight(AndroidUtilities.dp(32));
         row.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector, resourcesProvider), 1));
         row.setOnClickListener(v -> open.run());
         row.setFocusable(true);
@@ -101,7 +101,8 @@ public final class ScheduledBanner {
         row.addView(icon, iconParams);
         text = new TextView(context);
         text.setTextSize(14);
-        text.setSingleLine(false);
+        text.setSingleLine(true);
+        text.setEllipsize(android.text.TextUtils.TruncateAt.END);
         text.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
         textParams.setMarginStart(AndroidUtilities.dp(12));
