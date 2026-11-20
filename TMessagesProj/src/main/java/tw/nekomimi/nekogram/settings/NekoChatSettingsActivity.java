@@ -124,6 +124,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     private final AbstractConfigCell addCommaAfterMentionRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getAddCommaAfterMention()));
     private final AbstractConfigCell useChatAttachMediaMenuRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.useChatAttachMediaMenu, getString(R.string.UseChatAttachEnterMenuNotice)));
     private final AbstractConfigCell quickScheduleButtonRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getQuickScheduleButton(), getString(R.string.QuickScheduleButtonNotice)));
+    private final AbstractConfigCell scheduledMessageBannerRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getScheduledMessageBanner(), getString(R.string.ScheduledMessageBannerNotice)));
     private final AbstractConfigCell combinePinnedWithPlayerRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getCombinePinnedWithPlayer(), getString(R.string.CombinePinnedWithPlayerNotice)));
     private final AbstractConfigCell fixLinkPreviewRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getFixLinkPreview(), "x.com -> fixupx.com"));
     private final AbstractConfigCell disableLinkPreviewByDefaultRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableLinkPreviewByDefault));

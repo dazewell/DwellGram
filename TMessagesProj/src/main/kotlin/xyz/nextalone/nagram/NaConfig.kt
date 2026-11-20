@@ -1674,6 +1674,13 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    // NagramX (#scheduled-message-banner): controls the per-chat upcoming send row.
+    val scheduledMessageBanner =
+        addConfig(
+            "ScheduledMessageBanner",
+            ConfigItem.configTypeBool,
+            true
+        )
     // NagramX (#combined-pinned-player): pinned message and audio player share one top row.
     val combinePinnedWithPlayer =
         addConfig(

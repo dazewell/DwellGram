@@ -616,6 +616,7 @@ public class ChatActivity extends BaseFragment implements
     private HintView2 guestBotHintView;
     private HintView2 bottomSuggestHintView;
     private ChatActivityTopPanelLayout topPanelLayout;
+    private com.dazewell.gram.scheduledbanner.ScheduledBanner scheduledBanner; // NagramX: each open chat owns its countdown
 
     private boolean ignoreItemAnimation;
     private ChatActivityChannelButtonsLayout bottomChannelButtonsLayout;
@@ -3885,6 +3886,7 @@ public class ChatActivity extends BaseFragment implements
 
     @Override
     public void onFragmentDestroy() {
+        if (scheduledBanner != null) scheduledBanner.destroy(); // NagramX: discard pending storage results with the chat
         // NagramX: disposal may happen without the search field collapsing first.
         if (supportsDmSearchFilters()) getMediaDataController().closeDmSearch(classGuid, dialog_id);
         super.onFragmentDestroy();
@@ -4921,7 +4923,10 @@ public class ChatActivity extends BaseFragment implements
             return false;
         });
 
+        if (scheduledBanner != null) { scheduledBanner.destroy(); scheduledBanner = null; } // NagramX: rebuilding the view must retire its old timer
         topPanelLayout = new ChatActivityTopPanelLayout(context);
+        // NagramX: use the ordinary chat panel so the countdown shares its layout and padding.
+        if (chatMode == MODE_DEFAULT && (!isThreadChat() || isTopic) && !isInPreviewMode() && !isInsideContainer) scheduledBanner = new com.dazewell.gram.scheduledbanner.ScheduledBanner(context, topPanelLayout, currentAccount, dialog_id, isTopic ? threadMessageId : 0, themeDelegate, this::openScheduledMessages);
         topPanelLayout.setOnAnimatedHeightChangedListener(() -> {
             invalidateChatListViewTopPadding();
             invalidateMessagesVisiblePart();
@@ -11405,6 +11410,7 @@ public class ChatActivity extends BaseFragment implements
                 replyOriginalChat = null;
                 isTopic = false;
                 isComments = false;
+                if (scheduledBanner != null) scheduledBanner.setTopic(0); // NagramX: the all-topics tab reuses this chat and its panel
             }
 
             if (chatAdapter != null) {
@@ -25291,6 +25297,7 @@ public class ChatActivity extends BaseFragment implements
                 }
             }
         } else if (id == NotificationCenter.messageSendError) {
+            if (scheduledBanner != null) scheduledBanner.refresh(); // NagramX: the error write is queued before this account-scoped notification
             Integer msgId = (Integer) args[0];
             MessageObject obj = messagesDict[0].get(msgId);
             handleRepostCopyDeleteSendError(obj);
@@ -27012,6 +27019,7 @@ public class ChatActivity extends BaseFragment implements
             long did = (Long) args[0];
             boolean fromCache = (boolean) args[2];
             if (dialog_id == did) {
+                if (scheduledBanner != null) scheduledBanner.refresh(); // NagramX: storage updates can change the nearest send
                 if (!isTopic) {
                     scheduledMessagesCount = (Integer) args[1];
                     updateScheduledInterface(openAnimationEnded);
@@ -32828,6 +32836,11 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void setInPreviewMode(boolean value) {
         super.setInPreviewMode(value);
+        // NagramX: an expanded peek keeps this chat instance but now needs the ordinary chat row.
+        if (!value && scheduledBanner == null && topPanelLayout != null && getContext() != null && chatMode == MODE_DEFAULT && (!isThreadChat() || isTopic) && !isInsideContainer) {
+            scheduledBanner = new com.dazewell.gram.scheduledbanner.ScheduledBanner(getContext(), topPanelLayout, currentAccount, dialog_id, isTopic ? threadMessageId : 0, themeDelegate, this::openScheduledMessages);
+            if (!isPaused) scheduledBanner.resume();
+        }
         nkUpdateChatMenu(); // NagramX: a peek expanded into the chat shows its header icons
         if (currentUser != null && audioCallIconItem != null) {
             TLRPC.UserFull userFull = getMessagesController().getUserFull(currentUser.id);
@@ -32917,6 +32930,7 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onResume() {
         super.onResume();
+        if (scheduledBanner != null) scheduledBanner.resume(); // NagramX: refresh against server time after returning
         // NagramX: re-cover a "require password" chat if backgrounding cleared its unlock, and drive the
         // cover's lifecycle so it auto-prompts fingerprint like the app lock
         showChatLockPasscodeView();
@@ -33154,6 +33168,7 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onPause() {
         super.onPause();
+        if (scheduledBanner != null) scheduledBanner.pause(); // NagramX: no countdown callbacks while the chat is paused
         // NagramX: #stash keeps its batch: its offer follows the user, so leaving for Scheduled before the
         // copies are confirmed must not drop it
         if (repostCopyDeleteBatch == null || !repostCopyDeleteBatch.stash) {
@@ -38793,6 +38808,7 @@ public class ChatActivity extends BaseFragment implements
         replyOriginalMessageId = originalMessage;
         replyOriginalChat = originalChat;
         isTopic = forumTopic != null;
+        if (scheduledBanner != null) scheduledBanner.setTopic(isTopic ? threadMessageId : 0); // NagramX: topic creation and tabs both reuse this chat
         isComments = replyingMessageObject.messageOwner.fwd_from != null && replyingMessageObject.messageOwner.fwd_from.channel_post != 0 && !isTopic;
         if (isTopic) {
             replyingMessageObject.isTopicMainMessage = true;
