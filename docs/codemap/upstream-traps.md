@@ -2945,10 +2945,12 @@ arithmetic after an upstream change to the recording controls; do not anchor to 
 The flip and the compact toggle need the live column, not the resting line, to scale in on lock and drop with a
 slide to cancel as pause and view-once do. `ControlsView.onDraw` hands its stack base `cy`
 (`ChatActivityEnterView.java:1862`, computed whether or not view-once shows) and view-once's own scale to
-`recordColumn.update` (`:1901`). `RecordControlsColumn` puts the flip and the toggle on fixed slots above it, and
-`InstantCameraView.updateTranslationY` (`InstantCameraView.java:1454`) re-places them when the composer moves
+`recordColumn.update` (`:1901`), with how many chips it drew (pause, plus "(1)" where offered). `RecordControlsColumn`
+stacks the flip and the toggle on the next free slots above, packed so a missing button (no "(1)" in scheduled
+messages, a GONE recorder button) leaves no gap, and
+`InstantCameraView.updateTranslationY` (`InstantCameraView.java:1455`) re-places them when the composer moves
 without redrawing. `ControlsView` usually goes `GONE` between recordings with no last frame, so a column not shown
-zeroes its members (`RecordControlsColumn.java:100`) rather than reusing the last frame's scale. Some cancels only
+zeroes its members (`RecordControlsColumn.java:109`) rather than reusing the last frame's scale. Some cancels only
 fade it to alpha 0 and leave it `VISIBLE`; the frame reused there is the pre-lock one, at scale 0.
 
 *(Established 2026-10-29, `#video-zoom`, PR 576; live column 2026-11-20, `#video-column-fix`.)*
