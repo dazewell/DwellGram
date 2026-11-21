@@ -1898,7 +1898,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             }
             // NagramX (#video-hold-send): above the "(1)", or in its slot, with the same gap and scale
             soundChip.draw(canvas, rectF, lockSize + dpf2(24), controlsScale * (1f - exitTransition) * slideToCancelLockProgress * snapAnimationProgress, lockBackgroundPaint, lockShadowDrawable);
-            recordColumn.update(cx, cy, lockSize, dpf2(24), controlsScale * (1f - exitTransition) * slideToCancelLockProgress * snapAnimationProgress); // NagramX: the round video recorder's flip and compact toggle stack on from here, at this scale
+            recordColumn.update(cx, cy, lockSize, dpf2(24), controlsScale * (1f - exitTransition) * slideToCancelLockProgress * snapAnimationProgress, onceVisible ? 2 : 1); // NagramX: the round video recorder's flip and compact toggle stack on from here, at this scale, closing up where there is no "(1)"
         }
 
         @Override
