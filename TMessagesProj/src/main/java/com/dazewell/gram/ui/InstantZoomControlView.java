@@ -137,7 +137,7 @@ public class InstantZoomControlView extends FrameLayout {
         flip.setClickable(getAlpha() >= 0.01f);
     }
 
-    /** The flip button, for the recorder to add beside this view; it fades and slides with it. */
+    /** The flip button, for the recorder to add beside this view; it fades with it, and slides with it outside a chat. */
     public View flipButton() {
         return flip;
     }

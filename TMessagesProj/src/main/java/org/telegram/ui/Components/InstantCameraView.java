@@ -1344,7 +1344,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             toX = recordedTime > 300 ? dp(24) - getMeasuredWidth() / 2f : 0;
         }
         // NagramX (#compact-video-recording): the docked presentation rides on the same scale and slide. Only the
-        // circle docks; the zoom row (and the flip button it carries) keeps the stock target, and the cancel
+        // circle docks; the zoom row (and, outside a chat, the flip button it carries) keeps the stock target, and the cancel
         // slide's target is already absolute.
         final float presentationScale = compactRecorder.scale();
         final float circleToX = toX != 0 ? toX : compactRecorder.offsetX();

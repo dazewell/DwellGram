@@ -98,7 +98,7 @@ public final class RecordControlsColumn {
 
     private void relayout() {
         if (!column.isShown()) {
-            // between recordings ControlsView is gone without a last frame; the next one starts hidden
+            // between recordings ControlsView is usually gone, with no last frame; the next one starts hidden
             drawn = false;
             for (int slot = 0; slot < SLOTS; slot++) {
                 if (members[slot] != null) {
