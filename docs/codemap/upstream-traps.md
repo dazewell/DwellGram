@@ -3136,6 +3136,18 @@ the glyph bounds, rather than by eye.
 
 *(Established 2026-11-07, `#compact-video-recording`, `#video-zoom`, `#once-glyph-fix`.)*
 
+## A reply strip moves the round-video recorder's padding but not the composer's controls column
+
+The recorder's bottom padding is the composer island's height, reply/edit strip included
+(`ChatActivity.java:20845`, from `ChatActivityEnterView.java:19681`), so its flash row and compact dock
+rise with a reply. Upstream lays `ControlsView` (pause, view-once, lock) out from the screen bottom only
+(`ChatActivity.java:21031-21032`), and the recorder's flip, zoom row and collapse toggle anchor to that
+column. The fork lifts `controlsView` by `getTopViewHeight()` (`ChatActivity.java:21035`) so the two stay
+in step. Re-apply that line after an upstream merge touches this layout branch, and anchor any new
+recorder control to one of the two references, never a mix.
+
+*(Established 2026-11-20, `#video-reply-layout-fix`, PR 639.)*
+
 ## A file reference that failed once can hang the next attempt
 
 `FileRefController.requestReference` records each waiter in `locationRequester`
