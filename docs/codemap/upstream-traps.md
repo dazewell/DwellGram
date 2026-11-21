@@ -2951,8 +2951,8 @@ layout pass) that takes its alpha and visibility (`:1405`, `:1412`). `ControlsVi
 preview is up (`:1909`). The buttons stack packed on the free slots above, so a missing one (no "(1)" in scheduled
 messages) leaves no gap. They show only while the stack draws with the recorder showing and not faded out
 (`RecordControlsColumn.java:126`, also from `InstantCameraView.java:1454`), so a voice recording on the same stack
-never gets them. Disarm on the stack's fade to alpha 0 (`RecordControlsColumn.java:101`), not on `GONE`: after a
-preview is sent or deleted upstream only fades `ControlsView` and leaves it `VISIBLE` (`ChatActivityEnterView.java:9535`, `:9613`).
+doesn't get them. Disarm on the stack's fade to alpha 0 (`RecordControlsColumn.java:103`), not on `GONE`: after a
+preview is sent or deleted upstream only fades `ControlsView` and leaves it `VISIBLE` (`ChatActivityEnterView.java:9535`, `:9577`).
 A layout move or translation doesn't redraw `ControlsView`, so they follow it from a pre-draw listener while armed,
 dropped on the host's detach.
 
