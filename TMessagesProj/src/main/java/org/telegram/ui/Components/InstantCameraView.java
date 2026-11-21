@@ -280,8 +280,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                         maybePinchToZoomTouchMode = false;
                     }
                 });
-        recorder.hideWhenCompact(buttonsLayout, zoomControlView, zoomControlView.flipButton(), flashBrightnessSlider);
-        recorder.stackAbove(zoomControlView.flipButton());
+        recorder.hideWhenCompact(buttonsLayout, zoomControlView, flashBrightnessSlider);
         recorder.updateColors(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(isDarkAppearance()));
         return recorder;
     }
@@ -1345,7 +1344,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             toX = recordedTime > 300 ? dp(24) - getMeasuredWidth() / 2f : 0;
         }
         // NagramX (#compact-video-recording): the docked presentation rides on the same scale and slide. Only the
-        // circle docks; the zoom row (and the flip button it carries) keeps the stock target, and the cancel
+        // circle docks; the zoom row (and, outside a chat, the flip button it carries) keeps the stock target, and the cancel
         // slide's target is already absolute.
         final float presentationScale = compactRecorder.scale();
         final float circleToX = toX != 0 ? toX : compactRecorder.offsetX();
@@ -1450,6 +1449,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             rowCenterY = lo > hi ? hi : Math.min(Math.max(want, lo), hi);
         }
         zoomControlView.setPlacement(compact, buttonsLayout.getMeasuredWidth() > 0 ? buttonsLayout.getMeasuredWidth() + dp(1) : dp(108), rowCenterY);
+        // NagramX: in a chat the composer's record column places and scales the flip and the compact toggle, so they
+        // move like pause and view-once; a story reply's recorder has no column and places the flip itself
+        zoomControlView.setFlipInColumn(com.dazewell.gram.videonote.RecordControlsColumn.place(delegate, zoomControlView.flipButton(), compactRecorder != null ? compactRecorder.toggleButton() : null, this));
         zoomControlView.setFlipLine(Float.isNaN(once) ? rowCenterY : once); // up the column from the view-once button
         zoomControlView.setFlipColumn(InstantZoomControlView.onceColumn(this, delegate)); // NagramX: and on its centre line
         // dock the label inside the camera circle, bottom-center: the row's band is the zoom's own
@@ -1463,7 +1465,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             muteImageView.setTranslationX(0);
             muteImageView.setTranslationY(0);
         }
-        if (compactRecorder != null) compactRecorder.layoutToggle(); // NagramX (#compact-video-recording): last, once the circle and the flip column are placed
     }
 
     public RectF getCameraRect() {

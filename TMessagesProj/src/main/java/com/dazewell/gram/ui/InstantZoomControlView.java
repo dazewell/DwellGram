@@ -14,6 +14,7 @@ import androidx.core.graphics.ColorUtils;
 
 import com.dazewell.gram.videonote.CameraMemo;
 import com.dazewell.gram.videonote.CameraMemoZoom;
+import com.dazewell.gram.videonote.RecordControlsColumn;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
@@ -32,7 +33,8 @@ import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundColorPro
  * #video-zoom: the round video recorder's zoom, the camera memo's own (CameraMemoZoom): a row of stops under the
  * circle, tap one to jump, hold or slide to turn the row into a ruler. The camera flip is a button of its own, since
  * the hold's sideways swipe only works mid-recording and only with its gestures on; the recorder adds it
- * (flipButton) to the column of the composer's view-once and pause buttons, so the row stays centred.
+ * (flipButton) to the column of the composer's view-once and pause buttons, so the row stays centred. In a chat
+ * that column places and scales it (RecordControlsColumn); elsewhere this view does, from setFlipLine and setFlipColumn.
  *
  * The view is the row's 56dp band. Only a stop or the open ruler take a touch; anything else falls through to the
  * recorder.
@@ -52,6 +54,7 @@ public class InstantZoomControlView extends FrameLayout {
     private float leftReserve;
     private float rowCenterY;
     private float columnX = Float.NaN; // the composer's view-once column, from onceColumn
+    private boolean inColumn; // RecordControlsColumn owns the flip's position, scale and alpha
 
     private boolean relayoutPending;
     private final RectF rect = new RectF();
@@ -61,8 +64,8 @@ public class InstantZoomControlView extends FrameLayout {
         flip = new ImageView(context) {
             @Override
             public boolean onTouchEvent(MotionEvent event) {
-                if (event.getActionMasked() == MotionEvent.ACTION_DOWN && !live()) {
-                    return false;
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN && (!live() || !RecordControlsColumn.shown(this))) {
+                    return false; // scaled away with the column, but a scale-0 view still takes a touch on its bounds
                 }
                 return super.onTouchEvent(event);
             }
@@ -122,7 +125,7 @@ public class InstantZoomControlView extends FrameLayout {
 
     public void setOnSwitchCamera(Runnable onSwitch) {
         flip.setOnClickListener(v -> {
-            if (!live()) {
+            if (!live() || !RecordControlsColumn.shown(flip)) {
                 return;
             }
             if (zoom.isDialOpen()) {
@@ -134,7 +137,7 @@ public class InstantZoomControlView extends FrameLayout {
         flip.setClickable(getAlpha() >= 0.01f);
     }
 
-    /** The flip button, for the recorder to add beside this view; it fades and slides with it. */
+    /** The flip button, for the recorder to add beside this view; it fades and slides with it, unless a chat's record column has it. */
     public View flipButton() {
         return flip;
     }
@@ -142,8 +145,8 @@ public class InstantZoomControlView extends FrameLayout {
     @Override
     public void setAlpha(float alpha) {
         super.setAlpha(alpha);
-        if (flip == null) {
-            return; // the super constructor, before it exists
+        if (flip == null || inColumn) {
+            return; // the super constructor, before it exists; or the composer's record column shows it now
         }
         flip.setAlpha(alpha);
         flip.setClickable(alpha >= 0.01f); // a faded one lets the touch through, as this view does
@@ -153,13 +156,16 @@ public class InstantZoomControlView extends FrameLayout {
     @Override
     public void setTranslationX(float translationX) {
         super.setTranslationX(translationX);
-        if (flip != null && getWidth() > 0) {
+        if (flip != null && !inColumn && getWidth() > 0) {
             flip.setTranslationX(translationX + flipCenterOffset(getWidth()));
         }
     }
 
     /** Centres the flip on the view-once and pause column, one gap above the view-once line (in the recorder's centre-relative px). */
     public void setFlipLine(float onceLine) {
+        if (inColumn) {
+            return;
+        }
         flip.setTranslationY(onceLine - AndroidUtilities.dp(FLIP_DP + COLUMN_GAP_DP));
     }
 
@@ -213,7 +219,7 @@ public class InstantZoomControlView extends FrameLayout {
     public void onRecorderTouch(MotionEvent event) {
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN && zoom.isDialOpen()
                 && !zoom.isInDial(event.getX() - getX() - zoom.getX(), event.getY() - getY() - zoom.getY())
-                && !contains(flip, event.getX(), event.getY())) {
+                && (inColumn || !contains(flip, event.getX(), event.getY()))) { // in the column its touches never come here
             zoom.dismiss();
         }
     }
@@ -267,7 +273,9 @@ public class InstantZoomControlView extends FrameLayout {
         final float side = AndroidUtilities.dp(COLUMN_DP + 8);
         zoom.setRowBounds(compact ? Math.max(side, leftReserve + AndroidUtilities.dp(8)) : side, side);
         setTranslationY(rowCenterY);
-        flip.setTranslationX(getTranslationX() + flipCenterOffset(w));
+        if (!inColumn) {
+            flip.setTranslationX(getTranslationX() + flipCenterOffset(w));
+        }
     }
 
     /**
@@ -321,8 +329,28 @@ public class InstantZoomControlView extends FrameLayout {
             return;
         }
         columnX = x;
-        if (getWidth() > 0) {
+        if (!inColumn && getWidth() > 0) {
             flip.setTranslationX(getTranslationX() + flipCenterOffset(getWidth()));
+        }
+    }
+
+    /** True while the composer's column places the flip; false hands it back here at full size, for setFlipLine to place. */
+    public void setFlipInColumn(boolean inColumn) {
+        if (this.inColumn == inColumn) {
+            return;
+        }
+        this.inColumn = inColumn;
+        if (inColumn) {
+            // a faded row left it unclickable; the column's scale decides from here
+            flip.setClickable(true);
+            flip.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+        } else {
+            setAlpha(getAlpha());
+            flip.setScaleX(1f);
+            flip.setScaleY(1f);
+            if (getWidth() > 0) {
+                flip.setTranslationX(getTranslationX() + flipCenterOffset(getWidth()));
+            }
         }
     }
 

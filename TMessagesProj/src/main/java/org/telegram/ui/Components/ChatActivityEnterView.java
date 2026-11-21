@@ -1396,10 +1396,20 @@ public class ChatActivityEnterView extends FrameLayout implements
                         this.virtualViewHelper.invalidateRoot();
                     }
                 });
+        // NagramX: where this stack was last drawn, for the round video recorder's own buttons to join it
+        public final com.dazewell.gram.videonote.RecordControlsColumn recordColumn = new com.dazewell.gram.videonote.RecordControlsColumn(this);
 
         @Override
         public void setAlpha(float alpha) {
             super.setAlpha(alpha);
+            if (recordColumn != null) recordColumn.onColumnAlpha(alpha); // NagramX: the round video recorder's buttons in this stack fade with it
+        }
+
+        // NagramX: and hide with it, which is also where a recording's hold on them ends
+        @Override
+        public void setVisibility(int visibility) {
+            super.setVisibility(visibility);
+            if (recordColumn != null) recordColumn.onColumnVisibility(visibility);
         }
 
         @Override
@@ -1896,6 +1906,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             }
             // NagramX (#video-hold-send): above the "(1)", or in its slot, with the same gap and scale
             soundChip.draw(canvas, rectF, lockSize + dpf2(24), controlsScale * (1f - exitTransition) * slideToCancelLockProgress * snapAnimationProgress, lockBackgroundPaint, lockShadowDrawable);
+            recordColumn.update(cx, cy, lockSize, dpf2(24), controlsScale * (1f - exitTransition) * slideToCancelLockProgress * snapAnimationProgress, onceVisible ? 2 : 1, videoToSendMessageObject != null); // NagramX: the round video recorder's flip and compact toggle stack on from here, at this scale, closing up where there is no "(1)"
         }
 
         @Override
@@ -5157,6 +5168,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         controlsView = new ControlsView(getContext());
         controlsView.setVisibility(GONE);
         sizeNotifierLayout.addView(controlsView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM));
+        controlsView.recordColumn.attachHost(); // NagramX: the round video recorder's buttons in this stack sit right above it
     }
 
     public boolean isRecordCircleOrControlsView(View view) {
