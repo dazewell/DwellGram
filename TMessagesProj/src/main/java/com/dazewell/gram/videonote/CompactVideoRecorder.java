@@ -101,7 +101,15 @@ public final class CompactVideoRecorder {
         this.circle = circle;
         this.callback = callback;
 
-        toggle = new ImageView(host.getContext());
+        toggle = new ImageView(host.getContext()) {
+            @Override
+            public boolean onTouchEvent(MotionEvent event) {
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN && !RecordControlsColumn.shown(this)) {
+                    return false; // scaled away with the column, but a scale-0 view still takes a touch on its bounds
+                }
+                return super.onTouchEvent(event);
+            }
+        };
         toggle.setScaleType(ImageView.ScaleType.CENTER);
         toggle.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN));
         toggle.setVisibility(View.GONE);

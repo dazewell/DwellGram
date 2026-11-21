@@ -29,8 +29,11 @@ import org.telegram.ui.Components.LayoutHelper;
  * or INVISIBLE one gives its slot up. A camera-only button (the flip) fades while the composer shows a recorded
  * preview but keeps its slot, which the preview's sound chip takes, so the toggle above doesn't move.
  *
- * Buttons show only for a recording whose recorder put them here (place()), so a voice recording on the same stack
- * doesn't get them; that ends when ControlsView hides. One per ControlsView, so per chat. UI thread only.
+ * Buttons show only while the stack is up for a round video: armed when the stack draws or the recorder lays out
+ * with the recorder showing and the stack not faded out, and disarmed when the stack fades out, hides or leaves the
+ * window. A voice recording on the same stack has no recorder showing, so it never gets them. Upstream sometimes only
+ * fades the stack to alpha 0 and leaves it VISIBLE (after a preview is sent or deleted), so the fade is the signal,
+ * not GONE. One per ControlsView, so per chat. UI thread only.
  */
 public final class RecordControlsColumn {
 
@@ -55,8 +58,10 @@ public final class RecordControlsColumn {
         return true;
     };
     private ViewTreeObserver observer;
+    // the round video recorder whose buttons these are, for whether it is showing
+    private View recorder;
 
-    // this recording's recorder has put its buttons here; cleared when ControlsView hides
+    // the stack is up for a round video, so the buttons show; see the class comment for when
     private boolean armed;
     // false until ControlsView draws for this recording, so a new one doesn't reuse the last one's final frame
     private boolean drawn;
@@ -68,6 +73,16 @@ public final class RecordControlsColumn {
         previewing = new AnimatedFloat(column, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
         host = new Host(column);
         host.setVisibility(View.GONE); // ControlsView starts GONE too
+        host.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                disarm(); // the chat is closing or rebuilding; its window's observer mustn't keep this
+            }
+        });
     }
 
     // ControlsView, once it is in its parent: the host goes right above it. Never from a layout pass.
@@ -85,16 +100,34 @@ public final class RecordControlsColumn {
     // ControlsView's own alpha, which the composer fades the stack out with
     public void onColumnAlpha(float alpha) {
         host.setAlpha(alpha);
+        if (alpha < SHOWN) {
+            disarm(); // faded out: every teardown of the stack ends here, GONE or not
+        }
     }
 
     public void onColumnVisibility(int visibility) {
         host.setVisibility(visibility);
         if (visibility != View.VISIBLE) {
-            // the recording is over for the stack: the next one, or a voice recording, starts without the buttons
-            armed = false;
-            drawn = false;
-            stopFollowing();
-            relayout();
+            disarm();
+        }
+    }
+
+    // The recording is over for the stack: the next one, or a voice recording, starts without the buttons.
+    private void disarm() {
+        if (!armed && observer == null) {
+            return;
+        }
+        armed = false;
+        drawn = false;
+        stopFollowing();
+        relayout();
+    }
+
+    private void maybeArm() {
+        if (!armed && recorder != null && recorder.isShown() && column.getVisibility() == View.VISIBLE
+                && column.getAlpha() >= SHOWN && host.isAttachedToWindow()) {
+            armed = true;
+            startFollowing();
         }
     }
 
@@ -109,10 +142,10 @@ public final class RecordControlsColumn {
 
     /**
      * The recorder puts its buttons in delegate's column, or returns false when there is none and they stay its own.
-     * toggle may be null. Called whenever the recorder lays itself out; showing is true while the recorder is up,
-     * which is what lets the buttons show for this recording.
+     * toggle may be null. Called whenever the recorder lays itself out; recorder is the view they come from, which
+     * has to be showing for them to.
      */
-    public static boolean place(Object delegate, View flip, View toggle, boolean showing) {
+    public static boolean place(Object delegate, View flip, View toggle, View recorder) {
         final RecordControlsColumn column = of(delegate);
         if (column == null || column.host.getParent() == null) {
             return false;
@@ -121,10 +154,8 @@ public final class RecordControlsColumn {
         if (toggle != null) {
             column.join(toggle, COMPACT_TOGGLE, false);
         }
-        if (showing && !column.armed) {
-            column.armed = true;
-            column.startFollowing();
-        }
+        column.recorder = recorder;
+        column.maybeArm();
         column.relayout();
         return true;
     }
@@ -152,6 +183,7 @@ public final class RecordControlsColumn {
         this.drawnChips = Math.max(1, drawnChips);
         this.preview = previewing.set(preview); // invalidates ControlsView while it fades, so this keeps coming
         drawn = true;
+        maybeArm();
         relayout();
     }
 
