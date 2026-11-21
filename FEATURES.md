@@ -78,7 +78,7 @@ Turn on **Hold Messages** under Settings → Ghost Mode, or from the Send button
 
 With Ghost Mode on, the ghost indicator next to the chat list title stays visible even when contacts' stories collapse the header.
 
-### Your last seen under the Ayu Mode switch <!-- #own-last-seen -->
+### Your last seen under the Ayu Mode switch <!-- #own-last-seen --> <!-- #ayu-status-refresh -->
 
 With Ghost Mode on, the Ayu Mode switch in the chats ⋮ menu and the Settings tab's long-press menu shows your last seen underneath, as Telegram has it for you, e.g. *seen at 14:05*. Settings → Ghost Mode → *Show my last seen*, on by default.
 

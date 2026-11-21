@@ -190,7 +190,9 @@ public class AyuGhostUtils {
         }
 
         // Force offline if online status sending disabled
-        if ((!NekoConfig.sendOnlinePackets.Bool() || ghostOffPending) && object instanceof TL_account.updateStatus updateStatus) {
+        // NagramX: except the online half of the Ayu Mode row's status refresh, which the user tapped for.
+        if ((!NekoConfig.sendOnlinePackets.Bool() || ghostOffPending) && object instanceof TL_account.updateStatus updateStatus
+                && !(object instanceof com.dazewell.gram.ownlastseen.StatusRefresh.OnlinePulse)) {
             FileLog.d("GhostMode: Forcing offline status in updateStatus request.");
             updateStatus.offline = true;
         }

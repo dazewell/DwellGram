@@ -5,6 +5,7 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.Vector;
@@ -43,6 +44,20 @@ public final class OwnLastSeenRow {
                 ? format(account, cached)
                 : LocaleController.getString(R.string.Loading));
 
+        // The refresh button only makes sense next to the status it acts on.
+        StatusRefresh.attach(item, fragment, account, selfId);
+
+        fetchSelf(account, selfId, fresh -> {
+            if (fresh != null && fresh.status != null) {
+                item.setSubtext(format(account, fresh));
+            } else if (cached == null || cached.status == null) {
+                item.setSubtext(null);
+            }
+        });
+    }
+
+    /** Asks the server for our own user and hands it, or null on any failure, to the UI thread. */
+    static void fetchSelf(int account, long selfId, Utilities.Callback<TLRPC.User> onResult) {
         TLRPC.TL_users_getUsers req = new TLRPC.TL_users_getUsers();
         req.id.add(new TLRPC.TL_inputUserSelf());
         ConnectionsManager.getInstance(account).sendRequest(req, (res, err) -> {
@@ -56,13 +71,7 @@ public final class OwnLastSeenRow {
                 }
             }
             final TLRPC.User fresh = self;
-            AndroidUtilities.runOnUIThread(() -> {
-                if (fresh != null && fresh.status != null) {
-                    item.setSubtext(format(account, fresh));
-                } else if (cached == null || cached.status == null) {
-                    item.setSubtext(null);
-                }
-            });
+            AndroidUtilities.runOnUIThread(() -> onResult.run(fresh));
         });
     }
 
