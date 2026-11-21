@@ -11,6 +11,7 @@ import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.AnimatedFloat;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
+import org.telegram.ui.Components.InstantCameraView;
 import org.telegram.ui.Components.LayoutHelper;
 
 /**
@@ -30,8 +31,9 @@ import org.telegram.ui.Components.LayoutHelper;
  * preview but keeps its slot, which the preview's sound chip takes, so the toggle above doesn't move.
  *
  * Buttons show only while the stack is up for a round video: armed when the stack draws or the recorder lays out
- * with the recorder showing and the stack not faded out, and disarmed when the stack fades out, hides or leaves the
- * window. A voice recording on the same stack has no recorder showing, so it never gets them. Upstream sometimes only
+ * with the recorder showing, its file not yet handed to a send, and the stack not faded out, and disarmed when the
+ * stack fades out, hides or leaves the window. A voice recording on the same stack has no live recorder, so it
+ * doesn't get them. Upstream sometimes only
  * fades the stack to alpha 0 and leaves it VISIBLE (after a preview is sent or deleted), so the fade is the signal,
  * not GONE. One per ControlsView, so per chat. UI thread only.
  */
@@ -123,9 +125,13 @@ public final class RecordControlsColumn {
         relayout();
     }
 
+    // A recorder whose file went to a send stays showing until the send transition or its fallback closes it, up to
+    // seconds, and a voice recording can start on the stack meanwhile. It never arms the column again; one that is
+    // already armed keeps it for the stack's exit.
     private void maybeArm() {
-        if (!armed && recorder != null && recorder.isShown() && column.getVisibility() == View.VISIBLE
-                && column.getAlpha() >= SHOWN && host.isAttachedToWindow()) {
+        if (!armed && recorder != null && recorder.isShown()
+                && !(recorder instanceof InstantCameraView && ((InstantCameraView) recorder).isFileHandedOff())
+                && column.getVisibility() == View.VISIBLE && column.getAlpha() >= SHOWN && host.isAttachedToWindow()) {
             armed = true;
             startFollowing();
         }
