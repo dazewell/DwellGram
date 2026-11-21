@@ -14361,6 +14361,45 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 videoRadialProgress.setProgressRect(videoButtonX, videoButtonY, videoButtonX + dp(24), videoButtonY + dp(24));
             }
         }
+        naxSmokeDocGroup("layout");
+    }
+
+    // temporary probe, removed in its own commit
+    private int naxSmokeLastSig;
+    private static boolean naxSmokeBegun;
+
+    public void naxSmokeDocGroup(String where) {
+        if (currentMessageObject == null || currentMessagesGroup == null || !currentMessagesGroup.isDocuments || currentPosition == null) {
+            return;
+        }
+        if (!naxSmokeBegun) {
+            naxSmokeBegun = true;
+            android.util.Log.i("NAX_SMOKE_doc-group-fix", "NAX_SMOKE_doc-group-fix BEGIN " + org.telegram.messenger.BuildConfig.APPLICATION_ID + " " + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING + " density=" + AndroidUtilities.density);
+        }
+        int sig = java.util.Objects.hash(where, currentMessageObject.getId(), getMeasuredHeight(), totalHeight, namesOffset, mediaOffsetY, buttonY, isDrawSelectionBackground(), getTop());
+        if (sig == naxSmokeLastSig) {
+            return;
+        }
+        naxSmokeLastSig = sig;
+        if ("layout".equals(where)) {
+            postDelayed(() -> naxSmokeDocGroup("drawn"), 400);
+        }
+        android.util.Log.i("NAX_SMOKE_doc-group-fix", "NAX_SMOKE_doc-group-fix " + where
+            + " id=" + currentMessageObject.getId() + " n=" + currentMessagesGroup.messages.size()
+            + " flags=" + currentPosition.flags + " last=" + currentPosition.last
+            + " out=" + currentMessageObject.isOutOwner()
+            + " pinT=" + pinnedTop + " pinB=" + pinnedBottom + " dPinT=" + drawPinnedTop() + " dPinB=" + drawPinnedBottom()
+            + " top=" + getTop() + " mh=" + getMeasuredHeight() + " th=" + totalHeight + " kh=" + keyboardHeight
+            + " sub=" + substractBackgroundHeight + " addPad=" + additionalPaddingHeight
+            + " pads=" + starsPriceTopPadding + "/" + topicSeparatorTopPadding + "/" + suggestionOfferTopPadding + "/" + askBotForumBottomPadding + "/" + bottomActionPadding
+            + " names=" + namesOffset + " mediaY=" + mediaOffsetY + " btnY=" + buttonY
+            + " img=" + (int) photoImage.getImageY() + "+" + (int) photoImage.getImageHeight() + " drawImg=" + drawPhotoImage
+            + " titleLines=" + (docTitleLayout == null ? -1 : docTitleLayout.getLineCount())
+            + " infoLines=" + (infoLayout == null ? -1 : infoLayout.getLineCount())
+            + " caption=" + (captionLayout != null) + " react=" + reactionsLayoutInBubble.totalHeight + "/" + reactionsLayoutInBubble.isSmall + "/" + reactionsLayoutInBubble.isEmpty
+            + " timeW=" + timeWidth + " side=" + drawSideButton + " bgT=" + backgroundDrawableTop + " bgB=" + backgroundDrawableBottom
+            + " sel=" + isDrawSelectionBackground() + " overlay=" + hasSelectionOverlay() + " media=" + mediaBackground
+            + " drawName=" + drawNameLayout + " fwd=" + drawForwardedName + " topic=" + (topicButton != null));
     }
 
     public boolean needDelayRoundProgressDraw() {

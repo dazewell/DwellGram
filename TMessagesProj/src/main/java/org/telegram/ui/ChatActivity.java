@@ -40523,6 +40523,8 @@ public class ChatActivity extends BaseFragment implements
         }
         messageCell.setDrawSelectionBackground(groupedMessages == null);
         messageCell.setChecked(true, groupedMessages == null, animated);
+        messageCell.naxSmokeDocGroup("select");
+        messageCell.postDelayed(() -> messageCell.naxSmokeDocGroup("select+400"), 400);
         // NagramX: #reschedule-order. Every selected cell is drawn through here, on bind and on refresh.
         if (chatMode == MODE_SCHEDULED) messageCell.setCheckNumber(naxPickOrder.numberOf(message, selectedMessagesIds[0]));
     }
