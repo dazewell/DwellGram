@@ -748,7 +748,10 @@ public class AyuMessageHistory extends NekoDelegateFragment {
         boolean diffed = index > 0 && applyDiff(msg, messages.get(index - 1).text);
 
         msg.ayuDeleted = true;
-        msg.date = editedMessage.entityCreateDate;
+        // Date each version by when it was written, not by when the edit replacing it was caught:
+        // edits synced in a batch all share one catch time, later than the live row's edit_date.
+        msg.date = editedMessage.editDate != 0 ? editedMessage.editDate
+                : editedMessage.date != 0 ? editedMessage.date : editedMessage.entityCreateDate;
         msg.edit_hide = true;
         if (msg.media != null) {
             if (messageObject.isVoiceOnce() || messageObject.isRoundOnce()) {
@@ -832,7 +835,7 @@ public class AyuMessageHistory extends NekoDelegateFragment {
         msg.dialog_id = source.dialog_id;
         msg.attachPath = source.attachPath;
         msg.replyMessage = source.replyMessage;
-        // Revision rows are stamped when they were replaced; stamp the live one with its last edit to keep the order.
+        // Revision rows carry the time they were written; the live one was written at its last edit.
         if (msg.edit_date != 0) {
             msg.date = msg.edit_date;
         }
