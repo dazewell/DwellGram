@@ -80,7 +80,7 @@ With Ghost Mode on, the ghost indicator next to the chat list title stays visibl
 
 ### Your last seen under the Ayu Mode switch <!-- #own-last-seen --> <!-- #ayu-status-refresh -->
 
-With Ghost Mode on, the Ayu Mode switch in the chats ⋮ menu and the Settings tab's long-press menu shows your last seen underneath, as Telegram has it for you, e.g. *seen at 14:05*. Settings → Ghost Mode → *Show my last seen*, on by default.
+With Ghost Mode on, the Ayu Mode switch in the chats ⋮ menu and the Settings tab's long-press menu shows your last seen underneath, as Telegram has it for you, e.g. *seen at 14:05*. The refresh button beside it sends offline again if you are stuck online, or otherwise sets your last seen to now. Settings → Ghost Mode → *Show my last seen*, on by default.
 
 ### Ghost send warning <!-- #ghost-send-warning --> <!-- #ghost-type-warning -->
 
