@@ -37,8 +37,9 @@ import org.telegram.ui.Components.LayoutHelper;
  * translationX, and blendY() mixes the docked position into its translationY. visibleBounds() is the one place the
  * resulting on-screen circle is computed, for hit tests, the arc, the hint and the send transition.
  *
- * A 48dp button beside the circle expands it to the stock recorder and collapses it back without touching the
- * capture. Expanding changes this recording only, never the saved setting.
+ * A 48dp button expands it to the stock recorder and collapses it back without touching the capture. It keeps one
+ * place in both, in the composer's record column above the flip's slot (RecordControlsColumn), so it never moves
+ * under the finger. Expanding changes this recording only, never the saved setting.
  *
  * A two-finger pinch that starts on the docked circle resizes it, its bottom-left corner staying on the dock, and
  * the size is saved for every later compact recording. Docked, that pinch replaces the stock one-off pinch zoom;
@@ -69,8 +70,6 @@ public final class CompactVideoRecorder {
     private static final int TOGGLE_DP = 48;
     private static final int FLIP_DP = 44;
     private static final int INSET_DP = (TOGGLE_DP - FLIP_DP) / 2;
-    // InstantZoomControlView's spacing between the flip button and the view-once button below it
-    private static final int COLUMN_GAP_DP = 24;
     private static final long TOGGLE_MS = 220;
 
     private final FrameLayout host;
@@ -78,7 +77,6 @@ public final class CompactVideoRecorder {
     private final Host callback;
     private final ImageView toggle;
     private View[] expandedOnly = new View[0];
-    private View flip;
     private boolean glass;
 
     // the toggle is offered: every recording from its fresh open until end()
@@ -103,20 +101,29 @@ public final class CompactVideoRecorder {
         this.circle = circle;
         this.callback = callback;
 
-        toggle = new ImageView(host.getContext());
+        toggle = new ImageView(host.getContext()) {
+            @Override
+            public boolean onTouchEvent(MotionEvent event) {
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN && !RecordControlsColumn.shown(this)) {
+                    return false; // scaled away with the column, but a scale-0 view still takes a touch on its bounds
+                }
+                return super.onTouchEvent(event);
+            }
+        };
         toggle.setScaleType(ImageView.ScaleType.CENTER);
         toggle.setColorFilter(new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN));
         toggle.setVisibility(View.GONE);
-        toggle.setOnClickListener(v -> setExpanded(!expanded));
+        toggle.setOnClickListener(v -> {
+            if (RecordControlsColumn.shown(toggle)) {
+                setExpanded(!expanded);
+            }
+        });
         host.addView(toggle, LayoutHelper.createFrame(TOGGLE_DP, TOGGLE_DP, Gravity.LEFT | Gravity.TOP));
         updateToggleIcon();
 
         // padding (the recording bar), insets and the host re-picking the circle's size all arrive as relayouts,
         // which don't otherwise reach the transforms
-        host.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
-            layoutToggle(); // also expanded, which refresh() leaves alone
-            refresh();
-        });
+        host.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> refresh());
     }
 
     // Re-applies the presentation if the dock or the circle's size moved under a settled circle. The host also
@@ -154,10 +161,9 @@ public final class CompactVideoRecorder {
         };
     }
 
-    // The host's flip button. Expanded, the toggle joins its column, one step above it: the flip's own step up
-    // from the view-once button, FLIP_DP plus COLUMN_GAP_DP.
-    public void stackAbove(View flip) {
-        this.flip = flip;
+    // For the host to put in the composer's record column, which places and scales it in both presentations.
+    public View toggleButton() {
+        return toggle;
     }
 
     // The same look as the flip button: its glyph tint, and its flat circle until the glass arrives.
@@ -183,7 +189,7 @@ public final class CompactVideoRecorder {
         toggle.setBackground(drawable);
     }
 
-    // The camera controls that only the full recorder shows: flash, zoom, flip, infinite and the brightness arm.
+    // The camera controls that only the full recorder shows: flash, zoom, infinite and the brightness arm.
     public void hideWhenCompact(View... views) {
         expandedOnly = views;
         updateControls();
@@ -205,7 +211,9 @@ public final class CompactVideoRecorder {
         final int savedDp = xyz.nextalone.nagram.NaConfig.INSTANCE.getCompactVideoRecordingSize().Int();
         sizePx = dp(Math.max(MIN_DP, Math.min(MAX_DP, savedDp)));
         toggle.setVisibility(offered ? View.VISIBLE : View.GONE);
-        toggle.setAlpha(0f);
+        if (!RecordControlsColumn.owns(toggle)) {
+            toggle.setAlpha(0f);
+        }
         updateToggleIcon();
         updateControls();
     }
@@ -222,7 +230,9 @@ public final class CompactVideoRecorder {
         session = false;
         expanded = false;
         factor = 0f;
-        toggle.setVisibility(View.GONE);
+        if (!RecordControlsColumn.owns(toggle)) {
+            toggle.setVisibility(View.GONE); // in the record column it leaves with the composer's stack, not now
+        }
         updateControls();
     }
 
@@ -285,7 +295,8 @@ public final class CompactVideoRecorder {
         if (AndroidUtilities.rectTmp.contains(ev.getX(), ev.getY())) {
             return true;
         }
-        if (toggle.getVisibility() == View.VISIBLE) {
+        // in the record column the toggle is above this view and takes its own touches first
+        if (toggle.getVisibility() == View.VISIBLE && !RecordControlsColumn.owns(toggle)) {
             final float x = toggle.getX(), y = toggle.getY();
             return ev.getX() >= x && ev.getX() < x + toggle.getWidth() && ev.getY() >= y && ev.getY() < y + toggle.getHeight();
         }
@@ -372,43 +383,9 @@ public final class CompactVideoRecorder {
 
     // Follows the circle's fades, which the host and the chat animate on it directly.
     public void onCircleAlpha(float alpha) {
-        if (available) {
+        if (available && !RecordControlsColumn.owns(toggle)) {
             toggle.setAlpha(alpha);
         }
-    }
-
-    // Puts the toggle by the circle as it is drawn now. The host calls this whenever it moves the circle.
-    // Docked, it sits to the circle's right, where the screen is free. Expanded, it stacks on the flip button in
-    // the right-hand column of camera controls. In between it slides with the factor.
-    public void layoutToggle() {
-        if (!available) {
-            return;
-        }
-        visibleBounds(circle, AndroidUtilities.rectTmp);
-        final float size = dp(TOGGLE_DP);
-        final float maxX = host.getMeasuredWidth() - size - dp(4);
-        final float maxY = host.getMeasuredHeight() - host.getPaddingBottom() - size;
-        final float dockedX = AndroidUtilities.rectTmp.right + dp(EDGE_DP);
-        final float dockedY = AndroidUtilities.rectTmp.centerY() - size / 2f;
-        float expandedX, expandedY;
-        if (flip != null && flip.getWidth() > 0) {
-            // in the flip button's column, one step above it, the step the flip itself sits above view-once
-            expandedX = flip.getX() + flip.getWidth() / 2f - size / 2f;
-            expandedY = flip.getY() + flip.getHeight() / 2f - dp(FLIP_DP + COLUMN_GAP_DP) - size / 2f;
-        } else {
-            // before the column is laid out: up-left of the centre, clear of the ring (R + 8dp + half its stroke)
-            // by a gap, and no higher than circleTop - 16dp, under the hold-to-send label
-            final float r = AndroidUtilities.rectTmp.width() / 2f;
-            final float d = r + dp(8) + dp(2) + dp(4) + size / 2f;
-            final float dy = Math.max(0f, Math.min(d * 0.7071f, r - dp(8)));
-            final float dx = (float) Math.sqrt(d * d - dy * dy);
-            expandedX = AndroidUtilities.rectTmp.centerX() - dx - size / 2f;
-            expandedY = AndroidUtilities.rectTmp.centerY() - dy - size / 2f;
-        }
-        final float x = expandedX + (dockedX - expandedX) * factor;
-        final float y = expandedY + (dockedY - expandedY) * factor;
-        toggle.setTranslationX(Math.max(dp(4), Math.min(x, maxX)));
-        toggle.setTranslationY(Math.max(0, Math.min(y, maxY)));
     }
 
     private void setExpanded(boolean expand) {
@@ -478,7 +455,8 @@ public final class CompactVideoRecorder {
         }
         if (host.getMeasuredWidth() > 0) {
             final androidx.core.graphics.Insets safe = safeInsets();
-            // beside it: the edge gap, the toggle and a gap either side of that; above it: up to the action bar,
+            // beside it: the edge gap, and a toggle's width with a gap either side, which keeps it clear of the record
+            // column on the right; above it: up to the action bar,
             // less the hold-to-send label's room over the circle
             final float width = host.getMeasuredWidth() - safe.left - safe.right - dp(EDGE_DP * 3 + TOGGLE_DP);
             final float height = host.getMeasuredHeight() - host.getPaddingBottom() - dockTop() - dp(64);

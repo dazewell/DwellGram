@@ -2937,14 +2937,26 @@ and `moveProgress` is 1 (`:1554-1563`). The 44dp pause button then starts at
 71dp too high. `onceRect` is only refreshed when view-once is available (`:1845-1857`); it is not a stable layout
 anchor for groups or other chats without that button.
 
-`InstantZoomControlView.onceLine` maps that resting line between the controls' and recorder's window coordinates
-(`InstantZoomControlView.java:276-289`), including when view-once is absent. `InstantCameraView.updateTranslationY`
-uses it for the roomy zoom row, clamped to the available gap, and for the flip button one 68dp step above
-(`InstantCameraView.java:1317-1331`, `InstantZoomControlView.java:157-158`). Compact placement instead shares the
-flash row's line. Re-check the composer's drawing arithmetic after an upstream change to the recording controls;
-do not anchor to the last frame's `onceRect`.
+`InstantZoomControlView.onceLine` maps that resting line between the controls' and recorder's window coordinates,
+including when view-once is absent. `InstantCameraView.updateTranslationY` uses it for the roomy zoom row, clamped
+to the available gap. Compact placement instead shares the flash row's line. Re-check the composer's drawing
+arithmetic after an upstream change to the recording controls; do not anchor to the last frame's `onceRect`.
 
-*(Established 2026-10-29, `#video-zoom`, PR 576.)*
+The flip and the compact toggle can't be the recorder's children and still leave with pause and view-once. On a
+cancel the recorder fades in 180ms and goes `INVISIBLE` (`InstantCameraView.startAnimation`), while the composer
+holds its stack for 490ms and then shrinks it over 360ms. `ControlsView` is too short (`ChatActivityEnterView.java:1536`)
+to hold them, so `RecordControlsColumn` moves both into a host attached right above it (`:5171`, outside any
+layout pass) that takes its alpha and visibility (`:1405`, `:1412`). `ControlsView.onDraw` hands it the stack base
+`cy` (`:1870`, computed whether or not view-once shows), view-once's own scale, its chip count and whether a recorded
+preview is up (`:1909`). The buttons stack packed on the free slots above, so a missing one (no "(1)" in scheduled
+messages) leaves no gap. They show only while the stack draws with the recorder showing, its file not yet sent, and not faded out
+(`RecordControlsColumn.java:131`, also from `InstantCameraView.java:1454`), so a voice recording on the same stack
+doesn't get them. Disarm on the stack's fade to alpha 0 (`RecordControlsColumn.java:105`), not on `GONE`: after a
+preview is sent or deleted upstream only fades `ControlsView` and leaves it `VISIBLE` (`ChatActivityEnterView.java:9535`, `:9577`).
+A layout move or translation doesn't redraw `ControlsView`, so they follow it from a pre-draw listener while armed,
+dropped on the host's detach.
+
+*(Established 2026-10-29, `#video-zoom`, PR 576; record column 2026-11-21, `#video-column-fix`.)*
 
 ## The composer row's canvas clips to its own bounds, so nothing it paints can spill into the screen margins
 
@@ -3123,7 +3135,7 @@ but `controlsView` is shifted by the composer's right padding
 in the round-video recorder that should sit in that column (the flip button, the
 compact collapse toggle) must measure it with `getLocationInWindow` on
 `controlsView`, as `InstantZoomControlView.onceColumn` does
-(`InstantZoomControlView.java:302`). Placing it `26dp` in from the recorder's own
+(`InstantZoomControlView.java:310`). Placing it `26dp` in from the recorder's own
 edge leaves it a few dp right of the column.
 
 The "(1)" digit is also centred by its line box, not its ink:
