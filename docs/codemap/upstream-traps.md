@@ -2937,14 +2937,20 @@ and `moveProgress` is 1 (`:1554-1563`). The 44dp pause button then starts at
 71dp too high. `onceRect` is only refreshed when view-once is available (`:1845-1857`); it is not a stable layout
 anchor for groups or other chats without that button.
 
-`InstantZoomControlView.onceLine` maps that resting line between the controls' and recorder's window coordinates
-(`InstantZoomControlView.java:276-289`), including when view-once is absent. `InstantCameraView.updateTranslationY`
-uses it for the roomy zoom row, clamped to the available gap, and for the flip button one 68dp step above
-(`InstantCameraView.java:1317-1331`, `InstantZoomControlView.java:157-158`). Compact placement instead shares the
-flash row's line. Re-check the composer's drawing arithmetic after an upstream change to the recording controls;
-do not anchor to the last frame's `onceRect`.
+`InstantZoomControlView.onceLine` maps that resting line between the controls' and recorder's window coordinates,
+including when view-once is absent. `InstantCameraView.updateTranslationY` uses it for the roomy zoom row, clamped
+to the available gap. Compact placement instead shares the flash row's line. Re-check the composer's drawing
+arithmetic after an upstream change to the recording controls; do not anchor to the last frame's `onceRect`.
 
-*(Established 2026-10-29, `#video-zoom`, PR 576.)*
+The flip and the compact toggle need the live column, not the resting line, to scale in on lock and drop with a
+slide to cancel as pause and view-once do. `ControlsView.onDraw` hands its stack base `cy`
+(`ChatActivityEnterView.java:1862`, computed whether or not view-once shows) and view-once's own scale to
+`recordColumn.update` (`:1901`). `RecordControlsColumn` puts the flip and the toggle on fixed slots above it, and
+`InstantCameraView.updateTranslationY` (`InstantCameraView.java:1454`) re-places them when the composer moves
+without redrawing. `ControlsView` goes `GONE` between recordings with no last frame, so a column not shown zeroes
+its members (`RecordControlsColumn.java:100`) rather than reusing the last frame's scale.
+
+*(Established 2026-10-29, `#video-zoom`, PR 576; live column 2026-11-20, `#video-column-fix`.)*
 
 ## The composer row's canvas clips to its own bounds, so nothing it paints can spill into the screen margins
 
