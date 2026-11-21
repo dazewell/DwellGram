@@ -137,9 +137,10 @@ public final class RecordControlsColumn {
         }
     }
 
-    // Written only when the column's scale changes, so a settled button's own press animation keeps its scale.
+    // Written only when the column's scale changes, so a settled button's own press animation keeps its scale. A
+    // release animation can still land a hidden button back on 1 after the last write; hiding wins over that.
     private void setScale(int slot, View member, float s) {
-        if (Math.abs(s - placedScale[slot]) <= EPSILON / 10f) {
+        if (Math.abs(s - placedScale[slot]) <= EPSILON / 10f && !(s < SHOWN && member.getScaleX() >= SHOWN)) {
             return;
         }
         placedScale[slot] = s;
