@@ -1396,6 +1396,8 @@ public class ChatActivityEnterView extends FrameLayout implements
                         this.virtualViewHelper.invalidateRoot();
                     }
                 });
+        // NagramX: where this stack was last drawn, for the round video recorder's own buttons to join it
+        public final com.dazewell.gram.videonote.RecordControlsColumn recordColumn = new com.dazewell.gram.videonote.RecordControlsColumn(this);
 
         @Override
         public void setAlpha(float alpha) {
@@ -1896,6 +1898,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             }
             // NagramX (#video-hold-send): above the "(1)", or in its slot, with the same gap and scale
             soundChip.draw(canvas, rectF, lockSize + dpf2(24), controlsScale * (1f - exitTransition) * slideToCancelLockProgress * snapAnimationProgress, lockBackgroundPaint, lockShadowDrawable);
+            recordColumn.update(cx, cy, lockSize, dpf2(24), controlsScale * (1f - exitTransition) * slideToCancelLockProgress * snapAnimationProgress); // NagramX: the round video recorder's flip and compact toggle stack on from here, at this scale
         }
 
         @Override
