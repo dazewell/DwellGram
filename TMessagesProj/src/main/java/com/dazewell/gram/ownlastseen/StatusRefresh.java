@@ -53,14 +53,15 @@ public final class StatusRefresh {
             setBusy(v, true);
             item.setSubtext(LocaleController.getString(R.string.Loading));
             OwnLastSeenRow.fetchSelf(account, selfId, self -> {
-                if (self == null) {
+                // Re-checked at each step: online sending can be switched back on while a request
+                // is in flight, and then going offline would undo that.
+                if (self == null || !keepsOffline()) {
                     finish(item, v, account, selfId);
                 } else if (isOnline(account, self)) {
                     sendStatus(account, offline(), () -> finish(item, v, account, selfId));
                 } else {
                     sendStatus(account, new OnlinePulse(), () -> {
-                        // Ghost switched off meanwhile: going offline now would undo that.
-                        if (NekoConfig.isGhostModeActive()) {
+                        if (keepsOffline()) {
                             sendStatus(account, offline(), () -> finish(item, v, account, selfId));
                         } else {
                             finish(item, v, account, selfId);
@@ -79,6 +80,15 @@ public final class StatusRefresh {
         // Sits just outside the dp(40) zone ActionBarMenuSubItem gives a right icon with a listener.
         PopupRowDivider.addTo(item, fragment.getResourceProvider(), 40f);
         clearOfDivider(item);
+    }
+
+    /**
+     * The interceptor's own test for forcing offline (AyuGhostUtils.interceptRequest), not
+     * isGhostModeActive(): that one also flips on the read-receipt and typing toggles, which say
+     * nothing about whether the user should be seen online.
+     */
+    private static boolean keepsOffline() {
+        return !NekoConfig.sendOnlinePackets.Bool() || com.dazewell.gram.ghosthold.GhostHoldController.isGhostOffPending();
     }
 
     private static boolean isOnline(int account, TLRPC.User self) {
