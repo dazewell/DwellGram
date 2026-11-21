@@ -522,7 +522,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             args.putBoolean("needFinishFragment", false);
             presentFragment(new CallLogActivity(args));
         });
-        o.setBlur(true);
+        o.setBlur(SharedConfig.chatBlurEnabled()); // NagramX: tab menus blur only while interface blur is on
         o.translate(0, -dp(4));
         o.setGravity(Gravity.LEFT);
         final ShapeDrawable bg = naxTabScrimBackground(); // NagramX
@@ -549,7 +549,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.callTabsVisibleToggled);
             });
         }
-        o.setBlur(true);
+        o.setBlur(SharedConfig.chatBlurEnabled()); // NagramX: tab menus blur only while interface blur is on
         o.translate(0, -dp(4));
         final ShapeDrawable bg = naxTabScrimBackground(); // NagramX
         bg.getPaint().setShadowLayer(dp(6), 0, dp(1), Theme.multAlpha(0xFF000000, 0.15f));
@@ -610,7 +610,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         }
         o.addGap();
         addChatsMenuItems(o, anchor);
-//        o.setBlur(true);
+        o.setBlur(SharedConfig.chatBlurEnabled()); // NagramX: upstream left the folder menu unblurred; match the other tab menus
         o.translate(-dp(8), -dp(4));
         o.setMaxHeight(Math.min(dp(560), Math.max(dp(320), AndroidUtilities.displaySize.y - dp(120))));
         final ShapeDrawable bg = naxTabScrimBackground(); // NagramX
@@ -768,7 +768,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             }
         }
 
-        o.setBlur(true);
+        o.setBlur(SharedConfig.chatBlurEnabled()); // NagramX: tab menus blur only while interface blur is on
         o.translate(0, -dp(4));
         final ShapeDrawable bg = naxTabScrimBackground(); // NagramX
         bg.getPaint().setShadowLayer(dp(6), 0, dp(1), Theme.multAlpha(0xFF000000, 0.15f));
@@ -1529,7 +1529,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         return bg;
     }
     private void setupPopupMenuStyle(ItemOptions options) {
-        options.setBlur(true);
+        options.setBlur(SharedConfig.chatBlurEnabled()); // NagramX: tab menus blur only while interface blur is on
         options.translate(0, -dp(4));
         final ShapeDrawable bg = naxTabScrimBackground(); // NagramX
         bg.getPaint().setShadowLayer(dp(6), 0, dp(1), Theme.multAlpha(0xFF000000, 0.15f));
