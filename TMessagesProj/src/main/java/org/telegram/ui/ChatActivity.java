@@ -21032,7 +21032,7 @@ public class ChatActivity extends BaseFragment implements
                     childTop -= windowInsetsStateHolder.getCurrentMaxBottomInset() + dp(7);
                     // NagramX: a reply strip stays up while recording, right where pause and view-once rest, and the
                     // round-video recorder already sits above it while anchoring its flip/zoom to this column
-                    if (child == chatActivityEnterView.controlsView) childTop -= (int) chatActivityEnterView.getTopViewHeightTarget();
+                    if (child == chatActivityEnterView.controlsView && chatActivityEnterView.isInVideoMode()) childTop -= (int) chatActivityEnterView.getTopViewHeightTarget();
                     childLeft -= dp(3);
                 } else if (child == emojiButtonRed) {
                     childTop -= windowInsetsStateHolder.getCurrentMaxBottomInset() + dp(7);

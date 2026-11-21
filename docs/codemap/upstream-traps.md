@@ -3142,8 +3142,10 @@ The recorder's bottom padding is the composer island's height, reply/edit strip 
 (`ChatActivity.java:20845`, from `ChatActivityEnterView.java:19681`), so its flash row and compact dock
 rise with a reply. Upstream lays `ControlsView` (pause, view-once, lock) out from the screen bottom only
 (`ChatActivity.java:21031-21032`), and the recorder's flip, zoom row and collapse toggle anchor to that
-column. The fork lifts `controlsView` by `getTopViewHeightTarget()` (`ChatActivity.java:21035`) so the two stay
-in step. Re-apply that line after an upstream merge touches this layout branch, and anchor any new
+column. In video mode the fork lifts `controlsView` by `getTopViewHeightTarget()` (`ChatActivity.java:21035`) so
+the two stay in step. The recorder sits below `chatInputViewsContainer` (`ChatActivity.java:12320-12326`), so it is laid
+out before the column moves; `InstantCameraView.onLayout` posts a re-place (`InstantCameraView.java:758-762`) and is
+part of the same fix. Re-apply that line after an upstream merge touches this layout branch, and anchor any new
 recorder control to one of the two references, never a mix.
 
 *(Established 2026-11-20, `#video-reply-layout-fix`, PR 639.)*
