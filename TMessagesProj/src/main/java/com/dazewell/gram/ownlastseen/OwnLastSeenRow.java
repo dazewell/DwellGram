@@ -44,8 +44,12 @@ public final class OwnLastSeenRow {
                 ? format(account, cached)
                 : LocaleController.getString(R.string.Loading));
 
-        // The refresh button only makes sense next to the status it acts on.
-        StatusRefresh.attach(item, fragment, account, selfId);
+        // The refresh button only makes sense next to the status it acts on. With online sending
+        // locked on, Ghost still reads as active but the user wants to be seen online, and
+        // either branch of the refresh would end by sending offline.
+        if (!NekoConfig.sendOnlinePackets.Bool()) {
+            StatusRefresh.attach(item, fragment, account, selfId);
+        }
 
         fetchSelf(account, selfId, fresh -> {
             if (fresh != null && fresh.status != null) {
