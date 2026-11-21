@@ -2949,10 +2949,12 @@ to hold them, so `RecordControlsColumn` moves both into a host attached right ab
 layout pass) that takes its alpha and visibility (`:1405`, `:1412`). `ControlsView.onDraw` hands it the stack base
 `cy` (`:1870`, computed whether or not view-once shows), view-once's own scale, its chip count and whether a recorded
 preview is up (`:1909`). The buttons stack packed on the free slots above, so a missing one (no "(1)" in scheduled
-messages) leaves no gap. They show only for a recording whose recorder placed them
-(`InstantCameraView.java:1454`), so a voice recording on the same stack doesn't get them, and that ends when
-`ControlsView` hides (`RecordControlsColumn.java:90`). A layout move or translation doesn't redraw `ControlsView`, so
-they follow it from a pre-draw listener while armed.
+messages) leaves no gap. They show only while the stack draws with the recorder showing and not faded out
+(`RecordControlsColumn.java:126`, also from `InstantCameraView.java:1454`), so a voice recording on the same stack
+never gets them. Disarm on the stack's fade to alpha 0 (`RecordControlsColumn.java:101`), not on `GONE`: after a
+preview is sent or deleted upstream only fades `ControlsView` and leaves it `VISIBLE` (`ChatActivityEnterView.java:9535`, `:9613`).
+A layout move or translation doesn't redraw `ControlsView`, so they follow it from a pre-draw listener while armed,
+dropped on the host's detach.
 
 *(Established 2026-10-29, `#video-zoom`, PR 576; record column 2026-11-21, `#video-column-fix`.)*
 
