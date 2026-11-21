@@ -54,7 +54,7 @@ public class InstantZoomControlView extends FrameLayout {
     private float leftReserve;
     private float rowCenterY;
     private float columnX = Float.NaN; // the composer's view-once column, from onceColumn
-    private boolean inColumn; // RecordControlsColumn owns the flip's position and scale
+    private boolean inColumn; // RecordControlsColumn owns the flip's position, scale and alpha
 
     private boolean relayoutPending;
     private final RectF rect = new RectF();
@@ -137,7 +137,7 @@ public class InstantZoomControlView extends FrameLayout {
         flip.setClickable(getAlpha() >= 0.01f);
     }
 
-    /** The flip button, for the recorder to add beside this view; it fades with it, and slides with it outside a chat. */
+    /** The flip button, for the recorder to add beside this view; it fades and slides with it, unless a chat's record column has it. */
     public View flipButton() {
         return flip;
     }
@@ -145,8 +145,8 @@ public class InstantZoomControlView extends FrameLayout {
     @Override
     public void setAlpha(float alpha) {
         super.setAlpha(alpha);
-        if (flip == null) {
-            return; // the super constructor, before it exists
+        if (flip == null || inColumn) {
+            return; // the super constructor, before it exists; or the composer's record column shows it now
         }
         flip.setAlpha(alpha);
         flip.setClickable(alpha >= 0.01f); // a faded one lets the touch through, as this view does
@@ -219,7 +219,7 @@ public class InstantZoomControlView extends FrameLayout {
     public void onRecorderTouch(MotionEvent event) {
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN && zoom.isDialOpen()
                 && !zoom.isInDial(event.getX() - getX() - zoom.getX(), event.getY() - getY() - zoom.getY())
-                && !contains(flip, event.getX(), event.getY())) {
+                && (inColumn || !contains(flip, event.getX(), event.getY()))) { // in the column its touches never come here
             zoom.dismiss();
         }
     }
@@ -340,7 +340,12 @@ public class InstantZoomControlView extends FrameLayout {
             return;
         }
         this.inColumn = inColumn;
-        if (!inColumn) {
+        if (inColumn) {
+            // a faded row left it unclickable; the column's scale decides from here
+            flip.setClickable(true);
+            flip.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+        } else {
+            setAlpha(getAlpha());
             flip.setScaleX(1f);
             flip.setScaleY(1f);
             if (getWidth() > 0) {

@@ -1,26 +1,36 @@
 package com.dazewell.gram.videonote;
 
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.widget.FrameLayout;
 
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.ui.ChatActivity;
+import org.telegram.ui.Components.AnimatedFloat;
 import org.telegram.ui.Components.ChatActivityEnterView;
+import org.telegram.ui.Components.CubicBezierInterpolator;
+import org.telegram.ui.Components.LayoutHelper;
 
 /**
  * The composer's record controls column on the right: pause, the view-once "(1)" above it where the chat offers
- * view-once, and the round video recorder's own buttons above those, the flip and then the compact toggle. Pause and
- * "(1)" are drawn by ChatActivityEnterView.ControlsView, while the recorder's buttons are views in another parent. So
+ * view-once, and the round video recorder's own buttons above those, the flip and then the compact toggle.
+ *
+ * Pause and "(1)" are drawn by ChatActivityEnterView.ControlsView. The recorder's buttons are views, so they move out
+ * of the recorder into a host this column keeps directly above ControlsView, and the host takes ControlsView's alpha
+ * and visibility. All four then come in, move and leave together: on lock, with a slide to cancel, on send and on a
+ * cancel, where the recorder itself is already gone while the composer is still animating its stack out.
  * ControlsView reports where it drew the stack, how many chips it drew and how far it is scaled every time it draws,
- * and this puts the recorder's buttons on the slots above at that same scale. They come in on lock, drop with a slide
- * to cancel and shrink away on send, as pause and "(1)" do.
+ * and the buttons take the slots above at that scale.
  *
  * The column is packed: each button takes the next slot above whatever is in the column below it, so a missing one
- * leaves no gap. ControlsView counts its own chips; a recorder button is in the column while it is VISIBLE, and a
- * GONE or INVISIBLE one gives its slot up. A faded one keeps it: the paused preview's sound chip, drawn above the
- * last of ControlsView's chips, takes the faded flip's place, so the toggle above doesn't move between the two.
+ * leaves no gap. ControlsView counts its own chips; a recorder button is in the column while it is VISIBLE, and a GONE
+ * or INVISIBLE one gives its slot up. A camera-only button (the flip) fades while the composer shows a recorded
+ * preview but keeps its slot, which the preview's sound chip takes, so the toggle above doesn't move.
  *
- * One per ControlsView, so per chat. The geometry is kept in ControlsView's own coordinates and mapped through both
- * views' window positions on every placement, since a keyboard or a reply strip can move ControlsView without it
- * redrawing; the recorder calls place() from its own layout passes for that. UI thread only.
+ * Buttons show only for a recording whose recorder put them here (place()), so a voice recording on the same stack
+ * doesn't get them; that ends when ControlsView hides. One per ControlsView, so per chat. UI thread only.
  */
 public final class RecordControlsColumn {
 
@@ -33,18 +43,59 @@ public final class RecordControlsColumn {
     private static final float EPSILON = 0.01f;
 
     private final View column;
+    private final Host host;
     private final View[] members = new View[SLOTS];
+    private final boolean[] cameraOnly = new boolean[SLOTS];
     // what was last written to each member, so a frame that moved nothing writes nothing
     private final float[] placedX = new float[SLOTS], placedY = new float[SLOTS], placedScale = new float[SLOTS];
-    private final int[] at = new int[2];
+    // the preview's fade, as the sound chip's own (VideoPreviewSoundChip)
+    private final AnimatedFloat previewing;
+    private final ViewTreeObserver.OnPreDrawListener onPreDraw = () -> {
+        relayout();
+        return true;
+    };
+    private ViewTreeObserver observer;
 
-    // false until ControlsView draws while shown, so a new recording doesn't reuse the last one's final frame
+    // this recording's recorder has put its buttons here; cleared when ControlsView hides
+    private boolean armed;
+    // false until ControlsView draws for this recording, so a new one doesn't reuse the last one's final frame
     private boolean drawn;
-    private float cx, pauseCenterY, step, scale;
+    private float cx, pauseCenterY, step, scale, preview;
     private int drawnChips = 1;
 
     public RecordControlsColumn(View column) {
         this.column = column;
+        previewing = new AnimatedFloat(column, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
+        host = new Host(column);
+        host.setVisibility(View.GONE); // ControlsView starts GONE too
+    }
+
+    // ControlsView, once it is in its parent: the host goes right above it. Never from a layout pass.
+    public void attachHost() {
+        if (!(column.getParent() instanceof ViewGroup) || host.getParent() == column.getParent()) {
+            return;
+        }
+        AndroidUtilities.removeFromParent(host);
+        final ViewGroup parent = (ViewGroup) column.getParent();
+        parent.addView(host, parent.indexOfChild(column) + 1, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        host.setVisibility(column.getVisibility());
+        host.setAlpha(column.getAlpha());
+    }
+
+    // ControlsView's own alpha, which the composer fades the stack out with
+    public void onColumnAlpha(float alpha) {
+        host.setAlpha(alpha);
+    }
+
+    public void onColumnVisibility(int visibility) {
+        host.setVisibility(visibility);
+        if (visibility != View.VISIBLE) {
+            // the recording is over for the stack: the next one, or a voice recording, starts without the buttons
+            armed = false;
+            drawn = false;
+            stopFollowing();
+            relayout();
+        }
     }
 
     // The chat composer's column, or null where there is none (a story reply, or before its controls exist).
@@ -58,16 +109,21 @@ public final class RecordControlsColumn {
 
     /**
      * The recorder puts its buttons in delegate's column, or returns false when there is none and they stay its own.
-     * toggle may be null. Called whenever the recorder lays itself out.
+     * toggle may be null. Called whenever the recorder lays itself out; showing is true while the recorder is up,
+     * which is what lets the buttons show for this recording.
      */
-    public static boolean place(Object delegate, View flip, View toggle) {
+    public static boolean place(Object delegate, View flip, View toggle, boolean showing) {
         final RecordControlsColumn column = of(delegate);
-        if (column == null) {
+        if (column == null || column.host.getParent() == null) {
             return false;
         }
-        column.join(flip, FLIP);
+        column.join(flip, FLIP, true);
         if (toggle != null) {
-            column.join(toggle, COMPACT_TOGGLE);
+            column.join(toggle, COMPACT_TOGGLE, false);
+        }
+        if (showing && !column.armed) {
+            column.armed = true;
+            column.startFollowing();
         }
         column.relayout();
         return true;
@@ -77,66 +133,93 @@ public final class RecordControlsColumn {
         return member.getScaleX() >= SHOWN;
     }
 
+    // True once view has moved into a column's host, which then owns its position, scale and alpha.
+    public static boolean owns(View member) {
+        return member.getParent() instanceof Host;
+    }
+
     /**
      * ControlsView, each time it draws the stack. cx is the column's centre line, pauseTop the top of pause's slot
-     * (the one "(1)" stacks on), chipSize a chip's height, gap the space between two, scale the stack's own, and
-     * drawnChips how many slots from pause up it fills itself (pause, and "(1)" where it is offered).
+     * (the one "(1)" stacks on), chipSize a chip's height, gap the space between two, scale the stack's own,
+     * drawnChips how many slots from pause up it fills itself (pause, and "(1)" where it is offered), and preview
+     * whether it is showing a recorded preview rather than the live camera.
      */
-    public void update(float cx, float pauseTop, float chipSize, float gap, float scale, int drawnChips) {
+    public void update(float cx, float pauseTop, float chipSize, float gap, float scale, int drawnChips, boolean preview) {
         this.cx = cx;
-        this.drawnChips = Math.max(1, drawnChips);
         this.pauseCenterY = pauseTop + chipSize / 2f;
         this.step = chipSize + gap;
         this.scale = scale;
+        this.drawnChips = Math.max(1, drawnChips);
+        this.preview = previewing.set(preview); // invalidates ControlsView while it fades, so this keeps coming
         drawn = true;
         relayout();
     }
 
-    // A recorder rebuilt for the same chat takes the slot over from the old one's button.
-    private void join(View member, int slot) {
-        if (members[slot] == member) {
+    // Moves member out of the recorder into the host. A recorder rebuilt for the same chat takes the slot over.
+    private void join(View member, int slot, boolean camera) {
+        if (members[slot] == member && member.getParent() == host) {
             return;
         }
+        if (members[slot] != null && members[slot] != member) {
+            AndroidUtilities.removeFromParent(members[slot]);
+        }
         members[slot] = member;
+        cameraOnly[slot] = camera;
+        final ViewGroup.LayoutParams lp = member.getLayoutParams();
+        final int w = lp != null ? lp.width : ViewGroup.LayoutParams.WRAP_CONTENT;
+        final int h = lp != null ? lp.height : ViewGroup.LayoutParams.WRAP_CONTENT;
+        AndroidUtilities.removeFromParent(member);
+        host.addView(member, new FrameLayout.LayoutParams(w, h, Gravity.LEFT | Gravity.TOP));
         placedX[slot] = placedY[slot] = Float.NaN;
-        // hidden until the column draws, as pause and "(1)" are before a lock
+        // the column alone shows it from here: none of the recorder's fades, and hidden until the stack draws
+        member.setAlpha(1f);
         placedScale[slot] = 0f;
         member.setScaleX(0f);
         member.setScaleY(0f);
     }
 
+    // ControlsView can be moved without redrawing (layout, insets, a translation), so the buttons follow it every
+    // frame while a recording has them, not only when it draws
+    private void startFollowing() {
+        stopFollowing();
+        observer = host.getViewTreeObserver();
+        observer.addOnPreDrawListener(onPreDraw);
+    }
+
+    private void stopFollowing() {
+        if (observer != null) {
+            if (observer.isAlive()) {
+                observer.removeOnPreDrawListener(onPreDraw);
+            }
+            observer = null;
+        }
+    }
+
     private void relayout() {
-        if (!column.isShown()) {
-            // between recordings ControlsView is usually gone, with no last frame; the next one starts hidden
-            drawn = false;
+        if (!armed || !drawn) {
             for (int slot = 0; slot < SLOTS; slot++) {
-                if (members[slot] != null) {
+                if (members[slot] != null && members[slot].getParent() == host) {
                     setScale(slot, members[slot], 0f);
                 }
             }
             return;
         }
-        if (!drawn) {
-            return;
-        }
-        column.getLocationInWindow(at);
-        final float columnX = at[0] + cx, columnY = at[1] + pauseCenterY;
+        // ControlsView and the host share a parent; both are read fresh, translations included
+        final float columnX = column.getX() - host.getX() + cx, columnY = column.getY() - host.getY() + pauseCenterY;
         int next = drawnChips; // the lowest free slot, counted up from pause
         for (int slot = 0; slot < SLOTS; slot++) {
             final View member = members[slot];
-            if (member == null || member.getVisibility() != View.VISIBLE) {
+            if (member == null || member.getParent() != host || member.getVisibility() != View.VISIBLE) {
                 continue; // out of the column, so the buttons above close up
             }
             final int position = next++;
-            if (member.getWidth() == 0 || !member.isAttachedToWindow() || !(member.getParent() instanceof View)) {
+            if (member.getWidth() == 0) {
                 continue;
             }
-            final View parent = (View) member.getParent();
-            parent.getLocationInWindow(at);
             final float w = member.getWidth(), h = member.getHeight();
-            // the slot's centre in the parent, kept inside it: a high slot can leave it with the keyboard up
-            final float centerX = Math.max(w / 2f, Math.min(columnX - at[0], parent.getWidth() - w / 2f));
-            final float centerY = Math.max(h / 2f, Math.min(columnY - position * step - at[1], parent.getHeight() - h / 2f));
+            // the slot's centre in the host, kept inside it: a high slot can leave it with the keyboard up
+            final float centerX = Math.max(w / 2f, Math.min(columnX, host.getWidth() - w / 2f));
+            final float centerY = Math.max(h / 2f, Math.min(columnY - position * step, host.getHeight() - h / 2f));
             final float x = centerX - (member.getLeft() + w / 2f);
             final float y = centerY - (member.getTop() + h / 2f);
             if (!(Math.abs(x - placedX[slot]) <= EPSILON)) {
@@ -147,7 +230,19 @@ public final class RecordControlsColumn {
                 placedY[slot] = y;
                 member.setTranslationY(y);
             }
-            setScale(slot, member, scale);
+            setScale(slot, member, cameraOnly[slot] ? scale * (1f - preview) : scale);
+        }
+    }
+
+    private static final class Host extends FrameLayout {
+        Host(View column) {
+            super(column.getContext());
+            setClipChildren(false);
+        }
+
+        @Override
+        public boolean hasOverlappingRendering() {
+            return false; // a fade with the stack mustn't allocate a full-screen layer
         }
     }
 

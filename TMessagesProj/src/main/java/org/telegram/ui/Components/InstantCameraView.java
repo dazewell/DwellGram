@@ -281,7 +281,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                     }
                 });
         recorder.hideWhenCompact(buttonsLayout, zoomControlView, flashBrightnessSlider);
-        recorder.keepInColumn(zoomControlView.flipButton()); // the record column keeps it, so docked it stays between "(1)" and the toggle
         recorder.updateColors(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(isDarkAppearance()));
         return recorder;
     }
@@ -1452,7 +1451,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         zoomControlView.setPlacement(compact, buttonsLayout.getMeasuredWidth() > 0 ? buttonsLayout.getMeasuredWidth() + dp(1) : dp(108), rowCenterY);
         // NagramX: in a chat the composer's record column places and scales the flip and the compact toggle, so they
         // move like pause and view-once; a story reply's recorder has no column and places the flip itself
-        zoomControlView.setFlipInColumn(com.dazewell.gram.videonote.RecordControlsColumn.place(delegate, zoomControlView.flipButton(), compactRecorder != null ? compactRecorder.toggleButton() : null));
+        zoomControlView.setFlipInColumn(com.dazewell.gram.videonote.RecordControlsColumn.place(delegate, zoomControlView.flipButton(), compactRecorder != null ? compactRecorder.toggleButton() : null, getVisibility() == VISIBLE));
         zoomControlView.setFlipLine(Float.isNaN(once) ? rowCenterY : once); // up the column from the view-once button
         zoomControlView.setFlipColumn(InstantZoomControlView.onceColumn(this, delegate)); // NagramX: and on its centre line
         // dock the label inside the camera circle, bottom-center: the row's band is the zoom's own
