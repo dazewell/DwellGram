@@ -280,7 +280,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                         maybePinchToZoomTouchMode = false;
                     }
                 });
-        recorder.hideWhenCompact(buttonsLayout, zoomControlView, zoomControlView.flipButton(), flashBrightnessSlider);
+        recorder.hideWhenCompact(buttonsLayout, zoomControlView, flashBrightnessSlider);
+        recorder.keepInColumn(zoomControlView.flipButton()); // the record column keeps it, so docked it stays between "(1)" and the toggle
         recorder.updateColors(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(isDarkAppearance()));
         return recorder;
     }

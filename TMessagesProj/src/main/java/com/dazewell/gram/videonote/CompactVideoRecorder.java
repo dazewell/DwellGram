@@ -77,6 +77,7 @@ public final class CompactVideoRecorder {
     private final Host callback;
     private final ImageView toggle;
     private View[] expandedOnly = new View[0];
+    private View[] columnButtons = new View[0];
     private boolean glass;
 
     // the toggle is offered: every recording from its fresh open until end()
@@ -181,10 +182,16 @@ public final class CompactVideoRecorder {
         toggle.setBackground(drawable);
     }
 
-    // The camera controls that only the full recorder shows: flash, zoom, flip, infinite and the brightness arm.
+    // The camera controls that only the full recorder shows: flash, zoom, infinite and the brightness arm.
     public void hideWhenCompact(View... views) {
         expandedOnly = views;
         updateControls();
+    }
+
+    // The host's buttons in the composer's record column besides the toggle (the flip). They stay in both
+    // presentations, so docked they take their own touches as the toggle does.
+    public void keepInColumn(View... views) {
+        columnButtons = views;
     }
 
     // A fresh camera open. compact is the composer's snapshot of the popup choice; anything else opens full,
@@ -283,11 +290,23 @@ public final class CompactVideoRecorder {
         if (AndroidUtilities.rectTmp.contains(ev.getX(), ev.getY())) {
             return true;
         }
-        if (toggle.getVisibility() == View.VISIBLE && RecordControlsColumn.shown(toggle)) {
-            final float x = toggle.getX(), y = toggle.getY();
-            return ev.getX() >= x && ev.getX() < x + toggle.getWidth() && ev.getY() >= y && ev.getY() < y + toggle.getHeight();
+        if (hits(toggle, ev)) {
+            return true;
+        }
+        for (View v : columnButtons) {
+            if (hits(v, ev)) {
+                return true;
+            }
         }
         return false;
+    }
+
+    private static boolean hits(View v, MotionEvent ev) {
+        if (v == null || v.getVisibility() != View.VISIBLE || !RecordControlsColumn.shown(v)) {
+            return false;
+        }
+        final float x = v.getX(), y = v.getY();
+        return ev.getX() >= x && ev.getX() < x + v.getWidth() && ev.getY() >= y && ev.getY() < y + v.getHeight();
     }
 
     // The host's onTouchEvent asks this before its own pinch zoom. A second finger landing while docked starts a
