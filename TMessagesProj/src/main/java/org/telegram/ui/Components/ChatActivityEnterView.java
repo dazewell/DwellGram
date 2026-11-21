@@ -19681,6 +19681,12 @@ public class ChatActivityEnterView extends FrameLayout implements
         return fieldHeight + (topView != null ? topView.getMeasuredHeight() : 0) * topViewVisibility;
     }
 
+    // NagramX: the strip's settled share of getIslandTotalHeight(true), so the recording controls move on the same
+    // beat as the round-video recorder's padding rather than when the strip finally goes GONE
+    public float getTopViewHeightTarget() {
+        return topView != null && animatorTopViewVisibility.getValue() ? topView.getMeasuredHeight() : 0;
+    }
+
 
     private float currentIslandTotalHeight;
     private float currentIslandTotalHeightTarget;
