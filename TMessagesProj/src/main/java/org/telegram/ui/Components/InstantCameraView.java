@@ -753,6 +753,14 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
     }
 
+    // NagramX (#video-reply-layout-fix): the composer's controls column is laid out after this view, and a reply
+    // strip closing mid-recording moves it, so re-place the flip and zoom against it once the pass is over
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        post(this::updateTranslationY);
+    }
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
