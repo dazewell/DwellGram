@@ -2947,8 +2947,9 @@ slide to cancel as pause and view-once do. `ControlsView.onDraw` hands its stack
 (`ChatActivityEnterView.java:1862`, computed whether or not view-once shows) and view-once's own scale to
 `recordColumn.update` (`:1901`). `RecordControlsColumn` puts the flip and the toggle on fixed slots above it, and
 `InstantCameraView.updateTranslationY` (`InstantCameraView.java:1454`) re-places them when the composer moves
-without redrawing. `ControlsView` goes `GONE` between recordings with no last frame, so a column not shown zeroes
-its members (`RecordControlsColumn.java:100`) rather than reusing the last frame's scale.
+without redrawing. `ControlsView` usually goes `GONE` between recordings with no last frame, so a column not shown
+zeroes its members (`RecordControlsColumn.java:100`) rather than reusing the last frame's scale. Some cancels only
+fade it to alpha 0 and leave it `VISIBLE`; the frame reused there is the pre-lock one, at scale 0.
 
 *(Established 2026-10-29, `#video-zoom`, PR 576; live column 2026-11-20, `#video-column-fix`.)*
 
@@ -3129,7 +3130,7 @@ but `controlsView` is shifted by the composer's right padding
 in the round-video recorder that should sit in that column (the flip button, the
 compact collapse toggle) must measure it with `getLocationInWindow` on
 `controlsView`, as `InstantZoomControlView.onceColumn` does
-(`InstantZoomControlView.java:302`). Placing it `26dp` in from the recorder's own
+(`InstantZoomControlView.java:310`). Placing it `26dp` in from the recorder's own
 edge leaves it a few dp right of the column.
 
 The "(1)" digit is also centred by its line box, not its ink:
