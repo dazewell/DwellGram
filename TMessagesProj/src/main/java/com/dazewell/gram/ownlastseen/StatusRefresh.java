@@ -97,7 +97,7 @@ public final class StatusRefresh {
         ConnectionsManager.getInstance(account).sendRequest(req, (res, err) -> AndroidUtilities.runOnUIThread(then));
     }
 
-    private static void finish(ActionBarMenuSubItem item, ImageView button, int account, long selfId) {
+    private static void finish(ActionBarMenuSubItem item, android.view.View button, int account, long selfId) {
         OwnLastSeenRow.fetchSelf(account, selfId, self -> {
             item.setSubtext(self != null && self.status != null ? LocaleController.formatUserStatus(account, self) : null);
             setBusy(button, false);
