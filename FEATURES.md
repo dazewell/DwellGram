@@ -337,6 +337,8 @@ When camera mode is set to Ask, the camera choice popup has an External Micropho
 
 ### Spoiler video messages <!-- #spoiler-video-messages -->
 
+Tap *Spoiler* in the video recorder or either Video Memo layout to send a square video with a tap-to-reveal cover. Long-press *Spoiler* or *Infinite Recording* for an explanation. N-Settings → Chat → Camera → *Spoiler video messages* is on by default, and each recording starts with Spoiler off.
+
 ### Warning before a round video message hits its limit <!-- #video-limit-warning -->
 
 Round video recordings warn you before they end. Configured via N-Settings → Chat → Camera, you get a light warning buzz 5 seconds before the cutoff, and a medium cutoff buzz when it actually lands.

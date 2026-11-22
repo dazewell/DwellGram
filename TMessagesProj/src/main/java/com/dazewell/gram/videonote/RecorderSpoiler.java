@@ -5,6 +5,8 @@ import android.content.Context;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageView;
 
+import com.dazewell.gram.helpers.VideoDraftStore;
+
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.LocaleController;
@@ -16,6 +18,7 @@ import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.BulletinFactory;
+import org.telegram.ui.Components.ChatActivityEnterView;
 
 import java.io.File;
 
@@ -45,7 +48,57 @@ public final class RecorderSpoiler {
             peer = chat.getCurrentChat();
         }
         return peer != null && ChatObject.canWriteToChat(peer) && ChatObject.canSendVideo(peer)
-                && chat.canSendRecorderVideoToCurrentTopic();
+                && chat.canSendRecorderVideoToCurrentTopic(peer);
+    }
+
+    public static ChatActivityEnterView composer(Object owner) {
+        return owner instanceof ChatActivity ? ((ChatActivity) owner).getChatActivityEnterView() : null;
+    }
+
+    public static boolean hasPreview(Object owner) {
+        ChatActivityEnterView composer = composer(owner);
+        return composer != null && composer.hasVideoToSend();
+    }
+
+    public static void selectionChanged(Object owner, VideoEditedInfo info, boolean selected) {
+        if (info != null) {
+            info.naxDraftSpoiler = selected;
+        }
+        ChatActivityEnterView composer = composer(owner);
+        if (composer != null) {
+            composer.onRecorderSpoilerChanged(selected);
+        }
+    }
+
+    public static DraftTarget draftTarget(Object owner) {
+        if (owner instanceof ChatActivity && ((ChatActivity) owner).canRestoreVideoDraft()) {
+            return new DraftTarget((ChatActivity) owner);
+        }
+        return null;
+    }
+
+    public static long recordingTopic(Object owner) {
+        return owner instanceof ChatActivity ? ((ChatActivity) owner).getVideoDraftOwnerTopicId() : 0;
+    }
+
+    public static boolean canOffer(Object owner, boolean selected, boolean branded) {
+        return owner instanceof ChatActivity && (selected || branded && brandAtStart(owner));
+    }
+
+    public static boolean isOwnerTopic(Object owner, long topicId) {
+        return owner instanceof ChatActivity && ((ChatActivity) owner).getTopicId() == topicId;
+    }
+
+    public static boolean checkOwnerTopic(Object owner, long topicId) {
+        if (!(owner instanceof ChatActivity)) {
+            return false;
+        }
+        ChatActivity chat = (ChatActivity) owner;
+        if (isOwnerTopic(chat, topicId)) {
+            return true;
+        }
+        BulletinFactory.of(chat).createErrorBulletin(LocaleController.getString(R.string.RecorderSpoilerOriginalTopic)).show();
+        return false;
     }
 
     public static boolean checkSend(Object delegate) {
@@ -58,6 +111,33 @@ public final class RecorderSpoiler {
         }
         BulletinFactory.of(chat).createErrorBulletin(LocaleController.getString(R.string.GlobalAttachVideoRestricted)).show();
         return false;
+    }
+
+    // Created and consumed on the main thread. The encoder only carries this snapshot across the stop.
+    public static final class DraftTarget {
+        private final int account;
+        private final long dialogId;
+        private final long topicId;
+        private final long previousId;
+
+        private DraftTarget(ChatActivity chat) {
+            account = chat.getCurrentAccount();
+            dialogId = chat.getDialogId();
+            topicId = chat.getVideoDraftOwnerTopicId();
+            VideoDraftStore.Entry previous = VideoDraftStore.load(account, dialogId, topicId);
+            previousId = previous == null ? 0 : previous.id;
+        }
+
+        public boolean save(VideoEditedInfo info, File file) {
+            VideoDraftStore.Entry current = VideoDraftStore.load(account, dialogId, topicId);
+            if ((current == null ? 0 : current.id) != previousId) {
+                return false;
+            }
+            info.naxDraftDialogId = dialogId;
+            info.naxDraftTopicId = topicId;
+            return VideoDraftStore.save(account, dialogId, topicId, info.naxDraftId, file.getAbsolutePath(),
+                    (int) info.estimatedDuration, info.startTime, info.endTime, false, true, info.naxBrandedCapture);
+        }
     }
 
     public static VideoEditedInfo segmentInfo(File file, long duration) {

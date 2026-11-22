@@ -124,9 +124,9 @@ public final class VideoDraftStore {
     //   - different id          -> a newer recording supersedes: rewrite + lock new + unlock the old file, so the
     //                              orphaned old file stays sweepable. Unlock is not a delete; this path removes
     //                              no file -- supersede-delete is deferred to the 24h expiry.
-    public static void save(int account, long dialogId, long topicId, long id, String path, int duration, long startTime, long endTime, boolean voiceOnce, boolean spoiler, boolean brandedCapture) {
+    public static boolean save(int account, long dialogId, long topicId, long id, String path, int duration, long startTime, long endTime, boolean voiceOnce, boolean spoiler, boolean brandedCapture) {
         if (path == null || id == 0) {
-            return;
+            return false;
         }
         String k = key(dialogId, topicId);
         SharedPreferences p = prefs(account);
@@ -138,15 +138,14 @@ public final class VideoDraftStore {
         Entry next = new Entry(id, path, duration, startTime, endTime, voiceOnce, createdAt, spoiler, brandedCapture);
         if (cur != null && cur.id == id) {
             if (cur.contentEquals(next)) {
-                return;
+                return true;
             }
             // NagramX (#video-draft-guard): commit(), not apply(), on the record-WRITE paths. We persist from
             // onPause (the live finalize is a send(3)) and at drag-end, AFTER the framework's pause/stop flush
             // barrier has already run -- an apply() write would sit queued while backgrounded and be lost to a
             // process kill in exactly the window this feature exists for. A synchronous ~1-5ms write to a small
             // per-account prefs file is the accepted cost; it will trip StrictMode in debug, which is fine.
-            p.edit().putString(k, next.toString()).commit();
-            return;
+            return p.edit().putString(k, next.toString()).commit();
         }
         boolean written = p.edit().putString(k, next.toString()).commit();
         // NagramX (#video-draft-guard): locked unconditionally on purpose. On a failed write this clip is still the
@@ -162,6 +161,7 @@ public final class VideoDraftStore {
         if (written && cur != null && !cur.path.equals(path)) {
             AutoDeleteMediaTask.unlockFile(cur.path);
         }
+        return written;
     }
 
     // Update-only trim re-persist. Never creates, never supersedes: writes only when a record with THIS

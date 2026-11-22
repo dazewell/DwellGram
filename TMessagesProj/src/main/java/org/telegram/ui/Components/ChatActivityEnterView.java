@@ -9871,12 +9871,24 @@ public class ChatActivityEnterView extends FrameLayout implements
             })) {
                 return;
             }
-            if (videoToSendMessageObject != null) {
-                sendRecordedVideoPreview(notify, scheduleDate, scheduleRepeatPeriod, effectId, payStars);
+            if (videoToSendMessageObject != null && videoToSendMessageObject.naxDraftSpoiler) {
+                sendRecordedVideoPreview(notify, scheduleDate, scheduleRepeatPeriod, effectId, payStars); // NagramX: wait for spoiler handoff before hiding the preview
                 return;
             }
             dismissSendPreviewSent = true;
-            if (audioToSend != null) {
+            if (videoToSendMessageObject != null) {
+                delegate.needStartRecordVideo(4, notify, scheduleDate, 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, payStars);
+                sendButton.setEffect(effectId = 0);
+                hideRecordedAudioPanel(true);
+                checkSendButton(true);
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (recordCircle != null) {
+                        recordCircle.setSendButtonInvisible();
+                    }
+                }, 100);
+                millisecondsRecorded = 0;
+                return;
+            } else if (audioToSend != null) {
                 if (delegate != null) {
                     delegate.beforeMessageSend(null, notify, scheduleDate, payStars);
                 }
@@ -10027,24 +10039,18 @@ public class ChatActivityEnterView extends FrameLayout implements
     // Keep both the panel and draft until the recorder actually gives the file to the outgoing message.
     private void sendRecordedVideoPreview(boolean notify, int scheduleDate, int scheduleRepeatPeriod, long effect, long stars) {
         VideoEditedInfo preview = videoToSendMessageObject;
-        boolean spoiler = preview != null && preview.naxDraftSpoiler;
-        if (!spoiler) {
-            handOffRecordedVideoPreview(false, notify, scheduleDate, 0, effect, stars);
-        } else if (isBoundRecorderSpoiler(preview) && parentFragment.instantCameraView.checkRecorderSpoilerSend()) {
+        if (isBoundRecorderSpoiler(preview) && parentFragment.instantCameraView.checkRecorderSpoilerSend()) {
             AlertsCreator.ensurePaidMessageConfirmation(currentAccount, dialog_id, 1, price -> {
                 if (isBoundRecorderSpoiler(preview)) {
-                    handOffRecordedVideoPreview(true, notify, scheduleDate, scheduleRepeatPeriod, effect, price);
+                    handOffRecordedVideoPreview(notify, scheduleDate, scheduleRepeatPeriod, effect, price);
                 }
             }, stars);
         }
     }
 
-    private void handOffRecordedVideoPreview(boolean spoiler, boolean notify, int scheduleDate, int scheduleRepeatPeriod, long effect, long stars) {
-        if (!spoiler) {
-            dismissSendPreviewSent = true;
-        }
-        delegate.needStartRecordVideo(4, notify, scheduleDate, spoiler ? scheduleRepeatPeriod : 0, voiceOnce ? 0x7FFFFFFF : 0, effect, stars);
-        if (spoiler && (parentFragment == null || parentFragment.instantCameraView == null || !parentFragment.instantCameraView.isFileHandedOff())) {
+    private void handOffRecordedVideoPreview(boolean notify, int scheduleDate, int scheduleRepeatPeriod, long effect, long stars) {
+        delegate.needStartRecordVideo(4, notify, scheduleDate, scheduleRepeatPeriod, 0, effect, stars);
+        if (parentFragment == null || parentFragment.instantCameraView == null || !parentFragment.instantCameraView.isFileHandedOff()) {
             return;
         }
         dismissSendPreviewSent = true;
@@ -10076,9 +10082,9 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     private boolean isBoundRecorderSpoiler(VideoEditedInfo info) {
-        return videoToSendMessageObject == info && info.naxDraftSpoiler && parentFragment != null
+        return info != null && videoToSendMessageObject == info && info.naxDraftSpoiler && parentFragment != null
                 && parentFragment.isCurrentEnterView(this) && parentFragment.instantCameraView != null
-                && dialog_id == info.naxDraftDialogId && parentFragment.getTopicId() == info.naxDraftTopicId;
+                && (info.naxDraftId == 0 || dialog_id == info.naxDraftDialogId);
     }
 
     public static class SendMessageInternalParams {
@@ -11894,6 +11900,12 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     private int lastRecordState;
     protected void updateRecordInterface(int recordState, boolean animated) {
+        if (recordState == RECORD_STATE_SENDING && parentFragment != null && parentFragment.instantCameraView != null
+                && !parentFragment.instantCameraView.isFileHandedOff()
+                && (parentFragment.instantCameraView.isSpoilerFinalizePending()
+                    || videoToSendMessageObject != null && videoToSendMessageObject.naxDraftSpoiler)) {
+            return; // NagramX: live send callers can run before a spoiler has finished binding
+        }
         if (moveToSendStateRunnable != null) {
             AndroidUtilities.cancelRunOnUIThread(moveToSendStateRunnable);
             moveToSendStateRunnable = null;
@@ -17146,7 +17158,13 @@ public class ChatActivityEnterView extends FrameLayout implements
                     videoTimelineView.setVideoPath(audioToSendPath);
                     videoTimelineView.setKeyframes(keyframes);
                     videoTimelineView.setVisibility(VISIBLE);
-                    videoTimelineView.setMinProgressDiff(1000.0f / videoToSendMessageObject.estimatedDuration);
+                    long duration = videoToSendMessageObject.estimatedDuration;
+                    videoTimelineView.setMinProgressDiff(1000.0f / duration);
+                    if (videoToSendMessageObject.naxDraftSpoiler && duration > 0) {
+                        float left = Math.max(0f, Math.min(1f, (float) videoToSendMessageObject.startTime / duration));
+                        float right = videoToSendMessageObject.endTime < 0 ? 1f : Math.min(1f, (float) videoToSendMessageObject.endTime / duration);
+                        videoTimelineView.setLeftRightProgress(left, right); // NagramX: rebinding the final file must show the saved trim
+                    }
                     isRecordingStateChanged();
                 }
                 updateRecordInterface(RECORD_STATE_PREPARING, true);
@@ -17155,10 +17173,17 @@ public class ChatActivityEnterView extends FrameLayout implements
                 // Persist it so a background / passcode-lock teardown doesn't lose it. onVideoDraftReady is
                 // mode-gated and adopts the file onto the send path only when this instance didn't record it.
                 if (parentFragment != null && audioToSendPath != null && videoToSendMessageObject.roundVideo) {
-                    parentFragment.onVideoDraftReady(videoToSendMessageObject, audioToSendPath, voiceOnce);
+                    if (args.length <= 6 || !Boolean.TRUE.equals(args[6])) {
+                        parentFragment.onVideoDraftReady(videoToSendMessageObject, audioToSendPath, voiceOnce);
+                    }
                     if (parentFragment.instantCameraView != null) {
                         parentFragment.instantCameraView.refreshRecorderSpoiler(); // NagramX: pause and terminal clips now own the control
                     }
+                }
+                if (args.length > 5 && args[5] instanceof InstantCameraView.SendOptions) {
+                    InstantCameraView.SendOptions options = (InstantCameraView.SendOptions) args[5];
+                    sendFinalizedRecorderSpoiler((VideoEditedInfo) audio, options.notify, options.scheduleDate,
+                            options.scheduleRepeatPeriod, options.effectId, options.stars);
                 }
             } else {
                 audioToSend = (TLRPC.TL_document) args[1];
@@ -17993,6 +18018,15 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
     }
 
+    public void onSpoilerRolloverResolved(boolean accepted) {
+        if (!accepted) {
+            infiniteVideoSegments = Math.max(0, infiniteVideoSegments - 1);
+        } else if (recordTimerView != null) {
+            recordTimerView.stoppedInternal = false;
+            recordTimerView.start(0);
+        }
+    }
+
     public class TimerView extends View {
         boolean isRunning;
         boolean stoppedInternal;
@@ -18153,7 +18187,12 @@ public class ChatActivityEnterView extends FrameLayout implements
                                 startedDraggingX = -1;
                                 delegate.needStartRecordVideo(6, infiniteVideoNotify, infiniteSegmentScheduleDate(segmentIndex), 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, 0);
                                 sendButton.setEffect(effectId = 0);
-                                start(0);
+                                if (parentFragment != null && parentFragment.instantCameraView != null
+                                        && parentFragment.instantCameraView.isSpoilerRolloverPending()) {
+                                    stoppedInternal = true;
+                                } else {
+                                    start(0);
+                                }
                                 return;
                             }
                             // NagramX: only arm here, not on the fallthrough below -- if a manual stop

@@ -2941,6 +2941,12 @@ the persisted `media.spoiler` bit (`SendMessagesHelper.java:12659-12669`).
 under Show Spoilers Directly even when the wire bit is true
 (`MessageObject.java:658-660`, 2026-11-22, #spoiler-video-messages).
 
+A recorder preview can bind later than its notification is posted.
+`NotificationCenter.java:685` can defer the event during an animation. The
+one-shot spoiler send travels with `audioDidSent` and runs after the composer
+binds that exact clip (`ChatActivityEnterView.java:17183`, 2026-11-22,
+#spoiler-video-messages).
+
 ## The round recorder's view-once button is drawn, not laid out
 
 The locked recording's view-once "(1)" lives in `ChatActivityEnterView.ControlsView.onDraw`, not a child view.

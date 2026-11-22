@@ -31235,8 +31235,21 @@ public class ChatActivity extends BaseFragment implements
     }
 
     // NagramX: a spoiler recorder send can complete after the forum closes its topic.
-    public boolean canSendRecorderVideoToCurrentTopic() {
-        return forumTopic == null || canSendMessageToTopic(forumTopic);
+    public boolean canSendRecorderVideoToCurrentTopic(TLRPC.Chat chat) {
+        // A non-member can still post in a discussion thread that permits it.
+        if (chat.kicked || chat.deactivated || ChatObject.isForbidden(chat) || chat instanceof TLRPC.TL_chatEmpty
+                || chat.left && !UserObject.isBotForum(currentUser)
+                    && (chat.join_to_send || !isThreadChat() || ChatObject.isForum(chat))) {
+            return false;
+        }
+        if (forumTopic != null) {
+            TLRPC.TL_forumTopic latest = getMessagesController().getTopicsController().findTopic(chat.id, forumTopic.id);
+            return canSendMessageToTopic(latest != null ? latest : forumTopic);
+        }
+        if (isForumInViewAsMessagesMode()) {
+            return replyingMessageObject != null ? canSendMessageToTopic(replyingMessageObject) : canSendMessageToGeneralTopic();
+        }
+        return true;
     }
 
     private boolean canSendMessageToTopic(TLRPC.TL_forumTopic topic) {
@@ -38475,7 +38488,8 @@ public class ChatActivity extends BaseFragment implements
                 parentLayout.addFragmentToStack(backToPreviousFragment, parentLayout.getFragmentStack().size() - 1);
                 backToPreviousFragment = null;
             }
-            if (instantCameraView != null && !(chatActivityEnterView != null && chatActivityEnterView.hasVideoToSend())) {
+            if (instantCameraView != null && !instantCameraView.isSpoilerFinalizePending()
+                    && !(chatActivityEnterView != null && chatActivityEnterView.hasVideoToSend())) {
                 // NagramX: cancel(false) deletes cameraFile, which in state (b) is the finished unsent round
                 // video shown in the preview strip -- an accidental back would silently destroy it. Skip the
                 // cancel when one exists so the finished clip is not deleted; onFragmentDestroy then calls
