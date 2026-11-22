@@ -3237,3 +3237,13 @@ first Send-to-mic return in a chat (`:11327`) drew the "⋯" glyph over a visibl
 erases were silent once the tag was set. An untagged button now swaps without the fade in toolbar mode (`:9440`).
 
 *(Established 2026-11-17, `#glass-attach-flash-fix`. Code-read; no device trace. The fix was confirmed visually on device.)*
+
+## A grouped file row's bubble runs past its row
+
+In a document or music album, every row but the last gets bubble bounds that run about 20dp below the row, so the
+shared group bubble (`ChatActivity.java:6812` pads it a further 10dp) has no seam. A device trace measured a 231px
+row whose bubble ran from 3px to 284px. Selecting one file paints that row's own selected bubble at those bounds
+(`ChatMessageCell.java:21248`), and the row drawn later covers the next file's icon and first title line. Upstream's
+clip to the row in that branch was commented out from 9.1.0 on; it is live again at `ChatMessageCell.java:21252`.
+
+*(Established 2026-11-21, `#doc-group-fix`, PR #644. ADB-traced on device; the fix was confirmed visually on device.)*
