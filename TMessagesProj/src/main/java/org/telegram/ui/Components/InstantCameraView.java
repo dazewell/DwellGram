@@ -3585,13 +3585,18 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         private volatile OutgoingSpoilerCut outgoingCut;
 
         public void prepareSpoilerRollover(SendOptions options) {
-            handler.post(() -> {
+            boolean posted = handler.post(() -> {
                 // NagramX: capture stays in the old muxer until the UI accepts the outgoing segment.
                 File segment = videoFile;
                 boolean ready = running && !pauseRecorder && mediaMuxer != null && videoTrackFormat != null;
                 options.composedThumb = composedCutThumb;
                 AndroidUtilities.runOnUIThread(() -> {
-                    if (!spoilerRolloverPending || InstantCameraView.this.videoEncoder != this) {
+                    if (!spoilerRolloverPending) {
+                        return;
+                    }
+                    if (InstantCameraView.this.videoEncoder != this) {
+                        // A pending cut defers cancel, send and pause, so a dropped one must still release them
+                        finishSpoilerRollover(discardDuringSpoilerCut);
                         return;
                     }
                     if (discardDuringSpoilerCut) {
@@ -3621,6 +3626,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                     }
                 });
             });
+            if (!posted) {
+                finishSpoilerRollover(false); // NagramX: a quitting encoder never answers this cut
+            }
         }
 
         public void rollOver(File nextFile, long duration, SendOptions options) {
