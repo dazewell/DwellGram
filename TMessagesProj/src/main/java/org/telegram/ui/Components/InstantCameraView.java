@@ -1807,13 +1807,13 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
     }
 
-    // NagramX: same cache file the recorder starts with, so an infinite-mode rollover can open the next one
     private void captureSpoilerDraftTarget(SendOptions options) {
         options.draftTarget = com.dazewell.gram.videonote.RecorderSpoiler.draftTarget(delegate);
         options.rolloverTopicId = com.dazewell.gram.videonote.RecorderSpoiler.recordingTopic(delegate);
         options.destinationTopicId = com.dazewell.gram.videonote.RecorderSpoiler.destinationTopic(delegate, videoEditedInfo);
     }
 
+    // NagramX: same cache file the recorder starts with, so an infinite-mode rollover can open the next one
     private File generateCameraFile() {
         return new File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_DOCUMENT), System.currentTimeMillis() + "_" + SharedConfig.getLastLocalId() + ".mp4") {
             @Override
