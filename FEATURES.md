@@ -164,6 +164,8 @@ The toolbar row can be scaled from 75% to 125% in 5% steps. Its buttons sit pack
 
 ### Gap above toolbar <!-- #composer-keyboard-gap --> <!-- #composer-row-gap -->
 
+Sets the space between the message field and the toolbar row below it. Set it from 0 to 12 dp under Chat settings → Composer Toolbar → Gap above toolbar. Defaults to 2 dp.
+
 ### Interface style <!-- #interface-style --> <!-- #composer-transparency --> <!-- #rounded-navigation --> <!-- #message-menu-blur --> <!-- #glass-header-glare -->
 
 NagramX Settings → General → Interface Style picks Liquid Glass or Material Design 3 for headers, buttons, navigation and composer, with Apply to toggles. It also holds blur strength, typography, icons and layout options. Glass adds a subtle highlight below the chat-list header, controlled by Glare effects.
