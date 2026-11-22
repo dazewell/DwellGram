@@ -42,8 +42,7 @@ public final class RecordControlsColumn {
     // the recorder's buttons, in their order up the column
     private static final int FLIP = 0;
     private static final int COMPACT_TOGGLE = 1;
-    private static final int SPOILER = 2;
-    private static final int SLOTS = 3;
+    private static final int SLOTS = 2;
     // a member scaled below this is not there for a touch; the flip's press scale is 0.9
     private static final float SHOWN = 0.01f;
     private static final float EPSILON = 0.01f;
@@ -130,8 +129,7 @@ public final class RecordControlsColumn {
     // seconds, and a voice recording can start on the stack meanwhile. It never arms the column again; one that is
     // already armed keeps it for the stack's exit.
     private void maybeArm() {
-        if (!armed && recorder != null && (recorder.isShown()
-                    || members[SPOILER] != null && members[SPOILER].getVisibility() == View.VISIBLE)
+        if (!armed && recorder != null && recorder.isShown()
                 && !(recorder instanceof InstantCameraView && ((InstantCameraView) recorder).isFileHandedOff())
                 && column.getVisibility() == View.VISIBLE && column.getAlpha() >= SHOWN && host.isAttachedToWindow()) {
             armed = true;
@@ -146,16 +144,6 @@ public final class RecordControlsColumn {
         }
         final ChatActivityEnterView enter = ((ChatActivity) delegate).getChatActivityEnterView();
         return enter != null && enter.controlsView != null ? enter.controlsView.recordColumn : null;
-    }
-
-    public void placeSpoiler(InstantCameraView recorder, View spoiler) {
-        if (host.getParent() == null) {
-            return;
-        }
-        join(spoiler, SPOILER, false);
-        this.recorder = recorder;
-        maybeArm();
-        relayout();
     }
 
     /**
@@ -268,13 +256,8 @@ public final class RecordControlsColumn {
             }
             final float w = member.getWidth(), h = member.getHeight();
             // the slot's centre in the host, kept inside it: a high slot can leave it with the keyboard up
-            final float slotY = columnY - position * step;
-            // With very little height, use the inward side of the column instead of covering its top chip.
-            final float slotX = slot == SPOILER && slotY < h / 2f && position > drawnChips
-                    ? columnX + (columnX < host.getWidth() / 2f ? step : -step)
-                    : columnX;
-            final float centerX = Math.max(w / 2f, Math.min(slotX, host.getWidth() - w / 2f));
-            final float centerY = Math.max(h / 2f, Math.min(slotY, host.getHeight() - h / 2f));
+            final float centerX = Math.max(w / 2f, Math.min(columnX, host.getWidth() - w / 2f));
+            final float centerY = Math.max(h / 2f, Math.min(columnY - position * step, host.getHeight() - h / 2f));
             final float x = centerX - (member.getLeft() + w / 2f);
             final float y = centerY - (member.getTop() + h / 2f);
             if (!(Math.abs(x - placedX[slot]) <= EPSILON)) {
@@ -306,9 +289,6 @@ public final class RecordControlsColumn {
     private void setScale(int slot, View member, float s) {
         if (Math.abs(s - placedScale[slot]) <= EPSILON / 10f && !(s < SHOWN && member.getScaleX() >= SHOWN)) {
             return;
-        }
-        if (slot == SPOILER && (s >= SHOWN) != (placedScale[slot] >= SHOWN)) {
-            RecorderSpoiler.smoke("COLUMN visible=" + (s >= SHOWN) + " preview=" + (preview > 0f));
         }
         placedScale[slot] = s;
         member.setScaleX(s);

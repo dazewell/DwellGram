@@ -365,8 +365,8 @@ final class CameraMemoCover extends FrameLayout {
         togglePill.setBackground(pillBackground);
         togglePill.setPadding(AndroidUtilities.dp(4), 0, AndroidUtilities.dp(4), 0);
         togglePill.addView(flashCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
-        togglePill.addView(infiniteCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
         togglePill.addView(spoilerCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
+        togglePill.addView(infiniteCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
         addView(togglePill);
         onceButton = new ControlButton(context, ControlButton.ONCE);
         onceButton.setOnClickListener(v -> {

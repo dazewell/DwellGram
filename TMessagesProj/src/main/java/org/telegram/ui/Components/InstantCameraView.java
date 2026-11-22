@@ -182,6 +182,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     // NagramX: selection is UI-owned. Branding is sampled before the GL thread starts this take.
     private final com.dazewell.gram.videonote.RecorderSpoiler.Button spoilerButton;
     private boolean recorderSpoiler;
+    private boolean spoilerOnlyPill; // NagramX: the dock and paused preview keep this cell without the live camera controls
     private volatile boolean brandedCapture;
     private boolean spoilerFinalizePending;
     private boolean spoilerRolloverPending;
@@ -274,6 +275,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                     @Override
                     public void onPresentationChanged() {
                         onDockMoved();
+                        refreshRecorderSpoiler(); // NagramX: compact retains the Spoiler cell
                         // the chat reads isCompactPresentation() from here to raise or drop its scrim
                         dispatchAnimationState(true, true);
                     }
@@ -288,7 +290,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                         maybePinchToZoomTouchMode = false;
                     }
                 });
-        recorder.hideWhenCompact(buttonsLayout, zoomControlView, flashBrightnessSlider);
+        recorder.hideWhenCompact(zoomControlView, flashBrightnessSlider);
         recorder.updateColors(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(isDarkAppearance()));
         return recorder;
     }
@@ -323,8 +325,16 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     // before onInterceptTouchEvent can make the parent give it up
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
-        if (compactRecorder != null && !compactRecorder.acceptsDown(ev)) {
-            return false;
+        if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            // NagramX: while docked or restored, the pill only claims a touch on its visible cell.
+            float x = buttonsLayout.getX() + spoilerButton.getX();
+            float y = buttonsLayout.getY() + spoilerButton.getY();
+            boolean hitsSpoiler = buttonsLayout.getVisibility() == VISIBLE && buttonsLayout.getAlpha() > 0.01f
+                    && spoilerButton.getVisibility() == VISIBLE && ev.getX() >= x && ev.getX() < x + spoilerButton.getWidth()
+                    && ev.getY() >= y && ev.getY() < y + spoilerButton.getHeight();
+            if (!hitsSpoiler && (textureView == null || compactRecorder != null && !compactRecorder.acceptsDown(ev))) {
+                return false;
+            }
         }
         return super.dispatchTouchEvent(ev);
     }
@@ -460,7 +470,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
         this.delegate = delegate;
         recordingGuid = delegate.getClassGuid();
-        spoilerButton = new com.dazewell.gram.videonote.RecorderSpoiler.Button(context, this::toggleRecorderSpoiler); // NagramX: shared composer column owns placement
+        spoilerButton = new com.dazewell.gram.videonote.RecorderSpoiler.Button(context, this::toggleRecorderSpoiler); // NagramX: the camera pill owns sizing and animation
         isSecretChat = delegate.isSecretChat();
         paint = new Paint(Paint.ANTI_ALIAS_FLAG) {
             @Override
@@ -530,10 +540,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         buttonsLayout.setOrientation(LinearLayout.HORIZONTAL);
         addView(buttonsLayout, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 56, Gravity.LEFT | Gravity.BOTTOM, 1, 0, 0, 0));
 
-        // the camera flip now lives in the zoom control's button row, so this row only carries flash
         flashButton = new FlashViews.ImageViewInvertable(context);
         flashButton.setScaleType(ImageView.ScaleType.CENTER);
         buttonsLayout.addView(flashButton, LayoutHelper.createLinear(44, 44));
+        buttonsLayout.addView(spoilerButton, LayoutHelper.createLinear(44, 44)); // NagramX: between Flash and Infinite Recording
         flashButton.setOnClickListener(v -> {
             flashing = !flashing;
             updateFlash();
@@ -616,18 +626,22 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         buttonsLayout.setBackground(drawable);
         zoomControlView.setButtonsBackground(factory, colorProvider);
         flashBrightnessSlider.setGlassBackground(factory.create(flashBrightnessSlider, colorProvider), factory.create(flashBrightnessSlider, colorProvider)); // NagramX (#front-flash-brightness): the arm joins this row's glass
-        spoilerButton.setGlass(factory, colorProvider); // NagramX: match the neighbouring native controls
         compactRecorder.setGlass(factory, colorProvider); // NagramX (#compact-video-recording): its toggle wears the flip button's glass
     }
 
     // NagramX: keep a previously selected spoiler available to turn off even after permissions change.
     public boolean isRecorderSpoilerAvailable() {
-        if (!(delegate instanceof ChatActivity) || isSecretChat || cameraFileHandedOff || cameraFile == null) {
-            return false;
-        }
-        ChatActivityEnterView enter = ((ChatActivity) delegate).getChatActivityEnterView();
-        return (recording || enter != null && enter.hasVideoToSend())
+        return canOfferRecorderSpoiler() && (opened && textureView != null || hasRecorderPreview());
+    }
+
+    private boolean canOfferRecorderSpoiler() {
+        return delegate instanceof ChatActivity && !isSecretChat && !cameraFileHandedOff && cameraFile != null
                 && (recorderSpoiler || brandedCapture && com.dazewell.gram.videonote.RecorderSpoiler.brandAtStart(delegate));
+    }
+
+    private boolean hasRecorderPreview() {
+        ChatActivityEnterView enter = delegate instanceof ChatActivity ? ((ChatActivity) delegate).getChatActivityEnterView() : null;
+        return enter != null && enter.hasVideoToSend();
     }
 
     public boolean isRecorderSpoilerSelected() {
@@ -676,14 +690,30 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     }
 
     public void refreshRecorderSpoiler() {
-        spoilerButton.update(isRecorderSpoilerAvailable(), recorderSpoiler, glyphColor(isDarkAppearance()),
-                Theme.getColor(Theme.key_chat_messagePanelSend, resourcesProvider));
-        if (delegate instanceof ChatActivity) {
-            ChatActivityEnterView enter = ((ChatActivity) delegate).getChatActivityEnterView();
-            if (enter != null && enter.controlsView != null) {
-                enter.controlsView.recordColumn.placeSpoiler(this, spoilerButton);
-            }
+        final boolean restored = sendAdoptedDraft && textureView == null && !cameraFileHandedOff && cameraFile != null;
+        if (!opened && !restored) {
+            return; // NagramX: leave the pill intact until the recorder's close fade ends
         }
+        final boolean compact = isCompactPresentation();
+        final boolean shown = isRecorderSpoilerAvailable();
+        spoilerOnlyPill = compact || !recording && hasRecorderPreview() && shown;
+        if (shown != (spoilerButton.getVisibility() == VISIBLE)) {
+            com.dazewell.gram.videonote.RecorderSpoiler.smoke("PILL visible=" + shown + " compact=" + compact + " preview=" + !recording);
+        }
+        spoilerButton.update(shown, recorderSpoiler, glyphColor(isDarkAppearance()),
+                Theme.getColor(Theme.key_chat_messagePanelSend, resourcesProvider));
+        flashButton.setVisibility(spoilerOnlyPill ? GONE : VISIBLE);
+        flashBrightnessSlider.setShown(!spoilerOnlyPill && flashing && isFrontface);
+        updateInfiniteButton();
+        buttonsLayout.setVisibility(compact && !shown ? INVISIBLE : VISIBLE);
+        if (restored && shown && getVisibility() != VISIBLE) {
+            // NagramX: a cold draft has no camera texture or scrim, but still needs the pill.
+            setVisibility(VISIBLE);
+            paint.setAlpha(0);
+            progress = 0f;
+            buttonsLayout.animate().alpha(1f).setDuration(180).start();
+        }
+        positionSpoilerPill();
     }
 
     private Boolean wasFlashing;
@@ -902,7 +932,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (infiniteButton == null) {
             return;
         }
-        if (state == INFINITE_RECORDING_UNAVAILABLE) {
+        if (state == INFINITE_RECORDING_UNAVAILABLE || spoilerOnlyPill) {
             infiniteButton.setVisibility(GONE);
             return;
         }
@@ -1422,6 +1452,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             updateTranslationY();
         }
         opened = open;
+        if (open) {
+            refreshRecorderSpoiler(); // NagramX: the cell is present before the pill animates in
+        }
+        buttonsLayout.animate().cancel();
         if (!open) {
             cancelZoomInteractions();
         }
@@ -1541,7 +1575,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         zoomControlView.setPlacement(compact, buttonsLayout.getMeasuredWidth() > 0 ? buttonsLayout.getMeasuredWidth() + dp(1) : dp(108), rowCenterY);
         // NagramX: in a chat the composer's record column places and scales the flip and the compact toggle, so they
         // move like pause and view-once; a story reply's recorder has no column and places the flip itself
-        refreshRecorderSpoiler(); // NagramX: recompute eligibility when the recorder's layout changes
+        positionSpoilerPill(); // NagramX: keep the solo pill clear of the current circle bounds
         zoomControlView.setFlipInColumn(com.dazewell.gram.videonote.RecordControlsColumn.place(delegate, zoomControlView.flipButton(), compactRecorder != null ? compactRecorder.toggleButton() : null, this));
         zoomControlView.setFlipLine(Float.isNaN(once) ? rowCenterY : once); // up the column from the view-once button
         zoomControlView.setFlipColumn(InstantZoomControlView.onceColumn(this, delegate)); // NagramX: and on its centre line
@@ -1556,6 +1590,31 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             muteImageView.setTranslationX(0);
             muteImageView.setTranslationY(0);
         }
+    }
+
+    private void positionSpoilerPill() {
+        if (!spoilerOnlyPill || textureView == null) {
+            buttonsLayout.setTranslationX(0f);
+            buttonsLayout.setTranslationY(0f);
+            return;
+        }
+        final RectF bounds = AndroidUtilities.rectTmp;
+        com.dazewell.gram.videonote.CompactVideoRecorder.visibleBounds(cameraContainer, bounds);
+        bounds.inset(-dp(8), -dp(8));
+        final float top = buttonsLayout.getTop();
+        final float bottom = buttonsLayout.getBottom();
+        final float right = buttonsLayout.getLeft() + dp(56);
+        float x = 0f;
+        float y = 0f;
+        if (bounds.intersects(buttonsLayout.getLeft(), top, right, bottom)) {
+            if (isCompactPresentation() && bounds.right + dp(60) <= getWidth()) {
+                x = bounds.right + dp(4) - buttonsLayout.getLeft();
+            } else {
+                y = Math.max(0f, bounds.top - dp(4) - (bottom - top)) - top;
+            }
+        }
+        buttonsLayout.setTranslationX(x);
+        buttonsLayout.setTranslationY(y);
     }
 
     public RectF getCameraRect() {
@@ -1674,8 +1733,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             // NagramX (#round-video-restart-guard-fix): set before sendMedia, which on stories calls cancel() back
             cameraFileHandedOff = true;
             delegate.sendMedia(entry, videoEditedInfo, notify, scheduleDate, scheduleRepeatPeriod, false, stars);
-            if (scheduleDate != 0) {
-                startAnimation(false, false);
+            if (scheduleDate != 0 || sendAdoptedDraft && getVisibility() == VISIBLE) {
+                startAnimation(false, false); // NagramX: textureless previews still have a pill to close
             }
             MediaController.getInstance().requestRecordAudioFocus(false);
         } else {
@@ -1870,7 +1929,11 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
         if (textureView == null) {
             recorderSpoiler = false; // NagramX: a restored draft no longer owns a control after discard
-            refreshRecorderSpoiler();
+            if (sendAdoptedDraft && getVisibility() == VISIBLE) {
+                sendAdoptedDraft = false;
+                cameraFile = null;
+                startAnimation(false, false);
+            }
             return;
         }
         if (!cameraFileHandedOff) {
@@ -4294,8 +4357,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
             cancelZoomInteractions();
             AnimatorSet animatorSet = new AnimatorSet();
+            // NagramX: Spoiler remains editable in the preview. The close animation can interrupt this fade.
+            buttonsLayout.animate().alpha(canOfferRecorderSpoiler() ? 1f : 0f)
+                    .setDuration(180).setInterpolator(new DecelerateInterpolator()).start();
             animatorSet.playTogether(
-                    ObjectAnimator.ofFloat(buttonsLayout, View.ALPHA, 0.0f),
                     ObjectAnimator.ofFloat(zoomControlView, View.ALPHA, 0.0f),
                     ObjectAnimator.ofInt(paint, AnimationProperties.PAINT_ALPHA, 0),
                     ObjectAnimator.ofFloat(muteImageView, View.ALPHA, holdToSend.ownsPreviewTaps() ? 0.0f : 1.0f)); // NagramX (#video-hold-send): the composer's sound chip shows it instead
@@ -4750,6 +4815,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                     updateFlash();
                     invalidate();
                     NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.recordStarted, recordingGuid, false);
+                    refreshRecorderSpoiler(); // NagramX: restore the full pill as recording resumes
                 });
             } catch (Exception ioe) {
                 throw new RuntimeException(ioe);

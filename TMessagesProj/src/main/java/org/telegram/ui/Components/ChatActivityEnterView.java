@@ -13949,7 +13949,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         isRecordingStateChanged();
         updateRecordInterface(RECORD_STATE_PREPARING, false);
         if (parentFragment != null && parentFragment.instantCameraView != null) {
-            parentFragment.instantCameraView.refreshRecorderSpoiler(); // NagramX: restored previews also arm the column
+            parentFragment.instantCameraView.refreshRecorderSpoiler(); // NagramX: the restored preview can show its camera pill
         }
         checkSendButton(false);
     }
