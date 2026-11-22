@@ -424,7 +424,8 @@ public class ConnectionsManager extends BaseController {
             FileLog.d("GhostMode: Request " + object.getClass().getSimpleName() + " blocked by handler.");
             return;
         }
-        final var onComplete = interceptResult.effectiveOnComplete();
+        // NagramX: a send landing while the app is in the background marks us online, and the status timer has already sent its one offline
+        final var onComplete = com.dazewell.gram.ownlastseen.BackgroundSendOffline.wrap(currentAccount, object, interceptResult.effectiveOnComplete());
         // --- Ghost Mode ---
 
         try {
