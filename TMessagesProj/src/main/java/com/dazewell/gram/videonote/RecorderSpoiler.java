@@ -86,6 +86,11 @@ public final class RecorderSpoiler {
 
     public static void apply(VideoEditedInfo info, MediaController.PhotoEntry entry, boolean spoiler) {
         if (spoiler) {
+            if (info.startTime <= 0 && info.endTime == info.estimatedDuration) {
+                // The right trim handle can put the clip back at full length. The local edit string
+                // doesn't carry estimatedDuration, so use its full-range sentinel before a retry.
+                info.endTime = -1;
+            }
             smoke("SEND ordinary spoiler trimmed=" + info.needConvert());
             info.roundVideo = false;
             info.naxRecorderVideo = true;

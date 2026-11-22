@@ -20,6 +20,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.TextureView;
 import android.view.View;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -338,7 +339,14 @@ final class CameraMemoCover extends FrameLayout {
                 refresh();
             }
         });
-        spoilerCell = new ToggleCell(context, R.drawable.msg_spoiler_off, R.drawable.msg_spoiler, false);
+        spoilerCell = new ToggleCell(context, R.drawable.msg_spoiler_off, R.drawable.msg_spoiler, false) {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(info);
+                info.setCheckable(true);
+                info.setChecked(isSelected());
+            }
+        };
         spoilerCell.setForeground(Theme.createCircleSelectorDrawable(0x30ffffff, 0, 0));
         spoilerCell.setFocusable(true);
         spoilerCell.setVisibility(GONE);
@@ -662,8 +670,15 @@ final class CameraMemoCover extends FrameLayout {
             RecorderSpoiler.smoke("CAMERA_MEMO visible=" + spoiler + " preview=" + bound);
         }
         spoilerCell.setVisibility(spoiler ? VISIBLE : GONE);
-        spoilerCell.setOn(spoilerOn);
-        spoilerCell.setSelected(spoilerOn);
+        if (spoilerCell.isSelected() != spoilerOn) {
+            spoilerCell.setOn(spoilerOn);
+            spoilerCell.setSelected(spoilerOn);
+            spoilerCell.animate().cancel();
+            spoilerCell.setAlpha(spoiler ? 0.6f : 1f);
+            if (spoiler) {
+                spoilerCell.animate().alpha(1f).setDuration(180).start();
+            }
+        }
         spoilerCell.setContentDescription(RecorderSpoiler.description(spoilerOn));
         flashCell.setOn(flashOn);
         flashCell.setContentDescription(LocaleController.getString(flashOn ? R.string.AccDescrCameraFlashOff : R.string.AccDescrCameraFlashOn));
@@ -1256,7 +1271,7 @@ final class CameraMemoCover extends FrameLayout {
     }
 
     /** One cell of the top-left pill: white while off, orange while on, as a camera's quick toggles. */
-    private static final class ToggleCell extends View {
+    private static class ToggleCell extends View {
 
         private final Drawable offGlyph;
         private final Drawable onGlyph;
