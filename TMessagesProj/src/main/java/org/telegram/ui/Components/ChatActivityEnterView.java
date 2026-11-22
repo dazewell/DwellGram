@@ -17149,11 +17149,7 @@ public class ChatActivityEnterView extends FrameLayout implements
 
                 audioToSendPath = (String) args[2];
                 if (args.length > 7 && Boolean.TRUE.equals(args[7]) && parentFragment != null && parentFragment.instantCameraView != null) {
-                    parentFragment.instantCameraView.admitFinalizedSpoiler(videoToSendMessageObject);
-                }
-                if (videoToSendMessageObject.naxDraftSpoiler && voiceOnce) {
-                    setRecordingOnce(false); // NagramX: a rejected rollover restores the finished segment's selected mode
-                }
+                    parentFragment.instantCameraView.admitFinalizedSpoiler(videoToSendMessageObject);                }
                 ArrayList<Bitmap> keyframes = (ArrayList<Bitmap>) args[3];
                 millisecondsRecorded = videoToSendMessageObject.estimatedDuration;
 
@@ -18021,15 +18017,6 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
     }
 
-    public void onSpoilerRolloverResolved(boolean accepted) {
-        if (!accepted) {
-            infiniteVideoSegments = Math.max(0, infiniteVideoSegments - 1);
-        } else if (recordTimerView != null) {
-            recordTimerView.stoppedInternal = false;
-            recordTimerView.start(0);
-        }
-    }
-
     public class TimerView extends View {
         boolean isRunning;
         boolean stoppedInternal;
@@ -18184,18 +18171,12 @@ public class ChatActivityEnterView extends FrameLayout implements
                         // must land the stop it actually requested, not a rollover. This is the decision
                         // that matters -- the read above only primes the cache it depends on.
                         if (isRunning) {
-                            if (infiniteVideoMessage && infiniteVideoSegments < getInfiniteVideoMaxSegments() - 1 && isInfiniteVideoAvailable()
-                                    && (parentFragment == null || parentFragment.instantCameraView == null || parentFragment.instantCameraView.checkRecorderSpoilerSend())) { // NagramX: refuse before counting the cut as sent
+                            if (infiniteVideoMessage && infiniteVideoSegments < getInfiniteVideoMaxSegments() - 1 && isInfiniteVideoAvailable()) {
                                 final int segmentIndex = infiniteVideoSegments++;
                                 startedDraggingX = -1;
                                 delegate.needStartRecordVideo(6, infiniteVideoNotify, infiniteSegmentScheduleDate(segmentIndex), 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, 0);
                                 sendButton.setEffect(effectId = 0);
-                                if (parentFragment != null && parentFragment.instantCameraView != null
-                                        && parentFragment.instantCameraView.isSpoilerRolloverPending()) {
-                                    stoppedInternal = true;
-                                } else {
-                                    start(0);
-                                }
+                                start(0);
                                 return;
                             }
                             // NagramX: only arm here, not on the fallthrough below -- if a manual stop
@@ -20032,6 +20013,7 @@ public class ChatActivityEnterView extends FrameLayout implements
     // term below cannot be evaluated, and offering the toggle is precisely what leads to capturing one.
     private boolean canOfferInfiniteVideo() {
         return slowModeTimer <= 0 && !voiceOnce
+                && !(parentFragment != null && parentFragment.instantCameraView != null && parentFragment.instantCameraView.isRecorderSpoilerSelected()) // NagramX: a spoiler take is never cut into segments
                 && !DialogObject.isEncryptedDialog(dialog_id)
                 && !AlertsCreator.needsPaidMessageAlert(currentAccount, dialog_id);
     }
@@ -20107,6 +20089,9 @@ public class ChatActivityEnterView extends FrameLayout implements
 
     // NagramX: toggle changes are draft edits, including a change to the preview restored from disk.
     public void onRecorderSpoilerChanged(boolean selected) {
+        if (selected) {
+            infiniteVideoMessage = false; // same as view-once: the refreshed pill then hides the infinite toggle
+        }
         if (selected && voiceOnce) {
             setRecordingOnce(false);
             if (controlsView != null) {

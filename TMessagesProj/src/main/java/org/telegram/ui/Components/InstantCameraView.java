@@ -186,9 +186,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     private boolean spoilerFinalizePending;
     private VideoEditedInfo pendingSpoilerDraft; // NagramX: a finalized replacement the composer has not admitted yet
     private File pendingPriorPreview;
-    private boolean spoilerRolloverPending;
-    private boolean discardDuringSpoilerCut;
-    private Runnable afterSpoilerRollover;
     private Bitmap lastBitmap;
     private int recordingGuid;
 
@@ -668,7 +665,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     }
 
     public boolean isSpoilerFinalizePending() {
-        return spoilerFinalizePending || spoilerRolloverPending;
+        return spoilerFinalizePending;
     }
 
     public boolean isFinalizingRecorderSpoiler() {
@@ -1098,12 +1095,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     }
 
     public void togglePause() {
-        if (spoilerRolloverPending) { // NagramX: resolve the finished segment before changing its file owner
-            if (!discardDuringSpoilerCut) {
-                afterSpoilerRollover = this::togglePause;
-            }
-            return;
-        }
         if (!recording && cameraThread != null) {
             return; // NagramX (#round-video-restart-guard-fix): the last resume's camera is still coming up; a second resume would stop it as a terminal stop
         }
@@ -1659,10 +1650,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     }
 
     public void send(int state, boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
-        send(state, notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars, null);
-    }
-
-    private void send(int state, boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars, SendOptions refusedCut) {
         if (cameraFileHandedOff) {
             return; // NagramX (#round-video-restart-guard-fix): this file already went; a second send would duplicate it
         }
@@ -1670,13 +1657,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             // NagramX (#video-draft-guard): a restored draft (a rebuilt instance that only adopted a file, never
             // opened the camera) has no textureView, but its cameraFile/videoEditedInfo are set up by
             // adoptRestoredDraft, so let the state==4 send through instead of silently dropping the message.
-            return;
-        }
-        if (spoilerRolloverPending) { // NagramX: finish or retain the preceding segment before stopping this one
-            final int requestedState = state;
-            if (!discardDuringSpoilerCut) {
-                afterSpoilerRollover = () -> send(requestedState, notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars);
-            }
             return;
         }
         if (spoilerFinalizePending || state == 4 && !checkRecorderSpoilerSend()) {
@@ -1763,8 +1743,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 // NagramX: pin the draft generation this stop finalizes. The recorder snapshots it into
                 // finalizeGeneration when the stop sequence begins, so the async audioDidSent post carries the
                 // request-time value even if a newer recording bumps the token before the post runs.
-                videoEncoder.finalizeDraftToken = refusedCut != null ? refusedCut.rolloverDraftToken
-                        : delegate != null ? delegate.getVideoDraftToken() : 0;
+                videoEncoder.finalizeDraftToken = delegate != null ? delegate.getVideoDraftToken() : 0;
             }
             cancelled = recordedTime < 800;
             recording = false;
@@ -1788,13 +1767,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                     cameraFileHandedOff = true; // NagramX (#round-video-restart-guard-fix): the recorder sends this file now
                 }
                 saveLastCameraBitmap();
-                SendOptions options = refusedCut != null ? refusedCut
-                        : new SendOptions(notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars, recorderSpoiler, sendAfterFinalize);
+                SendOptions options = new SendOptions(notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars, recorderSpoiler, sendAfterFinalize);
                 if (send == VideoRecorder.ENCODER_SEND_PLAYER && options.spoiler) {
                     spoilerFinalizePending = true;
-                    if (refusedCut == null) {
-                        captureSpoilerDraftTarget(options);
-                    }
+                    captureSpoilerDraftTarget(options);
                 }
                 cameraThread.shutdown(send, options); // NagramX: freeze the take's selection before enqueueing stop
                 cameraThread = null;
@@ -1809,7 +1785,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
     private void captureSpoilerDraftTarget(SendOptions options) {
         options.draftTarget = com.dazewell.gram.videonote.RecorderSpoiler.draftTarget(delegate);
-        options.rolloverTopicId = com.dazewell.gram.videonote.RecorderSpoiler.recordingTopic(delegate);
+        options.recordingTopicId = com.dazewell.gram.videonote.RecorderSpoiler.recordingTopic(delegate);
         options.destinationTopicId = com.dazewell.gram.videonote.RecorderSpoiler.destinationTopic(delegate, videoEditedInfo);
     }
 
@@ -1833,28 +1809,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (cameraThread == null || videoEncoder == null || !recording || cancelled) {
             return;
         }
-        if (!checkRecorderSpoilerSend()) {
-            send(3, notify, scheduleDate, 0, ttl, effectId, stars); // NagramX: keep the segment when rollover is denied
-            return;
-        }
-        final SendOptions options = new SendOptions(notify, scheduleDate, 0, ttl, effectId, stars, recorderSpoiler, false);
-        if (options.spoiler) {
-            options.rolloverDraftToken = delegate.getVideoDraftToken(); // NagramX: capture on the composer thread
-            captureSpoilerDraftTarget(options); // NagramX: refusal must use the slot that existed at the cut
-        }
-        if (options.spoiler) {
-            spoilerRolloverPending = true;
-            videoEncoder.prepareSpoilerRollover(options);
-        } else {
-            commitRollover(options);
-        }
-    }
-
-    public boolean isSpoilerRolloverPending() {
-        return spoilerRolloverPending;
-    }
-
-    private void commitRollover(SendOptions options) {
         holdToSend.reset(); // NagramX (#video-hold-send): a hold must not send across a segment boundary
         final long segmentDuration = recordedTime;
         final File nextFile = generateCameraFile();
@@ -1867,7 +1821,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         key = null;
         iv = null;
         size = 0;
-        videoEncoder.rollOver(nextFile, segmentDuration, options); // NagramX: the segment owns its request-time selection
+        videoEncoder.rollOver(nextFile, segmentDuration, new SendOptions(notify, scheduleDate, 0, ttl, effectId, stars));
         recordPlusTime = 0;
         recordStartTime = System.currentTimeMillis();
         recordedTime = 0;
@@ -1883,12 +1837,18 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (delegate == null) {
             return null;
         }
-        VideoEditedInfo info = com.dazewell.gram.videonote.RecorderSpoiler.segmentInfo(segmentFile, duration); // NagramX: reuse the recorder metadata when the segment has to become a draft
+        VideoEditedInfo info = new VideoEditedInfo();
+        info.startTime = -1;
+        info.endTime = -1;
+        info.roundVideo = true;
+        info.estimatedSize = Math.max(1, segmentFile.length());
+        info.estimatedDuration = duration;
+        info.framerate = 25;
+        info.resultWidth = info.originalWidth = 360;
+        info.resultHeight = info.originalHeight = 360;
+        info.originalPath = segmentFile.getAbsolutePath();
         info.notReadyYet = true;
-        if (options != null && options.spoiler) {
-            info.thumb = options.composedThumb; // NagramX: the raw camera preview can show outside the encoded circle
-            videoEncoder.outgoingCut = new OutgoingSpoilerCut(segmentFile, info);
-        } else if (textureView != null) {
+        if (textureView != null) {
             info.thumb = textureView.getBitmap();
         }
         MediaController.PhotoEntry entry = new MediaController.PhotoEntry(0, 0, 0, segmentFile.getAbsolutePath(), 0, true, 0, 0, 0);
@@ -1896,33 +1856,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             entry.ttl = options.ttl;
             entry.effectId = options.effectId;
         }
-        com.dazewell.gram.videonote.RecorderSpoiler.apply(info, entry, options != null && options.spoiler); // NagramX: the next segment can already have a different selection
         delegate.sendMediaKeepRecording(entry, info, options == null || options.notify, options != null ? options.scheduleDate : 0, options != null ? options.stars : 0);
-        if (options == null || !options.spoiler) {
-            AutoDeleteMediaTask.unlockFile(segmentFile);
-        }
+        AutoDeleteMediaTask.unlockFile(segmentFile);
         return info;
-    }
-
-    // NagramX: terminal encoder stop can see outgoing ownership even before the cut message runs.
-    private static final class OutgoingSpoilerCut {
-        final File file;
-        final VideoEditedInfo info;
-
-        OutgoingSpoilerCut(File file, VideoEditedInfo info) {
-            this.file = file;
-            this.info = info;
-        }
-    }
-
-    private void finishSpoilerRollover(boolean accepted) {
-        spoilerRolloverPending = false;
-        discardDuringSpoilerCut = false;
-        Runnable nextAction = afterSpoilerRollover;
-        afterSpoilerRollover = null;
-        if (accepted && nextAction != null) {
-            nextAction.run();
-        }
     }
 
     private void saveLastCameraBitmap() {
@@ -1944,12 +1880,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     }
 
     public void cancel(boolean byGesture) {
-        if (spoilerRolloverPending) {
-            discardDuringSpoilerCut = true;
-            afterSpoilerRollover = () -> cancel(byGesture);
-            return;
-        }
-        afterSpoilerRollover = null; // NagramX: a queued stop or pause cannot run after discard
         if (pendingSpoilerDraft != null) {
             com.dazewell.gram.helpers.VideoDraftStore.discard(currentAccount, pendingSpoilerDraft.naxDraftDialogId,
                     pendingSpoilerDraft.naxDraftTopicId, pendingSpoilerDraft.naxDraftId);
@@ -3215,15 +3145,12 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         // cap-stop haptic for exactly the auto-stop, not a manual send/stop that happens to share state==3
         boolean limitStop;
 
-        // NagramX: immutable selection and send intent for this finalized take or segment.
+        // NagramX: immutable selection and send intent for this finalized take.
         final boolean spoiler;
         final boolean sendSpoilerAfterFinalize;
         com.dazewell.gram.videonote.RecorderSpoiler.DraftTarget draftTarget;
-        int rolloverDraftToken;
-        long rolloverTopicId;
+        long recordingTopicId;
         long destinationTopicId;
-        VideoEditedInfo handedOffSegment;
-        Bitmap composedThumb;
 
         public SendOptions(boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
             this(notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars, false, false);
@@ -3580,57 +3507,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
 
         // NagramX: infinite video message
-        private Bitmap composedCutThumb;
-        private boolean attemptedCutThumb;
-        private volatile OutgoingSpoilerCut outgoingCut;
-
-        public void prepareSpoilerRollover(SendOptions options) {
-            boolean posted = handler.post(() -> {
-                // NagramX: capture stays in the old muxer until the UI accepts the outgoing segment.
-                File segment = videoFile;
-                boolean ready = running && !pauseRecorder && mediaMuxer != null && videoTrackFormat != null;
-                options.composedThumb = composedCutThumb;
-                AndroidUtilities.runOnUIThread(() -> {
-                    if (!spoilerRolloverPending) {
-                        return;
-                    }
-                    if (InstantCameraView.this.videoEncoder != this) {
-                        // A pending cut defers cancel, send and pause, so a dropped one must still release them
-                        finishSpoilerRollover(discardDuringSpoilerCut);
-                        return;
-                    }
-                    if (discardDuringSpoilerCut) {
-                        finishSpoilerRollover(true);
-                        return;
-                    }
-                    ChatActivityEnterView enter = com.dazewell.gram.videonote.RecorderSpoiler.composer(delegate);
-                    if (cameraThread == null || !recording || encoderTeardownPending) {
-                        finishSpoilerRollover(false);
-                        return; // NagramX: surface teardown owns the file before handoff
-                    }
-                    if (!ready || previewAbandoned || segment != cameraFile || delegate.getVideoDraftToken() != options.rolloverDraftToken
-                            || !com.dazewell.gram.videonote.RecorderSpoiler.checkOwnerTopic(delegate, options.rolloverTopicId, options.destinationTopicId)
-                            || !com.dazewell.gram.videonote.RecorderSpoiler.checkSend(delegate)) {
-                        finishSpoilerRollover(false);
-                        if (enter != null && !previewAbandoned && delegate.getVideoDraftToken() == options.rolloverDraftToken) {
-                            enter.onSpoilerRolloverResolved(false);
-                        }
-                        recorderSpoiler = true; // NagramX: rejection retains the mode captured for this cut
-                        send(3, options.notify, options.scheduleDate, 0, 0, options.effectId, options.stars, options);
-                        return;
-                    }
-                    options.handedOffSegment = sendSegment(segment, recordedTime, options);
-                    commitRollover(options);
-                    if (enter != null) {
-                        enter.onSpoilerRolloverResolved(true);
-                    }
-                });
-            });
-            if (!posted) {
-                finishSpoilerRollover(false); // NagramX: a quitting encoder never answers this cut
-            }
-        }
-
         public void rollOver(File nextFile, long duration, SendOptions options) {
             rolloverFile = nextFile;
             handler.sendMessage(handler.obtainMessage(MSG_ROLLOVER_RECORDING, (int) duration, 0, options));
@@ -3989,14 +3865,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 }
             }
 
-            if (brandedCapture && !attemptedCutThumb) {
-                attemptedCutThumb = true;
-                try {
-                    composedCutThumb = com.dazewell.gram.videonote.RecorderSpoiler.readComposedFrame(videoWidth, videoHeight);
-                } catch (RuntimeException e) {
-                    FileLog.e(e); // native thumbnail fallback reads the encoded MP4
-                }
-            }
             EGLExt.eglPresentationTimeANDROID(eglDisplay, eglSurface, currentTimestamp);
             EGL14.eglSwapBuffers(eglDisplay, eglSurface);
 
@@ -4174,27 +4042,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         private void handleRollover(long segmentDuration, SendOptions sendOptions) {
             final File nextFile = rolloverFile;
             if (!running || pauseRecorder || cancelled || mediaMuxer == null || nextFile == null || videoTrackFormat == null) {
-                if (outgoingCut != null && outgoingCut.file.equals(videoFile)) {
-                    rolloverFile = null;
-                    AndroidUtilities.runOnUIThread(() -> {
-                        if (nextFile != null) {
-                            AutoDeleteMediaTask.unlockFile(nextFile);
-                        }
-                        if (cameraFile != nextFile) {
-                            return;
-                        }
-                        finishSpoilerRollover(false);
-                        if (cameraThread != null) {
-                            cameraThread.shutdown(ENCODER_SEND_CANCEL, true, 0, 0, 0, 0);
-                            cameraThread = null;
-                        }
-                        recording = false;
-                        cameraFile = null;
-                        NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.recordStopped, recordingGuid, 6);
-                        startAnimation(false, false);
-                    });
-                    return; // terminal encoder stop still owns the outgoing file
-                }
                 if (nextFile != null) {
                     rolloverFile = null;
                     // the UI side already pointed cameraFile at the file we're not going to open, so put it
@@ -4209,9 +4056,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                             updateInfiniteButton();
                         }
                         AutoDeleteMediaTask.unlockFile(nextFile);
-                        if (sendOptions != null && sendOptions.spoiler) {
-                            finishSpoilerRollover(true); // NagramX: no cut went out; the original file is active again
-                        }
                     });
                 }
                 return;
@@ -4274,14 +4118,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 if (segmentClosedOk && InstantCameraView.this.recordingGeneration == capturedGeneration) {
                     fireCutVibration();
                 }
-                VideoEditedInfo info = sendOptions != null && sendOptions.spoiler
-                        ? sendOptions.handedOffSegment : sendSegment(segmentFile, segmentDuration, sendOptions);
+                VideoEditedInfo info = sendSegment(segmentFile, segmentDuration, sendOptions);
                 if (info != null) {
                     info.notReadyYet = false;
-                }
-                if (sendOptions != null && sendOptions.spoiler) {
-                    AutoDeleteMediaTask.unlockFile(segmentFile);
-                    finishSpoilerRollover(true);
                 }
                 // the segment is complete on disk, so whatever the streaming upload managed during the
                 // recording just needs closing off
@@ -4292,9 +4131,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             });
 
             videoFile = nextFile;
-            outgoingCut = null;
-            composedCutThumb = null;
-            attemptedCutThumb = false;
             rolloverFile = null;
             videoConvertFirstWrite = true;
             firstEncode = true;
@@ -4500,8 +4336,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         private boolean sentMedia;
 
         private void handleStopRecording(final int send, final SendOptions sendOptions) {
-            OutgoingSpoilerCut cut = outgoingCut;
-            final boolean ownsOutgoingCut = cut != null && cut.file.equals(videoFile);
             // NagramX: stash this recording's generation before anything else runs. This method is invoked
             // twice for one real stop (see the field comment above), and running is only ever true on the
             // first of those two calls -- capture it here, unconditionally, so the second call's teardown
@@ -4514,7 +4348,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 finalizeGeneration = finalizeDraftToken;
             }
             final boolean runDone;
-            if (!ownsOutgoingCut && send == ENCODER_SEND_SEND && (videoEditedInfo == null || !videoEditedInfo.needConvert()) && !delegate.isInScheduleMode()) {
+            if (send == ENCODER_SEND_SEND && (videoEditedInfo == null || !videoEditedInfo.needConvert()) && !delegate.isInScheduleMode()) {
                 runDone = false;
                 if (!sentMedia) {
                     sentMedia = true;
@@ -4549,7 +4383,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             }
             if (running && !pauseRecorder) {
                 FileLog.d("InstantCamera handleStopRecording running=false");
-                sendWhenDone = ownsOutgoingCut ? ENCODER_SEND_PLAYER : send; // NagramX: outgoing media still needs the full audio drain
+                sendWhenDone = send;
                 sendWhenDoneOptions = sendOptions;
                 running = false;
                 return;
@@ -4639,15 +4473,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 }
             }
             FileLog.d("InstantCamera handleStopRecording send " + send);
-            if (ownsOutgoingCut) {
-                outgoingCut = null;
-                AndroidUtilities.runOnUIThread(() -> {
-                    cut.info.notReadyYet = false;
-                    didWriteData(cut.file, 0, true);
-                    AutoDeleteMediaTask.unlockFile(cut.file);
-                    MediaController.getInstance().requestRecordAudioFocus(false);
-                });
-            } else if (send == ENCODER_SEND_CANCEL) {
+            if (send == ENCODER_SEND_CANCEL) {
                 FileLoader.getInstance(currentAccount).cancelFileUpload(videoFile.getAbsolutePath(), false);
                 try {
                     fileToWrite.delete();
@@ -4771,7 +4597,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                                 }
                                 videoEditedInfo = previousInfo;
                                 mayPublish = !previewAbandoned && delegate.getVideoDraftToken() == capturedFinalizeGeneration;
-                                if (mayPublish && !com.dazewell.gram.videonote.RecorderSpoiler.isOwnerTopic(delegate, sendOptions.rolloverTopicId)) {
+                                if (mayPublish && !com.dazewell.gram.videonote.RecorderSpoiler.isOwnerTopic(delegate, sendOptions.recordingTopicId)) {
                                     mayPublish = false;
                                     if (saved) {
                                         cameraFile = null; // NagramX: the original topic can now adopt its saved clip

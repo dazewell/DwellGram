@@ -2,9 +2,6 @@ package com.dazewell.gram.videonote;
 
 import android.animation.ObjectAnimator;
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.Matrix;
-import android.opengl.GLES20;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageView;
 
@@ -24,8 +21,6 @@ import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.ChatActivityEnterView;
 
 import java.io.File;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 import xyz.nextalone.nagram.NaConfig;
 
@@ -163,22 +158,6 @@ public final class RecorderSpoiler {
         }
     }
 
-    public static Bitmap readComposedFrame(int width, int height) {
-        ByteBuffer rgba = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder());
-        GLES20.glReadPixels(0, 0, width, height, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, rgba);
-        if (GLES20.glGetError() != GLES20.GL_NO_ERROR) {
-            return null;
-        }
-        rgba.rewind();
-        Bitmap frame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        frame.copyPixelsFromBuffer(rgba);
-        Matrix flip = new Matrix();
-        flip.setScale(1f, -1f);
-        Bitmap upright = Bitmap.createBitmap(frame, 0, 0, width, height, flip, false);
-        frame.recycle();
-        return upright;
-    }
-
     public static VideoEditedInfo finalizedPreview(VideoEditedInfo bound, File file, long duration) {
         VideoEditedInfo result = segmentInfo(file, duration);
         if (bound != null) {
@@ -192,7 +171,7 @@ public final class RecorderSpoiler {
         return result;
     }
 
-    public static VideoEditedInfo segmentInfo(File file, long duration) {
+    private static VideoEditedInfo segmentInfo(File file, long duration) {
         VideoEditedInfo info = new VideoEditedInfo();
         info.startTime = -1;
         info.endTime = -1;
