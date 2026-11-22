@@ -960,7 +960,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
     }
 
-    // NagramX: square at a seam and rounded at the pill's exposed ends, including a solo preview cell.
+    // NagramX: square at a seam and rounded at the pill's exposed ends, including a solo preview cell. The physical
+    // left/right radii are safe only because android:supportsRtl="false" (AndroidManifest.xml:120) keeps the row
+    // from mirroring.
     private void applyPillSelection(ImageView button, boolean selected, boolean dark, boolean leftCap, boolean rightCap) {
         final int fillColor = isNewDesign ? Theme.getColor(Theme.key_chat_messagePanelVoiceBackground, resourcesProvider) : dark ? Color.WHITE : Color.BLACK;
         final int glyphOnColor = isNewDesign ? Color.WHITE : dark ? Color.BLACK : Color.WHITE;
@@ -1089,6 +1091,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             textureOverlayView.setPivotY(textureOverlayView.getMeasuredHeight() / 2);
         }
         try {
+            // NagramX: a restored draft shows only its pill, with no camera, so it neither takes the keep-awake flag
+            // nor clears one the live recorder may still hold
             if (visibility == VISIBLE && textureView != null) {
                 ((Activity) getContext()).getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             } else if (!sendAdoptedDraft || visibility != VISIBLE) {
@@ -4269,8 +4273,13 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
 
         private void setupVideoPlayer(File file) {
+            // NagramX (#video-draft-guard): a runnable posted before the fragment was abandoned can still land here
+            // after abandonPreview() ran on the same UI thread. Skip only the preview player, the ~60 Hz timer and the
+            // controls fade. Guarding inside the method rather than at the call sites keeps the naxDraftId mint and the
+            // audioDidSent post that follow each call intact. EGL teardown no longer lives here: the encoder thread
+            // releases its surface itself (releaseEncoderSurface), so returning early leaks nothing.
             if (previewAbandoned) {
-                return; // NagramX: the encoder owns teardown even if the UI has gone away
+                return;
             }
             videoPlayer = new VideoPlayer();
             videoPlayer.setDelegate(new VideoPlayer.VideoPlayerDelegate() {
