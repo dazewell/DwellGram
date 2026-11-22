@@ -2933,7 +2933,7 @@ assigns `roundVideo` from the document type (`MessageObject.java:4475-4481`).
 A baked recorder MP4 sent with a spoiler therefore needs local recorder origin
 in the edit payload. That marker survives the rebuild and keeps an untrimmed
 recording on the original-file upload path. Trim still goes through conversion
-(`VideoEditedInfo.java:775-777,809`, 2026-11-22, #spoiler-video-messages).
+(`VideoEditedInfo.java:776-777,810`, 2026-11-22, #spoiler-video-messages).
 
 Retry rebuilds its upload from `SendMessageParams.of(MessageObject)`, including
 the persisted `media.spoiler` bit (`SendMessagesHelper.java:12659-12669`).
