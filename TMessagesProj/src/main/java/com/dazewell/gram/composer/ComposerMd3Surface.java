@@ -25,7 +25,9 @@ import androidx.core.view.WindowInsetsCompat;
 import org.telegram.messenger.LocaleController;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AnimatedFloat;
+import org.telegram.ui.Components.ChatActivityEnterTopView;
 import org.telegram.ui.Components.ChatActivityEnterView;
+import org.telegram.ui.Components.ChatReplyContainer;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory;
 import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
@@ -158,6 +160,7 @@ public final class ComposerMd3Surface {
     private View actionButtons;
     private boolean barVisible;
     private ChatInputViewsContainer host;
+    private ChatReplyContainer replyContainer;
     private AnimatedFloat sheetShape;
     // 1 while the tools row shows, 0 while a panel replaces it.
     private AnimatedFloat rowShown;
@@ -277,6 +280,41 @@ public final class ComposerMd3Surface {
 
     private boolean isDark() {
         return resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark();
+    }
+
+    // The reply row centres its icon in a 52dp column that starts at the strip's edge, so the accent bar drawn
+    // inside that column crowds it. Move the icon to sit midway between the bar and the text, which starts where
+    // the column ends. Runs before the host draws its children, and setTranslationX ignores an unchanged value.
+    private void centerReplyIcon(float accentRight) {
+        if (replyContainer == null && enterView != null) {
+            for (int i = 0; i < enterView.getChildCount(); i++) {
+                final View child = enterView.getChildAt(i);
+                if (child instanceof ChatActivityEnterTopView) {
+                    final View reply = ((ChatActivityEnterTopView) child).getReplyView();
+                    if (reply instanceof ChatReplyContainer) {
+                        replyContainer = (ChatReplyContainer) reply;
+                    }
+                    break;
+                }
+            }
+        }
+        if (replyContainer == null) {
+            return;
+        }
+        for (ChatReplyContainer.Layout layout : replyContainer.layouts) {
+            float columnLeft = 0;
+            View view = layout.icon;
+            while (view != null && view != host) {
+                columnLeft += view.getLeft();
+                view = view.getParent() instanceof View ? (View) view.getParent() : null;
+            }
+            if (view == null) {
+                return;
+            }
+            // Under RTL the strip starts past the send column while the reply row stays at the left edge, so the bar
+            // no longer sits inside the icon's column and shifting would push the icon into the text.
+            layout.icon.setTranslationX(LocaleController.isRTL ? 0 : Math.round(Math.max(0, accentRight - columnLeft) / 2f));
+        }
     }
 
     private int islandPadding() {
@@ -772,6 +810,7 @@ public final class ComposerMd3Surface {
             rect.set(rect.left + accentInset, rect.top + accentInset, rect.left + accentInset + dp(STRIP_ACCENT), rect.bottom - accentInset);
             fillPaint.setColor(Theme.multAlpha(primaryColor(), stripAlpha));
             canvas.drawRoundRect(rect, rect.width() / 2f, rect.width() / 2f, fillPaint);
+            centerReplyIcon(rect.right);
         }
 
         if (drawPill && inputFactor > 0) {
