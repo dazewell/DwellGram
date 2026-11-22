@@ -12664,6 +12664,8 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 }
                 params.quick_reply_shortcut_id = retryMessageObject.getQuickReplyId();
                 params.payStars = retryMessageObject.messageOwner.paid_message_stars;
+                // NagramX: a retry must use the stored wire flag. Local spoiler display settings are unrelated.
+                params.hasMediaSpoilers = retryMessageObject.messageOwner.media != null && retryMessageObject.messageOwner.media.spoiler;
             }
             params.ephemeralReceiverBotId = retryMessageObject.getEphemeralReceiverBotId();
             return params;

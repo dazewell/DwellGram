@@ -2935,6 +2935,12 @@ in the edit payload. That marker survives the rebuild and keeps an untrimmed
 recording on the original-file upload path. Trim still goes through conversion
 (`VideoEditedInfo.java:775-777,809`, 2026-11-22, #spoiler-video-messages).
 
+Retry rebuilds its upload from `SendMessageParams.of(MessageObject)`, including
+the persisted `media.spoiler` bit (`SendMessagesHelper.java:12659-12669`).
+`MessageObject.hasMediaSpoilers()` answers for drawing and can return false
+under Show Spoilers Directly even when the wire bit is true
+(`MessageObject.java:658-660`, 2026-11-22, #spoiler-video-messages).
+
 ## The round recorder's view-once button is drawn, not laid out
 
 The locked recording's view-once "(1)" lives in `ChatActivityEnterView.ControlsView.onDraw`, not a child view.
