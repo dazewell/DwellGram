@@ -20015,7 +20015,7 @@ public class ChatActivityEnterView extends FrameLayout implements
     // term below cannot be evaluated, and offering the toggle is precisely what leads to capturing one.
     private boolean canOfferInfiniteVideo() {
         return slowModeTimer <= 0 && !voiceOnce
-                && !(parentFragment != null && parentFragment.instantCameraView != null && parentFragment.instantCameraView.isRecorderSpoilerSelected()) // NagramX: a spoiler take is never cut into segments
+                && !(parentFragment != null && parentFragment.instantCameraView != null && parentFragment.instantCameraView.isRecorderSpoilerActive()) // NagramX: a spoiler take is never cut into segments
                 && !DialogObject.isEncryptedDialog(dialog_id)
                 && !AlertsCreator.needsPaidMessageAlert(currentAccount, dialog_id);
     }

@@ -647,6 +647,11 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         return recorderSpoiler;
     }
 
+    // NagramX: the selection survives a sent or discarded take, so only a take that still owns its file counts
+    public boolean isRecorderSpoilerActive() {
+        return recorderSpoiler && cameraFile != null && !cameraFileHandedOff;
+    }
+
     public boolean checkRecorderSpoilerSend() {
         if (!recorderSpoiler) {
             return true;
