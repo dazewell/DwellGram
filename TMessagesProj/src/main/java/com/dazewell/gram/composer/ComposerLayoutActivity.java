@@ -78,14 +78,14 @@ public class ComposerLayoutActivity extends BaseFragment {
      * bar min progress, which does not look like a stale bind - it silently locks or unlocks the
      * wrong control.
      */
-    private static final int TYPE_KEYBOARD_GAP = 6;
+    private static final int TYPE_ROW_GAP = 6;
     /**
      * Title above a slider. Must NOT be TYPE_HEADER: zoneAt() walks back to the nearest TYPE_HEADER
      * to decide which zone a row belongs to, so reusing that type here would make every lookup above
      * the Leading header answer with a slider's sentinel zone.
      */
     private static final int TYPE_SLIDER_HEADER = 7;
-    /** Its own type for the same reason TYPE_KEYBOARD_GAP has one: no slider row may inherit another's
+    /** Its own type for the same reason TYPE_ROW_GAP has one: no slider row may inherit another's
      * options or floor through recycling. */
     private static final int TYPE_TEXT_SIZE = 8;
     /** The MD3 composer's Floating / Docked select, shown only while the MD3 composer applies. */
@@ -97,7 +97,7 @@ public class ComposerLayoutActivity extends BaseFragment {
     private static final int TYPE_SEND_PLACEMENT = 12;
     /** Sentinel "zones" for the slider groups, so one header/footer lookup serves all of them. */
     private static final int GROUP_SCALE = -1;
-    private static final int GROUP_KEYBOARD_GAP = -2;
+    private static final int GROUP_ROW_GAP = -2;
     private static final int GROUP_TEXT_SIZE = -3;
     private static final int GROUP_STYLE = -4;
     private static final int GROUP_SWIPE_EXPAND = -5;
@@ -118,9 +118,8 @@ public class ComposerLayoutActivity extends BaseFragment {
             75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125
     };
 
-    private static final int[] KEYBOARD_GAP_STEPS = {
-            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-            13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
+    private static final int[] ROW_GAP_STEPS = {
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
     };
 
     /** Header text plus the breathing room above and below the capsule, in dp. */
@@ -370,9 +369,9 @@ public class ComposerLayoutActivity extends BaseFragment {
             items.add(new Item(TYPE_SLIDER_HEADER, GROUP_SCALE, null));
             items.add(new Item(TYPE_SCALE, GROUP_SCALE, null));
             items.add(new Item(TYPE_INFO, GROUP_SCALE, null));
-            items.add(new Item(TYPE_SLIDER_HEADER, GROUP_KEYBOARD_GAP, null));
-            items.add(new Item(TYPE_KEYBOARD_GAP, GROUP_KEYBOARD_GAP, null));
-            items.add(new Item(TYPE_INFO, GROUP_KEYBOARD_GAP, null));
+            items.add(new Item(TYPE_SLIDER_HEADER, GROUP_ROW_GAP, null));
+            items.add(new Item(TYPE_ROW_GAP, GROUP_ROW_GAP, null));
+            items.add(new Item(TYPE_INFO, GROUP_ROW_GAP, null));
             items.add(new Item(TYPE_SWIPE_EXPAND, GROUP_SWIPE_EXPAND, null));
             items.add(new Item(TYPE_INFO, GROUP_SWIPE_EXPAND, null));
         } else {
@@ -525,7 +524,7 @@ public class ComposerLayoutActivity extends BaseFragment {
     private void resetLayout() {
         ComposerLayout.reset();
         NaConfig.INSTANCE.getComposerToolbarScale().setConfigInt(100);
-        NaConfig.INSTANCE.getComposerKeyboardGap().setConfigInt(0);
+        NaConfig.INSTANCE.getComposerRowGap().setConfigInt(ComposerGeometry.ROW_GAP_DEFAULT);
         NaConfig.INSTANCE.getInputTextSize().setConfigInt(TEXT_SIZE_DEFAULT);
         NaConfig.INSTANCE.getComposerSwipeExpand().setConfigBool(true);
         NaConfig.INSTANCE.getComposerCursorSensitivity().setConfigInt(100);
@@ -595,7 +594,7 @@ public class ComposerLayoutActivity extends BaseFragment {
                 // Keep in step with isSliderRowType() below - a slider type added here but not
                 // there silently skips the theme-refresh fix for it, with no compile error.
                 case TYPE_SCALE:
-                case TYPE_KEYBOARD_GAP:
+                case TYPE_ROW_GAP:
                 case TYPE_TEXT_SIZE:
                 case TYPE_SENSITIVITY:
                     view = new SlideIntChooseView(context, null);
@@ -681,19 +680,19 @@ public class ComposerLayoutActivity extends BaseFragment {
                     // otherwise inherit that row's floor.
                     scaleView.setMinValueAllowed(SCALE_MIN);
                     break;
-                case TYPE_KEYBOARD_GAP:
+                case TYPE_ROW_GAP:
                     SlideIntChooseView gapView = (SlideIntChooseView) holder.itemView;
-                    gapView.setLabel(LocaleController.getString(R.string.ComposerKeyboardGap));
-                    gapView.set(currentKeyboardGap(), keyboardGapOptions(), value -> {
-                        if (value == NaConfig.INSTANCE.getComposerKeyboardGap().Int()) {
+                    gapView.setLabel(LocaleController.getString(R.string.ComposerRowGap));
+                    gapView.set(currentRowGap(), rowGapOptions(), value -> {
+                        if (value == NaConfig.INSTANCE.getComposerRowGap().Int()) {
                             return;
                         }
-                        // The lift is only re-read on layout and inset passes, so the chat is rebuilt
-                        // on leaving rather than trusted to pick it up on resume.
-                        NaConfig.INSTANCE.getComposerKeyboardGap().setConfigInt(value);
+                        // Chats laid their rows out with the old gap, so they are rebuilt on leaving.
+                        NaConfig.INSTANCE.getComposerRowGap().setConfigInt(value);
                         rebuildPending = true;
+                        updatePreview();
                     });
-                    gapView.setMinValueAllowed(KEYBOARD_GAP_STEPS[0]);
+                    gapView.setMinValueAllowed(ROW_GAP_STEPS[0]);
                     break;
                 case TYPE_TEXT_SIZE:
                     SlideIntChooseView textSizeView = (SlideIntChooseView) holder.itemView;
@@ -760,8 +759,8 @@ public class ComposerLayoutActivity extends BaseFragment {
                 return LocaleController.getString(R.string.ComposerCursorSensitivityInfo);
             case GROUP_SCALE:
                 return LocaleController.getString(R.string.ComposerScaleInfo);
-            case GROUP_KEYBOARD_GAP:
-                return LocaleController.getString(R.string.ComposerKeyboardGapInfo);
+            case GROUP_ROW_GAP:
+                return LocaleController.getString(R.string.ComposerRowGapInfo);
             case GROUP_TEXT_SIZE:
                 return LocaleController.getString(R.string.InputTextSizeInfo);
             case GROUP_STYLE:
@@ -787,8 +786,8 @@ public class ComposerLayoutActivity extends BaseFragment {
         switch (zone) {
             case GROUP_SENSITIVITY:
                 return R.string.ComposerCursorSensitivity;
-            case GROUP_KEYBOARD_GAP:
-                return R.string.ComposerKeyboardGap;
+            case GROUP_ROW_GAP:
+                return R.string.ComposerRowGap;
             case GROUP_TEXT_SIZE:
                 return R.string.InputTextSize;
             default:
@@ -1094,13 +1093,13 @@ public class ComposerLayoutActivity extends BaseFragment {
         return Math.max(SCALE_MIN, Math.min(SCALE_MAX, percent));
     }
 
-    private static SlideIntChooseView.Options keyboardGapOptions() {
-        return SlideIntChooseView.Options.make(0, KEYBOARD_GAP_STEPS, 1,
-                (type, value) -> LocaleController.formatString(R.string.ComposerKeyboardGapValue, value));
+    private static SlideIntChooseView.Options rowGapOptions() {
+        return SlideIntChooseView.Options.make(0, ROW_GAP_STEPS, 1,
+                (type, value) -> LocaleController.formatString(R.string.ComposerRowGapValue, value));
     }
 
-    private static int currentKeyboardGap() {
-        return Math.max(0, Math.min(ComposerToolbarLayout.KEYBOARD_GAP_MAX, NaConfig.INSTANCE.getComposerKeyboardGap().Int()));
+    private static int currentRowGap() {
+        return ComposerGeometry.rowGapDp();
     }
 
     /** Snaps every slider thumb to its value's canonical track position, called once at gesture end
@@ -1408,10 +1407,10 @@ public class ComposerLayoutActivity extends BaseFragment {
             final boolean besideField = InterfaceStyleController.sendBesideField();
             addMockInput(besideField);
             stage.addView(toolbar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, ComposerToolbarLayout.height(),
-                    Gravity.TOP | Gravity.START, 0, ComposerGeometry.FIELD_ROW + ComposerGeometry.ROW_GAP, 0, 0));
+                    Gravity.TOP | Gravity.START, 0, ComposerGeometry.FIELD_ROW + ComposerGeometry.rowGapDp(), 0, 0));
             // The open composer, as a chat shows it while typing: Send either beside the field or at the tools row's
             // end, where the row keeps its trailing buttons clear of it.
-            final int sendTop = besideField ? 0 : ComposerGeometry.FIELD_ROW + ComposerGeometry.ROW_GAP
+            final int sendTop = besideField ? 0 : ComposerGeometry.FIELD_ROW + ComposerGeometry.rowGapDp()
                     + (ComposerToolbarLayout.height() - ComposerGeometry.FIELD_ROW) / 2;
             stage.addView(mockSend(), LayoutHelper.createFrame(ComposerGeometry.FIELD_ROW, ComposerGeometry.FIELD_ROW,
                     Gravity.TOP | Gravity.END, 0, sendTop, ComposerGeometry.SEND_INSET, 0));
@@ -1633,7 +1632,7 @@ public class ComposerLayoutActivity extends BaseFragment {
     }
 
     private static boolean isSliderRowType(int type) {
-        return type == TYPE_SCALE || type == TYPE_KEYBOARD_GAP || type == TYPE_TEXT_SIZE || type == TYPE_SENSITIVITY;
+        return type == TYPE_SCALE || type == TYPE_ROW_GAP || type == TYPE_TEXT_SIZE || type == TYPE_SENSITIVITY;
     }
 
     // getItemViewType() shifts slider rows by generation * STRIDE so a theme flip forces a real

@@ -162,9 +162,9 @@ Select text in the message field and paste a URL, from the Paste menu, the toolb
 
 The toolbar row can be scaled from 75% to 125% in 5% steps. Its buttons sit packed close together without shrinking.
 
-### Gap above keyboard <!-- #composer-keyboard-gap -->
+### Gap above toolbar <!-- #composer-keyboard-gap --> <!-- #composer-row-gap -->
 
-Adds space between the composer and the keyboard or emoji panel while either is open. With both closed the composer stays where it was. Set it from 0 to 24 dp under Chat settings → Composer Toolbar → Gap above keyboard. Defaults to 0.
+Sets the space between the message field and the toolbar row below it. Set it from 0 to 12 dp under Chat settings → Composer Toolbar → Gap above toolbar. Defaults to 2 dp.
 
 ### Interface style <!-- #interface-style --> <!-- #composer-transparency --> <!-- #rounded-navigation --> <!-- #message-menu-blur --> <!-- #glass-header-glare -->
 

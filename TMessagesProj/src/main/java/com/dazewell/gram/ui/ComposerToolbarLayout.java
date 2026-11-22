@@ -83,9 +83,6 @@ public final class ComposerToolbarLayout extends FrameLayout {
     private static final int BOUNDS_SETTLE_DELAY = 48;
     private static final int BOUNDS_SETTLE_MAX = 150;
     private static final int CONFIGURATION_LONG_PRESS_MS = 1000;
-    // The keyboard gap reaches its full size once the keyboard or emoji panel has risen this far.
-    private static final int KEYBOARD_GAP_RAMP = 48;
-    public static final int KEYBOARD_GAP_MAX = 24;
 
     private final ControlsLayout controls;
     private final CollapsingLinearLayout startSlot;
@@ -208,9 +205,10 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
-        // Cursor owns DOWN before editor-hold, scrolling and expand-swipe timers can arm.
+        // Cursor owns DOWN before editor-hold, scrolling and expand-swipe timers can arm. A disabled
+        // trackball (empty field) is a plain non-clickable view, so the DOWN falls through like dead space.
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            cursorGesture = cursorTouchTarget != null && cursorTouchTarget.isShown()
+            cursorGesture = cursorTouchTarget != null && cursorTouchTarget.isShown() && cursorTouchTarget.isEnabled()
                     && cursorTouchTarget.getGlobalVisibleRect(controlsHitRect);
             if (cursorGesture) {
                 // Global visible bounds are root-relative; raw touches include the window's screen offset.
@@ -623,33 +621,6 @@ public final class ComposerToolbarLayout extends FrameLayout {
     public static int scalePercent() {
         int percent = NaConfig.INSTANCE.getComposerToolbarScale().Int();
         return Math.max(SCALE_MIN, Math.min(SCALE_MAX, percent));
-    }
-
-    /**
-     * Extra lift, in px, between the composer and an open keyboard or emoji panel. 0 while the
-     * composer rests on the nav bar, ramping in over the first {@link #KEYBOARD_GAP_RAMP}dp the panel
-     * rises so the composer does not jump as it starts to open.
-     *
-     * <p>The resting inset is the one WindowInsetsStateHolder builds the container's bottom inset from,
-     * as ComposerMd3Surface.keyboardShare reads it, so a hidden nav bar or a bottom cutout is never
-     * mistaken for a keyboard.
-     */
-    public static float keyboardGap(View host, float maxBottomInset) {
-        int gapPx = keyboardGapPx();
-        android.view.WindowInsets insets = gapPx == 0 ? null : host.getRootWindowInsets();
-        if (insets == null) {
-            return 0;
-        }
-        int rest = androidx.core.view.WindowInsetsCompat.toWindowInsetsCompat(insets, host)
-                .getInsetsIgnoringVisibility(androidx.core.view.WindowInsetsCompat.Type.systemBars()
-                        | androidx.core.view.WindowInsetsCompat.Type.displayCutout()).bottom;
-        float share = maxBottomInset - rest;
-        return share <= 0 ? 0 : gapPx * Math.min(1f, share / AndroidUtilities.dp(KEYBOARD_GAP_RAMP));
-    }
-
-    /** The full keyboard gap in px, as it stands once the keyboard is up. */
-    public static int keyboardGapPx() {
-        return AndroidUtilities.dp(Math.max(0, Math.min(KEYBOARD_GAP_MAX, NaConfig.INSTANCE.getComposerKeyboardGap().Int())));
     }
 
     /**

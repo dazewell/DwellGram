@@ -812,9 +812,9 @@
     <string name="ComposerScale">Toolbar size</string>
     <string name="ComposerScaleInfo">Scales the toolbar and its buttons. Takes effect when you leave this screen.</string>
     <string name="ComposerScaleAccDescr">Toolbar size</string>
-    <string name="ComposerKeyboardGap">Gap above keyboard</string>
-    <string name="ComposerKeyboardGapValue">%1$d dp</string>
-    <string name="ComposerKeyboardGapInfo">Adds space between the composer and the keyboard or emoji panel while it is open. Takes effect when you leave this screen.</string>
+    <string name="ComposerRowGap">Gap above toolbar</string>
+    <string name="ComposerRowGapValue">%1$d dp</string>
+    <string name="ComposerRowGapInfo">Space between the message field and the toolbar row below it. Takes effect in chats when you leave this screen.</string>
     <string name="InputTextSizeInfo">Sets the size of the text you type. Custom emoji scale with it.</string>
     <string name="ComposerSwipeExpand">Swipe toolbar to expand</string>
     <string name="ComposerSwipeExpandInfo">Swipe up on the toolbar to expand the message field, and down to shrink it back. With this on, you can hide the expand button.</string>

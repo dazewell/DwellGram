@@ -1750,11 +1750,11 @@ object NaConfig {
         )
     val composerCursorSensitivity =
         addConfig("ComposerCursorSensitivity", ConfigItem.configTypeInt, 100)
-    val composerKeyboardGap =
+    val composerRowGap =
         addConfig(
-            "ComposerKeyboardGap",
+            "ComposerRowGap",
             ConfigItem.configTypeInt,
-            0 // dp; slider range 0..24, added only while the keyboard or emoji panel is open (see ComposerToolbarLayout)
+            2 // dp between the text field and the tools row; slider range 0..12 (see ComposerGeometry)
         )
     @JvmStatic
     fun interfaceStyleBlurAlpha(): Float {
