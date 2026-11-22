@@ -680,6 +680,11 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
     public void admitFinalizedSpoiler(VideoEditedInfo info) {
         if (pendingSpoilerDraft == info) {
+            if (videoEditedInfo != null && videoEditedInfo != info) {
+                // NagramX: the paused preview stayed editable while delivery waited, so its latest trim wins
+                info.startTime = videoEditedInfo.startTime;
+                info.endTime = videoEditedInfo.endTime;
+            }
             videoEditedInfo = info;
             pendingSpoilerDraft = null;
             spoilerFinalizePending = false;

@@ -17149,7 +17149,9 @@ public class ChatActivityEnterView extends FrameLayout implements
 
                 audioToSendPath = (String) args[2];
                 if (args.length > 7 && Boolean.TRUE.equals(args[7]) && parentFragment != null && parentFragment.instantCameraView != null) {
-                    parentFragment.instantCameraView.admitFinalizedSpoiler(videoToSendMessageObject);                }
+                    parentFragment.instantCameraView.admitFinalizedSpoiler(videoToSendMessageObject);
+                    persistVideoTrimIfBound(); // NagramX: the store still holds the trim from finalization
+                }
                 ArrayList<Bitmap> keyframes = (ArrayList<Bitmap>) args[3];
                 millisecondsRecorded = videoToSendMessageObject.estimatedDuration;
 
