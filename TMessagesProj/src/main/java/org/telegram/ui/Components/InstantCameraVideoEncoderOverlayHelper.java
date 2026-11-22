@@ -47,7 +47,8 @@ public class InstantCameraVideoEncoderOverlayHelper {
     private final int[] glFrameBuffers = new int[1];
     private final int[] glTextures = new int[5];
 
-    public InstantCameraVideoEncoderOverlayHelper(int width, int height) {
+    // NagramX: the recorder supplies a take-level branding snapshot before encoding the first frame.
+    public InstantCameraVideoEncoderOverlayHelper(int width, int height, boolean brandedCapture) {
         this.videoWidth = width;
         this.videoHeight = height;
 
@@ -108,7 +109,7 @@ public class InstantCameraVideoEncoderOverlayHelper {
                 float scale = (float) logoSize / videoWidth;
                 setVertexCords(verData, VERTEX_BUFFER_WATERMARK_TEXT_POSITION, 1f - scale * 2f, -1f + scale * 2f, 1, -1);
 
-                Bitmap bitmap = AndroidUtilities.getBitmapFromRaw(R.raw.round_blur_overlay_text);
+                Bitmap bitmap = AndroidUtilities.getBitmapFromRaw(brandedCapture ? R.raw.round_blur_overlay_dwellgram : R.raw.round_blur_overlay_text);
                 if (bitmap != null) {
                     Bitmap sBitmap = Bitmap.createScaledBitmap(bitmap, logoSize, logoSize, true);
                     Bitmap aBitmap = sBitmap.extractAlpha();

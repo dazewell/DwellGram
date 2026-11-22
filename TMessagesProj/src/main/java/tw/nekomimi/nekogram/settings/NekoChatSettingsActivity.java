@@ -189,6 +189,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
             getString(R.string.VideoMessagesVibrationStrong)
     }, null, getString(R.string.VideoMessagesCutVibrationNotice), null));
     private final AbstractConfigCell videoMessagesHoldToSendRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getVideoMessagesHoldToSend(), getString(R.string.VideoMessagesHoldToSendNotice)));
+    private final AbstractConfigCell spoilerVideoMessagesRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getSpoilerVideoMessages(), getString(R.string.SpoilerVideoMessagesNotice)));
     // NagramX: 1 minute == 1 segment only while a round video segment cuts at 60s (the t >= 59500 rollover
     // check in ChatActivityEnterView) -- if the per-segment cap ever becomes configurable, these labels are
     // the one place that must change with it. Never offer 1 here, whatever the list starts at: a

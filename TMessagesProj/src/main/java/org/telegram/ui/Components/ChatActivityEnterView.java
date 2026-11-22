@@ -2051,15 +2051,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     pausePressed = oncePressed = false;
                     return true;
                 } else if (oncePressed && onceRect.contains(x, y)) {
-                    voiceOnce = !voiceOnce;
-                    // NagramX: arming view-once kills the rollover, so drop infinite mode with it instead of
-                    // leaving the overlay button looking armed
-                    if (voiceOnce) {
-                        infiniteVideoMessage = false;
-                    }
-                    updateInfiniteRecordingButton();
-                    periodDrawable.setValue(1, voiceOnce, true);
-                    MediaDataController.getInstance(currentAccount).toggleDraftVoiceOnce(dialog_id, parentFragment != null && parentFragment.isTopic ? parentFragment.getTopicId() : 0, voiceOnce);
+                    setRecordingOnce(!voiceOnce); // NagramX: both recorder surfaces clear Spoiler the same way
                     if (voiceOnce) {
                         showOnceHint();
                     } else {
@@ -9879,20 +9871,12 @@ public class ChatActivityEnterView extends FrameLayout implements
             })) {
                 return;
             }
-            dismissSendPreviewSent = true;
             if (videoToSendMessageObject != null) {
-                delegate.needStartRecordVideo(4, notify, scheduleDate, 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, payStars);
-                sendButton.setEffect(effectId = 0);
-                hideRecordedAudioPanel(true);
-                checkSendButton(true);
-                AndroidUtilities.runOnUIThread(() -> {
-                    if (recordCircle != null) {
-                        recordCircle.setSendButtonInvisible();
-                    }
-                }, 100);
-                millisecondsRecorded = 0;
+                sendRecordedVideoPreview(notify, scheduleDate, scheduleRepeatPeriod, effectId, payStars);
                 return;
-            } else if (audioToSend != null) {
+            }
+            dismissSendPreviewSent = true;
+            if (audioToSend != null) {
                 if (delegate != null) {
                     delegate.beforeMessageSend(null, notify, scheduleDate, payStars);
                 }
@@ -10037,6 +10021,64 @@ public class ChatActivityEnterView extends FrameLayout implements
             send.run();
             return false;
         }
+    }
+
+    // NagramX: the selected spoiler may need the encoder to close, or may be refused after rights change.
+    // Keep both the panel and draft until the recorder actually gives the file to the outgoing message.
+    private void sendRecordedVideoPreview(boolean notify, int scheduleDate, int scheduleRepeatPeriod, long effect, long stars) {
+        VideoEditedInfo preview = videoToSendMessageObject;
+        boolean spoiler = preview != null && preview.naxDraftSpoiler;
+        if (!spoiler) {
+            handOffRecordedVideoPreview(false, notify, scheduleDate, 0, effect, stars);
+        } else if (isBoundRecorderSpoiler(preview) && parentFragment.instantCameraView.checkRecorderSpoilerSend()) {
+            AlertsCreator.ensurePaidMessageConfirmation(currentAccount, dialog_id, 1, price -> {
+                if (isBoundRecorderSpoiler(preview)) {
+                    handOffRecordedVideoPreview(true, notify, scheduleDate, scheduleRepeatPeriod, effect, price);
+                }
+            }, stars);
+        }
+    }
+
+    private void handOffRecordedVideoPreview(boolean spoiler, boolean notify, int scheduleDate, int scheduleRepeatPeriod, long effect, long stars) {
+        if (!spoiler) {
+            dismissSendPreviewSent = true;
+        }
+        delegate.needStartRecordVideo(4, notify, scheduleDate, spoiler ? scheduleRepeatPeriod : 0, voiceOnce ? 0x7FFFFFFF : 0, effect, stars);
+        if (spoiler && (parentFragment == null || parentFragment.instantCameraView == null || !parentFragment.instantCameraView.isFileHandedOff())) {
+            return;
+        }
+        dismissSendPreviewSent = true;
+        sendButton.setEffect(effectId = 0);
+        hideRecordedAudioPanel(true);
+        checkSendButton(true);
+        AndroidUtilities.runOnUIThread(() -> {
+            if (recordCircle != null) {
+                recordCircle.setSendButtonInvisible();
+            }
+        }, 100);
+        millisecondsRecorded = 0;
+    }
+
+    // NagramX: direct send and send from a paused encoder use the same retained-preview handoff.
+    public void sendFinalizedRecorderSpoiler(VideoEditedInfo info, boolean notify, int scheduleDate, int repeatPeriod, long effect, long stars) {
+        if (!isBoundRecorderSpoiler(info) || !parentFragment.instantCameraView.checkRecorderSpoilerSend()) {
+            return;
+        }
+        if (isInScheduleMode() && scheduleDate == 0) {
+            AlertsCreator.createScheduleDatePickerDialog(parentActivity, dialog_id, (sendNotify, date, repeat) -> {
+                if (isBoundRecorderSpoiler(info)) {
+                    sendRecordedVideoPreview(sendNotify, date, repeat, effect, stars);
+                }
+            }, resourcesProvider);
+        } else {
+            sendRecordedVideoPreview(notify, scheduleDate, repeatPeriod, effect, stars);
+        }
+    }
+
+    private boolean isBoundRecorderSpoiler(VideoEditedInfo info) {
+        return videoToSendMessageObject == info && info.naxDraftSpoiler && parentFragment != null
+                && parentFragment.isCurrentEnterView(this) && parentFragment.instantCameraView != null
+                && dialog_id == info.naxDraftDialogId && parentFragment.getTopicId() == info.naxDraftTopicId;
     }
 
     public static class SendMessageInternalParams {
@@ -13889,7 +13931,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             controlsView.setVisibility(GONE);
             controlsView.setAlpha(1f);
         }
-        voiceOnce = once;
+        voiceOnce = once && !info.naxDraftSpoiler; // NagramX: a draft cannot carry both modes
         if (controlsView != null) {
             controlsView.periodDrawable.setValue(1, voiceOnce, true);
         }
@@ -13906,6 +13948,9 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
         isRecordingStateChanged();
         updateRecordInterface(RECORD_STATE_PREPARING, false);
+        if (parentFragment != null && parentFragment.instantCameraView != null) {
+            parentFragment.instantCameraView.refreshRecorderSpoiler(); // NagramX: restored previews also arm the column
+        }
         checkSendButton(false);
     }
 
@@ -17091,6 +17136,9 @@ public class ChatActivityEnterView extends FrameLayout implements
                 videoToSendMessageObject = (VideoEditedInfo) audio;
 
                 audioToSendPath = (String) args[2];
+                if (videoToSendMessageObject.naxDraftSpoiler && voiceOnce) {
+                    setRecordingOnce(false); // NagramX: a rejected rollover restores the finished segment's selected mode
+                }
                 ArrayList<Bitmap> keyframes = (ArrayList<Bitmap>) args[3];
                 millisecondsRecorded = videoToSendMessageObject.estimatedDuration;
 
@@ -17108,6 +17156,9 @@ public class ChatActivityEnterView extends FrameLayout implements
                 // mode-gated and adopts the file onto the send path only when this instance didn't record it.
                 if (parentFragment != null && audioToSendPath != null && videoToSendMessageObject.roundVideo) {
                     parentFragment.onVideoDraftReady(videoToSendMessageObject, audioToSendPath, voiceOnce);
+                    if (parentFragment.instantCameraView != null) {
+                        parentFragment.instantCameraView.refreshRecorderSpoiler(); // NagramX: pause and terminal clips now own the control
+                    }
                 }
             } else {
                 audioToSend = (TLRPC.TL_document) args[1];
@@ -18096,7 +18147,8 @@ public class ChatActivityEnterView extends FrameLayout implements
                         // must land the stop it actually requested, not a rollover. This is the decision
                         // that matters -- the read above only primes the cache it depends on.
                         if (isRunning) {
-                            if (infiniteVideoMessage && infiniteVideoSegments < getInfiniteVideoMaxSegments() - 1 && isInfiniteVideoAvailable()) {
+                            if (infiniteVideoMessage && infiniteVideoSegments < getInfiniteVideoMaxSegments() - 1 && isInfiniteVideoAvailable()
+                                    && (parentFragment == null || parentFragment.instantCameraView == null || parentFragment.instantCameraView.checkRecorderSpoilerSend())) { // NagramX: refuse before counting the cut as sent
                                 final int segmentIndex = infiniteVideoSegments++;
                                 startedDraggingX = -1;
                                 delegate.needStartRecordVideo(6, infiniteVideoNotify, infiniteSegmentScheduleDate(segmentIndex), 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, 0);
@@ -19987,15 +20039,39 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     public void toggleVideoOnce() {
-        voiceOnce = !voiceOnce;
+        setRecordingOnce(!voiceOnce);
+    }
+
+    private void setRecordingOnce(boolean once) {
+        InstantCameraView camera = parentFragment == null ? null : parentFragment.instantCameraView;
+        if (once && camera != null && camera.isFinalizingRecorderSpoiler()) {
+            return; // NagramX: the recorder already froze the outgoing mode
+        }
+        voiceOnce = once;
         if (voiceOnce) {
             infiniteVideoMessage = false;
+            if (camera != null) {
+                camera.clearRecorderSpoiler();
+            }
         }
         updateInfiniteRecordingButton();
         MediaDataController.getInstance(currentAccount).toggleDraftVoiceOnce(dialog_id, parentFragment != null && parentFragment.isTopic ? parentFragment.getTopicId() : 0, voiceOnce);
         if (controlsView != null) {
             controlsView.periodDrawable.setValue(1, voiceOnce, true);
             controlsView.invalidate();
+        }
+        persistVideoTrimIfBound();
+    }
+
+    // NagramX: toggle changes are draft edits, including a change to the preview restored from disk.
+    public void onRecorderSpoilerChanged(boolean selected) {
+        if (selected && voiceOnce) {
+            setRecordingOnce(false);
+            if (controlsView != null) {
+                controlsView.hideHintView();
+            }
+        } else {
+            persistVideoTrimIfBound();
         }
     }
 

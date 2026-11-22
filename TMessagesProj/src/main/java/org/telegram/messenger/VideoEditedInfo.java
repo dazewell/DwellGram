@@ -61,6 +61,11 @@ public class VideoEditedInfo {
     public long estimatedSize;
     public long estimatedDuration;
     public boolean roundVideo;
+    // NagramX: wire video type can change on send, but recorded MP4s only need conversion for edits.
+    public boolean naxRecorderVideo;
+    private static final int NAX_RECORDER_ORIGIN = 0x4e415852;
+    public boolean naxDraftSpoiler;
+    public boolean naxBrandedCapture;
     // NagramX (#video-draft-guard): identity of a persisted round-video draft, minted by the producer and
     // carried on this shared payload so the persist/restore/clear paths match a draft by id across a process
     // boundary, never by chat slot. 0 means "no draft identity" (the default and the store's reject sentinel).
@@ -438,7 +443,7 @@ public class VideoEditedInfo {
 
     public String getString() {
         String filters;
-        if (avatarStartTime != -1 || filterState != null || paintPath != null || blurPath != null || mediaEntities != null && !mediaEntities.isEmpty() || cropState != null || naxSilentVideo) {
+        if (avatarStartTime != -1 || filterState != null || paintPath != null || blurPath != null || mediaEntities != null && !mediaEntities.isEmpty() || cropState != null || naxSilentVideo || naxRecorderVideo) { // NagramX: plain recorder clips also need the local extension
             int len = 10;
             if (filterState != null) {
                 len += 160;
@@ -458,7 +463,7 @@ public class VideoEditedInfo {
                 blurPathBytes = null;
             }
             SerializedData serializedData = new SerializedData(len);
-            serializedData.writeInt32(12);
+            serializedData.writeInt32(naxRecorderVideo ? 13 : 12); // NagramX: append recorder origin to the local payload
             serializedData.writeInt64(avatarStartTime);
             serializedData.writeInt32(originalBitrate);
             if (filterState != null) {
@@ -572,6 +577,9 @@ public class VideoEditedInfo {
             // only lower the target, never raise it.
             serializedData.writeBool(naxSilentVideo);
             serializedData.writeInt32(bitrate);
+            if (naxRecorderVideo) {
+                serializedData.writeInt32(NAX_RECORDER_ORIGIN); // NagramX: survives reconstruction as ordinary wire video
+            }
             filters = Utilities.bytesToHex(serializedData.toByteArray());
             serializedData.cleanup();
         } else {
@@ -581,6 +589,7 @@ public class VideoEditedInfo {
     }
 
     public boolean parseString(String string) {
+        naxRecorderVideo = false; // NagramX: legacy payloads have no recorder origin
         if (string.length() < 6) {
             return false;
         }
@@ -763,6 +772,9 @@ public class VideoEditedInfo {
                                 naxSilentVideo = true;
                             }
                         }
+                        if (version >= 13 && serializedData.remaining() >= 4) {
+                            naxRecorderVideo = serializedData.readInt32(false) == NAX_RECORDER_ORIGIN; // NagramX: ignore unrelated extension fields
+                        }
                         serializedData.cleanup();
                     }
                 } else {
@@ -794,7 +806,7 @@ public class VideoEditedInfo {
             }
             return !mixedSoundInfos.isEmpty() || mediaEntities != null || paintPath != null || blurPath != null || filterState != null || (cropState != null && !cropState.isEmpty()) || startTime > 0 || endTime != -1 && endTime != estimatedDuration || originalHeight != resultHeight || originalWidth != resultWidth;
         }
-        return !mixedSoundInfos.isEmpty() || mediaEntities != null || paintPath != null || blurPath != null || filterState != null || cropState != null || !roundVideo || startTime > 0 || endTime != -1 && endTime != estimatedDuration;
+        return !mixedSoundInfos.isEmpty() || mediaEntities != null || paintPath != null || blurPath != null || filterState != null || cropState != null || !(roundVideo || naxRecorderVideo) || startTime > 0 || endTime != -1 && endTime != estimatedDuration;
     }
 
     public boolean canAutoPlaySourceVideo() {

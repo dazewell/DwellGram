@@ -2852,9 +2852,18 @@ public class ChatActivity extends BaseFragment implements
                     chatListView.stopScroll();
                     chatAdapter.updateRowsSafe();
                 } else if (state == 1 || state == 3 || state == 4) {
-                    instantCameraView.send(state, notify, scheduleDate, 0, ttl, effectId, stars);
-                    if ((state == 1 || state == 4) && draftId != 0) {
-                        VideoDraftStore.clearOnSend(currentAccount, draftDialogId, draftTopicId, draftId);
+                    boolean selectedSpoiler = instantCameraView.isRecorderSpoilerSelected();
+                    instantCameraView.send(state, notify, scheduleDate, selectedSpoiler ? scheduleRepeatPeriod : 0, ttl, effectId, stars);
+                    if (state == 1 || state == 4) {
+                        if (selectedSpoiler && !instantCameraView.isFileHandedOff()) {
+                            if (state == 1) {
+                                com.dazewell.gram.videonote.VideoNoteShortcut.onRecordVideoState(ChatActivity.this, 3);
+                            }
+                            return; // NagramX: a pending or rejected spoiler send must keep the memo active
+                        }
+                        if (draftId != 0) {
+                            VideoDraftStore.clearOnSend(currentAccount, draftDialogId, draftTopicId, draftId);
+                        }
                     }
                 } else if (state == 2 || state == 5) {
                     instantCameraView.cancel(state == 2);
@@ -31225,6 +31234,11 @@ public class ChatActivity extends BaseFragment implements
         return false;
     }
 
+    // NagramX: a spoiler recorder send can complete after the forum closes its topic.
+    public boolean canSendRecorderVideoToCurrentTopic() {
+        return forumTopic == null || canSendMessageToTopic(forumTopic);
+    }
+
     private boolean canSendMessageToTopic(TLRPC.TL_forumTopic topic) {
         if (chatMode == MODE_SUGGESTIONS) {
             return true;
@@ -39751,11 +39765,11 @@ public class ChatActivity extends BaseFragment implements
 
         beforeMessageSend(notify, scheduleDate, true, stars);
 
-        if (videoEditedInfo != null && videoEditedInfo.roundVideo) {
+        if (videoEditedInfo != null && (videoEditedInfo.roundVideo || videoEditedInfo.naxRecorderVideo)) { // NagramX: ordinary recorder videos have no round send transition
             AndroidUtilities.runOnUIThread(closeInstantCameraAnimation = () -> {
                 closeInstantCameraAnimation = null;
                 runCloseInstantCameraAnimation();
-            }, instantCameraView != null && instantCameraView.isCompactSession() && scheduleDate == 0 ? 0 : 3000); // NagramX (#compact-video-recording): a compact one fades out at once, no fly-to-message; a scheduled send already closes itself
+            }, videoEditedInfo.naxRecorderVideo || instantCameraView != null && instantCameraView.isCompactSession() && scheduleDate == 0 ? 0 : 3000); // NagramX (#compact-video-recording): a compact one fades out at once, no fly-to-message; a scheduled send already closes itself
         }
         fillEditingMediaWithCaption(photoEntry.caption, photoEntry.entities);
         AlertsCreator.ensurePaidMessageConfirmation(currentAccount, getDialogId(), 1, payStars -> {
@@ -39859,6 +39873,11 @@ public class ChatActivity extends BaseFragment implements
         return videoDraftToken;
     }
 
+    // NagramX: preserve the recording's original topic through a forum tab switch.
+    public long getVideoDraftOwnerTopicId() {
+        return videoDraftOwnerTopicId;
+    }
+
     // NagramX (#video-note-shortcut): the finalize onPause does after its grace, for a lock raised while the app stays in the foreground.
     // True if a live recording was stopped into the preview.
     public boolean finalizeRoundVideoForLock() {
@@ -39906,7 +39925,7 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         VideoDraftStore.save(currentAccount, info.naxDraftDialogId, info.naxDraftTopicId, info.naxDraftId, path,
-                (int) info.estimatedDuration, info.startTime, info.endTime, voiceOnce);
+                (int) info.estimatedDuration, info.startTime, info.endTime, voiceOnce, info.naxDraftSpoiler, info.naxBrandedCapture);
         File file = new File(path);
         checkInstantCameraView();
         // NagramX (#video-draft-guard): the gate already bound this live finalize's preview, and this instance
@@ -39927,7 +39946,7 @@ public class ChatActivity extends BaseFragment implements
         // NagramX (#video-draft-guard): persist the trim to the draft's OWNER slot carried on the payload, not the
         // composer's live topic -- a trim after a topic switch must still land in the slot the draft was minted in.
         VideoDraftStore.updateTrim(currentAccount, info.naxDraftDialogId, info.naxDraftTopicId, info.naxDraftId, path,
-                (int) info.estimatedDuration, info.startTime, info.endTime, voiceOnce);
+                (int) info.estimatedDuration, info.startTime, info.endTime, voiceOnce, info.naxDraftSpoiler, info.naxBrandedCapture);
     }
 
     // NagramX (#video-draft-guard): on chat open, sweep expired records, then restore a persisted round-video

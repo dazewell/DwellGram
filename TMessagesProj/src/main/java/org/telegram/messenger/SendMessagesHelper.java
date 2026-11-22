@@ -12377,6 +12377,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 originalPath += temp.length() + "_" + temp.lastModified();
                 if (videoEditedInfo != null) {
                     if (!isRound) {
+                        if (videoEditedInfo.naxRecorderVideo) {
+                            originalPath += "_nax_recorder_video"; // NagramX: recorder MP4 and round-note documents have different wire attributes
+                        }
                         // NagramX (#silent-video): distinct sent-file cache token for a silent video vs a GIF of the
                         // same source, never both (see the prepareSendingMedia key for the full reasoning).
                         originalPath += videoEditedInfo.estimatedDuration + "_" + videoEditedInfo.startTime + "_" + videoEditedInfo.endTime + (videoEditedInfo.muted ? (videoEditedInfo.naxSilentVideo ? "_nv" : "_m") : "");

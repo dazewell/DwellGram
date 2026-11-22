@@ -28,6 +28,7 @@ import android.widget.TextView;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.InstantCameraView;
@@ -119,6 +120,7 @@ final class CameraMemoCover extends FrameLayout {
     private final LinearLayout togglePill;
     private final ToggleCell flashCell;
     private final ToggleCell infiniteCell;
+    private final ToggleCell spoilerCell;
     private final ControlButton onceButton;
     private boolean flashOn;
     private int infiniteState = InstantCameraView.INFINITE_RECORDING_UNAVAILABLE;
@@ -336,6 +338,16 @@ final class CameraMemoCover extends FrameLayout {
                 refresh();
             }
         });
+        spoilerCell = new ToggleCell(context, R.drawable.msg_spoiler_off, R.drawable.msg_spoiler, false);
+        spoilerCell.setForeground(Theme.createCircleSelectorDrawable(0x30ffffff, 0, 0));
+        spoilerCell.setFocusable(true);
+        spoilerCell.setOnClickListener(v -> {
+            InstantCameraView camera = camera();
+            if (camera != null) {
+                camera.toggleRecorderSpoiler();
+                refresh();
+            }
+        });
         togglePill = new LinearLayout(context);
         togglePill.setOrientation(LinearLayout.HORIZONTAL);
         GradientDrawable pillBackground = new GradientDrawable();
@@ -345,6 +357,7 @@ final class CameraMemoCover extends FrameLayout {
         togglePill.setPadding(AndroidUtilities.dp(4), 0, AndroidUtilities.dp(4), 0);
         togglePill.addView(flashCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
         togglePill.addView(infiniteCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
+        togglePill.addView(spoilerCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
         addView(togglePill);
         onceButton = new ControlButton(context, ControlButton.ONCE);
         onceButton.setOnClickListener(v -> {
@@ -639,12 +652,20 @@ final class CameraMemoCover extends FrameLayout {
     // buttons. Infinite and view-once follow the composer's availability, view-once only once a take exists, since
     // starting a new one clears it.
     private void syncToggles(boolean live, boolean shown) {
-        togglePill.setVisibility(shown ? VISIBLE : GONE);
+        InstantCameraView camera = camera();
+        boolean spoiler = camera != null && camera.isRecorderSpoilerAvailable() && (shown || live && bound && !holeOpen);
+        boolean spoilerOn = spoiler && camera.isRecorderSpoilerSelected();
+        togglePill.setVisibility(shown || spoiler ? VISIBLE : GONE);
+        flashCell.setVisibility(shown ? VISIBLE : GONE);
+        spoilerCell.setVisibility(spoiler ? VISIBLE : GONE);
+        spoilerCell.setOn(spoilerOn);
+        spoilerCell.setSelected(spoilerOn);
+        spoilerCell.setContentDescription(RecorderSpoiler.description(spoilerOn));
         flashCell.setOn(flashOn);
         flashCell.setContentDescription(LocaleController.getString(flashOn ? R.string.AccDescrCameraFlashOff : R.string.AccDescrCameraFlashOn));
         boolean infinite = infiniteState != InstantCameraView.INFINITE_RECORDING_UNAVAILABLE;
         boolean infiniteOn = infiniteState == InstantCameraView.INFINITE_RECORDING_ON;
-        infiniteCell.setVisibility(infinite ? VISIBLE : GONE);
+        infiniteCell.setVisibility(shown && infinite ? VISIBLE : GONE);
         infiniteCell.setEnabled(recording);
         infiniteCell.setOn(infiniteOn);
         infiniteCell.setContentDescription(LocaleController.getString(infiniteOn ? R.string.AccDescrInfiniteRecordingOff : R.string.AccDescrInfiniteRecordingOn));
@@ -662,7 +683,7 @@ final class CameraMemoCover extends FrameLayout {
         onceButton.setEnabled(recording || bound);
         onceButton.setPlaying(onceOn);
         onceButton.setContentDescription(LocaleController.getString(onceOn ? R.string.AccActionOnceDeactivate : R.string.AccActionOnceActivate));
-        if (shown) {
+        if (shown || spoiler) {
             float centerY = statusBaseline() - textPaint.getTextSize() * 0.35f;
             togglePill.setTranslationY(Math.round(centerY - togglePill.getHeight() / 2f));
         }

@@ -1152,6 +1152,12 @@ object NaConfig {
             ConfigItem.configTypeInt,
             112
         )
+    val spoilerVideoMessages =
+        addConfig(
+            "SpoilerVideoMessages",
+            ConfigItem.configTypeBool,
+            true
+        )
     val infiniteRecordingCeiling =
         addConfig(
             "InfiniteRecordingCeiling",

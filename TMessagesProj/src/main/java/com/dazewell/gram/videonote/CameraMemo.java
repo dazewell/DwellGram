@@ -138,6 +138,7 @@ public final class CameraMemo {
         if (!isSessionChat(chat)) {
             return false;
         }
+        boolean spoiler = chat.instantCameraView != null && chat.instantCameraView.isRecorderSpoilerSelected();
         if (chat.instantCameraView != null && chat.instantCameraView.isRecording()) {
             if (!chat.isRecordLocked()) {
                 return false;
@@ -148,6 +149,11 @@ public final class CameraMemo {
                 return false;
             }
             chat.sendVideoPreview();
+        }
+        // On a spoiler send the recorder can still be finalizing, showing a picker or retaining a refused draft.
+        // onMediaSent closes the cover after the actual handoff.
+        if (spoiler) {
+            return chat.instantCameraView.isFileHandedOff();
         }
         // Locked, the phase machine leaves once the clip is handed off and the passcode takes the cover down
         if (!VideoNoteShortcut.isLockedMemo()) {
