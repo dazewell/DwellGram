@@ -311,7 +311,9 @@ public final class ComposerMd3Surface {
             if (view == null) {
                 return;
             }
-            layout.icon.setTranslationX(Math.round(Math.max(0, accentRight - columnLeft) / 2f));
+            // Under RTL the strip starts past the send column while the reply row stays at the left edge, so the bar
+            // no longer sits inside the icon's column and shifting would push the icon into the text.
+            layout.icon.setTranslationX(LocaleController.isRTL ? 0 : Math.round(Math.max(0, accentRight - columnLeft) / 2f));
         }
     }
 
