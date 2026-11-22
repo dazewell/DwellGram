@@ -2,6 +2,9 @@ package com.dazewell.gram.videonote;
 
 import android.animation.ObjectAnimator;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Matrix;
+import android.opengl.GLES20;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageView;
 
@@ -21,6 +24,8 @@ import org.telegram.ui.Components.BulletinFactory;
 import org.telegram.ui.Components.ChatActivityEnterView;
 
 import java.io.File;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 import xyz.nextalone.nagram.NaConfig;
 
@@ -89,12 +94,27 @@ public final class RecorderSpoiler {
         return owner instanceof ChatActivity && ((ChatActivity) owner).getTopicId() == topicId;
     }
 
-    public static boolean checkOwnerTopic(Object owner, long topicId) {
+    public static long destinationTopic(Object owner, VideoEditedInfo info) {
+        if (!(owner instanceof ChatActivity)) {
+            return 0;
+        }
+        ChatActivity chat = (ChatActivity) owner;
+        if (info == null || info.naxDraftId == 0) {
+            return chat.getVideoDraftDestinationTopicId();
+        }
+        if (info.naxDraftDestinationTopicId != 0) {
+            return info.naxDraftDestinationTopicId;
+        }
+        // Older drafts have no reply target. In an all-messages forum they can only go to General.
+        return info.naxDraftTopicId == 0 && chat.getRecorderDestinationTopicId() != 0 ? 1 : info.naxDraftTopicId;
+    }
+
+    public static boolean checkOwnerTopic(Object owner, long topicId, long destinationTopicId) {
         if (!(owner instanceof ChatActivity)) {
             return false;
         }
         ChatActivity chat = (ChatActivity) owner;
-        if (isOwnerTopic(chat, topicId)) {
+        if (isOwnerTopic(chat, topicId) && chat.getRecorderDestinationTopicId() == destinationTopicId) {
             return true;
         }
         BulletinFactory.of(chat).createErrorBulletin(LocaleController.getString(R.string.RecorderSpoilerOriginalTopic)).show();
@@ -119,11 +139,13 @@ public final class RecorderSpoiler {
         private final long dialogId;
         private final long topicId;
         private final long previousId;
+        private final long destinationTopicId;
 
         private DraftTarget(ChatActivity chat) {
             account = chat.getCurrentAccount();
             dialogId = chat.getDialogId();
             topicId = chat.getVideoDraftOwnerTopicId();
+            destinationTopicId = chat.getVideoDraftDestinationTopicId();
             VideoDraftStore.Entry previous = VideoDraftStore.load(account, dialogId, topicId);
             previousId = previous == null ? 0 : previous.id;
         }
@@ -135,9 +157,39 @@ public final class RecorderSpoiler {
             }
             info.naxDraftDialogId = dialogId;
             info.naxDraftTopicId = topicId;
+            info.naxDraftDestinationTopicId = destinationTopicId;
             return VideoDraftStore.save(account, dialogId, topicId, info.naxDraftId, file.getAbsolutePath(),
-                    (int) info.estimatedDuration, info.startTime, info.endTime, false, true, info.naxBrandedCapture);
+                    (int) info.estimatedDuration, info.startTime, info.endTime, false, true, info.naxBrandedCapture, destinationTopicId);
         }
+    }
+
+    public static Bitmap readComposedFrame(int width, int height) {
+        ByteBuffer rgba = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder());
+        GLES20.glReadPixels(0, 0, width, height, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, rgba);
+        if (GLES20.glGetError() != GLES20.GL_NO_ERROR) {
+            return null;
+        }
+        rgba.rewind();
+        Bitmap frame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        frame.copyPixelsFromBuffer(rgba);
+        Matrix flip = new Matrix();
+        flip.setScale(1f, -1f);
+        Bitmap upright = Bitmap.createBitmap(frame, 0, 0, width, height, flip, false);
+        frame.recycle();
+        return upright;
+    }
+
+    public static VideoEditedInfo finalizedPreview(VideoEditedInfo bound, File file, long duration) {
+        VideoEditedInfo result = segmentInfo(file, duration);
+        if (bound != null) {
+            result.startTime = bound.startTime;
+            result.endTime = bound.endTime;
+            result.naxDraftId = bound.naxDraftId;
+            result.naxDraftDialogId = bound.naxDraftDialogId;
+            result.naxDraftTopicId = bound.naxDraftTopicId;
+            result.naxDraftDestinationTopicId = bound.naxDraftDestinationTopicId;
+        }
+        return result;
     }
 
     public static VideoEditedInfo segmentInfo(File file, long duration) {

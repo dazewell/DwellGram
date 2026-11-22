@@ -17148,6 +17148,9 @@ public class ChatActivityEnterView extends FrameLayout implements
                 videoToSendMessageObject = (VideoEditedInfo) audio;
 
                 audioToSendPath = (String) args[2];
+                if (args.length > 7 && Boolean.TRUE.equals(args[7]) && parentFragment != null && parentFragment.instantCameraView != null) {
+                    parentFragment.instantCameraView.admitFinalizedSpoiler(videoToSendMessageObject);
+                }
                 if (videoToSendMessageObject.naxDraftSpoiler && voiceOnce) {
                     setRecordingOnce(false); // NagramX: a rejected rollover restores the finished segment's selected mode
                 }

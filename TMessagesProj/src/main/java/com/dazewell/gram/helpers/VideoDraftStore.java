@@ -44,9 +44,11 @@ public final class VideoDraftStore {
         public final boolean voiceOnce;
         public final boolean spoiler;
         public final boolean brandedCapture;
+        public final long destinationTopicId;
         public final long createdAt;
 
-        public Entry(long id, String path, int duration, long startTime, long endTime, boolean voiceOnce, long createdAt, boolean spoiler, boolean brandedCapture) {
+        public Entry(long id, String path, int duration, long startTime, long endTime, boolean voiceOnce, long createdAt, boolean spoiler, boolean brandedCapture, long destinationTopicId) {
+            this.destinationTopicId = destinationTopicId;
             this.id = id;
             this.path = path;
             this.duration = duration;
@@ -63,6 +65,7 @@ public final class VideoDraftStore {
         boolean contentEquals(Entry o) {
             return o != null && id == o.id && duration == o.duration && startTime == o.startTime
                     && endTime == o.endTime && voiceOnce == o.voiceOnce && spoiler == o.spoiler && brandedCapture == o.brandedCapture
+                    && destinationTopicId == o.destinationTopicId
                     && (path == null ? o.path == null : path.equals(o.path));
         }
 
@@ -70,7 +73,7 @@ public final class VideoDraftStore {
         @Override
         public String toString() {
             return "@" + id + "\n" + path + "\n" + duration + "\n" + startTime + "\n" + endTime
-                    + "\n" + (voiceOnce ? 1 : 0) + "\n" + createdAt + "\n" + (spoiler ? 1 : 0) + "\n" + (brandedCapture ? 1 : 0);
+                    + "\n" + (voiceOnce ? 1 : 0) + "\n" + createdAt + "\n" + (spoiler ? 1 : 0) + "\n" + (brandedCapture ? 1 : 0) + "\n" + destinationTopicId;
         }
 
         // Tolerant, mirroring MediaDataController.DraftVoice.fromString: an older or malformed record degrades
@@ -93,7 +96,8 @@ public final class VideoDraftStore {
                 }
                 return new Entry(id, path, Integer.parseInt(p[2]), Long.parseLong(p[3]),
                         Long.parseLong(p[4]), Integer.parseInt(p[5]) != 0, Long.parseLong(p[6]),
-                        p.length > 7 && "1".equals(p[7]), p.length > 8 && "1".equals(p[8]));
+                        p.length > 7 && "1".equals(p[7]), p.length > 8 && "1".equals(p[8]),
+                        p.length > 9 ? Utilities.parseLong(p[9]) : 0);
             } catch (Exception e) {
                 return null;
             }
@@ -124,7 +128,7 @@ public final class VideoDraftStore {
     //   - different id          -> a newer recording supersedes: rewrite + lock new + unlock the old file, so the
     //                              orphaned old file stays sweepable. Unlock is not a delete; this path removes
     //                              no file -- supersede-delete is deferred to the 24h expiry.
-    public static boolean save(int account, long dialogId, long topicId, long id, String path, int duration, long startTime, long endTime, boolean voiceOnce, boolean spoiler, boolean brandedCapture) {
+    public static boolean save(int account, long dialogId, long topicId, long id, String path, int duration, long startTime, long endTime, boolean voiceOnce, boolean spoiler, boolean brandedCapture, long destinationTopicId) {
         if (path == null || id == 0) {
             return false;
         }
@@ -135,7 +139,7 @@ public final class VideoDraftStore {
         // tracks recording time, not the last edit -- otherwise trimming a draft repeatedly could keep it alive
         // past the day the FEATURES copy promises. Only a genuinely new / superseding record starts the clock.
         long createdAt = (cur != null && cur.id == id) ? cur.createdAt : System.currentTimeMillis();
-        Entry next = new Entry(id, path, duration, startTime, endTime, voiceOnce, createdAt, spoiler, brandedCapture);
+        Entry next = new Entry(id, path, duration, startTime, endTime, voiceOnce, createdAt, spoiler, brandedCapture, destinationTopicId);
         if (cur != null && cur.id == id) {
             if (cur.contentEquals(next)) {
                 return true;
@@ -179,7 +183,7 @@ public final class VideoDraftStore {
         }
         // NagramX (#video-draft-guard): keep the original createdAt (same reason as save's same-id branch) so a
         // trim never restarts the expiry clock.
-        Entry next = new Entry(id, path, duration, startTime, endTime, voiceOnce, cur.createdAt, spoiler, brandedCapture);
+        Entry next = new Entry(id, path, duration, startTime, endTime, voiceOnce, cur.createdAt, spoiler, brandedCapture, cur.destinationTopicId);
         if (cur.contentEquals(next)) {
             return;
         }
@@ -289,6 +293,7 @@ public final class VideoDraftStore {
         info.naxDraftSpoiler = e.spoiler;
         info.naxBrandedCapture = e.brandedCapture;
         info.naxDraftId = e.id;
+        info.naxDraftDestinationTopicId = e.destinationTopicId;
         info.startTime = e.startTime;
         info.endTime = e.endTime;
         info.estimatedSize = Math.max(1, size);

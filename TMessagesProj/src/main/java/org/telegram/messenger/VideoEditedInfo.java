@@ -77,6 +77,7 @@ public class VideoEditedInfo {
     // (non-forum chats). Dialog never drifts within a fragment; carried anyway so the object fully names its slot.
     public long naxDraftDialogId;
     public long naxDraftTopicId;
+    public long naxDraftDestinationTopicId; // NagramX: a forum's all-messages slot can send to different topics
     public boolean muted;
     // NagramX (#silent-video): the user chose "Video" (a silent real video) over "GIF" in the gallery editor for
     // this muted clip. It shadows muted's exact lifetime, which is why it lives here and not on MediaEditState —

@@ -1041,5 +1041,5 @@
     <string name="RecorderSpoilerHint">Covers the video until someone taps to reveal it.</string>
     <string name="RecorderInfiniteHint">Keeps recording and sends a separate video about every minute.</string>
     <string name="SpoilerVideoMessages">Spoiler video messages</string>
-    <string name="SpoilerVideoMessagesNotice">Adds a Spoiler button to the video message recorder. Each recording starts with Spoiler off.</string>
+    <string name="SpoilerVideoMessagesNotice">Adds a Spoiler button to the video message recorder and puts DwellGram corner text on eligible recordings, even with Spoiler off. Each recording starts with Spoiler off.</string>
 </resources>

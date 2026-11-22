@@ -780,6 +780,7 @@ public class ChatActivity extends BaseFragment implements
     // start and stamping it onto the finished draft keeps persist / clear resolving the ORIGIN topic's slot, not
     // whatever topic is showing when the finalize lands. UI thread only. The dialog never drifts within a fragment.
     private long videoDraftOwnerTopicId;
+    private long videoDraftDestinationTopicId;
     private View overlayView;
     private boolean currentFloatingDateOnScreen;
     private boolean currentFloatingTopicOnScreen;
@@ -2842,6 +2843,7 @@ public class ChatActivity extends BaseFragment implements
                 if (state == 0) {
                     videoDraftToken++; // NagramX: a new recording session supersedes any still-in-flight finalize from a previous one
                     videoDraftOwnerTopicId = getTopicId(); // NagramX (#video-draft-guard): pin the origin topic for this recording
+                    videoDraftDestinationTopicId = getRecorderDestinationTopicId();
                     // NagramX: this is the only place a new camera opens. With no texture left, a pending close from the
                     // last send (restored draft, scheduled send) has nothing of its own to retire and would hit this one.
                     if (instantCameraView.getTextureView() == null && closeInstantCameraAnimation != null) {
@@ -2866,6 +2868,7 @@ public class ChatActivity extends BaseFragment implements
                         }
                     }
                 } else if (state == 2 || state == 5) {
+                    videoDraftToken++; // NagramX: an already queued finalize must not rebind a discarded take
                     instantCameraView.cancel(state == 2);
                     if (draftId != 0) {
                         VideoDraftStore.discard(currentAccount, draftDialogId, draftTopicId, draftId);
@@ -31234,6 +31237,21 @@ public class ChatActivity extends BaseFragment implements
         return false;
     }
 
+    // NagramX: the forum's all-messages view has one draft slot but can reply into any topic.
+    public long getRecorderDestinationTopicId() {
+        if (forumTopic != null) {
+            return forumTopic.id;
+        }
+        if (isForumInViewAsMessagesMode()) {
+            return replyingMessageObject == null ? 1 : Math.max(1, MessageObject.getTopicId(currentAccount, replyingMessageObject.messageOwner, true));
+        }
+        return getTopicId();
+    }
+
+    public long getVideoDraftDestinationTopicId() {
+        return videoDraftDestinationTopicId;
+    }
+
     // NagramX: a spoiler recorder send can complete after the forum closes its topic.
     public boolean canSendRecorderVideoToCurrentTopic(TLRPC.Chat chat) {
         // A non-member can still post in a discussion thread that permits it.
@@ -39936,11 +39954,12 @@ public class ChatActivity extends BaseFragment implements
         // recording-start topic pinned in needStartRecordVideo; dialog is the fragment's, which never drifts.
         info.naxDraftDialogId = dialog_id;
         info.naxDraftTopicId = videoDraftOwnerTopicId;
+        info.naxDraftDestinationTopicId = videoDraftDestinationTopicId;
         if (!canRestoreVideoDraft()) {
             return;
         }
         VideoDraftStore.save(currentAccount, info.naxDraftDialogId, info.naxDraftTopicId, info.naxDraftId, path,
-                (int) info.estimatedDuration, info.startTime, info.endTime, voiceOnce, info.naxDraftSpoiler, info.naxBrandedCapture);
+                (int) info.estimatedDuration, info.startTime, info.endTime, voiceOnce, info.naxDraftSpoiler, info.naxBrandedCapture, info.naxDraftDestinationTopicId);
         File file = new File(path);
         checkInstantCameraView();
         // NagramX (#video-draft-guard): the gate already bound this live finalize's preview, and this instance

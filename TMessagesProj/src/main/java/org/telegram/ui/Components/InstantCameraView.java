@@ -184,6 +184,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     private boolean spoilerOnlyPill; // NagramX: the dock and paused preview keep this cell without the live camera controls
     private volatile boolean brandedCapture;
     private boolean spoilerFinalizePending;
+    private VideoEditedInfo pendingSpoilerDraft; // NagramX: a finalized replacement the composer has not admitted yet
+    private File pendingPriorPreview;
     private boolean spoilerRolloverPending;
     private boolean discardDuringSpoilerCut;
     private Runnable afterSpoilerRollover;
@@ -654,7 +656,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
         long ownerTopic = videoEditedInfo != null && videoEditedInfo.naxDraftId != 0
                 ? videoEditedInfo.naxDraftTopicId : com.dazewell.gram.videonote.RecorderSpoiler.recordingTopic(delegate);
-        return com.dazewell.gram.videonote.RecorderSpoiler.checkOwnerTopic(delegate, ownerTopic)
+        return com.dazewell.gram.videonote.RecorderSpoiler.checkOwnerTopic(delegate, ownerTopic,
+                com.dazewell.gram.videonote.RecorderSpoiler.destinationTopic(delegate, videoEditedInfo))
                 && com.dazewell.gram.videonote.RecorderSpoiler.checkSend(delegate);
     }
 
@@ -678,6 +681,25 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
     }
 
+    public void admitFinalizedSpoiler(VideoEditedInfo info) {
+        if (pendingSpoilerDraft == info) {
+            videoEditedInfo = info;
+            pendingSpoilerDraft = null;
+            spoilerFinalizePending = false;
+            releasePriorSpoilerPreview(true);
+        }
+    }
+
+    private void releasePriorSpoilerPreview(boolean delete) {
+        if (pendingPriorPreview != null) {
+            AutoDeleteMediaTask.unlockFile(pendingPriorPreview);
+            if (delete) {
+                pendingPriorPreview.delete();
+            }
+            pendingPriorPreview = null;
+        }
+    }
+
     private void setRecorderSpoiler(boolean selected) {
         recorderSpoiler = selected;
         com.dazewell.gram.videonote.RecorderSpoiler.selectionChanged(delegate, videoEditedInfo, selected);
@@ -691,12 +713,12 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
         final boolean compact = isCompactPresentation();
         final boolean shown = isRecorderSpoilerAvailable();
-        spoilerOnlyPill = compact || !recording && hasRecorderPreview() && shown;
+        spoilerOnlyPill = compact || !recording && hasRecorderPreview();
         spoilerButton.update(shown, recorderSpoiler);
         flashButton.setVisibility(spoilerOnlyPill ? GONE : VISIBLE);
         flashBrightnessSlider.setShown(!spoilerOnlyPill && flashing && isFrontface);
         updateInfiniteButton();
-        buttonsLayout.setVisibility(compact && !shown ? INVISIBLE : VISIBLE);
+        buttonsLayout.setVisibility(spoilerOnlyPill && !shown ? INVISIBLE : VISIBLE);
         if (restored && shown && getVisibility() != VISIBLE) {
             // NagramX: a cold draft has no camera texture or scrim, but still needs the pill.
             setVisibility(VISIBLE);
@@ -1065,9 +1087,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             textureOverlayView.setPivotY(textureOverlayView.getMeasuredHeight() / 2);
         }
         try {
-            if (visibility == VISIBLE) {
+            if (visibility == VISIBLE && textureView != null) {
                 ((Activity) getContext()).getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            } else {
+            } else if (!sendAdoptedDraft || visibility != VISIBLE) {
                 ((Activity) getContext()).getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             }
         } catch (Exception e) {
@@ -1789,6 +1811,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     private void captureSpoilerDraftTarget(SendOptions options) {
         options.draftTarget = com.dazewell.gram.videonote.RecorderSpoiler.draftTarget(delegate);
         options.rolloverTopicId = com.dazewell.gram.videonote.RecorderSpoiler.recordingTopic(delegate);
+        options.destinationTopicId = com.dazewell.gram.videonote.RecorderSpoiler.destinationTopic(delegate, videoEditedInfo);
     }
 
     private File generateCameraFile() {
@@ -1862,7 +1885,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
         VideoEditedInfo info = com.dazewell.gram.videonote.RecorderSpoiler.segmentInfo(segmentFile, duration); // NagramX: reuse the recorder metadata when the segment has to become a draft
         info.notReadyYet = true;
-        if (textureView != null) {
+        if (options != null && options.spoiler) {
+            info.thumb = options.composedThumb; // NagramX: the raw camera preview can show outside the encoded circle
+            videoEncoder.outgoingCut = new OutgoingSpoilerCut(segmentFile, info);
+        } else if (textureView != null) {
             info.thumb = textureView.getBitmap();
         }
         MediaController.PhotoEntry entry = new MediaController.PhotoEntry(0, 0, 0, segmentFile.getAbsolutePath(), 0, true, 0, 0, 0);
@@ -1876,6 +1902,17 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             AutoDeleteMediaTask.unlockFile(segmentFile);
         }
         return info;
+    }
+
+    // NagramX: terminal encoder stop can see outgoing ownership even before the cut message runs.
+    private static final class OutgoingSpoilerCut {
+        final File file;
+        final VideoEditedInfo info;
+
+        OutgoingSpoilerCut(File file, VideoEditedInfo info) {
+            this.file = file;
+            this.info = info;
+        }
     }
 
     private void finishSpoilerRollover(boolean accepted) {
@@ -1913,6 +1950,12 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             return;
         }
         afterSpoilerRollover = null; // NagramX: a queued stop or pause cannot run after discard
+        if (pendingSpoilerDraft != null) {
+            com.dazewell.gram.helpers.VideoDraftStore.discard(currentAccount, pendingSpoilerDraft.naxDraftDialogId,
+                    pendingSpoilerDraft.naxDraftTopicId, pendingSpoilerDraft.naxDraftId);
+            pendingSpoilerDraft = null;
+            releasePriorSpoilerPreview(true);
+        }
         spoilerFinalizePending = false;
         stopProgressTimer();
         if (videoPlayer != null) {
@@ -1967,6 +2010,13 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     // they route to encoder cancellation and file deletion, which is exactly the deletion path this feature must
     // never introduce.
     public void abandonPreview() {
+        releasePriorSpoilerPreview(false);
+        if (textureView != null) {
+            Activity activity = AndroidUtilities.getActivity(getContext());
+            if (activity != null) {
+                activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            }
+        }
         previewAbandoned = true;
         stopProgressTimer();
         if (videoPlayer != null) {
@@ -3171,7 +3221,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         com.dazewell.gram.videonote.RecorderSpoiler.DraftTarget draftTarget;
         int rolloverDraftToken;
         long rolloverTopicId;
+        long destinationTopicId;
         VideoEditedInfo handedOffSegment;
+        Bitmap composedThumb;
 
         public SendOptions(boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
             this(notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars, false, false);
@@ -3528,11 +3580,16 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
 
         // NagramX: infinite video message
+        private Bitmap composedCutThumb;
+        private boolean attemptedCutThumb;
+        private volatile OutgoingSpoilerCut outgoingCut;
+
         public void prepareSpoilerRollover(SendOptions options) {
             handler.post(() -> {
                 // NagramX: capture stays in the old muxer until the UI accepts the outgoing segment.
                 File segment = videoFile;
                 boolean ready = running && !pauseRecorder && mediaMuxer != null && videoTrackFormat != null;
+                options.composedThumb = composedCutThumb;
                 AndroidUtilities.runOnUIThread(() -> {
                     if (!spoilerRolloverPending || InstantCameraView.this.videoEncoder != this) {
                         return;
@@ -3542,8 +3599,12 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                         return;
                     }
                     ChatActivityEnterView enter = com.dazewell.gram.videonote.RecorderSpoiler.composer(delegate);
+                    if (cameraThread == null || !recording || encoderTeardownPending) {
+                        finishSpoilerRollover(false);
+                        return; // NagramX: surface teardown owns the file before handoff
+                    }
                     if (!ready || previewAbandoned || segment != cameraFile || delegate.getVideoDraftToken() != options.rolloverDraftToken
-                            || !com.dazewell.gram.videonote.RecorderSpoiler.checkOwnerTopic(delegate, options.rolloverTopicId)
+                            || !com.dazewell.gram.videonote.RecorderSpoiler.checkOwnerTopic(delegate, options.rolloverTopicId, options.destinationTopicId)
                             || !com.dazewell.gram.videonote.RecorderSpoiler.checkSend(delegate)) {
                         finishSpoilerRollover(false);
                         if (enter != null && !previewAbandoned && delegate.getVideoDraftToken() == options.rolloverDraftToken) {
@@ -3920,6 +3981,14 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 }
             }
 
+            if (brandedCapture && !attemptedCutThumb) {
+                attemptedCutThumb = true;
+                try {
+                    composedCutThumb = com.dazewell.gram.videonote.RecorderSpoiler.readComposedFrame(videoWidth, videoHeight);
+                } catch (RuntimeException e) {
+                    FileLog.e(e); // native thumbnail fallback reads the encoded MP4
+                }
+            }
             EGLExt.eglPresentationTimeANDROID(eglDisplay, eglSurface, currentTimestamp);
             EGL14.eglSwapBuffers(eglDisplay, eglSurface);
 
@@ -4097,6 +4166,27 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         private void handleRollover(long segmentDuration, SendOptions sendOptions) {
             final File nextFile = rolloverFile;
             if (!running || pauseRecorder || cancelled || mediaMuxer == null || nextFile == null || videoTrackFormat == null) {
+                if (outgoingCut != null && outgoingCut.file.equals(videoFile)) {
+                    rolloverFile = null;
+                    AndroidUtilities.runOnUIThread(() -> {
+                        if (nextFile != null) {
+                            AutoDeleteMediaTask.unlockFile(nextFile);
+                        }
+                        if (cameraFile != nextFile) {
+                            return;
+                        }
+                        finishSpoilerRollover(false);
+                        if (cameraThread != null) {
+                            cameraThread.shutdown(ENCODER_SEND_CANCEL, true, 0, 0, 0, 0);
+                            cameraThread = null;
+                        }
+                        recording = false;
+                        cameraFile = null;
+                        NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.recordStopped, recordingGuid, 6);
+                        startAnimation(false, false);
+                    });
+                    return; // terminal encoder stop still owns the outgoing file
+                }
                 if (nextFile != null) {
                     rolloverFile = null;
                     // the UI side already pointed cameraFile at the file we're not going to open, so put it
@@ -4194,6 +4284,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             });
 
             videoFile = nextFile;
+            outgoingCut = null;
+            composedCutThumb = null;
+            attemptedCutThumb = false;
             rolloverFile = null;
             videoConvertFirstWrite = true;
             firstEncode = true;
@@ -4399,6 +4492,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         private boolean sentMedia;
 
         private void handleStopRecording(final int send, final SendOptions sendOptions) {
+            OutgoingSpoilerCut cut = outgoingCut;
+            final boolean ownsOutgoingCut = cut != null && cut.file.equals(videoFile);
             // NagramX: stash this recording's generation before anything else runs. This method is invoked
             // twice for one real stop (see the field comment above), and running is only ever true on the
             // first of those two calls -- capture it here, unconditionally, so the second call's teardown
@@ -4411,7 +4506,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 finalizeGeneration = finalizeDraftToken;
             }
             final boolean runDone;
-            if (send == ENCODER_SEND_SEND && (videoEditedInfo == null || !videoEditedInfo.needConvert()) && !delegate.isInScheduleMode()) {
+            if (!ownsOutgoingCut && send == ENCODER_SEND_SEND && (videoEditedInfo == null || !videoEditedInfo.needConvert()) && !delegate.isInScheduleMode()) {
                 runDone = false;
                 if (!sentMedia) {
                     sentMedia = true;
@@ -4446,7 +4541,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             }
             if (running && !pauseRecorder) {
                 FileLog.d("InstantCamera handleStopRecording running=false");
-                sendWhenDone = send;
+                sendWhenDone = ownsOutgoingCut ? ENCODER_SEND_PLAYER : send; // NagramX: outgoing media still needs the full audio drain
                 sendWhenDoneOptions = sendOptions;
                 running = false;
                 return;
@@ -4536,7 +4631,15 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 }
             }
             FileLog.d("InstantCamera handleStopRecording send " + send);
-            if (send == ENCODER_SEND_CANCEL) {
+            if (ownsOutgoingCut) {
+                outgoingCut = null;
+                AndroidUtilities.runOnUIThread(() -> {
+                    cut.info.notReadyYet = false;
+                    didWriteData(cut.file, 0, true);
+                    AutoDeleteMediaTask.unlockFile(cut.file);
+                    MediaController.getInstance().requestRecordAudioFocus(false);
+                });
+            } else if (send == ENCODER_SEND_CANCEL) {
                 FileLoader.getInstance(currentAccount).cancelFileUpload(videoFile.getAbsolutePath(), false);
                 try {
                     fileToWrite.delete();
@@ -4556,7 +4659,11 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                             spoilerFinalizePending = false;
                             return; // NagramX: explicit discard takes precedence over the pending send
                         }
-                        if (videoEditedInfo == null) {
+                        final boolean replacedSpoiler = sendOptions != null && sendOptions.spoiler && send != ENCODER_SEND_SEND;
+                        VideoEditedInfo previousInfo = videoEditedInfo;
+                        if (replacedSpoiler) {
+                            videoEditedInfo = com.dazewell.gram.videonote.RecorderSpoiler.finalizedPreview(previousInfo, videoFile, recordedTime);
+                        } else if (videoEditedInfo == null) {
                             videoEditedInfo = new VideoEditedInfo();
                             videoEditedInfo.startTime = -1;
                             videoEditedInfo.endTime = -1;
@@ -4628,42 +4735,56 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                             // draft by id across a process boundary, never by chat slot. Only when finalize succeeded --
                             // a 0 id leaves save() a no-op (its reject sentinel), so a broken clip still previews but is
                             // never persisted, superseding nothing.
-                            final long previousDraftId = info.naxDraftId;
                             info.naxDraftId = finalizeOk ? com.dazewell.gram.helpers.VideoDraftStore.newId() : 0;
                             File preview = videoFile;
                             boolean sendWhenBound = finalizeOk && sendOptions != null && sendOptions.sendSpoilerAfterFinalize;
                             boolean mayPublish = true;
-                            if (sendOptions != null && sendOptions.spoiler) {
-                                boolean saved = finalizeOk && sendOptions.draftTarget != null && sendOptions.draftTarget.save(info, videoFile);
-                                if (saved && retainedPreview != null) {
-                                    retainedPreview.delete();
-                                } else if (retainedPreview != null && retainedPreview.exists()) {
+                            VideoEditedInfo publishedInfo = info;
+                            File retireAfterBind = null;
+                            if (replacedSpoiler) {
+                                final boolean saved = finalizeOk && sendOptions.draftTarget != null && sendOptions.draftTarget.save(info, videoFile);
+                                final boolean usable = finalizeOk && (sendOptions.draftTarget == null || saved);
+                                if (usable && retainedPreview != null) {
+                                    retireAfterBind = retainedPreview;
+                                    AutoDeleteMediaTask.lockFile(retireAfterBind);
+                                } else if (!usable && retainedPreview != null && retainedPreview.exists() && previousInfo != null) {
                                     preview = retainedPreview;
                                     cameraFile = retainedPreview;
-                                    info.originalPath = retainedPreview.getAbsolutePath();
-                                    info.naxDraftId = previousDraftId;
-                                    info.file = null;
+                                    publishedInfo = previousInfo;
+                                    previousInfo.file = null;
                                     file = null;
                                     size = retainedPreview.length();
                                     sendWhenBound = false;
                                     AutoDeleteMediaTask.unlockFile(videoFile);
-                                } else if (sendOptions.draftTarget != null && !saved) {
+                                } else if (!usable) {
                                     // A stale result must not replace a newer slot through composer admission.
                                     info.naxDraftId = 0;
                                     sendWhenBound = false;
                                 }
+                                videoEditedInfo = previousInfo;
                                 mayPublish = !previewAbandoned && delegate.getVideoDraftToken() == capturedFinalizeGeneration;
                                 if (mayPublish && !com.dazewell.gram.videonote.RecorderSpoiler.isOwnerTopic(delegate, sendOptions.rolloverTopicId)) {
                                     mayPublish = false;
-                                    startAnimation(false, false); // NagramX: the clip stays in its original topic
+                                    if (saved) {
+                                        cameraFile = null; // NagramX: the original topic can now adopt its saved clip
+                                    }
+                                    startAnimation(false, false);
                                 }
                             }
-                            spoilerFinalizePending = false;
                             if (mayPublish) {
+                                if (replacedSpoiler) {
+                                    pendingSpoilerDraft = publishedInfo; // NagramX: keep sending-state guard through delayed delivery
+                                    pendingPriorPreview = retireAfterBind;
+                                }
                                 setupVideoPlayer(preview);
                                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.audioDidSent, recordingGuid,
-                                        info, preview.getAbsolutePath(), keyframeThumbs, capturedFinalizeGeneration,
-                                        sendWhenBound ? sendOptions : null, sendOptions != null && sendOptions.draftTarget != null);
+                                        publishedInfo, preview.getAbsolutePath(), keyframeThumbs, capturedFinalizeGeneration,
+                                        sendWhenBound ? sendOptions : null, sendOptions != null && sendOptions.draftTarget != null, replacedSpoiler);
+                            } else {
+                                spoilerFinalizePending = false;
+                                if (retireAfterBind != null) {
+                                    AutoDeleteMediaTask.unlockFile(retireAfterBind);
+                                }
                             }
                         }
                     });
