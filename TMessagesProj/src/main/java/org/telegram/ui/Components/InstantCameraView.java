@@ -4122,6 +4122,9 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 if (info != null) {
                     info.notReadyYet = false;
                 }
+                if (InstantCameraView.this.recordingGeneration == capturedGeneration) {
+                    videoEditedInfo = null; // NagramX: a trim from before the cut belongs to the file that just went out
+                }
                 // the segment is complete on disk, so whatever the streaming upload managed during the
                 // recording just needs closing off
                 if (segmentFirstWrite) {
