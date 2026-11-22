@@ -5501,7 +5501,6 @@ public class ChatActivity extends BaseFragment implements
         }
 
         chatInputViewsContainer = new ChatInputViewsContainer(context, true);
-        chatInputViewsContainer.keyboardGapEnabled = true; // NagramX (#composer-keyboard-gap)
         // NagramX: the MD3 Composer replaces the island and under-keyboard glass with its own floating island.
         chatInputViewsContainer.md3Surface = com.dazewell.gram.composer.ComposerMd3Surface.createIfEnabled(themeDelegate);
         if (chatInputViewsContainer.md3Surface != null) {
@@ -10167,8 +10166,6 @@ public class ChatActivity extends BaseFragment implements
         }
         final boolean inputMethodVisible = windowInsetsStateHolder.getInsets(WindowInsetsCompat.Type.ime()).bottom > 0
             || windowInsetsStateHolder.inAppViewIsVisible();
-        // NagramX (#composer-keyboard-gap): the island sits this much higher over an open keyboard.
-        if (inputMethodVisible) budget -= com.dazewell.gram.ui.ComposerToolbarLayout.keyboardGapPx();
         chatActivityEnterView.updateExpandedInputBudget(budget, inputMethodVisible);
     }
 

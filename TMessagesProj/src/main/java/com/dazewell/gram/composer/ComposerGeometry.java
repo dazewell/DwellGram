@@ -20,17 +20,23 @@ public final class ComposerGeometry {
     public static final int GLASS_BESIDE_DISC = FIELD_ROW - 2;
     /** How far the MD3 send and mic disc is drawn inside its slot, so a ring of the field shows round it. */
     public static final int SEND_INSET = 3;
-    /** The gap between the field row and the tools row below it. */
-    public static final int ROW_GAP = 2;
+    /** The row gap slider's range and default, in dp. */
+    public static final int ROW_GAP_MAX = 12;
+    public static final int ROW_GAP_DEFAULT = 2;
     /** The text's inset from the enter view's edge with two rows. */
     public static final int TEXT_INSET = 16;
 
     private ComposerGeometry() {
     }
 
-    /** The field row's bottom with two rows, above the tools row and its gap. Read per call: the panel scale is a setting. */
+    /** The gap between the field row and the tools row below it, clamped to the slider's range. Read per call: it is a setting. */
+    public static int rowGapDp() {
+        return Math.max(0, Math.min(ROW_GAP_MAX, xyz.nextalone.nagram.NaConfig.INSTANCE.getComposerRowGap().Int()));
+    }
+
+    /** The field row's bottom with two rows, above the tools row and its gap. Read per call: the scale and gap are settings. */
     public static int fieldBottomDp() {
-        return ComposerToolbarLayout.height() + ROW_GAP;
+        return ComposerToolbarLayout.height() + rowGapDp();
     }
 
     /**
