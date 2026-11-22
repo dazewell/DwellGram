@@ -208,9 +208,10 @@ public final class ComposerToolbarLayout extends FrameLayout {
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
-        // Cursor owns DOWN before editor-hold, scrolling and expand-swipe timers can arm.
+        // Cursor owns DOWN before editor-hold, scrolling and expand-swipe timers can arm. A disabled
+        // trackball (empty field) is a plain non-clickable view, so the DOWN falls through like dead space.
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            cursorGesture = cursorTouchTarget != null && cursorTouchTarget.isShown()
+            cursorGesture = cursorTouchTarget != null && cursorTouchTarget.isShown() && cursorTouchTarget.isEnabled()
                     && cursorTouchTarget.getGlobalVisibleRect(controlsHitRect);
             if (cursorGesture) {
                 // Global visible bounds are root-relative; raw touches include the window's screen offset.
