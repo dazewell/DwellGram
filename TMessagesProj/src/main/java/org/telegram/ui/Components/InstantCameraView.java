@@ -563,6 +563,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         infiniteButton = new ImageView(context);
         infiniteButton.setScaleType(ImageView.ScaleType.CENTER);
         infiniteButton.setImageResource(R.drawable.nax_infinite);
+        infiniteButton.setTooltipText(LocaleController.getString(R.string.RecorderInfiniteHint)); // NagramX: explain the toggle without starting it
         buttonsLayout.addView(infiniteButton, LayoutHelper.createLinear(44, 44));
         infiniteButton.setOnClickListener(v -> {
             // the button row only fades out for the preview, it stays clickable, so ignore taps that land
@@ -700,8 +701,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (shown != (spoilerButton.getVisibility() == VISIBLE)) {
             com.dazewell.gram.videonote.RecorderSpoiler.smoke("PILL visible=" + shown + " compact=" + compact + " preview=" + !recording);
         }
-        spoilerButton.update(shown, recorderSpoiler, glyphColor(isDarkAppearance()),
-                Theme.getColor(Theme.key_chat_messagePanelSend, resourcesProvider));
+        spoilerButton.update(shown, recorderSpoiler);
         flashButton.setVisibility(spoilerOnlyPill ? GONE : VISIBLE);
         flashBrightnessSlider.setShown(!spoilerOnlyPill && flashing && isFrontface);
         updateInfiniteButton();
@@ -932,24 +932,27 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (infiniteButton == null) {
             return;
         }
-        if (state == INFINITE_RECORDING_UNAVAILABLE || spoilerOnlyPill) {
-            infiniteButton.setVisibility(GONE);
-            return;
-        }
-        final boolean on = state == INFINITE_RECORDING_ON;
+        final boolean infiniteVisible = state != INFINITE_RECORDING_UNAVAILABLE && !spoilerOnlyPill;
         final boolean dark = isDarkAppearance();
-        infiniteButton.setVisibility(VISIBLE);
-        // NagramX: this cell is the row's right end, so its selected fill has to reproduce the parent
-        // pill's cap exactly (right corners rounded to match, left corners square against the flash cell)
-        // or a wedge of the light/dark panel shows through at the seam. Hardcoding the physical right side
-        // is safe because android:supportsRtl="false" in AndroidManifest.xml:120 keeps this row from
-        // mirroring.
-        // NagramX: the selected state follows view-once too, rather than a hardcoded black/white inversion.
+        infiniteButton.setVisibility(infiniteVisible ? VISIBLE : GONE);
+        if (infiniteVisible) {
+            final boolean on = state == INFINITE_RECORDING_ON;
+            applyPillSelection(infiniteButton, on, dark, false, true);
+            infiniteButton.setContentDescription(LocaleController.getString(on ? R.string.AccDescrInfiniteRecordingOff : R.string.AccDescrInfiniteRecordingOn));
+        }
+        if (spoilerButton.getVisibility() == VISIBLE) {
+            applyPillSelection(spoilerButton, recorderSpoiler, dark, spoilerOnlyPill, !infiniteVisible);
+        }
+    }
+
+    // NagramX: square at a seam and rounded at the pill's exposed ends, including a solo preview cell.
+    private void applyPillSelection(ImageView button, boolean selected, boolean dark, boolean leftCap, boolean rightCap) {
         final int fillColor = isNewDesign ? Theme.getColor(Theme.key_chat_messagePanelVoiceBackground, resourcesProvider) : dark ? Color.WHITE : Color.BLACK;
         final int glyphOnColor = isNewDesign ? Color.WHITE : dark ? Color.BLACK : Color.WHITE;
-        infiniteButton.setBackground(on ? Theme.createRoundRectDrawable(0, dp(21), dp(21), 0, fillColor) : null);
-        applyGlyphColor(infiniteButton, on ? glyphOnColor : glyphColor(dark));
-        infiniteButton.setContentDescription(LocaleController.getString(on ? R.string.AccDescrInfiniteRecordingOff : R.string.AccDescrInfiniteRecordingOn));
+        final int left = leftCap ? dp(21) : 0;
+        final int right = rightCap ? dp(21) : 0;
+        button.setBackground(selected ? Theme.createRoundRectDrawable(left, right, right, left, fillColor) : null);
+        applyGlyphColor(button, selected ? glyphOnColor : glyphColor(dark));
     }
 
     // NagramX: arms (or clears) the pre-cut pulse on the progress arc. Called from TimerView, which

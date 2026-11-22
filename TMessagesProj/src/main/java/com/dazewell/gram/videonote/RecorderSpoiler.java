@@ -106,11 +106,12 @@ public final class RecorderSpoiler {
             setScaleType(ScaleType.CENTER);
             setForeground(Theme.createCircleSelectorDrawable(0x24909090, dp(3), dp(3)));
             setFocusable(true);
+            setTooltipText(LocaleController.getString(R.string.RecorderSpoilerHint));
             setVisibility(GONE);
             setOnClickListener(view -> onClick.run());
         }
 
-        public void update(boolean shown, boolean selected, int normalColor, int selectedColor) {
+        public void update(boolean shown, boolean selected) {
             setVisibility(shown ? VISIBLE : GONE);
             if (getDrawable() == null || isSelected() != selected) {
                 setSelected(selected);
@@ -126,7 +127,6 @@ public final class RecorderSpoiler {
                     setImageAlpha(255);
                 }
             }
-            setColorFilter(selected ? selectedColor : normalColor);
         }
 
         @Override

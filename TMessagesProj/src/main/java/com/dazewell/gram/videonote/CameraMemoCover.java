@@ -329,6 +329,7 @@ final class CameraMemoCover extends FrameLayout {
             }
         });
         infiniteCell = new ToggleCell(context, R.drawable.nax_infinite, R.drawable.nax_infinite, true);
+        infiniteCell.setTooltipText(LocaleController.getString(R.string.RecorderInfiniteHint));
         infiniteCell.setOnClickListener(v -> {
             ChatActivity c = chatRef.get();
             InstantCameraView camera = camera();
@@ -349,6 +350,7 @@ final class CameraMemoCover extends FrameLayout {
         };
         spoilerCell.setForeground(Theme.createCircleSelectorDrawable(0x30ffffff, 0, 0));
         spoilerCell.setFocusable(true);
+        spoilerCell.setTooltipText(LocaleController.getString(R.string.RecorderSpoilerHint));
         spoilerCell.setVisibility(GONE);
         spoilerCell.setOnClickListener(v -> {
             InstantCameraView camera = camera();
