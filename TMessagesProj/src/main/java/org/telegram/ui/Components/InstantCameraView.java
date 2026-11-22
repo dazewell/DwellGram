@@ -687,7 +687,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             }
         }
         refreshRecorderSpoiler();
-        com.dazewell.gram.videonote.RecorderSpoiler.smoke("END toggle selected=" + selected); // NagramX: tap reached the recorder
     }
 
     public void refreshRecorderSpoiler() {
@@ -698,9 +697,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         final boolean compact = isCompactPresentation();
         final boolean shown = isRecorderSpoilerAvailable();
         spoilerOnlyPill = compact || !recording && hasRecorderPreview() && shown;
-        if (shown != (spoilerButton.getVisibility() == VISIBLE)) {
-            com.dazewell.gram.videonote.RecorderSpoiler.smoke("PILL visible=" + shown + " compact=" + compact + " preview=" + !recording);
-        }
         spoilerButton.update(shown, recorderSpoiler);
         flashButton.setVisibility(spoilerOnlyPill ? GONE : VISIBLE);
         flashBrightnessSlider.setShown(!spoilerOnlyPill && flashing && isFrontface);
@@ -1313,10 +1309,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             recorderSpoiler = false; // NagramX: every new take starts clear, including a new memo
             videoEditedInfo = null; // NagramX: an outgoing ordinary video's origin and trim belong to its own file
             brandedCapture = com.dazewell.gram.videonote.RecorderSpoiler.brandAtStart(delegate);
-            if (delegate instanceof ChatActivity) {
-                com.dazewell.gram.videonote.RecorderSpoiler.smoke("BEGIN build=" + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING
-                        + " account=" + currentAccount + " branded=" + brandedCapture + " secret=" + isSecretChat); // NagramX: capture the take's branch before the first frame
-            }
             cameraFile = generateCameraFile();
             sendAdoptedDraft = false; // NagramX (#video-draft-guard): a fresh recording owns a live cameraFile; drop any restored-draft send state
             cameraFileHandedOff = false; // NagramX (#round-video-restart-guard-fix): same, this file is ours again

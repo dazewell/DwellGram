@@ -667,9 +667,6 @@ final class CameraMemoCover extends FrameLayout {
         boolean spoilerOn = spoiler && camera.isRecorderSpoilerSelected();
         togglePill.setVisibility(shown || spoiler ? VISIBLE : GONE);
         flashCell.setVisibility(shown ? VISIBLE : GONE);
-        if (spoiler != (spoilerCell.getVisibility() == VISIBLE)) {
-            RecorderSpoiler.smoke("CAMERA_MEMO visible=" + spoiler + " preview=" + bound);
-        }
         spoilerCell.setVisibility(spoiler ? VISIBLE : GONE);
         if (spoilerCell.isSelected() != spoilerOn) {
             spoilerCell.setOn(spoilerOn);

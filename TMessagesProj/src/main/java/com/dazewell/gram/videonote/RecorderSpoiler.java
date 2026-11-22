@@ -27,10 +27,6 @@ public final class RecorderSpoiler {
     private RecorderSpoiler() {
     }
 
-    public static void smoke(String detail) {
-        android.util.Log.i("NaxRecorderSpoiler", "NAX_SMOKE_spoiler-video-messages " + detail);
-    }
-
     public static boolean brandAtStart(Object delegate) {
         return NaConfig.INSTANCE.getSpoilerVideoMessages().Bool()
                 && delegate instanceof ChatActivity && canSend((ChatActivity) delegate);
@@ -60,7 +56,6 @@ public final class RecorderSpoiler {
         if (canSend(chat)) {
             return true;
         }
-        smoke("REFUSED permission");
         BulletinFactory.of(chat).createErrorBulletin(LocaleController.getString(R.string.GlobalAttachVideoRestricted)).show();
         return false;
     }
@@ -86,7 +81,6 @@ public final class RecorderSpoiler {
                 // doesn't carry estimatedDuration, so use its full-range sentinel before a retry.
                 info.endTime = -1;
             }
-            smoke("SEND ordinary spoiler trimmed=" + info.needConvert());
             info.roundVideo = false;
             info.naxRecorderVideo = true;
             entry.hasSpoiler = true;
