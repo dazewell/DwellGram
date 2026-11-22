@@ -31237,7 +31237,8 @@ public class ChatActivity extends BaseFragment implements
     // NagramX: a spoiler recorder send can complete after the forum closes its topic.
     public boolean canSendRecorderVideoToCurrentTopic(TLRPC.Chat chat) {
         // A non-member can still post in a discussion thread that permits it.
-        if (chat.kicked || chat.deactivated || ChatObject.isForbidden(chat) || chat instanceof TLRPC.TL_chatEmpty
+        if (chat.kicked || chat.deactivated || chat instanceof TLRPC.TL_chatEmpty
+                || chat instanceof TLRPC.TL_chatForbidden || chat instanceof TLRPC.TL_channelForbidden || chat instanceof TLRPC.TL_communityForbidden
                 || chat.left && !UserObject.isBotForum(currentUser)
                     && (chat.join_to_send || !isThreadChat() || ChatObject.isForum(chat))) {
             return false;
