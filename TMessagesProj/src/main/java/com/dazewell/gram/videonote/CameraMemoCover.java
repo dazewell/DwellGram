@@ -657,12 +657,11 @@ final class CameraMemoCover extends FrameLayout {
         return !recording && bound && resumableStop && segment < PAUSE_UNTIL_MS;
     }
 
-    // The pill shows with the zoom, over a live viewfinder only: with the hole open the stock circle brings its own
-    // buttons. Infinite and view-once follow the composer's availability, view-once only once a take exists, since
-    // starting a new one clears it.
+    // Flash and infinite belong to the live viewfinder. A bound preview still uses the memo's
+    // Spoiler and view-once controls because the composer's column sits behind this cover.
     private void syncToggles(boolean live, boolean shown) {
         InstantCameraView camera = camera();
-        boolean spoiler = camera != null && camera.isRecorderSpoilerAvailable() && (shown || live && bound && !holeOpen);
+        boolean spoiler = camera != null && camera.isRecorderSpoilerAvailable() && (shown || live && bound);
         boolean spoilerOn = spoiler && camera.isRecorderSpoilerSelected();
         togglePill.setVisibility(shown || spoiler ? VISIBLE : GONE);
         flashCell.setVisibility(shown ? VISIBLE : GONE);
@@ -704,7 +703,14 @@ final class CameraMemoCover extends FrameLayout {
         onceButton.setContentDescription(LocaleController.getString(onceOn ? R.string.AccActionOnceDeactivate : R.string.AccActionOnceActivate));
         if (shown || spoiler) {
             float centerY = statusBaseline() - textPaint.getTextSize() * 0.35f;
-            togglePill.setTranslationY(Math.round(centerY - togglePill.getHeight() / 2f));
+            float pillHeight = AndroidUtilities.dp(36);
+            float top = centerY - pillHeight / 2f;
+            if (!shown && holeOpen && hole.intersects(togglePill.getLeft(), top, togglePill.getRight(), top + pillHeight)) {
+                // On short screens the preview can reach the top row. Keep the pill above the hole,
+                // where the cover can draw it and its touch region doesn't steal a tap on the clip.
+                top = Math.max(0f, hole.top - pillHeight - AndroidUtilities.dp(4));
+            }
+            togglePill.setTranslationY(Math.round(top));
         }
     }
 
