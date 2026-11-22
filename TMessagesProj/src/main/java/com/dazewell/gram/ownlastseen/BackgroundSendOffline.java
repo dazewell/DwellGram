@@ -23,7 +23,7 @@ public final class BackgroundSendOffline {
 
     private BackgroundSendOffline() {}
 
-    /** ConnectionsManager.sendRequestInternal, on the stage queue. */
+    /** ConnectionsManager.sendRequestInternal. */
     public static RequestDelegate wrap(int account, TLObject request, RequestDelegate onComplete) {
         // A null delegate stays null: the caller then falls through to onCompleteTimestamp or processUpdates
         if (onComplete == null || !(request instanceof TLRPC.TL_messages_sendMessage
@@ -45,7 +45,7 @@ public final class BackgroundSendOffline {
         };
     }
 
-    // The timer's own test for sending online. Read on the stage queue, where LaunchActivity writes it.
+    // The timer's own test for sending online, read on the stage queue where the timer reads it
     private static boolean keptOnline(int account) {
         return !MessagesController.getInstance(account).ignoreSetOnline
                 && ConnectionsManager.getInstance(account).getPauseTime() == 0
