@@ -10049,9 +10049,19 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     private void handOffRecordedVideoPreview(boolean notify, int scheduleDate, int scheduleRepeatPeriod, long effect, long stars) {
+        if (slowModeTimer == Integer.MAX_VALUE && !isInScheduleMode()) {
+            // NagramX: the send after finalization skips sendMessageInternal, so apply its slow-mode gate here
+            if (delegate != null) {
+                delegate.scrollToSendingMessage();
+            }
+            return;
+        }
         delegate.needStartRecordVideo(4, notify, scheduleDate, scheduleRepeatPeriod, 0, effect, stars);
         if (parentFragment == null || parentFragment.instantCameraView == null || !parentFragment.instantCameraView.isFileHandedOff()) {
             return;
+        }
+        if (runningAnimationAudio != null && runningAnimationAudio.isRunning()) {
+            runningAnimationAudio.end(); // NagramX: a send right after finalization lands mid-transition; settle it as a tapped send finds it
         }
         dismissSendPreviewSent = true;
         sendButton.setEffect(effectId = 0);
@@ -10082,7 +10092,7 @@ public class ChatActivityEnterView extends FrameLayout implements
     }
 
     private boolean isBoundRecorderSpoiler(VideoEditedInfo info) {
-        return info != null && videoToSendMessageObject == info && info.naxDraftSpoiler && parentFragment != null
+        return !destroyed && info != null && videoToSendMessageObject == info && info.naxDraftSpoiler && parentFragment != null
                 && parentFragment.isCurrentEnterView(this) && parentFragment.instantCameraView != null
                 && (info.naxDraftId == 0 || dialog_id == info.naxDraftDialogId);
     }
@@ -13976,6 +13986,16 @@ public class ChatActivityEnterView extends FrameLayout implements
             return;
         }
         parentFragment.onVideoDraftTrimChanged(videoToSendMessageObject, audioToSendPath, voiceOnce);
+        if (parentFragment.instantCameraView != null) {
+            parentFragment.instantCameraView.persistPendingSpoilerTrim(videoToSendMessageObject); // NagramX: a replacement still awaiting admission
+        }
+    }
+
+    // NagramX: a capped spoiler stop that could not be published leaves only the recording UI to close
+    public void closeRecorderSpoilerInterface() {
+        if (!recordingAudioVideo && videoToSendMessageObject == null) {
+            updateRecordInterface(RECORD_STATE_CANCEL, true);
+        }
     }
 
     // NagramX (#video-draft-guard): the draft id of the currently bound round-video preview, or 0 if none.

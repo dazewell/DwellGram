@@ -649,7 +649,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
 
     // NagramX: the selection survives a sent or discarded take, so only a take that still owns its file counts
     public boolean isRecorderSpoilerActive() {
-        return recorderSpoiler && cameraFile != null && !cameraFileHandedOff;
+        return recorderSpoiler && cameraFile != null && !cameraFileHandedOff && (!cancelled || sendAdoptedDraft);
     }
 
     public boolean checkRecorderSpoilerSend() {
@@ -695,6 +695,19 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             spoilerFinalizePending = false;
             releasePriorSpoilerPreview(true);
         }
+    }
+
+    // NagramX: trims made while the replacement waits for admission must reach its stored record too
+    public void persistPendingSpoilerTrim(VideoEditedInfo bound) {
+        VideoEditedInfo pending = pendingSpoilerDraft;
+        if (pending == null || bound == null || bound == pending || pending.naxDraftId == 0) {
+            return;
+        }
+        pending.startTime = bound.startTime;
+        pending.endTime = bound.endTime;
+        com.dazewell.gram.helpers.VideoDraftStore.updateTrim(currentAccount, pending.naxDraftDialogId, pending.naxDraftTopicId,
+                pending.naxDraftId, pending.originalPath, (int) pending.estimatedDuration, pending.startTime, pending.endTime,
+                false, pending.naxDraftSpoiler, pending.naxBrandedCapture);
     }
 
     private void releasePriorSpoilerPreview(boolean delete) {
@@ -1474,7 +1487,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         if (open) {
             refreshRecorderSpoiler(); // NagramX: the cell is present before the pill animates in
         }
-        buttonsLayout.animate().cancel();
+        buttonsLayout.animate().cancel(); // NagramX: a preview or restored-pill fade must not fight the open/close alpha
         if (!open) {
             cancelZoomInteractions();
         }
@@ -1800,7 +1813,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     private void captureSpoilerDraftTarget(SendOptions options) {
         options.draftTarget = com.dazewell.gram.videonote.RecorderSpoiler.draftTarget(delegate);
         options.recordingTopicId = com.dazewell.gram.videonote.RecorderSpoiler.recordingTopic(delegate);
-        options.destinationTopicId = com.dazewell.gram.videonote.RecorderSpoiler.destinationTopic(delegate, videoEditedInfo);
     }
 
     // NagramX: same cache file the recorder starts with, so an infinite-mode rollover can open the next one
@@ -1947,15 +1959,16 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         invalidate();
     }
 
-    // NagramX (#video-draft-guard): release only the preview player and its progress timer, never the clip.
+    // NagramX (#video-draft-guard): release only the preview player, its progress timer, a replaced spoiler
+    // preview's lock and the live recorder's keep-awake flag, never the clip.
     // cancel() releases these too, but it also deletes cameraFile and unlocks it in its delete-and-unlock block;
     // this narrow variant exists so fragment teardown and the passcode rebuild can stop the leaking player/timer
     // without touching the finished draft. hideCamera() / destroy() / cancel() are deliberately not called here --
     // they route to encoder cancellation and file deletion, which is exactly the deletion path this feature must
     // never introduce.
     public void abandonPreview() {
-        releasePriorSpoilerPreview(false);
-        if (textureView != null) {
+        releasePriorSpoilerPreview(false); // NagramX: unlock only; this path never deletes, and the sweep collects it
+        if (textureView != null) { // NagramX: only a live recorder took the flag (see setVisibility)
             Activity activity = AndroidUtilities.getActivity(getContext());
             if (activity != null) {
                 activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -3164,7 +3177,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         final boolean sendSpoilerAfterFinalize;
         com.dazewell.gram.videonote.RecorderSpoiler.DraftTarget draftTarget;
         long recordingTopicId;
-        long destinationTopicId;
 
         public SendOptions(boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
             this(notify, scheduleDate, scheduleRepeatPeriod, ttl, effectId, stars, false, false);
@@ -4012,6 +4024,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             // in handleStopRecording -- the post must carry the generation pinned here, not re-read the field at
             // lambda-run time.
             final int capturedFinalizeGeneration = finalizeGeneration;
+            if (overlayHelper != null) {
+                overlayHelper.destroy(); // NagramX: free its GL objects while their context is still current, not in resume's new one
+                overlayHelper = null;
+            }
             releaseEncoderSurface();
             AndroidUtilities.runOnUIThread(() -> {
                 videoEditedInfo = new VideoEditedInfo();
@@ -4598,7 +4614,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                             VideoEditedInfo publishedInfo = info;
                             File retireAfterBind = null;
                             if (replacedSpoiler) {
-                                final boolean saved = finalizeOk && sendOptions.draftTarget != null && sendOptions.draftTarget.save(info, videoFile);
+                                final boolean saved = finalizeOk && sendOptions.draftTarget != null && sendOptions.draftTarget.save(info, videoFile, retainedPreview);
                                 final boolean usable = finalizeOk && (sendOptions.draftTarget == null || saved);
                                 if (usable && retainedPreview != null) {
                                     retireAfterBind = retainedPreview;
@@ -4624,6 +4640,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                                     if (saved) {
                                         cameraFile = null; // NagramX: the original topic can now adopt its saved clip
                                     }
+                                    com.dazewell.gram.videonote.RecorderSpoiler.closeComposerRecording(delegate); // NagramX: a capped stop left the composer waiting for this clip
                                     startAnimation(false, false);
                                 }
                             }

@@ -109,11 +109,21 @@ public final class RecorderSpoiler {
             return false;
         }
         ChatActivity chat = (ChatActivity) owner;
-        if (isOwnerTopic(chat, topicId) && chat.getRecorderDestinationTopicId() == destinationTopicId) {
+        boolean ownerView = isOwnerTopic(chat, topicId);
+        if (ownerView && chat.getRecorderDestinationTopicId() == destinationTopicId) {
             return true;
         }
-        BulletinFactory.of(chat).createErrorBulletin(LocaleController.getString(R.string.RecorderSpoilerOriginalTopic)).show();
+        // Already in the owner view means only the reply target moved, and reopening the view would not fix that.
+        BulletinFactory.of(chat).createErrorBulletin(LocaleController.getString(ownerView
+                ? R.string.RecorderSpoilerOriginalReply : R.string.RecorderSpoilerOriginalTopic)).show();
         return false;
+    }
+
+    public static void closeComposerRecording(Object owner) {
+        ChatActivityEnterView composer = composer(owner);
+        if (composer != null) {
+            composer.closeRecorderSpoilerInterface();
+        }
     }
 
     public static boolean checkSend(Object delegate) {
@@ -145,7 +155,8 @@ public final class RecorderSpoiler {
             previousId = previous == null ? 0 : previous.id;
         }
 
-        public boolean save(VideoEditedInfo info, File file) {
+        // retained stays locked through the save, because the recorder keeps showing it until the composer admits file.
+        public boolean save(VideoEditedInfo info, File file, File retained) {
             VideoDraftStore.Entry current = VideoDraftStore.load(account, dialogId, topicId);
             if ((current == null ? 0 : current.id) != previousId) {
                 return false;
@@ -154,7 +165,8 @@ public final class RecorderSpoiler {
             info.naxDraftTopicId = topicId;
             info.naxDraftDestinationTopicId = destinationTopicId;
             return VideoDraftStore.save(account, dialogId, topicId, info.naxDraftId, file.getAbsolutePath(),
-                    (int) info.estimatedDuration, info.startTime, info.endTime, false, true, info.naxBrandedCapture, destinationTopicId);
+                    (int) info.estimatedDuration, info.startTime, info.endTime, false, true, info.naxBrandedCapture, destinationTopicId,
+                    retained == null ? null : retained.getAbsolutePath());
         }
     }
 

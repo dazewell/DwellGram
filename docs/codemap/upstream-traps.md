@@ -2942,15 +2942,15 @@ under Show Spoilers Directly even when the wire bit is true
 (`MessageObject.java:658-660`, 2026-11-22, #spoiler-video-messages).
 
 A recorder preview can bind later than its notification is posted.
-`NotificationCenter.java:685` can defer the event during an animation. The
+`NotificationCenter.java:677-680` can defer the event during an animation. The
 one-shot spoiler send travels with `audioDidSent` and runs after the composer
-binds that exact clip (`ChatActivityEnterView.java:17186`, 2026-11-22,
+binds that exact clip (`ChatActivityEnterView.java:17206`, 2026-11-22,
 #spoiler-video-messages).
 
 A forum in all-messages view uses one recording draft slot even when replying
 into a specific topic. The effective send topic comes from the reply or
-General (`ChatActivity.java:31241-31249`). The recorder saves and validates it
-separately from the draft slot (`RecorderSpoiler.java:117,160`,
+General (`ChatActivity.java:31238-31246`). The recorder saves and validates it
+separately from the draft slot (`RecorderSpoiler.java:113,166-169`,
 2026-11-22, #spoiler-video-messages).
 
 ## The round recorder's view-once button is drawn, not laid out

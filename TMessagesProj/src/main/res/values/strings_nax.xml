@@ -1038,6 +1038,7 @@
     <string name="DmSearchPartialResults">%1$s+ results</string>
     <string name="EmojiSetDeleteDownloadedInfo">The set is removed from this device. Tap it in the list to download it again.</string>
     <string name="RecorderSpoilerOriginalTopic">Open the topic where you recorded this video to send it.</string>
+    <string name="RecorderSpoilerOriginalReply">Set the reply back to how it was when you recorded this video, or turn off Spoiler, to send it.</string>
     <string name="RecorderSpoilerHint">Covers the video until someone taps to reveal it.</string>
     <string name="RecorderInfiniteHint">Keeps recording and sends a separate video about every minute.</string>
     <string name="SpoilerVideoMessages">Spoiler video messages</string>

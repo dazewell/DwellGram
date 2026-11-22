@@ -129,6 +129,11 @@ public final class VideoDraftStore {
     //                              orphaned old file stays sweepable. Unlock is not a delete; this path removes
     //                              no file -- supersede-delete is deferred to the 24h expiry.
     public static boolean save(int account, long dialogId, long topicId, long id, String path, int duration, long startTime, long endTime, boolean voiceOnce, boolean spoiler, boolean brandedCapture, long destinationTopicId) {
+        return save(account, dialogId, topicId, id, path, duration, startTime, endTime, voiceOnce, spoiler, brandedCapture, destinationTopicId, null);
+    }
+
+    // retainedPath: a superseded file the caller still shows. It stays locked here and the caller unlocks it.
+    public static boolean save(int account, long dialogId, long topicId, long id, String path, int duration, long startTime, long endTime, boolean voiceOnce, boolean spoiler, boolean brandedCapture, long destinationTopicId, String retainedPath) {
         if (path == null || id == 0) {
             return false;
         }
@@ -162,7 +167,7 @@ public final class VideoDraftStore {
         // happen under disk pressure, so they correlate rather than being independently rare. On failure we keep the
         // old file locked (an extra orphan is the accepted over-retention direction) and leave the record restorable.
         // The path check stays too: never unlock a path we just locked, in case a new recording reused it.
-        if (written && cur != null && !cur.path.equals(path)) {
+        if (written && cur != null && !cur.path.equals(path) && !cur.path.equals(retainedPath)) {
             AutoDeleteMediaTask.unlockFile(cur.path);
         }
         return written;
