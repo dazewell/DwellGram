@@ -341,6 +341,7 @@ final class CameraMemoCover extends FrameLayout {
         spoilerCell = new ToggleCell(context, R.drawable.msg_spoiler_off, R.drawable.msg_spoiler, false);
         spoilerCell.setForeground(Theme.createCircleSelectorDrawable(0x30ffffff, 0, 0));
         spoilerCell.setFocusable(true);
+        spoilerCell.setVisibility(GONE);
         spoilerCell.setOnClickListener(v -> {
             InstantCameraView camera = camera();
             if (camera != null) {
@@ -657,6 +658,9 @@ final class CameraMemoCover extends FrameLayout {
         boolean spoilerOn = spoiler && camera.isRecorderSpoilerSelected();
         togglePill.setVisibility(shown || spoiler ? VISIBLE : GONE);
         flashCell.setVisibility(shown ? VISIBLE : GONE);
+        if (spoiler != (spoilerCell.getVisibility() == VISIBLE)) {
+            RecorderSpoiler.smoke("CAMERA_MEMO visible=" + spoiler + " preview=" + bound);
+        }
         spoilerCell.setVisibility(spoiler ? VISIBLE : GONE);
         spoilerCell.setOn(spoilerOn);
         spoilerCell.setSelected(spoilerOn);

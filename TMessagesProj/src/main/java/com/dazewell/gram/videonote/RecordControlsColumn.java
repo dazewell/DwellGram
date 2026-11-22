@@ -307,6 +307,9 @@ public final class RecordControlsColumn {
         if (Math.abs(s - placedScale[slot]) <= EPSILON / 10f && !(s < SHOWN && member.getScaleX() >= SHOWN)) {
             return;
         }
+        if (slot == SPOILER && (s >= SHOWN) != (placedScale[slot] >= SHOWN)) {
+            RecorderSpoiler.smoke("COLUMN visible=" + (s >= SHOWN) + " preview=" + (preview > 0f));
+        }
         placedScale[slot] = s;
         member.setScaleX(s);
         member.setScaleY(s);
