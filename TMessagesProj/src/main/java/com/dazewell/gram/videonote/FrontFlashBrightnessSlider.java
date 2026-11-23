@@ -5,7 +5,6 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.RectF;
 import android.os.Bundle;
 import android.view.MotionEvent;
@@ -26,10 +25,10 @@ import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
 import xyz.nextalone.nagram.NaConfig;
 
 /**
- * The round video camera's front flash brightness: a pill that grows up out of the flash button, as one shape with
- * the button row under it. The level is a lit capsule that starts as a circle around the flash glyph and stretches
- * up the arm. The value is FlashViews' intensity, the screen brightness plus the white overlay's opacity, and is
- * remembered in NaConfig when a drag ends.
+ * The round video camera's front flash brightness: a pill of its own that grows up from just above the flash
+ * button, apart from the button row. The level is a lit capsule that starts as a circle at the pill's bottom and
+ * stretches up it. The value is FlashViews' intensity, the screen brightness plus the white overlay's opacity, and
+ * is remembered in NaConfig when a drag ends.
  *
  * The view sits over the flash cell of the row: its bottom 44dp are that cell, and touches there fall through to
  * the flash button. The host shows it while the front flash is armed; it fades with the row through
@@ -43,27 +42,22 @@ public final class FrontFlashBrightnessSlider extends View {
     // the row's drawn height and corner radius (InstantCameraView.setButtonsBackground), shorter than the
     // view's frame by the drawable's 6dp padding
     private static final int ROW = 44, RADIUS = 21;
-    // the arm is as wide as the flash cell; the view is wider by the fillet at the join, and the touch target by
-    // a little slop on the right
-    private static final int ARM = 44, FILLET = 14, SLOP = 6;
+    // the pill is as wide as the flash cell; the touch target takes a little slop on the right
+    private static final int ARM = 44, SLOP = 6;
+    // the space between the pill and the row, so the row's glass and its shadow never show through the pill
+    private static final int GAP = 6;
     // the shortest capsule travel still worth dragging
     private static final int MIN_ARM = 56;
-    // the level capsule's inset from the arm and the row, which also makes its lowest state a circle round the glyph
+    // the level capsule's inset in the pill, which also makes its lowest state a circle
     private static final int CAPSULE_INSET = 4;
-    // how far the arm reaches over the row's top edge, enough to cover the row's own stroke there
-    private static final int OVERLAP = 2;
 
     private final Utilities.Callback<Float> onChange;
     private final AnimatedFloat shownProgress;
     private final AnimatedFloat pressedProgress;
     private final Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint capsulePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Path clip = new Path();
-    private final Path rowPath = new Path();
-    private final Path wedge = new Path();
     private final RectF rect = new RectF();
-    private final float[] topRadii = new float[8];
-    private BlurredBackgroundDrawable glass, filletGlass;
+    private BlurredBackgroundDrawable glass;
     private int fillColor = 0xffffffff;
     private float value;
     private float dragStartY, dragStartValue;
@@ -81,8 +75,6 @@ public final class FrontFlashBrightnessSlider extends View {
         shownProgress = new AnimatedFloat(this, 0, 320, CubicBezierInterpolator.EASE_OUT_QUINT);
         pressedProgress = new AnimatedFloat(this, 0, 100, CubicBezierInterpolator.EASE_OUT);
         bgPaint.setColor(0x66000000);
-        final float r = dp(RADIUS);
-        topRadii[0] = topRadii[1] = topRadii[2] = topRadii[3] = r;
         value = readStored();
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             setStateDescription(percent());
@@ -102,30 +94,18 @@ public final class FrontFlashBrightnessSlider extends View {
         return value;
     }
 
-    // The row's own glass, made by the same factory, so the arm reads as part of it. Without it (the legacy
-    // design, which has no row background) the arm is a dark pill of its own above the button.
-    // The fillet in the concave corner of the join gets its own drawable, since each one samples the backdrop
-    // under its own bounds.
-    public void setGlassBackground(BlurredBackgroundDrawable background, BlurredBackgroundDrawable fillet) {
-        // uniform corners keep the outline a round rect, which RenderNode clips to before API 33 too; the bottom
-        // ones fall below the clip anyway (onDraw)
+    // The row's own glass, made by the same factory, so the pill matches it. Without it (the legacy design, which
+    // has no row background) the pill is dark.
+    public void setGlassBackground(BlurredBackgroundDrawable background) {
         background.setPadding(0);
         background.setRadius(dp(RADIUS));
-        fillet.setPadding(0);
-        fillet.setRadius(dp(RADIUS));
         glass = background;
-        filletGlass = fillet;
         invalidate();
     }
 
     public void setFillColor(int color) {
         fillColor = color;
         invalidate();
-    }
-
-    // How far the arm is out, 0 to 1, for the cell right of flash, whose fill rounds its corner under the fillet.
-    public float shownFraction() {
-        return shownProgress.get();
     }
 
     public void setShown(boolean shown) {
@@ -161,7 +141,7 @@ public final class FrontFlashBrightnessSlider extends View {
     }
 
     // The zoom control spans the full width and moves with the keyboard, and on narrow screens or in its compact
-    // row it reaches over this corner. The arm then stops short of it, and hides when what is left is too short
+    // row it reaches over this corner. The pill then stops short of it, and hides when what is left is too short
     // to drag.
     public void stayBelow(com.dazewell.gram.ui.InstantZoomControlView zoom) {
         zoomView = zoom;
@@ -190,7 +170,7 @@ public final class FrontFlashBrightnessSlider extends View {
         return getHeight() - dp(ROW);
     }
 
-    // measured as the capsule's travel, which is the arm's length with the glass row and shorter without it
+    // measured as the capsule's travel
     private boolean fits() {
         return capsuleTopFor(0, topLimit) - capsuleTopFor(1, topLimit) >= dp(MIN_ARM);
     }
@@ -217,94 +197,60 @@ public final class FrontFlashBrightnessSlider extends View {
         return shown && hostAlpha > .5f && fits();
     }
 
-    // The capsule's bottom: inside the flash cell, so its lowest state is a circle round the glyph. Without a row
-    // background the glyph is not part of the pill, so it sits at the pill's own bottom instead.
-    private float capsuleBottom() {
-        return glass != null ? getHeight() - dp(CAPSULE_INSET) : rowTop() - dp(4 + CAPSULE_INSET);
+    private float pillBottom() {
+        return rowTop() - dp(GAP);
     }
 
-    // its top for a value: a circle at the lowest, just under the arm's top at the highest
-    private float capsuleTopFor(float fraction, float armTop) {
+    private float capsuleBottom() {
+        return pillBottom() - dp(CAPSULE_INSET);
+    }
+
+    // its top for a value: a circle at the lowest, just under the pill's top at the highest
+    private float capsuleTopFor(float fraction, float pillTop) {
         final float lowest = capsuleBottom() - dp(ARM - CAPSULE_INSET * 2);
-        return Math.min(lowest, AndroidUtilities.lerp(lowest, armTop + dp(CAPSULE_INSET), fraction));
+        return Math.min(lowest, AndroidUtilities.lerp(lowest, pillTop + dp(CAPSULE_INSET), fraction));
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         final boolean target = shown && fits();
         if (shownProgress.getTargetValue() != (target ? 1f : 0f)) {
-            // collapsing back into the button is quicker than growing out of it
+            // collapsing back is quicker than growing out of it
             shownProgress.setDuration(target ? 320 : 220);
         }
         final float t = shownProgress.set(target);
         if (t <= 0) return;
         final float aw = dp(ARM), r = dp(RADIUS);
-        final float rowTop = rowTop(), rowCenter = getHeight() - dp(ROW) / 2f;
-        // grows up out of the button: at 0 the arm is all inside the row and nothing shows
-        final float armTop = AndroidUtilities.lerp(rowTop + dp(OVERLAP), topLimit, t);
+        final float bottom = pillBottom();
+        // grows up from a circle just above the button, fading in as it does
+        final float pillTop = Math.min(bottom - aw, AndroidUtilities.lerp(bottom - aw, topLimit, t));
+        final boolean fading = t < 1f;
+        if (fading) {
+            canvas.saveLayerAlpha(0, 0, getWidth(), getHeight(), (int) (255 * t));
+        }
 
-        canvas.save();
         if (glass != null) {
-            // the row's real right end: with the infinite button gone it is a lone cell with a rounded right cap.
-            // both start 7dp in (margin 1 + padding 6), and the row's drawn width is 12dp under its own
-            final float rowRight = Math.max(aw, alphaSource != null ? alphaSource.getWidth() - dp(12) : aw + r * 2);
-            rowPath.rewind();
-            rect.set(0, rowTop + dp(OVERLAP), rowRight, getHeight());
-            rowPath.addRoundRect(rect, r, r, Path.Direction.CW);
-
-            // the concave corner where the arm meets a row that carries on to the right, rounded as it grows
-            final float f = rowRight > aw + dp(1) ? dp(FILLET) * t : 0;
-            if (f > 1) {
-                wedge.rewind();
-                // starts a little inside the arm, drawn over it next, so no anti-aliased gap opens along the join
-                wedge.addRect(aw - dp(1.5f), rowTop - f, aw + f, rowTop + dp(OVERLAP), Path.Direction.CW);
-                clip.rewind();
-                clip.addCircle(aw + f, rowTop - f, f, Path.Direction.CW);
-                wedge.op(clip, Path.Op.DIFFERENCE);
-                wedge.op(rowPath, Path.Op.DIFFERENCE);
-                canvas.save();
-                canvas.clipPath(wedge);
-                // big enough that its own rounded corners and strokes stay well outside the wedge
-                filletGlass.setBounds((int) (aw - dp(48)), (int) (rowTop - dp(64)), (int) (aw + dp(64)), getHeight() + dp(48));
-                filletGlass.draw(canvas);
-                canvas.restore();
-            }
-
-            // everything the arm adds over the row, plus a strip over the row's top edge so the row's stroke
-            // doesn't draw a seam across the join. the arm's own bottom ends inside the row, out of sight
-            clip.rewind();
-            rect.set(0, armTop, aw, rowCenter);
-            clip.addRoundRect(rect, topRadii, Path.Direction.CW);
-            clip.op(rowPath, Path.Op.DIFFERENCE);
-            canvas.clipPath(clip);
-            glass.setBounds(0, (int) armTop, (int) aw, getHeight());
+            glass.setBounds(0, (int) pillTop, (int) aw, (int) bottom);
             glass.draw(canvas);
         } else {
-            // no row background to join: a pill of its own, stopping short of the button's glyph
-            rect.set(0, armTop, aw, Math.max(armTop, rowTop - dp(4)));
-            bgPaint.setAlpha((int) (0x66 * t));
+            rect.set(0, pillTop, aw, bottom);
             canvas.drawRoundRect(rect, r, r, bgPaint);
         }
-        canvas.restore();
 
-        // The level: a capsule with round ends, inset in the arm. With the glass row it wraps the flash glyph, so
-        // the button reads as its thumb; drawn in the glyph's own color at this alpha it doesn't change the glyph
-        // under it. Without the row it sits inside the pill above the glyph. It grows with the arm on show.
+        // The level: a capsule with round ends, inset in the pill. On glass it takes the glyphs' color, at an alpha
+        // low enough that it reads as a lit track rather than a button.
         final float inset = dp(CAPSULE_INSET);
-        final float bottom = capsuleBottom();
         final float top = AndroidUtilities.lerp(capsuleTopFor(0, topLimit), capsuleTopFor((value - MIN) / (MAX - MIN), topLimit), t);
-        rect.set(inset, top, aw - inset, bottom);
+        rect.set(inset, top, aw - inset, capsuleBottom());
         final float p = pressedProgress.set(dragging);
         final int alpha = glass != null ? (int) AndroidUtilities.lerp(0x33, 0x44, p) : (int) AndroidUtilities.lerp(0x38, 0x48, p);
-        capsulePaint.setColor(ColorUtils.setAlphaComponent(glass != null ? fillColor : 0xffffffff, (int) (alpha * t)));
+        capsulePaint.setColor(ColorUtils.setAlphaComponent(glass != null ? fillColor : 0xffffffff, alpha));
         final float cr = (aw - inset * 2) / 2f;
-        canvas.save();
-        if (glass == null) {
-            // the legacy pill collapses past the capsule's lowest circle on hide, so keep the capsule inside it
-            canvas.clipRect(0, armTop, aw, rowTop - dp(4));
-        }
         canvas.drawRoundRect(rect, cr, cr, capsulePaint);
-        canvas.restore();
+
+        if (fading) {
+            canvas.restore();
+        }
     }
 
     private String percent() {
@@ -322,7 +268,7 @@ public final class FrontFlashBrightnessSlider extends View {
     public boolean onTouchEvent(MotionEvent event) {
         final int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_DOWN) {
-            // the row below belongs to the flash button, and the fillet is only decoration
+            // the row below belongs to the flash button
             if (!interactive() || event.getY() < topLimit || event.getY() >= rowTop() || event.getX() > dp(ARM + SLOP)) return false;
             dragging = true;
             // the pressed tint eases in quickly and out a little slower
