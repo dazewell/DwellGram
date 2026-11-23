@@ -19993,6 +19993,11 @@ public class ChatActivityEnterView extends FrameLayout implements
         return getInfiniteRecordingState();
     }
 
+    // NagramX (#spoiler-video-messages): armed as such, which the state above hides in schedule mode while a rollover runs
+    public boolean isInfiniteVideoArmed() {
+        return infiniteVideoMessage;
+    }
+
     // NagramX (#camera-memo-controls): the camera memo covers the record controls, so it flips view-once here. The same
     // flip as ControlsView's once tap, without its hint, which would draw under the memo.
     public boolean canToggleVideoOnce() {

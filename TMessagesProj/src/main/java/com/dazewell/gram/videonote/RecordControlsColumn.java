@@ -242,9 +242,6 @@ public final class RecordControlsColumn {
             }
             return;
         }
-        if (recorder instanceof InstantCameraView) {
-            ((InstantCameraView) recorder).spoiler.refresh(); // its pill cell: view-once or Infinite turned on clears it
-        }
         // ControlsView and the host share a parent; both are read fresh, translations included
         final float columnX = column.getX() - host.getX() + cx, columnY = column.getY() - host.getY() + pauseCenterY;
         int next = drawnChips; // the lowest free slot, counted up from pause

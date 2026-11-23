@@ -7,6 +7,7 @@ import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.widget.LinearLayout;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -115,8 +116,10 @@ public final class RoundSpoiler {
                 && !chat.isForumInViewAsMessagesMode() && ChatObject.canSendVideo(chat.getCurrentChat());
     }
 
-    private static boolean infiniteOn(ChatActivity chat) {
-        return chat.getInfiniteRecordingState() == InstantCameraView.INFINITE_RECORDING_ON;
+    // Infinite as armed, not as its toggle shows it: schedule mode reports it unavailable while a rollover still runs
+    private static boolean infiniteArmed(ChatActivity chat) {
+        final ChatActivityEnterView enter = chat.getChatActivityEnterView();
+        return enter != null && enter.isInfiniteVideoArmed();
     }
 
     private static boolean onceOn(ChatActivity chat) {
@@ -126,7 +129,15 @@ public final class RoundSpoiler {
 
     // Selected, and not overridden by view-once or Infinite Recording turned on since.
     private boolean chosen(ChatActivity chat) {
-        return selected && chat != null && !onceOn(chat) && !infiniteOn(chat);
+        return selected && chat != null && !onceOn(chat) && !infiniteArmed(chat);
+    }
+
+    // The bound preview's draft record keeps what a send of it would apply.
+    private static void persistBound(ChatActivity chat, boolean spoiler) {
+        final ChatActivityEnterView enter = chat.getChatActivityEnterView();
+        if (enter != null && enter.getBoundVideoDraftId() != 0) {
+            VideoDraftStore.setSpoiler(chat.getCurrentAccount(), enter.getBoundVideoDraftDialogId(), enter.getBoundVideoDraftTopicId(), enter.getBoundVideoDraftId(), spoiler);
+        }
     }
 
     // ---- the recorder ----
@@ -156,7 +167,7 @@ public final class RoundSpoiler {
     // and nowhere else; view-once (ttl) and Infinite Recording win over a stale choice.
     public boolean appliesTo(Object delegate, int ttl) {
         onAbandon(); // whoever sent it, the take is leaving
-        return selected && ttl == 0 && delegate instanceof ChatActivity && !infiniteOn((ChatActivity) delegate);
+        return selected && ttl == 0 && delegate instanceof ChatActivity && !infiniteArmed((ChatActivity) delegate);
     }
 
     // The bound preview is pause's finished copy rather than the encoder's own, still-open file. Only then is the copy
@@ -342,13 +353,25 @@ public final class RoundSpoiler {
             return true;
         });
         pill.addView(button, pill.indexOfChild(after) + 1, LayoutHelper.createLinear(CELL_DP, CELL_DP));
-        // While the preview pill is up, anything the recorder shows again (Infinite when view-once goes off, the
-        // brightness arm when compact is toggled) is hidden before it draws; that frame is skipped for the relayout.
-        // The fill's corners follow its neighbours, so they are re-read here too.
-        pill.getViewTreeObserver().addOnPreDrawListener(() -> {
+        // Before each frame: while the preview pill is up, anything the recorder shows again (Infinite when view-once
+        // goes off, the brightness arm when compact is toggled) is hidden before it draws, and that frame is skipped for
+        // the relayout. The cell's state and its fill's corners follow view-once, Infinite and its neighbours, so they
+        // are re-read too. On the window's shared observer only while attached, so a closed chat is not kept.
+        final ViewTreeObserver.OnPreDrawListener preDraw = () -> {
             final boolean draw = !previewPillUp || !hideBesideCell();
-            applyLook();
+            updateButton(chatRef.get());
             return draw;
+        };
+        button.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+                v.getViewTreeObserver().addOnPreDrawListener(preDraw);
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                v.getViewTreeObserver().removeOnPreDrawListener(preDraw);
+            }
         });
         button.setImageResource(R.drawable.msg_spoiler);
         updateButton(chatRef.get());
@@ -363,17 +386,10 @@ public final class RoundSpoiler {
         applyLook();
     }
 
-    // Called each frame the composer's record column lays out, so view-once or Infinite turned on elsewhere shows here.
-    public void refresh() {
-        if (button != null && chatRef.get() != null) {
-            updateButton(chatRef.get());
-        }
-    }
-
     // The preview: the stock fade (setupVideoPlayer) takes the pill away with flash and Infinite, which mean nothing
     // there. Spoiler still does, so the pill comes back holding only this cell, as the memo cover's pill does.
     private void showPreviewPill(ChatActivity chat) {
-        if (pill == null || button == null || !offered(chat) || pill.getVisibility() != View.VISIBLE) {
+        if (pill == null || button == null || !isOffered(chat) || pill.getVisibility() != View.VISIBLE) {
             return; // compact recording hides the whole pill, and keeps it hidden
         }
         hideBesideCell();
@@ -422,18 +438,21 @@ public final class RoundSpoiler {
 
     /** The memo cover's Spoiler cell, and the column button: flip the take's choice. */
     public void toggle(ChatActivity chat) {
-        if (chat == null || !offered(chat)) {
+        if (chat == null || !isOffered(chat)) {
             return;
         }
-        if (chosen(chat)) {
-            selected = false;
+        if (chosen(chat) || !offered(chat)) {
+            selected = false; // a chat that stopped offering it still lets a selection be turned off
         } else {
-            selected = true;
             // each turns the other off; both calls are flips, so only where they are on
-            if (infiniteOn(chat)) {
+            if (infiniteArmed(chat)) {
+                if (chat.getInfiniteRecordingState() != InstantCameraView.INFINITE_RECORDING_ON) {
+                    return; // armed where its own toggle is gone (schedule mode): Infinite keeps the take
+                }
                 chat.toggleInfiniteRecording();
                 recorder.updateInfiniteButton(); // a preview pill re-hides the cell this shows, before it draws
             }
+            selected = true;
             final ChatActivityEnterView enter = chat.getChatActivityEnterView();
             if (enter != null && enter.voiceOnce && enter.canToggleVideoOnce()) {
                 enter.toggleVideoOnce();
@@ -444,15 +463,12 @@ public final class RoundSpoiler {
             button.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
         }
         updateButton(chat); // first: a view-once that could not be turned off clears selected here
-        final ChatActivityEnterView enter = chat.getChatActivityEnterView();
-        if (enter != null && enter.getBoundVideoDraftId() != 0) {
-            VideoDraftStore.setSpoiler(chat.getCurrentAccount(), enter.getBoundVideoDraftDialogId(), enter.getBoundVideoDraftTopicId(), enter.getBoundVideoDraftId(), chosen(chat));
-        }
+        persistBound(chat, chosen(chat));
     }
 
-    /** Whether the memo cover shows its Spoiler cell, and lit. */
+    /** Whether the memo cover shows its Spoiler cell: offered, or still selected so it can be turned off. */
     public boolean isOffered(ChatActivity chat) {
-        return offered(chat);
+        return offered(chat) || selected && chat != null;
     }
 
     public boolean isOn(ChatActivity chat) {
@@ -460,17 +476,21 @@ public final class RoundSpoiler {
     }
 
     private void updateButton(ChatActivity chat) {
-        if (chat != null && selected && (onceOn(chat) || infiniteOn(chat))) {
+        if (chat != null && selected && (onceOn(chat) || infiniteArmed(chat))) {
             selected = false; // view-once or Infinite turned on since: each turns the other off
+            persistBound(chat, false); // so a restored draft doesn't bring back a choice the user saw cleared
         }
         if (button == null) {
             return;
         }
-        final int visibility = chat == null || offered(chat) ? View.VISIBLE : View.GONE;
+        final int visibility = chat == null || isOffered(chat) ? View.VISIBLE : View.GONE;
         if (chat != null && button.getVisibility() != visibility) {
             button.setVisibility(visibility);
         }
-        button.setContentDescription(LocaleController.getString(selected ? R.string.AccDescrVideoSpoilerOff : R.string.AccDescrVideoSpoilerOn));
+        if (!Boolean.valueOf(selected).equals(button.getTag())) {
+            button.setTag(selected);
+            button.setContentDescription(LocaleController.getString(selected ? R.string.AccDescrVideoSpoilerOff : R.string.AccDescrVideoSpoilerOn));
+        }
         applyLook();
     }
 

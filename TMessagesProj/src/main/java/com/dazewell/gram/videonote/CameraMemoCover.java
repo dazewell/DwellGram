@@ -659,8 +659,10 @@ final class CameraMemoCover extends FrameLayout {
         ChatActivity chat = chatRef.get();
         InstantCameraView camera = camera();
         boolean spoiler = camera != null && camera.spoiler.isOffered(chat);
+        // where the pill is drawn and hit: laid out at the top, then moved onto the status line below
+        float pillY = Math.round(statusBaseline() - textPaint.getTextSize() * 0.35f - togglePill.getHeight() / 2f);
         boolean previewPill = !shown && spoiler && live && bound
-                && !(holeOpen && hasHole && hole.intersects(togglePill.getLeft(), togglePill.getTop(), togglePill.getRight(), togglePill.getBottom()));
+                && !(holeOpen && hasHole && hole.intersects(togglePill.getLeft(), togglePill.getTop() + pillY, togglePill.getRight(), togglePill.getBottom() + pillY));
         togglePill.setVisibility(shown || previewPill ? VISIBLE : GONE);
         flashCell.setVisibility(shown ? VISIBLE : GONE);
         boolean spoilerOn = spoiler && camera.spoiler.isOn(chat);
@@ -691,8 +693,7 @@ final class CameraMemoCover extends FrameLayout {
         onceButton.setPlaying(onceOn);
         onceButton.setContentDescription(LocaleController.getString(onceOn ? R.string.AccActionOnceDeactivate : R.string.AccActionOnceActivate));
         if (shown || previewPill) {
-            float centerY = statusBaseline() - textPaint.getTextSize() * 0.35f;
-            togglePill.setTranslationY(Math.round(centerY - togglePill.getHeight() / 2f));
+            togglePill.setTranslationY(pillY);
         }
     }
 
