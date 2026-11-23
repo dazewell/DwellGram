@@ -18,6 +18,7 @@ import org.telegram.ui.Components.URLSpanUserMention;
 import org.telegram.utils.code.highlight.CodeHighlighting;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import xyz.nextalone.nagram.NaConfig;
 
@@ -59,7 +60,8 @@ public final class TextMemoSignature {
         }
         SerializedData data = null;
         try {
-            data = new SerializedData(Base64.decode(encoded, Base64.DEFAULT));
+            byte[] bytes = Base64.decode(encoded, Base64.DEFAULT);
+            data = new SerializedData(bytes);
             String text = data.readString(true);
             int count = data.readInt32(true);
             if (count < 0 || count > MAX_ENTITIES) {
@@ -76,7 +78,9 @@ public final class TextMemoSignature {
             if (data.remaining() != 0) {
                 return preset();
             }
-            return new TextMemoSignature(text, entities);
+            TextMemoSignature signature = new TextMemoSignature(text, entities);
+            // SerializedData's numeric reads can turn truncated EOF into -1 even in strict mode.
+            return Arrays.equals(bytes, signature.serialized()) ? signature : preset();
         } catch (Exception e) {
             return preset();
         } finally {
@@ -118,6 +122,14 @@ public final class TextMemoSignature {
 
     public void save() {
         validate();
+        String encoded = Base64.encodeToString(serialized(), Base64.NO_WRAP);
+        if (encoded.length() > MAX_ENCODED_LENGTH) {
+            throw new IllegalArgumentException("signature data too large");
+        }
+        NaConfig.INSTANCE.getTextMemoSignatureContent().setConfigString(encoded);
+    }
+
+    private byte[] serialized() {
         SerializedData data = new SerializedData();
         try {
             data.writeString(text);
@@ -125,11 +137,7 @@ public final class TextMemoSignature {
             for (TLRPC.MessageEntity entity : entities) {
                 entity.serializeToStream(data);
             }
-            String encoded = Base64.encodeToString(data.toByteArray(), Base64.NO_WRAP);
-            if (encoded.length() > MAX_ENCODED_LENGTH) {
-                throw new IllegalArgumentException("signature data too large");
-            }
-            NaConfig.INSTANCE.getTextMemoSignatureContent().setConfigString(encoded);
+            return data.toByteArray();
         } finally {
             data.cleanup();
         }

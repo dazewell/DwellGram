@@ -1561,8 +1561,8 @@ The adjacent editor row (`com/dazewell/gram/shortcuts/LauncherShortcutsActivity.
 opens `TextMemoSignatureActivity`, which uses the ordinary composer selection menu
 (`com/dazewell/gram/videonote/TextMemoSignatureActivity.java:76`). The global
 signature stores text and entities together; mention user ids are resolved for
-the sending account (`com/dazewell/gram/videonote/TextMemoSignature.java:188`).
-Its editor restores quote/code spans directly (`:138`): shared message restoration
+the sending account (`com/dazewell/gram/videonote/TextMemoSignature.java:196`).
+Its editor restores quote/code spans directly (`:146`): shared message restoration
 inserts quote newlines and code fences, changing saved text and later offsets.
 Span-only extraction must honor `parseMarkdown=false` under both parser choices
 and return before whitespace trimming (`org/telegram/messenger/MediaDataController.java:7681`, `:7877`).
