@@ -399,6 +399,8 @@ Round videos you save to disk (select them, then *Save to downloads*) come out p
 
 ### App name on recorded round videos <!-- #round-video-wordmark -->
 
+Round videos you record carry the app's own name, DWELLGRAM or DWELLGRAMX, curved along the bottom-right edge of the circle where Telegram's recorder put TELEGRAM. Always on.
+
 ### Send a muted gallery video as a real video <!-- #silent-video -->
 
 Muting a video in the gallery editor before you send it used to force it into a low-quality looping GIF. Now the quality button stays live after you mute — tap it once and the clip becomes an ordinary silent video instead, sent at a quality you pick from the usual SD/HD sheet, with a real duration and scrubber. Unmute and mute again to go back to GIF.
