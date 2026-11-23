@@ -121,13 +121,14 @@ public final class TextMemoSignatureActivity extends BaseFragment {
     }
 
     private TextMemoSignature readEditor() {
-        if (editor.length() > TextMemoSignature.MAX_LENGTH) {
+        CharSequence text = editor.getTextToUse();
+        if (text.length() > TextMemoSignature.MAX_LENGTH) {
             BulletinFactory.of(this).createErrorBulletin(LocaleController.formatString(
                     R.string.TextMemoSignatureLimit, TextMemoSignature.MAX_LENGTH)).show();
             return null;
         }
         try {
-            return TextMemoSignature.fromEditor(currentAccount, editor.getText());
+            return TextMemoSignature.fromEditor(currentAccount, text);
         } catch (IllegalArgumentException e) {
             showInvalidSignature();
             return null;
