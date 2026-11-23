@@ -565,7 +565,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         flashBrightnessSlider.followAlphaOf(buttonsLayout);
         flashBrightnessSlider.stayBelow(zoomControlView);
         flashBrightnessSlider.setFillColor(glyphColor(isDarkAppearance()));
-        // over the flash cell of the row, inset by the row background's 6dp padding, with the pill and some touch slop above it
+        // over the flash cell of the row, inset by the row background's 6dp padding, with room for the pill above it and 6dp of touch slop to its right
         addView(flashBrightnessSlider, LayoutHelper.createFrame(44 + 6, 44 + 140, Gravity.LEFT | Gravity.BOTTOM, 7, 0, 0, 6));
         spoiler.joinPill(buttonsLayout, flashButton, delegate, flashBrightnessSlider); // NagramX (#spoiler-video-messages): beside flash; the arm leaves with flash in the preview
 
