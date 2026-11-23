@@ -87,7 +87,7 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
     }, null));
     private final AbstractConfigCell textMemoRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getTextMemoShortcut(), getString(R.string.TextMemoShortcutNotice)));
     private final AbstractConfigCell textMemoSignatureRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getTextMemoSignature(), getString(R.string.TextMemoSignatureNotice)));
-    private final AbstractConfigCell textMemoSignatureEditorRow = cellGroup.appendCell(new ConfigCellText("TextMemoSignatureEdit", this::openSignatureEditor));
+    private final AbstractConfigCell textMemoSignatureEditorRow = cellGroup.appendCell(new ConfigCellText("TextMemoSignatureEdit", () -> presentFragment(new com.dazewell.gram.videonote.TextMemoSignatureActivity())));
     // Shared by every memo, so it sits last
     private final ConfigCellText videoNoteTargetRow = (ConfigCellText) cellGroup.appendCell(new ConfigCellText("VideoNoteShortcutTarget", null));
     private final AbstractConfigCell dividerVideoNote = cellGroup.appendCell(new ConfigCellDivider());
@@ -240,15 +240,6 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
     private void setTarget(long userId) {
         VideoNoteTarget.set(currentAccount, userId);
         updateTargetValue();
-    }
-
-    private void openSignatureEditor() {
-        android.util.Log.i("MemoSignature", "NAX_SMOKE_text-memo-signature-editor BEGIN reach-editor "
-                + org.telegram.messenger.BuildConfig.BUILD_VERSION_STRING + " "
-                + org.telegram.messenger.BuildConfig.APPLICATION_ID + " account=" + currentAccount);
-        if (!presentFragment(new com.dazewell.gram.videonote.TextMemoSignatureActivity())) {
-            android.util.Log.w("MemoSignature", "NAX_SMOKE_text-memo-signature-editor FORBIDDEN editor-refused");
-        }
     }
 
     @Override
