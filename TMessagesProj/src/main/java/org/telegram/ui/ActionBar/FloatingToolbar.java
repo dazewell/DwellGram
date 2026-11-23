@@ -231,6 +231,11 @@ public final class FloatingToolbar {
         }
     }
 
+    public void showAboveSelectionHandles() {
+        // NagramX: Android's own selection toolbar uses TYPE_APPLICATION_ABOVE_SUB_PANEL (1005).
+        mPopup.mPopupWindow.setWindowLayoutType(1005);
+    }
+
     private static final int TRANSLATE = 16908353; // android.R.id.textAssist;
     private static final int TRANSLATE2 = 16909808;
     private void doShow() {

@@ -1559,12 +1559,16 @@ Draft text stays outside this formatting path.
 
 The adjacent editor row (`com/dazewell/gram/shortcuts/LauncherShortcutsActivity.java:90`)
 opens `TextMemoSignatureActivity`, which uses the ordinary composer selection menu
-(`com/dazewell/gram/videonote/TextMemoSignatureActivity.java:76`). The global
+(`com/dazewell/gram/videonote/TextMemoSignatureActivity.java:78`). The global
 signature stores text and entities together; mention user ids are resolved for
 the sending account (`com/dazewell/gram/videonote/TextMemoSignature.java:196`).
 Its editor restores quote/code spans directly (`:146`): shared message restoration
 inserts quote newlines and code fences, changing saved text and later offsets.
 Span-only extraction must honor `parseMarkdown=false` under both parser choices
 and return before whitespace trimming (`org/telegram/messenger/MediaDataController.java:7681`, `:7877`).
+The editor opts into the toolbar's above-sub-panel window type
+(`org/telegram/ui/Components/EditTextBoldCursor.java:1207`,
+`org/telegram/ui/ActionBar/FloatingToolbar.java:234`), so Android's selection
+handles cannot cover formatting items when the overflow menu crosses the selection.
 
 *(Extended 2026-11-23, `#text-memo-signature-editor`.)*
