@@ -1552,7 +1552,7 @@ Launcher shortcuts exposes the switch in
 `com/dazewell/gram/videonote/TextMemoPhotos.java:275` includes the signature in
 the first media caption's length check; an oversized caption uses the original
 text in `sendText` (`:292`). Text parts add signature entities after Markdown
-parsing (`:309`), which can shorten the body and move its entity offsets.
+parsing (`:314`), which can shorten the body and move its entity offsets.
 Draft text stays outside this formatting path.
 
 *(Established 2026-11-22, `#text-memo-signature`.)*

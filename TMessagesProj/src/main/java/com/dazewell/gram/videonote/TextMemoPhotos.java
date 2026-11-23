@@ -286,7 +286,7 @@ final class TextMemoPhotos {
     }
 
     /**
-     * SendMessagesHelper.prepareSendingText for a memo, with the same queue hops and splitting, but each part exempt
+     * SendMessagesHelper.prepareSendingText for a memo, with the same queue hops and surrogate-safe splitting, but each part exempt
      * from Ghost Hold: a memo is written to go out now. A copy, so keep it in step with upstream's when that changes.
      */
     static void sendText(AccountInstance account, CharSequence text, long dialogId) {
@@ -301,17 +301,23 @@ final class TextMemoPhotos {
             if (signature) {
                 limit -= TextMemoSignature.SUFFIX.length();
             }
-            int count = (int) Math.ceil(textFinal.length() / (float) limit);
-            for (int a = 0; a < count; a++) {
-                CharSequence[] part = new CharSequence[] { textFinal.subSequence(a * limit, Math.min((a + 1) * limit, textFinal.length())) };
+            for (int start = 0; start < textFinal.length();) {
+                int end = Math.min(start + limit, textFinal.length());
+                // Each part is encoded separately; keep both halves of an emoji in the same part.
+                if (end < textFinal.length() && Character.isHighSurrogate(textFinal.charAt(end - 1))
+                        && Character.isLowSurrogate(textFinal.charAt(end))) {
+                    end--;
+                }
+                CharSequence[] part = new CharSequence[] { textFinal.subSequence(start, end) };
                 ArrayList<TLRPC.MessageEntity> entities = account.getMediaDataController().getEntities(part, true);
-                if (signature && a == count - 1) {
+                if (signature && end == textFinal.length()) {
                     entities = TextMemoSignature.append(part, entities);
                 }
                 SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(part[0].toString(), dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false);
                 params.entities = entities;
                 com.dazewell.gram.ghosthold.GhostHoldController.exempt(params);
                 account.getSendMessagesHelper().sendMessage(params);
+                start = end;
             }
         })));
     }
