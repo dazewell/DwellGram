@@ -567,6 +567,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         flashBrightnessSlider.setFillColor(glyphColor(isDarkAppearance()));
         // over the flash cell of the row, inset by the row background's 6dp padding, with the arm and its fillet above it
         addView(flashBrightnessSlider, LayoutHelper.createFrame(44 + 14, 44 + 140, Gravity.LEFT | Gravity.BOTTOM, 7, 0, 0, 6));
+        spoiler.joinPill(buttonsLayout, flashButton, delegate, flashBrightnessSlider); // NagramX (#spoiler-video-messages): beside flash; the arm leaves with flash in the preview
 
         muteImageView = new ImageView(context);
         muteImageView.setScaleType(ImageView.ScaleType.CENTER);
@@ -609,7 +610,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         zoomControlView.setButtonsBackground(factory, colorProvider);
         flashBrightnessSlider.setGlassBackground(factory.create(flashBrightnessSlider, colorProvider), factory.create(flashBrightnessSlider, colorProvider)); // NagramX (#front-flash-brightness): the arm joins this row's glass
         compactRecorder.setGlass(factory, colorProvider); // NagramX (#compact-video-recording): its toggle wears the flip button's glass
-        spoiler.setGlass(factory, colorProvider); // NagramX (#spoiler-video-messages): and so does the Spoiler button
     }
 
     private Boolean wasFlashing;
@@ -1197,11 +1197,11 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             }
         }
 
+        spoiler.onShowCamera(fromPaused); // NagramX (#spoiler-video-messages): a fresh take starts with Spoiler off; the pill is whole again
         if (!fromPaused) {
             cameraFile = generateCameraFile();
             sendAdoptedDraft = false; // NagramX (#video-draft-guard): a fresh recording owns a live cameraFile; drop any restored-draft send state
             cameraFileHandedOff = false; // NagramX (#round-video-restart-guard-fix): same, this file is ours again
-            spoiler.onNewTake(); // NagramX (#spoiler-video-messages): every take starts with Spoiler off
         }
 
         SharedConfig.saveConfig();

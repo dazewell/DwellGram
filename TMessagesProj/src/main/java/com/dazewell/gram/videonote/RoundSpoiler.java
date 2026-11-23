@@ -6,9 +6,8 @@ import android.graphics.PorterDuffColorFilter;
 import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
-import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
@@ -29,6 +28,7 @@ import org.telegram.ui.Stories.recorder.HintView2;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import xyz.nextalone.nagram.NaConfig;
@@ -55,19 +55,23 @@ public final class RoundSpoiler {
     private static final long TICK_MS = 50;
     // the recorder cancels a take shorter than this (InstantCameraView.send's recordedTime < 800)
     private static final long MIN_TAKE_MS = 800;
-    private static final int BUTTON_DP = 48;
-    private static final int GLYPH_INSET_DP = 4;
+    // the pill's own cells (InstantCameraView's flash and Infinite buttons)
+    private static final int CELL_DP = 44;
+    // the preview pill comes back once the stock 180 ms fade (setupVideoPlayer) has taken it away
+    private static final long PREVIEW_PILL_DELAY_MS = 200;
+    private static final long PREVIEW_PILL_FADE_MS = 180;
 
     private final InstantCameraView recorder;
     // one long-press line at a time, across both surfaces
     private static WeakReference<HintView2> lastHint = new WeakReference<>(null);
 
+    private LinearLayout pill;
+    private View[] pillFollowers = new View[0];
+    // what the preview pill hid, to put back when the camera opens again
+    private final ArrayList<View> hiddenForPreview = new ArrayList<>();
     private ImageView button;
-    private boolean glass;
-    private org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory glassFactory;
-    private org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundColorProvider glassColors;
     private int glyphColor = Color.WHITE;
-    // the chat whose column holds the button, for its click; weak, as the recorder can outlive a rebuilt fragment
+    // the recorder's chat, for the cell's click; weak, as the recorder can outlive a rebuilt fragment
     private WeakReference<ChatActivity> chatRef = new WeakReference<>(null);
 
     private boolean selected;
@@ -118,22 +122,29 @@ public final class RoundSpoiler {
 
     // ---- the recorder ----
 
-    // A fresh recording: every take starts without Spoiler.
-    public void onNewTake() {
-        endFinishing();
-        selected = false;
-        updateButton(null);
+    // The camera opens: a fresh recording starts without Spoiler, a resume keeps it; either way the pill is whole again.
+    public void onShowCamera(boolean fromPaused) {
+        restorePill();
+        if (!fromPaused) {
+            endFinishing();
+            selected = false;
+        }
+        updateButton(chatRef.get());
     }
 
-    // The fragment is going (destroy, a passcode rebuild): a send can't follow from here.
+    // A discard, or the fragment going (destroy, a passcode rebuild): a send can't follow from here, and a preview
+    // pill still waiting to come back must not show over the close.
     public void onAbandon() {
         endFinishing();
+        if (pill != null) {
+            pill.animate().cancel();
+        }
     }
 
     // InstantCameraView.send(4) with ttl as passed: whether this finished file goes out as a spoiler video. Read here
     // and nowhere else; view-once (ttl) and Infinite Recording win over a stale choice.
     public boolean appliesTo(Object delegate, int ttl) {
-        endFinishing(); // whoever sent it, the take is leaving
+        onAbandon(); // whoever sent it, the take is leaving
         return selected && ttl == 0 && delegate instanceof ChatActivity && !infiniteOn((ChatActivity) delegate);
     }
 
@@ -202,6 +213,9 @@ public final class RoundSpoiler {
             s.bound = info;
             setSendLoading(s.finishingView, true);
         }
+        if (!s.finishing || !s.autoSend) {
+            s.showPreviewPill(chat); // an auto-send is about to close the recorder; a landing shows it from tick
+        }
     }
 
     /**
@@ -248,6 +262,7 @@ public final class RoundSpoiler {
         }
         if (!autoSend || !isPlain(chat, enter)) {
             endFinishing(); // landed: the preview stays, Spoiler on
+            showPreviewPill(chat);
             return;
         }
         if (!enter.isSendButtonTappable()) {
@@ -291,67 +306,35 @@ public final class RoundSpoiler {
     // ---- the button ----
 
     /**
-     * The Spoiler button for the composer's record column, which places, scales and shows it like the compact toggle.
-     * Its visibility is whether this chat offers Spoiler; the column packs over a GONE member.
+     * The Spoiler cell joins the recorder's flash and Infinite pill (InstantCameraView's buttonsLayout), right after
+     * flash, sized as they are and drawn on the pill's glass. alsoHidden are the views beside the pill that follow its
+     * alpha (the flash brightness arm), so they leave with flash when the pill comes back for the preview.
      */
-    public View button(Object delegate) {
-        final ChatActivity chat = delegate instanceof ChatActivity ? (ChatActivity) delegate : null;
-        if (chatRef == null || chatRef.get() != chat) {
-            chatRef = new WeakReference<>(chat); // place() runs every frame of an animation
-        }
-        if (button == null) {
-            button = new ImageView(recorder.getContext()) {
-                @Override
-                public boolean onTouchEvent(MotionEvent event) {
-                    if (event.getActionMasked() == MotionEvent.ACTION_DOWN && !RecordControlsColumn.shown(this)) {
-                        return false; // scaled away with the column, but a scale-0 view still takes a touch on its bounds
-                    }
-                    return super.onTouchEvent(event);
-                }
-            };
-            button.setScaleType(ImageView.ScaleType.CENTER);
-            button.setColorFilter(new PorterDuffColorFilter(glyphColor, PorterDuff.Mode.SRC_IN));
-            button.setLayoutParams(new ViewGroup.LayoutParams(AndroidUtilities.dp(BUTTON_DP), AndroidUtilities.dp(BUTTON_DP)));
-            button.setOnClickListener(v -> {
-                if (RecordControlsColumn.shown(button)) {
-                    toggle(chatRef.get());
-                }
-            });
-            button.setOnLongClickListener(v -> {
-                if (!RecordControlsColumn.shown(button) || !(button.getParent() instanceof FrameLayout)) {
-                    return false;
-                }
-                showHint((FrameLayout) button.getParent(), button, HintView2.DIRECTION_RIGHT);
-                return true;
-            });
-            applyGlass();
-        }
-        updateButton(chat);
-        return button;
+    public void joinPill(LinearLayout pill, View after, Object delegate, View... alsoHidden) {
+        this.pill = pill;
+        this.pillFollowers = alsoHidden;
+        chatRef = new WeakReference<>(delegate instanceof ChatActivity ? (ChatActivity) delegate : null);
+        button = new ImageView(pill.getContext());
+        button.setScaleType(ImageView.ScaleType.CENTER);
+        button.setColorFilter(new PorterDuffColorFilter(glyphColor, PorterDuff.Mode.SRC_IN));
+        // the pill stays clickable while faded out, as the stock flash button does; only a showing pill takes a tap
+        button.setOnClickListener(v -> {
+            if (pill.getAlpha() > 0.5f) {
+                toggle(chatRef.get());
+            }
+        });
+        button.setOnLongClickListener(v -> {
+            if (pill.getAlpha() <= 0.5f) {
+                return false;
+            }
+            showHint(recorder, button, HintView2.DIRECTION_BOTTOM);
+            return true;
+        });
+        pill.addView(button, pill.indexOfChild(after) + 1, LayoutHelper.createLinear(CELL_DP, CELL_DP));
+        updateButton(chatRef.get());
     }
 
-    // The flip button's glass, as the compact toggle wears it (InstantCameraView.setButtonsBackground). That runs before
-    // the column first asks for the button, so it is kept and applied once the button exists. Once: every create()
-    // subscribes for good.
-    public void setGlass(org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory factory,
-                         org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundColorProvider colorProvider) {
-        glassFactory = factory;
-        glassColors = colorProvider;
-        applyGlass();
-    }
-
-    private void applyGlass() {
-        if (glass || button == null || glassFactory == null) {
-            return;
-        }
-        glass = true;
-        final org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable drawable = glassFactory.create(button, glassColors);
-        drawable.setPadding(AndroidUtilities.dp(GLYPH_INSET_DP));
-        drawable.setRadius(AndroidUtilities.dp(BUTTON_DP / 2f - GLYPH_INSET_DP));
-        button.setBackground(drawable);
-    }
-
-    // The flip button's glyph tint, from InstantCameraView.updateColors.
+    // The flash button's glyph tint, from InstantCameraView.updateThemeColors.
     public void setGlyphColor(int color) {
         glyphColor = color;
         if (button != null) {
@@ -359,11 +342,51 @@ public final class RoundSpoiler {
         }
     }
 
-    // Called each frame the column lays the buttons out, so view-once or Infinite turned on elsewhere shows here.
-    public void refresh(Object delegate) {
-        if (button != null && delegate instanceof ChatActivity) {
-            updateButton((ChatActivity) delegate);
+    // Called each frame the composer's record column lays out, so view-once or Infinite turned on elsewhere shows here.
+    public void refresh() {
+        if (button != null && chatRef.get() != null) {
+            updateButton(chatRef.get());
         }
+    }
+
+    // The preview: the stock fade (setupVideoPlayer) takes the pill away with flash and Infinite, which mean nothing
+    // there. Spoiler still does, so the pill comes back holding only this cell, as the memo cover's pill does.
+    private void showPreviewPill(ChatActivity chat) {
+        if (pill == null || button == null || !offered(chat) || pill.getVisibility() != View.VISIBLE) {
+            return; // compact recording hides the whole pill, and keeps it hidden
+        }
+        hideBesideCell();
+        pill.animate().cancel();
+        pill.animate().alpha(1f).setStartDelay(PREVIEW_PILL_DELAY_MS).setDuration(PREVIEW_PILL_FADE_MS).start();
+    }
+
+    private void hideBesideCell() {
+        for (int i = 0; i < pill.getChildCount(); i++) {
+            hideForPreview(pill.getChildAt(i));
+        }
+        for (View v : pillFollowers) {
+            hideForPreview(v);
+        }
+    }
+
+    private void hideForPreview(View v) {
+        if (v != null && v != button && v.getVisibility() == View.VISIBLE) {
+            v.setVisibility(View.GONE);
+            hiddenForPreview.add(v);
+        }
+    }
+
+    // Out of the preview (a resume, a new take): what it hid is back before the stock open animation shows the pill.
+    private void restorePill() {
+        if (pill != null) {
+            pill.animate().cancel();
+        }
+        for (View v : hiddenForPreview) {
+            if (v.getVisibility() == View.GONE) {
+                v.setVisibility(View.VISIBLE);
+            }
+        }
+        hiddenForPreview.clear();
     }
 
     /** The memo cover's Spoiler cell, and the column button: flip the take's choice. */
@@ -379,6 +402,9 @@ public final class RoundSpoiler {
             if (infiniteOn(chat)) {
                 chat.toggleInfiniteRecording();
                 recorder.updateInfiniteButton();
+                if (!hiddenForPreview.isEmpty()) {
+                    hideBesideCell(); // that update shows the Infinite cell again, in a preview pill
+                }
             }
             final ChatActivityEnterView enter = chat.getChatActivityEnterView();
             if (enter != null && enter.voiceOnce && enter.canToggleVideoOnce()) {
@@ -427,7 +453,8 @@ public final class RoundSpoiler {
 
     /**
      * The long-press line, as the composer's view-once hint is built (ControlsView.showOnceHint): a HintView2 filling
-     * host, its pointer on anchor. DIRECTION_RIGHT sits left of a button in the column, DIRECTION_TOP below a cell.
+     * host, its pointer on anchor. DIRECTION_BOTTOM sits above the recorder pill's cell, DIRECTION_TOP below the memo
+     * cover's.
      */
     public static void showHint(FrameLayout host, View anchor, int direction) {
         final HintView2 last = lastHint.get();
@@ -445,9 +472,9 @@ public final class RoundSpoiler {
         h.setText(LocaleController.getString(R.string.VideoMessagesSpoilerHint));
         h.setMaxWidthPx(HintView2.cutInFancyHalf(h.getText(), h.getTextPaint()));
         final FrameLayout.LayoutParams lp = LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.FILL);
-        if (direction == HintView2.DIRECTION_RIGHT) {
-            h.setJointPx(0, y);
-            lp.rightMargin = Math.max(0, host.getWidth() - (int) (x - anchor.getWidth() / 2f));
+        if (direction == HintView2.DIRECTION_BOTTOM) {
+            h.setJointPx(0, x);
+            lp.bottomMargin = Math.max(0, host.getHeight() - (int) (y - anchor.getHeight() / 2f));
         } else {
             h.setJointPx(0, x);
             lp.topMargin = (int) (y + anchor.getHeight() / 2f);
