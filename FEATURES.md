@@ -397,6 +397,10 @@ Turn on *Custom File Names* (N-Settings → General → Storage) to save videos,
 
 Round videos you save to disk (select them, then *Save to downloads*) come out pure black outside the circle, instead of whatever corners the sender's app baked in. The saved copy is re-encoded; the one in Telegram stays as it was. N-Settings → General → Storage → *Black Corners on Saved Round Videos*, on by default, Android 10 and up.
 
+### App name on recorded round videos <!-- #round-video-wordmark -->
+
+Round videos you record carry the app's own name, DWELLGRAM or DWELLGRAMX, curved along the bottom-right edge of the circle where Telegram's recorder put TELEGRAM. Always on.
+
 ### Send a muted gallery video as a real video <!-- #silent-video -->
 
 Muting a video in the gallery editor before you send it used to force it into a low-quality looping GIF. Now the quality button stays live after you mute — tap it once and the clip becomes an ordinary silent video instead, sent at a quality you pick from the usual SD/HD sheet, with a real duration and scrubber. Unmute and mute again to go back to GIF.
