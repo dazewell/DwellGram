@@ -1007,7 +1007,7 @@ final class RoundVideoOverlayRenderer {
             canvas.drawBitmap(frameBitmap, frameSize * x - logoOffset, frameSize * y - logoOffset, null);
         }
 
-        Bitmap text = AndroidUtilities.getBitmapFromRaw(R.raw.round_blur_overlay_text);
+        Bitmap text = com.dazewell.gram.videonote.RoundVideoWordmark.create(); // NagramX: the app's own name in place of the baked-in TELEGRAM art
         if (text != null) {
             Bitmap scaled = Bitmap.createScaledBitmap(text, textSize, textSize, true);
             Bitmap alpha = scaled.extractAlpha();
