@@ -27,6 +27,10 @@
     <string name="VideoMessagesHoldToSendShort">Hold to send</string>
     <string name="VideoMessagesHoldToSendNotice">While recording hands-free or in the paused preview, tap the video to pause or resume. Press and hold it until it fills, then let go to send. Slide off to cancel. While recording, swipe up or down to zoom and left or right to switch cameras.</string>
     <string name="VideoMessagesHoldToSendArmed">Let go to send · slide off to cancel</string>
+    <string name="VideoMessagesSpoiler">Spoiler video messages</string>
+    <string name="VideoMessagesSpoilerNotice">Adds a Spoiler button to the video message recorder. A video message sent with it on goes out as a square video, hidden until tapped. Every new recording starts with it off.</string>
+    <string name="VideoMessagesSpoilerHint">Sends this as a square video, hidden until tapped</string>
+    <string name="VideoMessagesSpoilerRestored">Spoiler is on for this video</string>
     <string name="InfiniteRecordingCeiling">Infinite Recording cap</string>
     <string name="InfiniteRecordingCeilingNotice">How long it can keep going.</string>
     <string name="InfiniteRecordingCeiling10Min">10 minutes</string>
@@ -473,6 +477,8 @@
     <string name="AccDescrCompactRecordingCollapse">Collapse video recorder</string>
     <string name="AccDescrInfiniteRecordingOn">Turn on infinite recording</string>
     <string name="AccDescrInfiniteRecordingOff">Turn off infinite recording</string>
+    <string name="AccDescrVideoSpoilerOn">Turn on spoiler</string>
+    <string name="AccDescrVideoSpoilerOff">Turn off spoiler</string>
     <string name="InfiniteRecordingScheduleTitle">Schedule first message</string>
     <string name="InfiniteRecordingScheduleHint">Every segment after this one is scheduled 2 minutes later.</string>
     <string name="InfiniteRecordingScheduleOrderingHint">Telegram can send a minute or two late, so segments may still go out of order.</string>

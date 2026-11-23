@@ -152,6 +152,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     private RectF rect;
     private final FlashViews.ImageViewInvertable flashButton;
     private final ImageView infiniteButton; // NagramX
+    public final com.dazewell.gram.videonote.RoundSpoiler spoiler = new com.dazewell.gram.videonote.RoundSpoiler(this); // NagramX (#spoiler-video-messages): the take's Spoiler, read by send(4)
     private final com.dazewell.gram.videonote.FrontFlashBrightnessSlider flashBrightnessSlider; // NagramX (#front-flash-brightness)
     private final FlashViews flashViews;
     private RLottieDrawable flashOnDrawable, flashOffDrawable;
@@ -608,6 +609,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         zoomControlView.setButtonsBackground(factory, colorProvider);
         flashBrightnessSlider.setGlassBackground(factory.create(flashBrightnessSlider, colorProvider), factory.create(flashBrightnessSlider, colorProvider)); // NagramX (#front-flash-brightness): the arm joins this row's glass
         compactRecorder.setGlass(factory, colorProvider); // NagramX (#compact-video-recording): its toggle wears the flip button's glass
+        spoiler.setGlass(factory, colorProvider); // NagramX (#spoiler-video-messages): and so does the Spoiler button
     }
 
     private Boolean wasFlashing;
@@ -792,6 +794,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
         flashBrightnessSlider.setFillColor(glyphColor(dark)); // NagramX (#front-flash-brightness)
         if (compactRecorder != null) compactRecorder.updateColors(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(dark)); // NagramX (#compact-video-recording)
+        spoiler.setGlyphColor(glyphColor(dark)); // NagramX (#spoiler-video-messages)
         updateInfiniteButton();
     }
 
@@ -1082,6 +1085,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         key = null;
         iv = null;
         AutoDeleteMediaTask.lockFile(file);
+        spoiler.onRestored(delegate, info, currentAccount); // NagramX (#spoiler-video-messages): a stored Spoiler comes back with its draft
         return true;
     }
 
@@ -1197,6 +1201,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             cameraFile = generateCameraFile();
             sendAdoptedDraft = false; // NagramX (#video-draft-guard): a fresh recording owns a live cameraFile; drop any restored-draft send state
             cameraFileHandedOff = false; // NagramX (#round-video-restart-guard-fix): same, this file is ours again
+            spoiler.onNewTake(); // NagramX (#spoiler-video-messages): every take starts with Spoiler off
         }
 
         SharedConfig.saveConfig();
@@ -1510,9 +1515,26 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             videoPlayer = null;
         }
         if (state == 4) {
+            // NagramX (#spoiler-video-messages): read here and only here. A spoiler leaves as a finished file, so a paused
+            // take sends pause's own copy, which is what its preview shows and its draft holds, and the encoder still
+            // holding the open file is cancelled. previewFile is nulled before the cancel is queued, so its teardown
+            // (handleStopRecording) no longer deletes the copy; the encoder thread is idle while paused.
+            final boolean spoilered = spoiler.appliesTo(delegate, ttl);
+            if (spoilered && videoEncoder != null && videoEncoder.handler != null && recordedTime > 800 && !encoderTeardownPending
+                    && com.dazewell.gram.videonote.RoundSpoiler.isPausedCopy(videoEditedInfo, cameraFile, recording, cameraThread != null)) {
+                previewFile = null;
+                encoderTeardownPending = true;
+                videoEncoder.stopRecording(VideoRecorder.ENCODER_SEND_CANCEL, new SendOptions(true, 0, 0, 0, 0, 0));
+                AutoDeleteMediaTask.unlockFile(cameraFile);
+                cameraFile = new File(videoEditedInfo.originalPath);
+                AutoDeleteMediaTask.lockFile(cameraFile);
+            }
             // NagramX (#round-video-restart-guard-fix): with a terminal stop already queued the recorder is quitting and
             // would drop this; its file is finished, so send it directly, as happens once teardown nulls videoEncoder
             if (videoEncoder != null && recordedTime > 800 && !encoderTeardownPending) {
+                if (spoilered) {
+                    return; // NagramX (#spoiler-video-messages): no finished copy to send, and never as a plain live round
+                }
                 // NagramX (#round-video-restart-guard-fix): from here the file belongs to the outgoing message
                 cameraFileHandedOff = true;
                 if (videoEncoder.handler != null) {
@@ -1529,6 +1551,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 videoEditedInfo.startTime = -1;
                 videoEditedInfo.endTime = -1;
             }
+            videoEditedInfo.roundVideo &= !spoilered; // NagramX (#spoiler-video-messages): an ordinary video, converted like a trimmed round
             if (videoEditedInfo.needConvert()) {
                 file = null;
                 encryptedFile = null;
@@ -1557,10 +1580,11 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             MediaController.PhotoEntry entry = new MediaController.PhotoEntry(0, 0, 0, cameraFile.getAbsolutePath(), 0, true, 0, 0, 0);
             entry.ttl = ttl;
             entry.effectId = effectId;
+            entry.hasSpoiler = spoilered; // NagramX (#spoiler-video-messages): ChatActivity.sendMedia passes it on as the media spoiler
             // NagramX (#round-video-restart-guard-fix): set before sendMedia, which on stories calls cancel() back
             cameraFileHandedOff = true;
             delegate.sendMedia(entry, videoEditedInfo, notify, scheduleDate, scheduleRepeatPeriod, false, stars);
-            if (scheduleDate != 0) {
+            if (scheduleDate != 0 || spoilered) { // NagramX (#spoiler-video-messages): sendMedia closes the camera only after a round send
                 startAnimation(false, false);
             }
             MediaController.getInstance().requestRecordAudioFocus(false);
@@ -1743,6 +1767,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     // never introduce.
     public void abandonPreview() {
         previewAbandoned = true;
+        spoiler.onAbandon(); // NagramX (#spoiler-video-messages): no send may follow from a torn-down fragment
         stopProgressTimer();
         if (videoPlayer != null) {
             videoPlayer.releasePlayer(true);

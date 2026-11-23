@@ -38377,6 +38377,9 @@ public class ChatActivity extends BaseFragment implements
         if (com.dazewell.gram.videonote.VideoNoteShortcut.onBackPressed(this, invoked)) {
             return false; // NagramX: back from a video memo recorded under the lock goes to the passcode, not the app
         }
+        if (com.dazewell.gram.videonote.RoundSpoiler.holdsBack(instantCameraView)) {
+            return false; // NagramX (#spoiler-video-messages): a back while a sent spoiler take stops would cancel(false) it below
+        }
         final Bulletin bulletin = Bulletin.getVisibleBulletin();
         if (bulletin != null && bulletin.getLayout() instanceof Bulletin.LottieLayoutWithReactions) {
             if (invoked) {

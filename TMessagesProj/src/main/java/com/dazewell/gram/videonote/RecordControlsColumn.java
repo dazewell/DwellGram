@@ -16,7 +16,7 @@ import org.telegram.ui.Components.LayoutHelper;
 
 /**
  * The composer's record controls column on the right: pause, the view-once "(1)" above it where the chat offers
- * view-once, and the round video recorder's own buttons above those, the flip and then the compact toggle.
+ * view-once, and the round video recorder's own buttons above those, the flip, the compact toggle and Spoiler.
  *
  * Pause and "(1)" are drawn by ChatActivityEnterView.ControlsView. The recorder's buttons are views, so they move out
  * of the recorder into a host this column keeps directly above ControlsView, and the host takes ControlsView's alpha
@@ -42,7 +42,8 @@ public final class RecordControlsColumn {
     // the recorder's buttons, in their order up the column
     private static final int FLIP = 0;
     private static final int COMPACT_TOGGLE = 1;
-    private static final int SLOTS = 2;
+    private static final int SPOILER = 2; // RoundSpoiler's, GONE where the chat doesn't offer it
+    private static final int SLOTS = 3;
     // a member scaled below this is not there for a touch; the flip's press scale is 0.9
     private static final float SHOWN = 0.01f;
     private static final float EPSILON = 0.01f;
@@ -62,6 +63,8 @@ public final class RecordControlsColumn {
     private ViewTreeObserver observer;
     // the round video recorder whose buttons these are, for whether it is showing
     private View recorder;
+    // the recorder's host, for the Spoiler button's per-frame refresh
+    private Object delegate;
 
     // the stack is up for a round video, so the buttons show; see the class comment for when
     private boolean armed;
@@ -160,6 +163,10 @@ public final class RecordControlsColumn {
         if (toggle != null) {
             column.join(toggle, COMPACT_TOGGLE, false);
         }
+        if (recorder instanceof InstantCameraView) {
+            column.join(((InstantCameraView) recorder).spoiler.button(delegate), SPOILER, false); // live and in the preview
+        }
+        column.delegate = delegate;
         column.recorder = recorder;
         column.maybeArm();
         column.relayout();
@@ -241,6 +248,9 @@ public final class RecordControlsColumn {
                 }
             }
             return;
+        }
+        if (recorder instanceof InstantCameraView) {
+            ((InstantCameraView) recorder).spoiler.refresh(delegate); // view-once or Infinite turned on clears it
         }
         // ControlsView and the host share a parent; both are read fresh, translations included
         final float columnX = column.getX() - host.getX() + cx, columnY = column.getY() - host.getY() + pauseCenterY;

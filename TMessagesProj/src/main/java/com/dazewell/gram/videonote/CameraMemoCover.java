@@ -119,6 +119,7 @@ final class CameraMemoCover extends FrameLayout {
     private final LinearLayout togglePill;
     private final ToggleCell flashCell;
     private final ToggleCell infiniteCell;
+    private final ToggleCell spoilerCell;
     private final ControlButton onceButton;
     private boolean flashOn;
     private int infiniteState = InstantCameraView.INFINITE_RECORDING_UNAVAILABLE;
@@ -345,6 +346,20 @@ final class CameraMemoCover extends FrameLayout {
         togglePill.setPadding(AndroidUtilities.dp(4), 0, AndroidUtilities.dp(4), 0);
         togglePill.addView(flashCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
         togglePill.addView(infiniteCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
+        // #spoiler-video-messages: the take's Spoiler, which RoundSpoiler owns; recording or in the preview
+        spoilerCell = new ToggleCell(context, R.drawable.msg_spoiler_off, R.drawable.msg_spoiler, false);
+        spoilerCell.setOnClickListener(v -> {
+            InstantCameraView camera = camera();
+            if (camera != null && spoilerCell.isEnabled()) {
+                camera.spoiler.toggle(chatRef.get());
+                refresh();
+            }
+        });
+        spoilerCell.setOnLongClickListener(v -> {
+            RoundSpoiler.showHint(this, spoilerCell, org.telegram.ui.Stories.recorder.HintView2.DIRECTION_TOP);
+            return true;
+        });
+        togglePill.addView(spoilerCell, new LinearLayout.LayoutParams(AndroidUtilities.dp(40), AndroidUtilities.dp(36)));
         addView(togglePill);
         onceButton = new ControlButton(context, ControlButton.ONCE);
         onceButton.setOnClickListener(v -> {
@@ -639,12 +654,25 @@ final class CameraMemoCover extends FrameLayout {
     // buttons. Infinite and view-once follow the composer's availability, view-once only once a take exists, since
     // starting a new one clears it.
     private void syncToggles(boolean live, boolean shown) {
-        togglePill.setVisibility(shown ? VISIBLE : GONE);
+        // Spoiler also works on the paused or stopped preview, so there the pill stays up carrying it alone, unless the
+        // open circle is under it (#spoiler-video-messages)
+        ChatActivity chat = chatRef.get();
+        InstantCameraView camera = camera();
+        boolean spoiler = camera != null && camera.spoiler.isOffered(chat);
+        boolean previewPill = !shown && spoiler && live && bound
+                && !(holeOpen && hasHole && hole.intersects(togglePill.getLeft(), togglePill.getTop(), togglePill.getRight(), togglePill.getBottom()));
+        togglePill.setVisibility(shown || previewPill ? VISIBLE : GONE);
+        flashCell.setVisibility(shown ? VISIBLE : GONE);
+        boolean spoilerOn = spoiler && camera.spoiler.isOn(chat);
+        spoilerCell.setVisibility(spoiler ? VISIBLE : GONE);
+        spoilerCell.setEnabled(recording || bound);
+        spoilerCell.setOn(spoilerOn);
+        spoilerCell.setContentDescription(LocaleController.getString(spoilerOn ? R.string.AccDescrVideoSpoilerOff : R.string.AccDescrVideoSpoilerOn));
         flashCell.setOn(flashOn);
         flashCell.setContentDescription(LocaleController.getString(flashOn ? R.string.AccDescrCameraFlashOff : R.string.AccDescrCameraFlashOn));
         boolean infinite = infiniteState != InstantCameraView.INFINITE_RECORDING_UNAVAILABLE;
         boolean infiniteOn = infiniteState == InstantCameraView.INFINITE_RECORDING_ON;
-        infiniteCell.setVisibility(infinite ? VISIBLE : GONE);
+        infiniteCell.setVisibility(infinite && shown ? VISIBLE : GONE);
         infiniteCell.setEnabled(recording);
         infiniteCell.setOn(infiniteOn);
         infiniteCell.setContentDescription(LocaleController.getString(infiniteOn ? R.string.AccDescrInfiniteRecordingOff : R.string.AccDescrInfiniteRecordingOn));
@@ -662,7 +690,7 @@ final class CameraMemoCover extends FrameLayout {
         onceButton.setEnabled(recording || bound);
         onceButton.setPlaying(onceOn);
         onceButton.setContentDescription(LocaleController.getString(onceOn ? R.string.AccActionOnceDeactivate : R.string.AccActionOnceActivate));
-        if (shown) {
+        if (shown || previewPill) {
             float centerY = statusBaseline() - textPaint.getTextSize() * 0.35f;
             togglePill.setTranslationY(Math.round(centerY - togglePill.getHeight() / 2f));
         }
