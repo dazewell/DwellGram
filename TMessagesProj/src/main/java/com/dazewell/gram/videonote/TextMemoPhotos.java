@@ -33,8 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import xyz.nextalone.nagram.NaConfig;
-
 /**
  * Photos and videos for the text memo, picked with the system picker so no storage permission is asked and the app lock
  * is never involved. A picked uri is only readable while the memo lives, so each one is copied to the cache and the memo
@@ -255,6 +253,7 @@ final class TextMemoPhotos {
 
     /** An album when there are several; the text rides on the first item as its caption. */
     static void send(AccountInstance account, List<String> paths, String caption, long dialogId) {
+        TextMemoSignature signature = TextMemoSignature.enabled();
         ArrayList<SendMessagesHelper.SendingMediaInfo> infos = new ArrayList<>();
         for (String path : paths) {
             if (!new File(path).exists()) {
@@ -268,20 +267,19 @@ final class TextMemoPhotos {
         if (infos.isEmpty()) {
             // Every copy is gone: the text still goes
             if (!TextUtils.isEmpty(caption)) {
-                sendText(account, caption, dialogId);
+                sendText(account, caption, dialogId, signature);
             }
             return;
         }
         CharSequence[] signedCaption = new CharSequence[]{caption};
-        ArrayList<TLRPC.MessageEntity> captionEntities = NaConfig.INSTANCE.getTextMemoSignature().Bool()
-                ? TextMemoSignature.append(signedCaption, null) : null;
+        ArrayList<TLRPC.MessageEntity> captionEntities = signature.append(account.getCurrentAccount(), signedCaption, null);
         // Include the signature in the caption limit; a long caption falls back to one signed text send.
         boolean captionFits = signedCaption[0] == null || signedCaption[0].length() <= MessagesController.getInstance(account.getCurrentAccount()).getCaptionMaxLengthLimit();
         infos.get(0).caption = captionFits && signedCaption[0] != null ? signedCaption[0].toString() : null;
         infos.get(0).entities = captionFits ? captionEntities : null;
         SendMessagesHelper.prepareSendingMedia(account, infos, dialogId, null, null, null, null, false, infos.size() > 1, null, true, 0, 0, 0, false, null, null, 0, false, 0, 0, null);
         if (!captionFits) {
-            sendText(account, caption, dialogId);
+            sendText(account, caption, dialogId, signature);
         }
     }
 
@@ -290,17 +288,20 @@ final class TextMemoPhotos {
      * from Ghost Hold: a memo is written to go out now. A copy, so keep it in step with upstream's when that changes.
      */
     static void sendText(AccountInstance account, CharSequence text, long dialogId) {
-        final boolean signature = NaConfig.INSTANCE.getTextMemoSignature().Bool();
+        sendText(account, text, dialogId, TextMemoSignature.enabled());
+    }
+
+    private static void sendText(AccountInstance account, CharSequence text, long dialogId, TextMemoSignature signature) {
         account.getMessagesStorage().getStorageQueue().postRunnable(() -> Utilities.stageQueue.postRunnable(() -> AndroidUtilities.runOnUIThread(() -> {
             CharSequence textFinal = SendMessagesHelper.getTrimmedString(text);
             if (textFinal == null || textFinal.length() == 0) {
                 return;
             }
-            int limit = account.getMessagesController().getMaxMessageLength();
+            int messageLimit = messageLimit(account);
             // Reserve room in each part so the last keeps the whole signature with its text.
-            if (signature) {
-                limit -= TextMemoSignature.SUFFIX.length();
-            }
+            int limit = Math.max(2, messageLimit - signature.suffixLength());
+            CharSequence pending = null;
+            ArrayList<TLRPC.MessageEntity> pendingEntities = null;
             for (int start = 0; start < textFinal.length();) {
                 int end = Math.min(start + limit, textFinal.length());
                 // Each part is encoded separately; keep both halves of an emoji in the same part.
@@ -310,16 +311,59 @@ final class TextMemoPhotos {
                 }
                 CharSequence[] part = new CharSequence[] { textFinal.subSequence(start, end) };
                 ArrayList<TLRPC.MessageEntity> entities = account.getMediaDataController().getEntities(part, true);
-                if (signature && end == textFinal.length()) {
-                    entities = TextMemoSignature.append(part, entities);
-                }
-                SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(part[0].toString(), dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false);
-                params.entities = entities;
-                com.dazewell.gram.ghosthold.GhostHoldController.exempt(params);
-                account.getSendMessagesHelper().sendMessage(params);
                 start = end;
+                // An empty Markdown-only tail must not swallow the footer from the last real part.
+                if (signature.suffixLength() > 0 && (part[0] == null || part[0].toString().trim().isEmpty())) {
+                    continue;
+                }
+                if (pending != null) {
+                    sendPart(account, pending, pendingEntities, dialogId);
+                }
+                pending = part[0];
+                pendingEntities = entities;
+            }
+            if (pending != null) {
+                CharSequence[] last = {pending};
+                pendingEntities = signature.append(account.getCurrentAccount(), last, pendingEntities);
+                sendPart(account, last[0], pendingEntities, dialogId);
             }
         })));
+    }
+
+    private static int messageLimit(AccountInstance account) {
+        int limit = account.getMessagesController().getMaxMessageLength();
+        return limit >= 2 ? limit : 4096;
+    }
+
+    private static void sendPart(AccountInstance account, CharSequence text, ArrayList<TLRPC.MessageEntity> entities, long dialogId) {
+        int limit = messageLimit(account);
+        for (int start = 0; start < text.length();) {
+            int end = Math.min(start + limit, text.length());
+            if (end < text.length() && Character.isHighSurrogate(text.charAt(end - 1))
+                    && Character.isLowSurrogate(text.charAt(end))) {
+                end--;
+            }
+            ArrayList<TLRPC.MessageEntity> partEntities = entities;
+            // A lowered account limit may be shorter than a saved signature; split, never truncate.
+            if (entities != null && (start != 0 || end != text.length())) {
+                partEntities = new ArrayList<>();
+                for (TLRPC.MessageEntity entity : entities) {
+                    int from = Math.max(start, entity.offset);
+                    int to = Math.min(end, entity.offset + entity.length);
+                    if (from < to) {
+                        TLRPC.MessageEntity clipped = TextMemoSignature.cloneEntity(entity);
+                        clipped.offset = from - start;
+                        clipped.length = to - from;
+                        partEntities.add(clipped);
+                    }
+                }
+            }
+            SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(text.subSequence(start, end).toString(), dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false);
+            params.entities = partEntities;
+            com.dazewell.gram.ghosthold.GhostHoldController.exempt(params);
+            account.getSendMessagesHelper().sendMessage(params);
+            start = end;
+        }
     }
 
     static void discard(List<String> paths) {

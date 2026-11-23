@@ -511,7 +511,15 @@
     <string name="TextMemoShortcut">Text memo shortcut</string>
     <string name="TextMemoSignature">Text memo signature</string>
     <string name="TextMemoSignatureText" translatable="false">sent from memo</string>
-    <string name="TextMemoSignatureNotice">Adds “sent from memo” as an italic quote after a blank line to text sent from either Text memo shortcut, including media captions.</string>
+    <string name="TextMemoSignatureNotice">Adds your signature after a blank line to text sent from either Text memo shortcut, including media captions.</string>
+    <string name="TextMemoSignatureEdit">Edit signature</string>
+    <string name="TextMemoSignatureHint">Write a signature</string>
+    <string name="TextMemoSignatureHelp">Select text to format it, just like a message. Up to %1$d characters. An empty signature adds nothing. Save to keep your changes; back cancels.</string>
+    <string name="TextMemoSignatureLimit">Use up to %1$d characters for your signature.</string>
+    <string name="TextMemoSignatureEmpty">An empty signature adds nothing.</string>
+    <string name="TextMemoSignatureInvalid">Check the signature’s text and formatting before saving.</string>
+    <string name="TextMemoSignaturePreview">Preview signature</string>
+    <string name="TextMemoSignaturePreviewBody">Your memo</string>
     <string name="TextMemoShortcutNotice">Adds two launcher shortcuts for typing a message to Saved Messages or a person you pick, even while the app is locked: one opens full screen, the other floats over what you were doing.</string>
     <string name="TextMemoShortcutLabel">Text memo</string>
     <string name="TextMemoShortcutLabelCard">Text memo · floating</string>

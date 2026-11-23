@@ -87,6 +87,7 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
     }, null));
     private final AbstractConfigCell textMemoRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getTextMemoShortcut(), getString(R.string.TextMemoShortcutNotice)));
     private final AbstractConfigCell textMemoSignatureRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getTextMemoSignature(), getString(R.string.TextMemoSignatureNotice)));
+    private final AbstractConfigCell textMemoSignatureEditorRow = cellGroup.appendCell(new ConfigCellText("TextMemoSignatureEdit", () -> presentFragment(new com.dazewell.gram.videonote.TextMemoSignatureActivity())));
     // Shared by every memo, so it sits last
     private final ConfigCellText videoNoteTargetRow = (ConfigCellText) cellGroup.appendCell(new ConfigCellText("VideoNoteShortcutTarget", null));
     private final AbstractConfigCell dividerVideoNote = cellGroup.appendCell(new ConfigCellDivider());
@@ -185,7 +186,7 @@ public class LauncherShortcutsActivity extends BaseNekoXSettingsActivity {
     private void updateMemoRows(boolean animated) {
         setRowShown(videoNoteScreenRow, videoNoteRow, VideoNoteShortcut.isEnabled(), animated);
         setRowShown(videoNoteCameraRow, videoNoteScreenRow, VideoNoteShortcut.isEnabled(), animated);
-        setRowShown(videoNoteTargetRow, textMemoSignatureRow, VideoNoteShortcut.isEnabled() || TextMemoShortcut.isEnabled(), animated);
+        setRowShown(videoNoteTargetRow, textMemoSignatureEditorRow, VideoNoteShortcut.isEnabled() || TextMemoShortcut.isEnabled(), animated);
         addRowsToMap(cellGroup);
     }
 

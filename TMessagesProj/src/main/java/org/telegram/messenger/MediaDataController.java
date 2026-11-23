@@ -7677,7 +7677,8 @@ public class MediaDataController extends BaseController {
             entities.add(entity);
         }
 
-        if (NaConfig.INSTANCE.getMarkdownParser().Int() == NekoConfig.MARKDOWN_PARSER_NEKO)  {
+        // NagramX: explicit entity editors must keep literal Markdown under either parser.
+        if (parseMarkdown && NaConfig.INSTANCE.getMarkdownParser().Int() == NekoConfig.MARKDOWN_PARSER_NEKO)  {
             EntitiesHelper.parseMarkdown(message, allowStrike);
         }
 
@@ -7872,7 +7873,8 @@ public class MediaDataController extends BaseController {
         CharSequence cs = message[0];
         if (entities == null) entities = new ArrayList<>();
         addTonAddressEntities(cs, entities);
-        if (NaConfig.INSTANCE.getMarkdownParser().Int() == NekoConfig.MARKDOWN_PARSER_NEKO) return entities;
+        // NagramX: span-only extraction must not trim literal text or shift explicit entities.
+        if (!parseMarkdown || NaConfig.INSTANCE.getMarkdownParser().Int() == NekoConfig.MARKDOWN_PARSER_NEKO) return entities;
         if (parseMarkdown) {
             cs = parsePattern(cs, BOLD_PATTERN, entities, obj -> new TLRPC.TL_messageEntityBold());
             cs = parsePattern(cs, ITALIC_PATTERN, entities, obj -> new TLRPC.TL_messageEntityItalic());
