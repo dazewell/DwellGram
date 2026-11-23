@@ -502,6 +502,9 @@
     <string name="CameraMemoZoomStop">Zoom %1$s</string>
     <string name="MemoShortcutsHeader">Memos</string>
     <string name="TextMemoShortcut">Text memo shortcut</string>
+    <string name="TextMemoSignature">Text memo signature</string>
+    <string name="TextMemoSignatureText" translatable="false">sent from memo</string>
+    <string name="TextMemoSignatureNotice">Adds “sent from memo” as an italic quote after a blank line to text sent from either Text memo shortcut, including media captions.</string>
     <string name="TextMemoShortcutNotice">Adds two launcher shortcuts for typing a message to Saved Messages or a person you pick, even while the app is locked: one opens full screen, the other floats over what you were doing.</string>
     <string name="TextMemoShortcutLabel">Text memo</string>
     <string name="TextMemoShortcutLabelCard">Text memo · floating</string>

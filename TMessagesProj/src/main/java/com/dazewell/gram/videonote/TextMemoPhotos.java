@@ -33,6 +33,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import xyz.nextalone.nagram.NaConfig;
+
 /**
  * Photos and videos for the text memo, picked with the system picker so no storage permission is asked and the app lock
  * is never involved. A picked uri is only readable while the memo lives, so each one is copied to the cache and the memo
@@ -270,9 +272,13 @@ final class TextMemoPhotos {
             }
             return;
         }
-        // A caption has its own, shorter limit than a message
-        boolean captionFits = caption == null || caption.length() <= MessagesController.getInstance(account.getCurrentAccount()).getCaptionMaxLengthLimit();
-        infos.get(0).caption = captionFits ? caption : null;
+        CharSequence[] signedCaption = new CharSequence[]{caption};
+        ArrayList<TLRPC.MessageEntity> captionEntities = NaConfig.INSTANCE.getTextMemoSignature().Bool()
+                ? TextMemoSignature.append(signedCaption, null) : null;
+        // Include the signature in the caption limit; a long caption falls back to one signed text send.
+        boolean captionFits = signedCaption[0] == null || signedCaption[0].length() <= MessagesController.getInstance(account.getCurrentAccount()).getCaptionMaxLengthLimit();
+        infos.get(0).caption = captionFits && signedCaption[0] != null ? signedCaption[0].toString() : null;
+        infos.get(0).entities = captionFits ? captionEntities : null;
         SendMessagesHelper.prepareSendingMedia(account, infos, dialogId, null, null, null, null, false, infos.size() > 1, null, true, 0, 0, 0, false, null, null, 0, false, 0, 0, null);
         if (!captionFits) {
             sendText(account, caption, dialogId);
@@ -284,16 +290,24 @@ final class TextMemoPhotos {
      * from Ghost Hold: a memo is written to go out now. A copy, so keep it in step with upstream's when that changes.
      */
     static void sendText(AccountInstance account, CharSequence text, long dialogId) {
+        final boolean signature = NaConfig.INSTANCE.getTextMemoSignature().Bool();
         account.getMessagesStorage().getStorageQueue().postRunnable(() -> Utilities.stageQueue.postRunnable(() -> AndroidUtilities.runOnUIThread(() -> {
             CharSequence textFinal = SendMessagesHelper.getTrimmedString(text);
             if (textFinal == null || textFinal.length() == 0) {
                 return;
             }
             int limit = account.getMessagesController().getMaxMessageLength();
+            // Reserve room in each part so the last keeps the whole signature with its text.
+            if (signature) {
+                limit -= TextMemoSignature.SUFFIX.length();
+            }
             int count = (int) Math.ceil(textFinal.length() / (float) limit);
             for (int a = 0; a < count; a++) {
                 CharSequence[] part = new CharSequence[] { textFinal.subSequence(a * limit, Math.min((a + 1) * limit, textFinal.length())) };
                 ArrayList<TLRPC.MessageEntity> entities = account.getMediaDataController().getEntities(part, true);
+                if (signature && a == count - 1) {
+                    entities = TextMemoSignature.append(part, entities);
+                }
                 SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(part[0].toString(), dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false);
                 params.entities = entities;
                 com.dazewell.gram.ghosthold.GhostHoldController.exempt(params);
