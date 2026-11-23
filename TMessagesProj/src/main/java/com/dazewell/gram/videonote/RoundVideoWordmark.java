@@ -55,7 +55,8 @@ public final class RoundVideoWordmark {
     private static Bitmap draw(String text) {
         TextPaint paint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(Color.WHITE);
-        paint.setTypeface(AndroidUtilities.bold());
+        // Fixed face, not bold(), which follows the font setting: the numbers above were fitted to this one.
+        paint.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
         paint.setTextSize(TEXT_SIZE);
         paint.setLetterSpacing(LETTER_SPACING);
 
