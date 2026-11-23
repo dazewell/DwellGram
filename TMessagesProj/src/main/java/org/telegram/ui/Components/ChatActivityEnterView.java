@@ -3513,6 +3513,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                                 }
                                 CameraController.getInstance().cancelOnInitRunnable(onFinishInitCameraRunnable);
                                 pendingCameraFront = null;
+                                if (com.dazewell.gram.videonote.RoundSpoiler.finishFirst(ChatActivityEnterView.this)) return true; // NagramX (#spoiler-video-messages): stops into the preview, as confirm-before-sending does, and sends from there
                                 delegate.needStartRecordVideo(NekoConfig.confirmAVMessage.Bool() ? 3 : 1, infiniteVideoNotify, infiniteSegmentScheduleDate(infiniteVideoSegments), 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, 0);
                                 sendButton.setEffect(effectId = 0);
                             } else if (!sendVoiceEnabled) {
@@ -3645,6 +3646,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     if (!hasRecordVideo || calledRecordRunnable) {
                         startedDraggingX = -1;
                         if (hasRecordVideo && isInVideoMode) {
+                            if (com.dazewell.gram.videonote.RoundSpoiler.finishFirst(ChatActivityEnterView.this)) return; // NagramX (#spoiler-video-messages): as at the record button's send
                             delegate.needStartRecordVideo(1, infiniteVideoNotify, infiniteSegmentScheduleDate(infiniteVideoSegments), 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, 0);
                         } else {
                             if (recordingAudioVideo && isInScheduleMode()) {
@@ -8399,6 +8401,14 @@ public class ChatActivityEnterView extends FrameLayout implements
         sendMessage();
     }
 
+    // NagramX (#spoiler-video-messages): the preview's send tap, unless its armed action or the rich-draft sheet would
+    // turn it into something else; then the take stays in the preview for the user to send
+    public boolean sendVideoPreviewIfPlain() {
+        if (richDraftActive || getEligibleArmedSendAction() != RememberedSendAction.NONE) return false;
+        performSendButtonClick();
+        return true;
+    }
+
     private boolean isSendClickIgnored() {
         return (messageSendPreview != null && messageSendPreview.isShowing()) || (runningAnimationAudio != null && runningAnimationAudio.isRunning()) || moveToSendStateRunnable != null;
     }
@@ -8442,6 +8452,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                     });
                     return;
                 }
+                if (com.dazewell.gram.videonote.RoundSpoiler.finishFirst(this)) return; // NagramX (#spoiler-video-messages): as at the record button's send
                 delegate.needStartRecordVideo(NekoConfig.confirmAVMessage.Bool() ? 3 : 1, infiniteVideoNotify, infiniteSegmentScheduleDate(infiniteVideoSegments), 0, voiceOnce ? 0x7FFFFFFF : 0, effectId, 0);
                 sendButton.setEffect(effectId = 0);
             } else if (NekoConfig.confirmAVMessage.Bool()) {
@@ -9854,6 +9865,7 @@ public class ChatActivityEnterView extends FrameLayout implements
         final boolean allowConfirmFinal = allowConfirm && !animatorEphemeralMessageVisibility.getValue();
 
         final Runnable send = () -> {
+            if (com.dazewell.gram.videonote.RoundSpoiler.refusesSend(this)) return; // NagramX (#spoiler-video-messages): never strip a spoiler the chat can't take
             if (slowModeTimer == Integer.MAX_VALUE && !isInScheduleMode()) {
                 if (delegate != null) {
                     delegate.scrollToSendingMessage();
@@ -17108,6 +17120,7 @@ public class ChatActivityEnterView extends FrameLayout implements
                 // mode-gated and adopts the file onto the send path only when this instance didn't record it.
                 if (parentFragment != null && audioToSendPath != null && videoToSendMessageObject.roundVideo) {
                     parentFragment.onVideoDraftReady(videoToSendMessageObject, audioToSendPath, voiceOnce);
+                    com.dazewell.gram.videonote.RoundSpoiler.onPreviewBound(parentFragment, videoToSendMessageObject); // NagramX (#spoiler-video-messages): after the save, so the record exists
                 }
             } else {
                 audioToSend = (TLRPC.TL_document) args[1];
@@ -19978,6 +19991,11 @@ public class ChatActivityEnterView extends FrameLayout implements
         }
         infiniteVideoMessage = !infiniteVideoMessage;
         return getInfiniteRecordingState();
+    }
+
+    // NagramX (#spoiler-video-messages): armed as such, which the state above hides in schedule mode while a rollover runs
+    public boolean isInfiniteVideoArmed() {
+        return infiniteVideoMessage;
     }
 
     // NagramX (#camera-memo-controls): the camera memo covers the record controls, so it flips view-once here. The same

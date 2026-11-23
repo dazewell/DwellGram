@@ -1125,6 +1125,13 @@ object NaConfig {
             ConfigItem.configTypeBool,
             true
         )
+    // Offers the Spoiler toggle on round video takes; it only shows or hides the control
+    val videoMessagesSpoiler =
+        addConfig(
+            "VideoMessagesSpoiler",
+            ConfigItem.configTypeBool,
+            true
+        )
     // How far the hold-to-send hint has been learned: sends counted up to its cap, and whether a swipe was used
     val videoMessagesHoldToSendSends =
         addConfig(

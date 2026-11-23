@@ -335,6 +335,10 @@ When camera mode is set to Ask, the camera choice popup has an External Micropho
 
 *Infinite Recording* stitches 60-second round video message segments end to end instead of stopping at the usual cap. Toggle it from the camera overlay while recording — off by default, and unavailable during slow mode, paid messages, secret chats, or view-once. N-Settings → Chat → Camera → *Infinite Recording cap* sets how long it can run before it stops itself: 10 (default), 15, 20, 30, 60 minutes, or Unlimited.
 
+### Spoiler video messages <!-- #spoiler-video-messages -->
+
+A Spoiler button sits beside flash in the round video recorder, and in the Video Memo pill. Turn it on while recording or in the preview, and the take goes out as a square video hidden until tapped. Every new recording starts with it off, and it can't be combined with Infinite Recording or view-once. N-Settings → Chat → Camera → *Spoiler video messages*, on by default.
+
 ### Warning before a round video message hits its limit <!-- #video-limit-warning -->
 
 Round video recordings warn you before they end. Configured via N-Settings → Chat → Camera, you get a light warning buzz 5 seconds before the cutoff, and a medium cutoff buzz when it actually lands.
