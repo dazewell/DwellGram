@@ -794,7 +794,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
         flashBrightnessSlider.setFillColor(glyphColor(dark)); // NagramX (#front-flash-brightness)
         if (compactRecorder != null) compactRecorder.updateColors(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), glyphColor(dark)); // NagramX (#compact-video-recording)
-        spoiler.setGlyphColor(glyphColor(dark)); // NagramX (#spoiler-video-messages)
+        // NagramX (#spoiler-video-messages): its cell's selected fill and glyph are the Infinite cell's (applyInfiniteRecordingState)
+        spoiler.setColors(glyphColor(dark), isNewDesign ? Theme.getColor(Theme.key_chat_messagePanelVoiceBackground, resourcesProvider) : dark ? Color.WHITE : Color.BLACK, isNewDesign ? Color.WHITE : dark ? Color.BLACK : Color.WHITE);
         updateInfiniteButton();
     }
 

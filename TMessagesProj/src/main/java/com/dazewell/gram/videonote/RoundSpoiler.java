@@ -18,6 +18,7 @@ import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.VideoEditedInfo;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.BulletinFactory;
@@ -57,6 +58,8 @@ public final class RoundSpoiler {
     private static final long MIN_TAKE_MS = 800;
     // the pill's own cells (InstantCameraView's flash and Infinite buttons)
     private static final int CELL_DP = 44;
+    // the pill's corner radius (InstantCameraView.setButtonsBackground), which the Infinite cell's fill reproduces
+    private static final int CAP_DP = 21;
     // the preview pill comes back once the stock 180 ms fade (setupVideoPlayer) has taken it away
     private static final long PREVIEW_PILL_DELAY_MS = 200;
     private static final long PREVIEW_PILL_FADE_MS = 180;
@@ -72,6 +75,11 @@ public final class RoundSpoiler {
     private boolean previewPillUp;
     private ImageView button;
     private int glyphColor = Color.WHITE;
+    private int fillColor = Color.WHITE;
+    private int glyphOnColor = Color.BLACK;
+    // what the cell last drew: selected, first and last bits, and the fill it used
+    private int appliedLook = -1;
+    private int appliedFill;
     // the recorder's chat, for the cell's click; weak, as the recorder can outlive a rebuilt fragment
     private WeakReference<ChatActivity> chatRef = new WeakReference<>(null);
 
@@ -336,16 +344,23 @@ public final class RoundSpoiler {
         pill.addView(button, pill.indexOfChild(after) + 1, LayoutHelper.createLinear(CELL_DP, CELL_DP));
         // While the preview pill is up, anything the recorder shows again (Infinite when view-once goes off, the
         // brightness arm when compact is toggled) is hidden before it draws; that frame is skipped for the relayout.
-        pill.getViewTreeObserver().addOnPreDrawListener(() -> !previewPillUp || !hideBesideCell());
+        // The fill's corners follow its neighbours, so they are re-read here too.
+        pill.getViewTreeObserver().addOnPreDrawListener(() -> {
+            final boolean draw = !previewPillUp || !hideBesideCell();
+            applyLook();
+            return draw;
+        });
+        button.setImageResource(R.drawable.msg_spoiler);
         updateButton(chatRef.get());
     }
 
-    // The flash button's glyph tint, from InstantCameraView.updateThemeColors.
-    public void setGlyphColor(int color) {
-        glyphColor = color;
-        if (button != null) {
-            button.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));
-        }
+    // From InstantCameraView.updateThemeColors: the flash glyph's tint, and the Infinite cell's selected fill and glyph.
+    public void setColors(int glyph, int fill, int glyphOn) {
+        glyphColor = glyph;
+        fillColor = fill;
+        glyphOnColor = glyphOn;
+        appliedLook = -1;
+        applyLook();
     }
 
     // Called each frame the composer's record column lays out, so view-once or Infinite turned on elsewhere shows here.
@@ -455,13 +470,43 @@ public final class RoundSpoiler {
         if (chat != null && button.getVisibility() != visibility) {
             button.setVisibility(visibility);
         }
-        // a state glyph, as the memo cover's cell and the recorder's Infinite toggle show theirs
-        final int icon = selected ? R.drawable.msg_spoiler : R.drawable.msg_spoiler_off;
-        if (button.getTag() == null || (int) button.getTag() != icon) {
-            button.setTag(icon);
-            button.setImageResource(icon);
-            button.setContentDescription(LocaleController.getString(selected ? R.string.AccDescrVideoSpoilerOff : R.string.AccDescrVideoSpoilerOn));
+        button.setContentDescription(LocaleController.getString(selected ? R.string.AccDescrVideoSpoilerOff : R.string.AccDescrVideoSpoilerOn));
+        applyLook();
+    }
+
+    /**
+     * Selected looks as the Infinite cell does (InstantCameraView.applyInfiniteRecordingState): one glyph, and a fill
+     * that is the pill's own shape where the cell is an end of it and square against a neighbour. Here that changes:
+     * Infinite comes and goes on the right, and the preview pill is this cell alone. The flash arm grows from the
+     * flash cell's top and its fillet stops at the row's top edge, so a square left edge meets it as Infinite's did.
+     */
+    private void applyLook() {
+        if (button == null || pill == null) {
+            return;
         }
+        boolean first = true, last = true;
+        boolean before = true;
+        for (int i = 0; i < pill.getChildCount(); i++) {
+            final View c = pill.getChildAt(i);
+            if (c == button) {
+                before = false;
+            } else if (c.getVisibility() != View.GONE) {
+                if (before) {
+                    first = false;
+                } else {
+                    last = false;
+                }
+            }
+        }
+        final int look = (selected ? 1 : 0) | (first ? 2 : 0) | (last ? 4 : 0);
+        if (look == appliedLook && fillColor == appliedFill) {
+            return;
+        }
+        appliedLook = look;
+        appliedFill = fillColor;
+        final int l = first ? AndroidUtilities.dp(CAP_DP) : 0, r = last ? AndroidUtilities.dp(CAP_DP) : 0;
+        button.setBackground(selected ? Theme.createRoundRectDrawable(l, r, r, l, fillColor) : null);
+        button.setColorFilter(new PorterDuffColorFilter(selected ? glyphOnColor : glyphColor, PorterDuff.Mode.SRC_IN));
     }
 
     /**
