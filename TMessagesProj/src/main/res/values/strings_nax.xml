@@ -31,6 +31,7 @@
     <string name="VideoMessagesSpoilerNotice">Adds a Spoiler button to the video message recorder. A video message sent with it on goes out as a square video, hidden until tapped. Every new recording starts with it off.</string>
     <string name="VideoMessagesSpoilerHint">Sends this as a square video, hidden until tapped</string>
     <string name="VideoMessagesSpoilerRestored">Spoiler is on for this video</string>
+    <string name="VideoMessagesSpoilerUnfinished">This video can\'t be sent with Spoiler. Turn Spoiler off to send it.</string>
     <string name="InfiniteRecordingCeiling">Infinite Recording cap</string>
     <string name="InfiniteRecordingCeilingNotice">How long it can keep going.</string>
     <string name="InfiniteRecordingCeiling10Min">10 minutes</string>

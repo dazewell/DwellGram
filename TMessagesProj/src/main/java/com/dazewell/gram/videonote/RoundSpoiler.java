@@ -170,8 +170,11 @@ public final class RoundSpoiler {
         if (s.finishing) {
             return true; // already stopping for an earlier tap
         }
-        if (!s.chosen(chat) || !s.recorder.isRecording() || s.recorder.getCoverSegmentTime() < MIN_TAKE_MS) {
+        if (!s.chosen(chat) || s.recorder.getCoverSegmentTime() < MIN_TAKE_MS) {
             return false; // a take too short to keep is cancelled by the stock send, as without Spoiler
+        }
+        if (!s.recorder.isRecording()) {
+            return true; // a resume is still bringing the camera up; the stock send would leave as a plain round
         }
         s.finishing = true;
         s.autoSend = !NekoConfig.confirmAVMessage.Bool() && !AlertsCreator.needsPaidMessageAlert(chat.getCurrentAccount(), chat.getDialogId());
@@ -192,7 +195,7 @@ public final class RoundSpoiler {
         if (s == null || info == null) {
             return;
         }
-        if (s.selected) {
+        if (s.chosen(chat)) { // what send(4) would apply, so a restored draft's cue never promises more
             VideoDraftStore.setSpoiler(chat.getCurrentAccount(), info.naxDraftDialogId, info.naxDraftTopicId, info.naxDraftId, true);
         }
         if (s.finishing && s.finishingView == chat.getChatActivityEnterView()) {
@@ -208,7 +211,15 @@ public final class RoundSpoiler {
     public static boolean refusesSend(ChatActivityEnterView enter) {
         final ChatActivity chat = chatOf(enter);
         final RoundSpoiler s = of(chat);
-        if (s == null || !enter.hasVideoToSend() || !s.chosen(chat) || ChatObject.canSendVideo(chat.getCurrentChat())) {
+        if (s == null || !enter.hasVideoToSend() || !s.chosen(chat)) {
+            return false;
+        }
+        if (s.recorder.spoilerLacksFinishedFile()) {
+            // send(4) has no finished file to cover; refused here, before the composer clears the preview and draft
+            BulletinFactory.of(chat).createErrorBulletin(LocaleController.getString(R.string.VideoMessagesSpoilerUnfinished)).show();
+            return true;
+        }
+        if (ChatObject.canSendVideo(chat.getCurrentChat())) {
             return false;
         }
         final String reason = ChatObject.getRestrictedErrorText(chat.getCurrentChat(), ChatObject.ACTION_SEND_VIDEO);
@@ -285,7 +296,9 @@ public final class RoundSpoiler {
      */
     public View button(Object delegate) {
         final ChatActivity chat = delegate instanceof ChatActivity ? (ChatActivity) delegate : null;
-        chatRef = new WeakReference<>(chat);
+        if (chatRef == null || chatRef.get() != chat) {
+            chatRef = new WeakReference<>(chat); // place() runs every frame of an animation
+        }
         if (button == null) {
             button = new ImageView(recorder.getContext()) {
                 @Override
@@ -373,14 +386,14 @@ public final class RoundSpoiler {
             }
         }
         endFinishing(); // a change of mind while stopping lands the take instead of sending it
-        final ChatActivityEnterView enter = chat.getChatActivityEnterView();
-        if (enter != null && enter.getBoundVideoDraftId() != 0) {
-            VideoDraftStore.setSpoiler(chat.getCurrentAccount(), enter.getBoundVideoDraftDialogId(), enter.getBoundVideoDraftTopicId(), enter.getBoundVideoDraftId(), selected);
-        }
         if (button != null) {
             button.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
         }
-        updateButton(chat);
+        updateButton(chat); // first: a view-once that could not be turned off clears selected here
+        final ChatActivityEnterView enter = chat.getChatActivityEnterView();
+        if (enter != null && enter.getBoundVideoDraftId() != 0) {
+            VideoDraftStore.setSpoiler(chat.getCurrentAccount(), enter.getBoundVideoDraftDialogId(), enter.getBoundVideoDraftTopicId(), enter.getBoundVideoDraftId(), chosen(chat));
+        }
     }
 
     /** Whether the memo cover shows its Spoiler cell, and lit. */
@@ -403,7 +416,8 @@ public final class RoundSpoiler {
         if (chat != null && button.getVisibility() != visibility) {
             button.setVisibility(visibility);
         }
-        final int icon = selected ? R.drawable.msg_spoiler_off : R.drawable.msg_spoiler;
+        // a state glyph, as the memo cover's cell and the recorder's Infinite toggle show theirs
+        final int icon = selected ? R.drawable.msg_spoiler : R.drawable.msg_spoiler_off;
         if (button.getTag() == null || (int) button.getTag() != icon) {
             button.setTag(icon);
             button.setImageResource(icon);

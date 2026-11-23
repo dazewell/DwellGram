@@ -1499,6 +1499,17 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         }
     }
 
+    // NagramX (#spoiler-video-messages): send(4)'s two Spoiler cases. A kept take (>= 800, as togglePause keeps one)
+    // with the encoder still open either has pause's finished copy to send, or nothing finished and is refused.
+    private boolean spoilerSendsPausedCopy() {
+        return videoEncoder != null && videoEncoder.handler != null && recordedTime >= 800 && !encoderTeardownPending
+                && com.dazewell.gram.videonote.RoundSpoiler.isPausedCopy(videoEditedInfo, cameraFile, recording, cameraThread != null);
+    }
+
+    public boolean spoilerLacksFinishedFile() {
+        return videoEncoder != null && recordedTime >= 800 && !encoderTeardownPending && !spoilerSendsPausedCopy();
+    }
+
     public void send(int state, boolean notify, int scheduleDate, int scheduleRepeatPeriod, int ttl, long effectId, long stars) {
         if (cameraFileHandedOff) {
             return; // NagramX (#round-video-restart-guard-fix): this file already went; a second send would duplicate it
@@ -1520,8 +1531,10 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             // holding the open file is cancelled. previewFile is nulled before the cancel is queued, so its teardown
             // (handleStopRecording) no longer deletes the copy; the encoder thread is idle while paused.
             final boolean spoilered = spoiler.appliesTo(delegate, ttl);
-            if (spoilered && videoEncoder != null && videoEncoder.handler != null && recordedTime > 800 && !encoderTeardownPending
-                    && com.dazewell.gram.videonote.RoundSpoiler.isPausedCopy(videoEditedInfo, cameraFile, recording, cameraThread != null)) {
+            if (spoilered && spoilerLacksFinishedFile()) {
+                return; // NagramX (#spoiler-video-messages): refused before the composer commits; never as a plain live round
+            }
+            if (spoilered && spoilerSendsPausedCopy()) {
                 previewFile = null;
                 encoderTeardownPending = true;
                 videoEncoder.stopRecording(VideoRecorder.ENCODER_SEND_CANCEL, new SendOptions(true, 0, 0, 0, 0, 0));
@@ -1532,9 +1545,6 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             // NagramX (#round-video-restart-guard-fix): with a terminal stop already queued the recorder is quitting and
             // would drop this; its file is finished, so send it directly, as happens once teardown nulls videoEncoder
             if (videoEncoder != null && recordedTime > 800 && !encoderTeardownPending) {
-                if (spoilered) {
-                    return; // NagramX (#spoiler-video-messages): no finished copy to send, and never as a plain live round
-                }
                 // NagramX (#round-video-restart-guard-fix): from here the file belongs to the outgoing message
                 cameraFileHandedOff = true;
                 if (videoEncoder.handler != null) {
@@ -1719,6 +1729,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     }
 
     public void cancel(boolean byGesture) {
+        spoiler.onAbandon(); // NagramX (#spoiler-video-messages): a discarded take ends finishing, so back is not held
         stopProgressTimer();
         if (videoPlayer != null) {
             videoPlayer.releasePlayer(true);
