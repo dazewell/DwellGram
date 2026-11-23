@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.Typeface;
 import android.text.TextPaint;
 
 import org.telegram.messenger.AndroidUtilities;
@@ -39,6 +40,9 @@ public final class RoundVideoWordmark {
     // What "TELEGRAM" covers, trailing spacing included. Past this a name runs off the corner square.
     private static final float MAX_SWEEP_DEGREES = 28f;
 
+    // Loaded once. Two recorders racing here at worst both load it, which is harmless.
+    private static volatile Typeface typeface;
+
     private RoundVideoWordmark() {
     }
 
@@ -55,8 +59,12 @@ public final class RoundVideoWordmark {
     private static Bitmap draw(String text) {
         TextPaint paint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(Color.WHITE);
-        // Fixed face, not bold(), which follows the font setting: the numbers above were fitted to this one.
-        paint.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+        // The bundled face straight from assets. bold() and getTypeface() both swap in a system font under the font
+        // settings, and the numbers above were fitted to this one.
+        if (typeface == null) {
+            typeface = tw.nekomimi.nekogram.helpers.TypefaceHelper.createTypefaceFromAsset(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM);
+        }
+        paint.setTypeface(typeface);
         paint.setTextSize(TEXT_SIZE);
         paint.setLetterSpacing(LETTER_SPACING);
 
