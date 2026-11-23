@@ -1562,7 +1562,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                 videoEditedInfo.startTime = -1;
                 videoEditedInfo.endTime = -1;
             }
-            videoEditedInfo.roundVideo &= !spoilered; // NagramX (#spoiler-video-messages): an ordinary video, converted like a trimmed round
+            if (spoilered) com.dazewell.gram.videonote.RoundSpoiler.asVideo(videoEditedInfo); // NagramX (#spoiler-video-messages): an ordinary video, converted like a trimmed round
             if (videoEditedInfo.needConvert()) {
                 file = null;
                 encryptedFile = null;

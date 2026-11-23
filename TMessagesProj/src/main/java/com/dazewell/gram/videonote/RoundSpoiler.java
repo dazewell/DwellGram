@@ -173,6 +173,15 @@ public final class RoundSpoiler {
         return selected && ttl == 0 && delegate instanceof ChatActivity && !infiniteArmed((ChatActivity) delegate);
     }
 
+    // send(4)'s spoiler take as an ordinary video, so needConvert() remuxes it. The recorder never sets
+    // originalDuration, and MediaController.convertVideo divides progress by it: at 0 every progress is infinite,
+    // FileUploadOperation.checkNewDataAvailable zeroes its estimate on that, skips the final-size recount, and the
+    // upload claims parts that were never sent (FILE_PART_n_MISSING). Microseconds, as the attach sheet sets it.
+    public static void asVideo(VideoEditedInfo info) {
+        info.roundVideo = false;
+        info.originalDuration = info.estimatedDuration * 1000;
+    }
+
     // The bound preview is pause's finished copy rather than the encoder's own, still-open file. Only then is the copy
     // what the user sees and what the draft store holds, and only while nothing is recording into the encoder.
     public static boolean isPausedCopy(VideoEditedInfo info, File cameraFile, boolean recording, boolean cameraOpen) {
