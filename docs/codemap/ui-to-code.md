@@ -1553,7 +1553,10 @@ Launcher shortcuts exposes the switch in
 the first media caption's length check; an oversized caption uses the original
 text in `sendText` (`:282`). Text parts add signature entities after Markdown
 parsing (`:327`), which can shorten the body and move its entity offsets.
-Draft text stays outside this formatting path.
+Draft text stays outside this formatting path. Chat draft save and converted
+drafts keep the existing three-argument entity extraction
+(`org/telegram/ui/ChatActivity.java:33143`,
+`org/telegram/ui/Components/ChatActivityEnterView.java:14448`).
 
 *(Established 2026-11-22, `#text-memo-signature`.)*
 
@@ -1564,8 +1567,11 @@ signature stores text and entities together; mention user ids are resolved for
 the sending account (`com/dazewell/gram/videonote/TextMemoSignature.java:196`).
 Its editor restores quote/code spans directly (`:146`): shared message restoration
 inserts quote newlines and code fences, changing saved text and later offsets.
-Span-only extraction must honor `parseMarkdown=false` under both parser choices
-and return before whitespace trimming (`org/telegram/messenger/MediaDataController.java:7681`, `:7877`).
+The signature uses `getEntitiesForLiteralText`
+(`com/dazewell/gram/videonote/TextMemoSignature.java:111`). That opt-in skips
+Neko Markdown and returns before whitespace trimming
+(`org/telegram/messenger/MediaDataController.java:7588`, `:7689`, `:7885`).
+The three-argument draft callers above keep their existing parser behavior.
 The editor opts into the toolbar's above-sub-panel window type
 (`org/telegram/ui/Components/EditTextBoldCursor.java:1207`,
 `org/telegram/ui/ActionBar/FloatingToolbar.java:234`), so Android's selection

@@ -108,16 +108,16 @@ public final class TextMemoSignature {
             }
             copy.removeSpan(span);
         }
-        CharSequence[] text = {copy};
-        ArrayList<TLRPC.MessageEntity> entities = MediaDataController.getInstance(account).getEntities(text, true, false);
+        ArrayList<TLRPC.MessageEntity> entities = MediaDataController.getInstance(account).getEntitiesForLiteralText(copy, true);
         if (entities == null) {
             entities = new ArrayList<>();
         }
         entities.addAll(mentions);
-        if (text[0].toString().trim().isEmpty()) {
+        String text = copy.toString();
+        if (text.trim().isEmpty()) {
             return empty();
         }
-        return new TextMemoSignature(text[0].toString(), entities);
+        return new TextMemoSignature(text, entities);
     }
 
     public void save() {

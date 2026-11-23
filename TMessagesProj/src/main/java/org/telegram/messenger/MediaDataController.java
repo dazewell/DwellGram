@@ -7581,6 +7581,15 @@ public class MediaDataController extends BaseController {
     }
 
     public ArrayList<TLRPC.MessageEntity> getEntities(CharSequence[] message, boolean allowStrike, boolean parseMarkdown) {
+        return getEntities(message, allowStrike, parseMarkdown, false);
+    }
+
+    // NagramX: explicit formatting editors keep literal text without changing the existing draft path.
+    public ArrayList<TLRPC.MessageEntity> getEntitiesForLiteralText(CharSequence text, boolean allowStrike) {
+        return getEntities(new CharSequence[] {text}, allowStrike, false, true);
+    }
+
+    private ArrayList<TLRPC.MessageEntity> getEntities(CharSequence[] message, boolean allowStrike, boolean parseMarkdown, boolean preserveLiteralText) {
         if (message == null || message[0] == null) {
             return null;
         }
@@ -7677,8 +7686,7 @@ public class MediaDataController extends BaseController {
             entities.add(entity);
         }
 
-        // NagramX: explicit entity editors must keep literal Markdown under either parser.
-        if (parseMarkdown && NaConfig.INSTANCE.getMarkdownParser().Int() == NekoConfig.MARKDOWN_PARSER_NEKO)  {
+        if (!preserveLiteralText && NaConfig.INSTANCE.getMarkdownParser().Int() == NekoConfig.MARKDOWN_PARSER_NEKO)  { // NagramX: drafts still use this parser.
             EntitiesHelper.parseMarkdown(message, allowStrike);
         }
 
@@ -7874,7 +7882,7 @@ public class MediaDataController extends BaseController {
         if (entities == null) entities = new ArrayList<>();
         addTonAddressEntities(cs, entities);
         // NagramX: span-only extraction must not trim literal text or shift explicit entities.
-        if (!parseMarkdown || NaConfig.INSTANCE.getMarkdownParser().Int() == NekoConfig.MARKDOWN_PARSER_NEKO) return entities;
+        if (preserveLiteralText || NaConfig.INSTANCE.getMarkdownParser().Int() == NekoConfig.MARKDOWN_PARSER_NEKO) return entities;
         if (parseMarkdown) {
             cs = parsePattern(cs, BOLD_PATTERN, entities, obj -> new TLRPC.TL_messageEntityBold());
             cs = parsePattern(cs, ITALIC_PATTERN, entities, obj -> new TLRPC.TL_messageEntityItalic());
