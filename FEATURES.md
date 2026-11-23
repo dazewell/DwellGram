@@ -383,6 +383,8 @@ Turn on *Video memo shortcut* or *Text memo shortcut* under N-Settings → Gener
 
 ### Text memo signature <!-- #text-memo-signature --> <!-- #text-memo-signature-editor -->
 
+Turn on *Text memo signature* under N-Settings → General → Launcher shortcuts to add a signature to text and media captions from either Text memo shortcut. It’s off by default. *Edit signature* opens a multiline editor with Telegram’s usual text formatting and a message preview. *Reset to default* puts the italic quote “sent from memo” back in the editor.
+
 ### Memo recipient status <!-- #memo-recipient-status --> <!-- #camera-memo-status -->
 
 A text memo shows *online* next to its label, and an unread badge, when your *Recipient* is online or has messages you haven't read. A video memo recorded while the app is locked shows both at the top of the screen. Always on.
