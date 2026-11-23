@@ -518,8 +518,7 @@ public final class RoundSpoiler {
     /**
      * Selected looks as the Infinite cell does (InstantCameraView.applyInfiniteRecordingState): one glyph, and a fill
      * that is the pill's own shape where the cell is an end of it and square against a neighbour. Here that changes:
-     * Infinite comes and goes on the right, and the preview pill is this cell alone. The flash arm grows from the
-     * flash cell's top and its fillet stops at the row's top edge, so a square left edge meets it as Infinite's did.
+     * Infinite comes and goes on the right, and the preview pill is this cell alone.
      */
     private void applyLook() {
         if (button == null || pill == null) {
@@ -540,29 +539,15 @@ public final class RoundSpoiler {
             }
         }
         final int cap = AndroidUtilities.dp(CAP_DP);
-        final int bl = first ? cap : 0, r = last ? cap : 0;
-        // Beside flash, the brightness arm rises from the flash cell and its fillet curves onto the row's top edge
-        // just right of it. A square corner there would meet that curve as a coloured block under a strip of the
-        // arm's glass, so the corner rounds as the arm grows, and the curve runs on into the row's glass instead.
-        final int tl = first ? cap : (int) (cap * armOut());
-        final int look = (selected ? 1 : 0) | (bl > 0 ? 2 : 0) | (r > 0 ? 4 : 0) | (tl << 3);
+        final int l = first ? cap : 0, r = last ? cap : 0;
+        final int look = (selected ? 1 : 0) | (l > 0 ? 2 : 0) | (r > 0 ? 4 : 0);
         if (look == appliedLook && fillColor == appliedFill) {
             return;
         }
         appliedLook = look;
         appliedFill = fillColor;
-        button.setBackground(selected ? Theme.createRoundRectDrawable(tl, r, r, bl, fillColor) : null);
+        button.setBackground(selected ? Theme.createRoundRectDrawable(l, r, r, l, fillColor) : null);
         button.setColorFilter(new PorterDuffColorFilter(selected ? glyphOnColor : glyphColor, PorterDuff.Mode.SRC_IN));
-    }
-
-    // How far the flash brightness arm is out, 0 to 1; 0 when it isn't showing.
-    private float armOut() {
-        for (View v : pillFollowers) {
-            if (v instanceof FrontFlashBrightnessSlider && v.getVisibility() == View.VISIBLE) {
-                return ((FrontFlashBrightnessSlider) v).shownFraction();
-            }
-        }
-        return 0f;
     }
 
     /**

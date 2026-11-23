@@ -565,8 +565,8 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         flashBrightnessSlider.followAlphaOf(buttonsLayout);
         flashBrightnessSlider.stayBelow(zoomControlView);
         flashBrightnessSlider.setFillColor(glyphColor(isDarkAppearance()));
-        // over the flash cell of the row, inset by the row background's 6dp padding, with the arm and its fillet above it
-        addView(flashBrightnessSlider, LayoutHelper.createFrame(44 + 14, 44 + 140, Gravity.LEFT | Gravity.BOTTOM, 7, 0, 0, 6));
+        // over the flash cell of the row, inset by the row background's 6dp padding, with room for the pill above it and 6dp of touch slop to its right
+        addView(flashBrightnessSlider, LayoutHelper.createFrame(44 + 6, 44 + 140, Gravity.LEFT | Gravity.BOTTOM, 7, 0, 0, 6));
         spoiler.joinPill(buttonsLayout, flashButton, delegate, flashBrightnessSlider); // NagramX (#spoiler-video-messages): beside flash; the arm leaves with flash in the preview
 
         muteImageView = new ImageView(context);
@@ -608,7 +608,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
         drawable.setRadius(dp(21));
         buttonsLayout.setBackground(drawable);
         zoomControlView.setButtonsBackground(factory, colorProvider);
-        flashBrightnessSlider.setGlassBackground(factory.create(flashBrightnessSlider, colorProvider), factory.create(flashBrightnessSlider, colorProvider)); // NagramX (#front-flash-brightness): the arm joins this row's glass
+        flashBrightnessSlider.setGlassBackground(factory.create(flashBrightnessSlider, colorProvider)); // NagramX (#front-flash-brightness): the pill wears this row's glass
         compactRecorder.setGlass(factory, colorProvider); // NagramX (#compact-video-recording): its toggle wears the flip button's glass
     }
 
