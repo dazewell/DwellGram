@@ -69,6 +69,7 @@ public final class RoundSpoiler {
     private View[] pillFollowers = new View[0];
     // what the preview pill hid, to put back when the camera opens again
     private final ArrayList<View> hiddenForPreview = new ArrayList<>();
+    private boolean previewPillUp;
     private ImageView button;
     private int glyphColor = Color.WHITE;
     // the recorder's chat, for the cell's click; weak, as the recorder can outlive a rebuilt fragment
@@ -125,6 +126,7 @@ public final class RoundSpoiler {
     // The camera opens: a fresh recording starts without Spoiler, a resume keeps it; either way the pill is whole again.
     public void onShowCamera(boolean fromPaused) {
         restorePill();
+        recorder.updateInfiniteButton(); // its availability may have changed in the preview; restorePill can't know
         if (!fromPaused) {
             endFinishing();
             selected = false;
@@ -136,6 +138,7 @@ public final class RoundSpoiler {
     // pill still waiting to come back must not show over the close.
     public void onAbandon() {
         endFinishing();
+        previewPillUp = false;
         if (pill != null) {
             pill.animate().cancel();
         }
@@ -331,6 +334,9 @@ public final class RoundSpoiler {
             return true;
         });
         pill.addView(button, pill.indexOfChild(after) + 1, LayoutHelper.createLinear(CELL_DP, CELL_DP));
+        // While the preview pill is up, anything the recorder shows again (Infinite when view-once goes off, the
+        // brightness arm when compact is toggled) is hidden before it draws; that frame is skipped for the relayout.
+        pill.getViewTreeObserver().addOnPreDrawListener(() -> !previewPillUp || !hideBesideCell());
         updateButton(chatRef.get());
     }
 
@@ -356,34 +362,44 @@ public final class RoundSpoiler {
             return; // compact recording hides the whole pill, and keeps it hidden
         }
         hideBesideCell();
+        previewPillUp = true;
         pill.animate().cancel();
         pill.animate().alpha(1f).setStartDelay(PREVIEW_PILL_DELAY_MS).setDuration(PREVIEW_PILL_FADE_MS).start();
     }
 
-    private void hideBesideCell() {
+    // true when something was showing and is hidden now
+    private boolean hideBesideCell() {
+        boolean hid = false;
         for (int i = 0; i < pill.getChildCount(); i++) {
-            hideForPreview(pill.getChildAt(i));
+            hid |= hideForPreview(pill.getChildAt(i));
         }
         for (View v : pillFollowers) {
-            hideForPreview(v);
+            hid |= hideForPreview(v);
         }
+        return hid;
     }
 
-    private void hideForPreview(View v) {
-        if (v != null && v != button && v.getVisibility() == View.VISIBLE) {
-            v.setVisibility(View.GONE);
+    private boolean hideForPreview(View v) {
+        if (v == null || v == button || v.getVisibility() == View.GONE) {
+            return false;
+        }
+        v.setVisibility(View.GONE); // INVISIBLE too: compact's state for the arm, which it rewrites on a toggle
+        if (!hiddenForPreview.contains(v)) {
             hiddenForPreview.add(v);
         }
+        return true;
     }
 
     // Out of the preview (a resume, a new take): what it hid is back before the stock open animation shows the pill.
     private void restorePill() {
+        previewPillUp = false;
         if (pill != null) {
             pill.animate().cancel();
         }
         for (View v : hiddenForPreview) {
             if (v.getVisibility() == View.GONE) {
-                v.setVisibility(View.VISIBLE);
+                // the pill's cells were showing; the arm is compact recording's to show, and it shows it with the pill
+                v.setVisibility(v.getParent() == pill ? View.VISIBLE : pill.getVisibility());
             }
         }
         hiddenForPreview.clear();
@@ -401,10 +417,7 @@ public final class RoundSpoiler {
             // each turns the other off; both calls are flips, so only where they are on
             if (infiniteOn(chat)) {
                 chat.toggleInfiniteRecording();
-                recorder.updateInfiniteButton();
-                if (!hiddenForPreview.isEmpty()) {
-                    hideBesideCell(); // that update shows the Infinite cell again, in a preview pill
-                }
+                recorder.updateInfiniteButton(); // a preview pill re-hides the cell this shows, before it draws
             }
             final ChatActivityEnterView enter = chat.getChatActivityEnterView();
             if (enter != null && enter.voiceOnce && enter.canToggleVideoOnce()) {
