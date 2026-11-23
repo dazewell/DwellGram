@@ -3247,3 +3247,14 @@ row whose bubble ran from 3px to 284px. Selecting one file paints that row's own
 clip to the row in that branch was commented out from 9.1.0 on; it is live again at `ChatMessageCell.java:21252`.
 
 *(Established 2026-11-21, `#doc-group-fix`, PR #644. ADB-traced on device; the fix was confirmed visually on device.)*
+
+## A converted video with no `originalDuration` uploads with the wrong part count
+
+`MediaController.convertVideo` takes its duration from `VideoEditedInfo.originalDuration` (µs) when nothing is
+trimmed (`MediaController.java:7407`), and the convertor divides progress by it (`MediaCodecVideoConvertor.java:1130`).
+At 0 every progress is +Infinity, so `FileUploadOperation.checkNewDataAvailable` sets `estimatedSize` to
+`avail / ∞ = 0` (`FileUploadOperation.java:222`). The final-size recount then never runs, because it needs a nonzero
+estimate (`:226`). Part 0 goes last and takes the count from the stale estimate (`:527`), and the send fails with
+`FILE_PART_n_MISSING`. `InstantCameraView` never sets the field, so anything that converts a recorded round must set it.
+
+*(Established 2026-11-22, `#round-spoiler-upload-fix`. Code-read against an in-app log of the failing send; no probe.)*

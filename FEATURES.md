@@ -335,6 +335,10 @@ When camera mode is set to Ask, the camera choice popup has an External Micropho
 
 *Infinite Recording* stitches 60-second round video message segments end to end instead of stopping at the usual cap. Toggle it from the camera overlay while recording — off by default, and unavailable during slow mode, paid messages, secret chats, or view-once. N-Settings → Chat → Camera → *Infinite Recording cap* sets how long it can run before it stops itself: 10 (default), 15, 20, 30, 60 minutes, or Unlimited.
 
+### Spoiler video messages <!-- #spoiler-video-messages -->
+
+A Spoiler button sits beside flash in the round video recorder, and in the Video Memo pill. Turn it on while recording or in the preview, and the take goes out as a square video hidden until tapped. Every new recording starts with it off, and it can't be combined with Infinite Recording or view-once. N-Settings → Chat → Camera → *Spoiler video messages*, on by default.
+
 ### Warning before a round video message hits its limit <!-- #video-limit-warning -->
 
 Round video recordings warn you before they end. Configured via N-Settings → Chat → Camera, you get a light warning buzz 5 seconds before the cutoff, and a medium cutoff buzz when it actually lands.
@@ -345,7 +349,7 @@ The round video camera has zoom stops under the circle, with the selected stop i
 
 ### Front flash brightness for video messages <!-- #front-flash-brightness -->
 
-Turn on the flash while recording a round video with the front camera and a pill grows up out of the flash button. Drag it to set how bright the screen flash is, from 30% to full. It starts at full and keeps your last setting for the next recording.
+Turn on the flash while recording a round video with the front camera and a pill grows up above the flash button. Drag it to set how bright the screen flash is, from 30% to full. It starts at full and keeps your last setting for the next recording.
 
 ### Scrub the video message preview <!-- #video-scrub -->
 
@@ -394,6 +398,10 @@ Turn on *Custom File Names* (N-Settings → General → Storage) to save videos,
 ### Black corners on saved round videos <!-- #round-video-black-corners -->
 
 Round videos you save to disk (select them, then *Save to downloads*) come out pure black outside the circle, instead of whatever corners the sender's app baked in. The saved copy is re-encoded; the one in Telegram stays as it was. N-Settings → General → Storage → *Black Corners on Saved Round Videos*, on by default, Android 10 and up.
+
+### App name on recorded round videos <!-- #round-video-wordmark -->
+
+Round videos you record carry the app's own name, DWELLGRAM or DWELLGRAMX, curved along the bottom-right edge of the circle where Telegram's recorder put TELEGRAM. Always on.
 
 ### Send a muted gallery video as a real video <!-- #silent-video -->
 

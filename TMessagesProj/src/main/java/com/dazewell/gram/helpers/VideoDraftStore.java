@@ -43,8 +43,15 @@ public final class VideoDraftStore {
         public final long endTime;
         public final boolean voiceOnce;
         public final long createdAt;
+        // #spoiler-video-messages: the take goes out as a spoiler video. Written only by setSpoiler; save and
+        // updateTrim carry it over for the same id, and a record written before this field existed reads false.
+        public final boolean spoiler;
 
         public Entry(long id, String path, int duration, long startTime, long endTime, boolean voiceOnce, long createdAt) {
+            this(id, path, duration, startTime, endTime, voiceOnce, createdAt, false);
+        }
+
+        public Entry(long id, String path, int duration, long startTime, long endTime, boolean voiceOnce, long createdAt, boolean spoiler) {
             this.id = id;
             this.path = path;
             this.duration = duration;
@@ -52,13 +59,14 @@ public final class VideoDraftStore {
             this.endTime = endTime;
             this.voiceOnce = voiceOnce;
             this.createdAt = createdAt;
+            this.spoiler = spoiler;
         }
 
         // Everything that defines the draft EXCEPT createdAt. Two entries with equal content but different
         // createdAt are "the same draft, unchanged" -- the CAS treats that as a no-op write.
         boolean contentEquals(Entry o) {
             return o != null && id == o.id && duration == o.duration && startTime == o.startTime
-                    && endTime == o.endTime && voiceOnce == o.voiceOnce
+                    && endTime == o.endTime && voiceOnce == o.voiceOnce && spoiler == o.spoiler
                     && (path == null ? o.path == null : path.equals(o.path));
         }
 
@@ -66,7 +74,7 @@ public final class VideoDraftStore {
         @Override
         public String toString() {
             return "@" + id + "\n" + path + "\n" + duration + "\n" + startTime + "\n" + endTime
-                    + "\n" + (voiceOnce ? 1 : 0) + "\n" + createdAt;
+                    + "\n" + (voiceOnce ? 1 : 0) + "\n" + createdAt + "\n" + (spoiler ? 1 : 0);
         }
 
         // Tolerant, mirroring MediaDataController.DraftVoice.fromString: an older or malformed record degrades
@@ -87,8 +95,10 @@ public final class VideoDraftStore {
                 if (id == 0 || path.isEmpty()) {
                     return null;
                 }
+                // the 8th field is optional: a 7-field record predates it and is not a spoiler
                 return new Entry(id, path, Integer.parseInt(p[2]), Long.parseLong(p[3]),
-                        Long.parseLong(p[4]), Integer.parseInt(p[5]) != 0, Long.parseLong(p[6]));
+                        Long.parseLong(p[4]), Integer.parseInt(p[5]) != 0, Long.parseLong(p[6]),
+                        p.length > 7 && "1".equals(p[7]));
             } catch (Exception e) {
                 return null;
             }
@@ -130,7 +140,7 @@ public final class VideoDraftStore {
         // tracks recording time, not the last edit -- otherwise trimming a draft repeatedly could keep it alive
         // past the day the FEATURES copy promises. Only a genuinely new / superseding record starts the clock.
         long createdAt = (cur != null && cur.id == id) ? cur.createdAt : System.currentTimeMillis();
-        Entry next = new Entry(id, path, duration, startTime, endTime, voiceOnce, createdAt);
+        Entry next = new Entry(id, path, duration, startTime, endTime, voiceOnce, createdAt, cur != null && cur.id == id && cur.spoiler);
         if (cur != null && cur.id == id) {
             if (cur.contentEquals(next)) {
                 return;
@@ -174,7 +184,7 @@ public final class VideoDraftStore {
         }
         // NagramX (#video-draft-guard): keep the original createdAt (same reason as save's same-id branch) so a
         // trim never restarts the expiry clock.
-        Entry next = new Entry(id, path, duration, startTime, endTime, voiceOnce, cur.createdAt);
+        Entry next = new Entry(id, path, duration, startTime, endTime, voiceOnce, cur.createdAt, cur.spoiler);
         if (cur.contentEquals(next)) {
             return;
         }
@@ -182,6 +192,28 @@ public final class VideoDraftStore {
         // (persistVideoTrimIfBound), after the pause/stop flush barrier, same durability reasoning as save's
         // write paths. A queued apply() here would be lost to a kill while backgrounded.
         p.edit().putString(k, next.toString()).commit();
+    }
+
+    // #spoiler-video-messages: update-only, like updateTrim. Run after save has created the record, and again
+    // whenever the toggle flips on a bound preview. commit() for the same reason as the trim write.
+    public static void setSpoiler(int account, long dialogId, long topicId, long id, boolean spoiler) {
+        if (id == 0) {
+            return;
+        }
+        String k = key(dialogId, topicId);
+        SharedPreferences p = prefs(account);
+        Entry cur = Entry.fromString(p.getString(k, null));
+        if (cur == null || cur.id != id || cur.spoiler == spoiler) {
+            return;
+        }
+        p.edit().putString(k, new Entry(id, cur.path, cur.duration, cur.startTime, cur.endTime, cur.voiceOnce, cur.createdAt, spoiler).toString()).commit();
+    }
+
+    // #spoiler-video-messages: whether the record THIS id owns is a spoiler. A raw read, unlike load(): the
+    // restore that asks has just loaded and validated the same record.
+    public static boolean isSpoiler(int account, long dialogId, long topicId, long id) {
+        Entry cur = Entry.fromString(prefs(account).getString(key(dialogId, topicId), null));
+        return cur != null && id != 0 && cur.id == id && cur.spoiler;
     }
 
     // Self-validating read: a record whose id didn't parse, whose file is gone/empty, or older than 24h is
