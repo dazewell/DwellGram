@@ -31,6 +31,7 @@ public final class TextMemoSignatureActivity extends BaseFragment {
 
     @Override
     public View createView(Context context) {
+        android.util.Log.i("MemoSignature", "NAX_SMOKE_text-memo-signature-editor PATH editor-create");
         actionBar.setBackButtonImage(R.drawable.ic_ab_back);
         actionBar.setAllowOverlayTitle(true);
         actionBar.setTitle(LocaleController.getString(R.string.TextMemoSignature));
@@ -107,6 +108,7 @@ public final class TextMemoSignatureActivity extends BaseFragment {
         preview.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector, getResourceProvider()), 2));
         preview.setOnClickListener(v -> showPreview());
         content.addView(preview, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        android.util.Log.i("MemoSignature", "NAX_SMOKE_text-memo-signature-editor END editor-ready");
         return fragmentView;
     }
 
