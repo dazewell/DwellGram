@@ -17,6 +17,7 @@ import com.dazewell.gram.helpers.VideoDraftStore;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.R;
 import org.telegram.messenger.VideoEditedInfo;
 import org.telegram.ui.ActionBar.Theme;
@@ -91,8 +92,10 @@ public final class RoundSpoiler {
     private boolean autoSend;
     private ChatActivityEnterView finishingView;
     private long finishDeadline;
+    // where the tap sent it: the topic, and the reply and quote by reference (a still-sending reply's id changes on ack)
     private long tapTopicId;
-    private int tapReplyId;
+    private MessageObject tapReply;
+    private ChatActivity.ReplyQuote tapQuote;
     // the preview that bound while finishing; the send only goes if the composer still shows this exact one
     private VideoEditedInfo bound;
     private final Runnable tick = this::tick;
@@ -214,7 +217,8 @@ public final class RoundSpoiler {
         s.finishingView = enter;
         s.finishDeadline = SystemClock.elapsedRealtime() + FINISH_DEADLINE_MS;
         s.tapTopicId = chat.getTopicId();
-        s.tapReplyId = chat.getReplyMessage() != null ? chat.getReplyMessage().getId() : 0;
+        s.tapReply = chat.getReplyMessage();
+        s.tapQuote = chat.getReplyQuote();
         s.bound = null;
         chat.finalizeRoundVideoForLock(); // send(3): the stop into the preview that confirm-before-sending uses
         VideoNoteShortcut.onRecordVideoState(chat, 3); // what needStartRecordVideo(3) would tell it
@@ -274,8 +278,16 @@ public final class RoundSpoiler {
         }
         final ChatActivityEnterView enter = finishingView;
         final ChatActivity chat = chatOf(enter);
-        if (SystemClock.elapsedRealtime() > finishDeadline || chat == null || !chat.isCurrentEnterView(enter)) {
+        if (chat == null || !chat.isCurrentEnterView(enter)) {
+            endFinishing(); // the view is gone; a rebuilt one comes back through onRestored
+            return;
+        }
+        if (SystemClock.elapsedRealtime() > finishDeadline) {
+            final boolean wasBound = bound != null;
             endFinishing();
+            if (wasBound) {
+                showPreviewPill(chat); // landed: the preview bound but never took a tap in time
+            }
             return;
         }
         if (bound == null) {
@@ -292,19 +304,22 @@ public final class RoundSpoiler {
             return;
         }
         endFinishing();
-        enter.sendVideoPreviewIfPlain();
+        if (!enter.sendVideoPreviewIfPlain()) {
+            showPreviewPill(chat); // landed: an armed send action or a rich draft wants the user's own tap
+        }
     }
 
-    // What a user tapping the preview's send would get without being asked anything, to the place they recorded in.
+    // What a user tapping the preview's send would get without being asked anything, to the place they recorded in:
+    // the topic of the tap and of the draft (pinned at recording start), and the same reply and quote.
     private boolean isPlain(ChatActivity chat, ChatActivityEnterView enter) {
-        final int replyId = chat.getReplyMessage() != null ? chat.getReplyMessage().getId() : 0;
         return !chat.isPaused() && chat.getParentActivity() != null && chat.getChatActivityEnterView() == enter
                 && bound.naxDraftId != 0 && enter.getBoundVideoDraftId() == bound.naxDraftId
                 && bound.originalPath != null && new File(bound.originalPath).exists()
                 && !recorder.isFileHandedOff() && chosen(chat) && offered(chat)
                 && !chat.isInScheduleMode() && enter.getSlowModeTimer() == null
                 && !AlertsCreator.needsPaidMessageAlert(chat.getCurrentAccount(), chat.getDialogId())
-                && chat.getTopicId() == tapTopicId && replyId == tapReplyId;
+                && chat.getTopicId() == tapTopicId && bound.naxDraftTopicId == tapTopicId
+                && chat.getReplyMessage() == tapReply && chat.getReplyQuote() == tapQuote;
     }
 
     // FINISHING ends, sent or landed. Nothing but the spinner and the pending tick to undo.
@@ -316,6 +331,8 @@ public final class RoundSpoiler {
         finishing = false;
         finishingView = null;
         bound = null;
+        tapReply = null;
+        tapQuote = null;
     }
 
     private static void setSendLoading(ChatActivityEnterView enter, boolean loading) {
@@ -458,7 +475,11 @@ public final class RoundSpoiler {
                 enter.toggleVideoOnce();
             }
         }
+        final boolean wasBound = finishing && bound != null;
         endFinishing(); // a change of mind while stopping lands the take instead of sending it
+        if (wasBound) {
+            showPreviewPill(chat);
+        }
         if (button != null) {
             button.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
         }
