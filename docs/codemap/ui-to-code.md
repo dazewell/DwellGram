@@ -1559,7 +1559,7 @@ Draft text stays outside this formatting path.
 
 The adjacent editor row (`com/dazewell/gram/shortcuts/LauncherShortcutsActivity.java:90`)
 opens `TextMemoSignatureActivity`, which uses the ordinary composer selection menu
-(`com/dazewell/gram/videonote/TextMemoSignatureActivity.java:78`). The global
+(`com/dazewell/gram/videonote/TextMemoSignatureActivity.java:79`). The global
 signature stores text and entities together; mention user ids are resolved for
 the sending account (`com/dazewell/gram/videonote/TextMemoSignature.java:196`).
 Its editor restores quote/code spans directly (`:146`): shared message restoration

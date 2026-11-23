@@ -7,6 +7,7 @@ import android.text.InputType;
 import android.view.ActionMode;
 import android.view.Gravity;
 import android.view.Menu;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -81,6 +82,16 @@ public final class TextMemoSignatureActivity extends BaseFragment {
             @Override
             protected boolean showActionModeAboveSelectionHandles() {
                 return true;
+            }
+
+            @Override
+            public boolean onTouchEvent(MotionEvent event) {
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN
+                        && (canScrollVertically(-1) || canScrollVertically(1))) {
+                    getParent().requestDisallowInterceptTouchEvent(true);
+                }
+                // ScrollView releases interception when the gesture ends.
+                return super.onTouchEvent(event);
             }
         };
         editor.setId(View.generateViewId());
