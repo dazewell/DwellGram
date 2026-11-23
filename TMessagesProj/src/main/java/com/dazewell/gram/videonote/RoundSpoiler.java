@@ -498,15 +498,30 @@ public final class RoundSpoiler {
                 }
             }
         }
-        final int look = (selected ? 1 : 0) | (first ? 2 : 0) | (last ? 4 : 0);
+        final int cap = AndroidUtilities.dp(CAP_DP);
+        final int bl = first ? cap : 0, r = last ? cap : 0;
+        // Beside flash, the brightness arm rises from the flash cell and its fillet curves onto the row's top edge
+        // just right of it. A square corner there would meet that curve as a coloured block under a strip of the
+        // arm's glass, so the corner rounds as the arm grows, and the curve runs on into the row's glass instead.
+        final int tl = first ? cap : (int) (cap * armOut());
+        final int look = (selected ? 1 : 0) | (bl > 0 ? 2 : 0) | (r > 0 ? 4 : 0) | (tl << 3);
         if (look == appliedLook && fillColor == appliedFill) {
             return;
         }
         appliedLook = look;
         appliedFill = fillColor;
-        final int l = first ? AndroidUtilities.dp(CAP_DP) : 0, r = last ? AndroidUtilities.dp(CAP_DP) : 0;
-        button.setBackground(selected ? Theme.createRoundRectDrawable(l, r, r, l, fillColor) : null);
+        button.setBackground(selected ? Theme.createRoundRectDrawable(tl, r, r, bl, fillColor) : null);
         button.setColorFilter(new PorterDuffColorFilter(selected ? glyphOnColor : glyphColor, PorterDuff.Mode.SRC_IN));
+    }
+
+    // How far the flash brightness arm is out, 0 to 1; 0 when it isn't showing.
+    private float armOut() {
+        for (View v : pillFollowers) {
+            if (v instanceof FrontFlashBrightnessSlider && v.getVisibility() == View.VISIBLE) {
+                return ((FrontFlashBrightnessSlider) v).shownFraction();
+            }
+        }
+        return 0f;
     }
 
     /**

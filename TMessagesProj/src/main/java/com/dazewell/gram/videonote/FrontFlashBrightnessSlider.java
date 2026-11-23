@@ -123,6 +123,11 @@ public final class FrontFlashBrightnessSlider extends View {
         invalidate();
     }
 
+    // How far the arm is out, 0 to 1, for the cell right of flash, whose fill rounds its corner under the fillet.
+    public float shownFraction() {
+        return shownProgress.get();
+    }
+
     public void setShown(boolean shown) {
         if (this.shown == shown) return;
         this.shown = shown;
