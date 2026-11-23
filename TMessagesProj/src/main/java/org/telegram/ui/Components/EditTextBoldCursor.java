@@ -1204,6 +1204,9 @@ public class EditTextBoldCursor extends EditTextEffects {
             }
             cleanupFloatingActionModeViews();
             floatingToolbar = new FloatingToolbar(getContext(), windowView != null ? windowView : attachedToWindow, getActionModeStyle(), getResourcesProvider(), blurredBackgroundDrawableViewFactory);
+            if (showActionModeAboveSelectionHandles()) { // NagramX: keep overlapping menu items above the Android handles.
+                floatingToolbar.showAboveSelectionHandles();
+            }
             floatingToolbar.setOnPremiumLockClick(onPremiumMenuLockClickListener);
             floatingToolbar.setQuoteShowVisible(this::shouldShowQuoteButton);
             floatingActionMode = new FloatingActionMode(getContext(), new ActionModeCallback2Wrapper(callback), this, floatingToolbar);
@@ -1261,6 +1264,11 @@ public class EditTextBoldCursor extends EditTextEffects {
 
     protected void extendActionMode(ActionMode actionMode, Menu menu) {
 
+    }
+
+    // NagramX: let editors with overlapping handles opt into Android's toolbar window order.
+    protected boolean showActionModeAboveSelectionHandles() {
+        return false;
     }
 
     protected int getActionModeStyle() {

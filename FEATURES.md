@@ -381,7 +381,9 @@ A round video message you've recorded but haven't sent survives backing out of t
 
 Turn on *Video memo shortcut* or *Text memo shortcut* under N-Settings → General → Launcher shortcuts (off by default) and long-pressing the icon offers *Video memo*, a hands-free round video on the chosen *Camera*, or *Text memo*, a message box with photos and videos up to 1 GB that keeps unsent text as the chat's draft. Both go to Saved Messages or your *Recipient*, even locked. Shortcut Maker-style apps list them too.
 
-### Text memo signature <!-- #text-memo-signature -->
+### Text memo signature <!-- #text-memo-signature --> <!-- #text-memo-signature-editor -->
+
+Turn on *Text memo signature* under N-Settings → General → Launcher shortcuts to add a signature to text and media captions from either Text memo shortcut. It’s off by default. *Edit signature* opens a multiline editor with Telegram’s usual text formatting and a message preview. *Reset to default* puts the italic quote “sent from memo” back in the editor.
 
 ### Memo recipient status <!-- #memo-recipient-status --> <!-- #camera-memo-status -->
 

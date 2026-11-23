@@ -1551,8 +1551,30 @@ Launcher shortcuts exposes the switch in
 `com/dazewell/gram/shortcuts/LauncherShortcutsActivity.java:89`.
 `com/dazewell/gram/videonote/TextMemoPhotos.java:275` includes the signature in
 the first media caption's length check; an oversized caption uses the original
-text in `sendText` (`:292`). Text parts add signature entities after Markdown
-parsing (`:314`), which can shorten the body and move its entity offsets.
-Draft text stays outside this formatting path.
+text in `sendText` (`:282`). Text parts add signature entities after Markdown
+parsing (`:327`), which can shorten the body and move its entity offsets.
+Draft text stays outside this formatting path. Chat draft save and converted
+drafts keep the existing three-argument entity extraction
+(`org/telegram/ui/ChatActivity.java:33143`,
+`org/telegram/ui/Components/ChatActivityEnterView.java:14448`).
 
 *(Established 2026-11-22, `#text-memo-signature`.)*
+
+The adjacent editor row (`com/dazewell/gram/shortcuts/LauncherShortcutsActivity.java:90`)
+opens `TextMemoSignatureActivity`, which uses the ordinary composer selection menu
+(`com/dazewell/gram/videonote/TextMemoSignatureActivity.java:78`). The global
+signature stores text and entities together; mention user ids are resolved for
+the sending account (`com/dazewell/gram/videonote/TextMemoSignature.java:196`).
+Its editor restores quote/code spans directly (`:146`): shared message restoration
+inserts quote newlines and code fences, changing saved text and later offsets.
+The signature uses `getEntitiesForLiteralText`
+(`com/dazewell/gram/videonote/TextMemoSignature.java:111`). That opt-in skips
+Neko Markdown and returns before whitespace trimming
+(`org/telegram/messenger/MediaDataController.java:7588`, `:7689`, `:7885`).
+The three-argument draft callers above keep their existing parser behavior.
+The editor opts into the toolbar's above-sub-panel window type
+(`org/telegram/ui/Components/EditTextBoldCursor.java:1207`,
+`org/telegram/ui/ActionBar/FloatingToolbar.java:234`), so Android's selection
+handles cannot cover formatting items when the overflow menu crosses the selection.
+
+*(Extended 2026-11-23, `#text-memo-signature-editor`.)*

@@ -1197,6 +1197,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val textMemoSignatureContent =
+        addConfig(
+            "TextMemoSignatureContent",
+            ConfigItem.configTypeString,
+            ""
+        )
     val newConversationShortcut =
         addConfig(
             "NewConversationShortcut",
