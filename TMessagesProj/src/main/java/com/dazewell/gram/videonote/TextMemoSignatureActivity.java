@@ -152,14 +152,6 @@ public final class TextMemoSignatureActivity extends BaseFragment {
         content.addView(button, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
     }
 
-    @Override
-    public boolean extendActionMode(Menu menu) {
-        if (editor != null && editor.hasSelection()) {
-            ChatActivity.fillActionModeMenu(menu, null, true, true);
-        }
-        return true;
-    }
-
     private TextMemoSignature readEditor() {
         CharSequence text = editor.getTextToUse();
         if (text.length() > TextMemoSignature.MAX_LENGTH) {
