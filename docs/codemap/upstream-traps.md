@@ -3268,4 +3268,4 @@ against the text's width in the parent's `onLayout` keeps its old spot. `SwapAni
 drawable instance misses it. A screen behind another one is not re-laid out when it returns, so the stale spot shows
 then. `ChatAvatarContainer` re-checks the time-zone pill's anchor after every title change.
 
-*(Established 2026-11-24, `#timezones-fix`. Code-read; not traced on device.)*
+*(Established 2026-11-24, `#timezones-fix`, PR #659. Code-read; the fix was confirmed visually on device.)*
