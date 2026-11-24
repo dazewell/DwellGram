@@ -270,13 +270,13 @@ release-signed dual-package APK and uploads it to Telegram as a *test* build.
 branch head as-is, not the merge ref. The label is auto-removed at the start of
 the run, so re-applying it requests a fresh build.
 
-PR mechanics — requesting the billed Copilot review, its budget, the severity
-floor, and thread resolution — are normative in
+PR mechanics — running the bug hunt, its budget, the severity floor, and
+thread resolution — are normative in
 `.github/agents/repo-implementer.agent.md` and are not restated here.
 
 **Request the build the moment you want something tested** — dazewell's
 standing rule. Apply `build-apk` as soon as the commit is pushed; do not wait
-for `ci.yml`, a review round or the Copilot review. A red CI or a later fix
+for `ci.yml`, a review round or the bug hunt. A red CI or a later fix
 voids that build: re-apply the label on the new head and say which build is
 current. A stale build costs one CI run; waiting costs his time.
 

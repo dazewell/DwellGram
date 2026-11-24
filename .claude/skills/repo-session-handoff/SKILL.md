@@ -138,16 +138,14 @@ that the change is too big — say that instead.
 **Close the review threads — after the last push, not before.** `AGENTS.md`
 requires every review point to get a fix or an explicit reply, then a resolve;
 handing off does not suspend that, it makes it more urgent, because a thread
-the next session inherits has nobody attached to it. Order matters: if a
-Copilot review is still in flight on your head, resolving the threads you could
-see *before* it lands leaves its findings open behind a handoff that claims to
-be complete. Wait for it to settle, then reply to each open thread with the fix or
-why it will not be changed — a finding you are deliberately leaving is a fine
-reply, and belongs in the half-done list too — and resolve it. Verify none are
-left, per the `reviewThreads` query in `repo-session-pickup`. **Do not request
-a Copilot review just to hand off** — it is billed, and an unfinished head is
-not one worth reviewing; record in the handoff how many of the two the PR has
-used.
+the next session inherits has nobody attached to it. Reply to each open thread
+with the fix or why it will not be changed — a finding you are deliberately
+leaving is a fine reply, and belongs in the half-done list too — and resolve
+it. Verify none are left, per the `reviewThreads` query in
+`repo-session-pickup`. **Do not run the bug hunt just to hand off** — an
+unfinished head is not one worth reviewing; record in the handoff how many of
+its two runs the branch has used, and each open bug-hunt finding with its
+disposition, since those live in no thread.
 
 **Stop every process you started, and say so in the handoff.** This is the one
 step where `repo-process-lifecycle` bites hardest: the worktree you are

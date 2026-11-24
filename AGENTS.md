@@ -105,10 +105,9 @@ skipped gate passed.
   `process-rules.yml` accepts `-` as an equally valid separator. With hooks on,
   `.githooks/post-commit` dates an undated local branch when it is committed to
   and `.githooks/pre-push` blocks pushing one.
-- PRs target `dev` and are **not drafts**. Copilot review is **billed and
-  never automatic**: request it once the head is worth an outside review, only
-  through the `request_copilot_review` tool or the script it wraps,
-  `.github/scripts/request-copilot-review.ps1`. Budget and timing are in
+- PRs target `dev` and are **not drafts**. The outside review is the bug hunt,
+  `.github/scripts/invoke-bug-hunt.ps1`: a cold failure-scenario read in a
+  clean session, run once the head is worth it. Budget and timing are in
   `repo-branch-flow`.
 - **Close every review point before handoff**: fix it, or reply explaining why
   not, then resolve the thread. Verify none remain unresolved.
