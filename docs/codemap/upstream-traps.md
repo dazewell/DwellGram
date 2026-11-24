@@ -3258,3 +3258,14 @@ estimate (`:226`). Part 0 goes last and takes the count from the stale estimate 
 `FILE_PART_n_MISSING`. `InstantCameraView` never sets the field, so anything that converts a recorded round must set it.
 
 *(Established 2026-11-22, `#round-spoiler-upload-fix`. Code-read against an in-app log of the failing send; no probe.)*
+
+## A laid-out `SimpleTextView` changes width without telling its parent
+
+Once it has been laid out, `SimpleTextView.setText`, `setRightDrawable` and the other setters rebuild the text layout in
+place through `recreateLayoutMaybe()` (`SimpleTextView.java:748`) and never call `requestLayout()`. A sibling placed
+against the text's width in the parent's `onLayout` keeps its old spot. `SwapAnimatedEmojiDrawable.set`
+(`AnimatedEmojiDrawable.java:1434`) can also swap the glyph inside the same drawable, so a width check keyed on the
+drawable instance misses it. A screen behind another one is not re-laid out when it returns, so the stale spot shows
+then. `ChatAvatarContainer` re-checks the time-zone pill's anchor after every title change.
+
+*(Established 2026-11-24, `#timezones-fix`. Code-read; not traced on device.)*
