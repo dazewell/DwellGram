@@ -29,15 +29,22 @@ param(
     [ValidatePattern('^[^/]+/[^/]+$')]
     [string]$Repository,
     [string]$Base = 'origin/dev',
+    # Another commit to classify or packet. A review itself needs it checked
+    # out, so anything but HEAD works only with -PacketOnly.
+    [string]$Head = 'HEAD',
     # One line on what the change is meant to do. Defaults to the PR title.
     # Keep the reasoning out: the reviewer reads cold on purpose.
     [string]$Intent,
     # Narrow the review to some paths when the whole diff is too big.
     [string[]]$Path,
+    # auto reads the risk off the diff; see $Levels and $Signals below.
+    [ValidateSet('auto', 'low', 'standard', 'high', 'max')]
+    [string]$Level = 'auto',
+    # Overrides of what the level picks, for when dazewell asks for one.
     [ValidateSet('opus', 'sonnet')]
-    [string]$Model = 'opus',
-    [ValidateSet('low', 'medium', 'high')]
-    [string]$Effort = 'medium',
+    [string]$Model,
+    [ValidateSet('low', 'medium', 'high', 'xhigh', 'max')]
+    [string]$Effort,
     [ValidateRange(0, 60)]
     [int]$Context = 15,
     [ValidateRange(16, 1024)]
@@ -56,6 +63,36 @@ $Utf8 = [System.Text.UTF8Encoding]::new($false)
 $Budget = 2
 $LargeFileLines = 3000
 
+# Model aliases, not versions: the CLI resolves opus and sonnet to the newest
+# of each, so a new model release needs no edit here.
+$Levels = [ordered]@{
+    low      = @{ model = 'sonnet'; effort = 'medium' }
+    standard = @{ model = 'opus'; effort = 'medium' }
+    high     = @{ model = 'opus'; effort = 'high' }
+    max      = @{ model = 'opus'; effort = 'xhigh' }
+}
+
+# What makes a change risky here, matched against its added and removed lines.
+# The weight is what a mistake in that area costs: losing data or sending
+# wrong outranks a layout slip. Each area counts once however often it hits.
+$Signals = [ordered]@{
+    data        = @{ weight = 3; pattern = 'SharedPreferences|\.edit\(\)|MessagesStorage|SQLite|\bFile\b|FileOutputStream|\.delete\(\)|renameTo|Draft|serializeToStream|NativeByteBuffer' }
+    send        = @{ weight = 3; pattern = 'SendMessagesHelper|sendMessage|sendRequest|ConnectionsManager|TL_messages_send|updateStatus|scheduleDate' }
+    media       = @{ weight = 3; pattern = 'MediaCodec|MediaMuxer|AudioRecord|\bEGL|GLES\d*|SurfaceTexture|InstantCamera|CameraSession|VideoEncoder' }
+    concurrency = @{ weight = 2; pattern = 'runOnUIThread|postRunnable|Utilities\.\w+Queue|new Thread\b|synchronized|volatile|Atomic\w+|Executor|postDelayed|CountDownLatch' }
+    lifecycle   = @{ weight = 2; pattern = 'onFragmentDestroy|onFragmentCreate|onPause|onResume|onAttachedToWindow|onDetachedFromWindow|addObserver|removeObserver|ViewTreeObserver|onActivityResult|onDestroy|onBecomeFullyHidden' }
+    account     = @{ weight = 2; pattern = 'currentAccount|selectedAccount|MAX_ACCOUNT_COUNT|\bstatic\s+(?!final\b)[\w<>,\[\] ]+\s\w+\s*[=;]' }
+    text        = @{ weight = 1; pattern = 'substring|subSequence|charAt|getMaxMessageLength|codePoint|Surrogate' }
+}
+# Upstream files every core flow runs through; a hook there reaches everyone.
+$CoreFiles = 'ChatActivity|ChatActivityEnterView|MessagesController|SendMessagesHelper|MessagesStorage|ConnectionsManager|NotificationCenter|LaunchActivity|MediaController|FileLoader|InstantCameraView'
+$CoreWeight = 2
+# Score at or above each bound picks that level; below standard is low.
+# Calibrated on PRs 640-655 against where outside review found real bugs.
+$Bounds = [ordered]@{ max = 12; high = 5; standard = 2 }
+# A diff this big with any risk at all goes up a level.
+$BigDiffLines = 800
+
 function Invoke-Native {
     param([string]$Exe, [string[]]$Arguments)
     $Output = & $Exe @Arguments
@@ -71,7 +108,11 @@ function Out-Result {
 }
 
 $Root = (Invoke-Native git @('rev-parse', '--show-toplevel')) -replace '/', '\'
-$Head = Invoke-Native git @('rev-parse', 'HEAD')
+$HeadRef = $Head
+$Head = Invoke-Native git @('rev-parse', "$HeadRef^{commit}")
+if (-not $PacketOnly -and $Head -ne (Invoke-Native git @('rev-parse', 'HEAD'))) {
+    throw "-Head $HeadRef is not what is checked out; a review reads files from disk. Use -PacketOnly, or check it out."
+}
 $Branch = Invoke-Native git @('rev-parse', '--abbrev-ref', 'HEAD')
 $Skill = Join-Path $PSScriptRoot '..\..\.claude\skills\repo-bug-hunt\SKILL.md'
 
@@ -87,9 +128,9 @@ if ($PullRequest) {
     if (-not $PSBoundParameters.ContainsKey('Base')) { $Base = "origin/$($Pr.baseRefName)" }
     if (-not $Intent) { $Intent = $Pr.title }
 }
-if (-not $Intent) { $Intent = Invoke-Native git @('log', '-1', '--format=%s') }
+if (-not $Intent) { $Intent = Invoke-Native git @('log', '-1', '--format=%s', $Head) }
 
-$MergeBase = Invoke-Native git @('merge-base', $Base, 'HEAD')
+$MergeBase = Invoke-Native git @('merge-base', $Base, $Head)
 
 # Process files are left to the architect; this pass is about running code.
 $Spec = @('--', $(if ($Path) { $Path } else { '.' }),
@@ -97,7 +138,7 @@ $Spec = @('--', $(if ($Path) { $Path } else { '.' }),
     ':(exclude).claude/**', ':(exclude).githooks/**', ':(exclude).codex/**',
     ':(exclude).opencode/**')
 
-$Numstat = @(Invoke-Native git (@('diff', '--numstat', '-M', $MergeBase, 'HEAD') + $Spec) | Where-Object { $_ })
+$Numstat = @(Invoke-Native git (@('diff', '--numstat', '-M', $MergeBase, $Head) + $Spec) | Where-Object { $_ })
 if ($Numstat.Count -eq 0) {
     Out-Result @{ status = 'no-code'; head = $Head; base = $MergeBase }
     return
@@ -145,7 +186,27 @@ $Rows = foreach ($Line in $Numstat) {
 # without touching the repo's .gitattributes.
 $Attr = Join-Path $RunDir 'attributes'
 [System.IO.File]::WriteAllText($Attr, "*.java diff=java`n*.kt diff=kotlin`n", $Utf8)
-$Diff = Invoke-Native git (@('-c', "core.attributesFile=$Attr", 'diff', "-U$Context", '-M', '--no-color', $MergeBase, 'HEAD') + $Spec)
+$Diff = Invoke-Native git (@('-c', "core.attributesFile=$Attr", 'diff', "-U$Context", '-M', '--no-color', $MergeBase, $Head) + $Spec)
+
+# Risk: which areas the changed lines touch, not how many lines there are.
+$Changed = @($Diff | Where-Object { $_ -match '^[+-](?![+-]{2} )' })
+$Score = 0
+$Reasons = [System.Collections.Generic.List[string]]::new()
+foreach ($Name in $Signals.Keys) {
+    $Hits = @($Changed | Where-Object { $_ -cmatch $Signals[$Name].pattern }).Count
+    if ($Hits) { $Score += $Signals[$Name].weight; $Reasons.Add("$Name($Hits)") }
+}
+$CoreHits = @($Numstat | Where-Object { ($_ -split "`t")[-1] -match "/org/telegram/.*/($CoreFiles)\.java$" }).Count
+if ($CoreHits) { $Score += $CoreWeight; $Reasons.Add("core-files($CoreHits)") }
+$Picked = 'low'
+foreach ($Name in $Bounds.Keys) { if ($Score -ge $Bounds[$Name]) { $Picked = $Name; break } }
+if ($Changed.Count -gt $BigDiffLines -and $Score -gt 0 -and $Picked -ne 'max') {
+    $Picked = @($Levels.Keys)[@($Levels.Keys).IndexOf($Picked) + 1]
+    $Reasons.Add("big-diff($($Changed.Count) lines)")
+}
+if ($Level -eq 'auto') { $Level = $Picked } else { $Reasons.Add("level set by hand, auto was $Picked") }
+if (-not $Model) { $Model = $Levels[$Level].model }
+if (-not $Effort) { $Effort = $Levels[$Level].effort }
 
 $Packet = @"
 # Review packet
@@ -175,7 +236,8 @@ $PacketFile = Join-Path $RunDir 'packet.md'
 $PacketKB = [math]::Round($Utf8.GetByteCount($Packet) / 1KB, 1)
 
 if ($PacketOnly) {
-    Out-Result @{ status = 'packet'; packet = $PacketFile; packetKB = $PacketKB; files = $Numstat.Count }
+    Out-Result @{ status = 'packet'; packet = $PacketFile; packetKB = $PacketKB; files = $Numstat.Count
+        level = $Level; score = $Score; reasons = @($Reasons); model = $Model; effort = $Effort }
     return
 }
 if ($PacketKB -gt $MaxPacketKB) {
@@ -236,6 +298,9 @@ $Review = if ($Run.PSObject.Properties['structured_output'] -and $Run.structured
 $Result = @{
     status   = 'reviewed'
     head     = $Head
+    level    = $Level
+    score    = $Score
+    reasons  = @($Reasons)
     model    = $Model
     effort   = $Effort
     packetKB = $PacketKB

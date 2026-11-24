@@ -44,6 +44,9 @@ adding a check" is not a scenario.
      it fails, it returns nothing, it lands after the screen or setting moved
      on, and an older one lands after a newer one. What does each leave on
      screen and in state?
+   - **Layout direction.** For every position, offset, translation, gravity or
+     margin the change sets, redo it in RTL, where columns mirror and left is
+     the end. Then check what resets it when the condition that set it stops.
 4. **Trace before you report.** Find the code that makes each step reachable
    and cite it as `path:line`. Found the guard that stops it: drop the finding.
    Could not prove one step (timing, device state): report it as `plausible`.
