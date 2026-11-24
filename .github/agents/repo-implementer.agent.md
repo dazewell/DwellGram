@@ -249,9 +249,16 @@ and only with a `file:line` citation you actually checked.
 Open it into `dev`, **not as a draft**, once it compiles or is about to be gated
 by CI. Non-draft keeps it in the normal review flow; it does not mean reviewed.
 
+Write the body to a file with your file-writing tool, never a shell string,
+then open the PR through the script that reads it back:
+
 ```powershell
-gh pr create --base dev --head <YYYY-MM-DD>_<slug> --title "<title>" --body "<body>"
+.\.github\scripts\set-pr-body.ps1 -Create -Head <YYYY-MM-DD>_<slug> -Title "<title>" -BodyFile <file>
 ```
+
+Every later body edit goes through the same script (`-Replace`, `-AppendFile`,
+`-HandoffFile`, `-BodyFile`), never `gh pr edit --body`: captured `gh` output is
+an array of lines, and rejoining it by hand collapses the body to one line.
 
 The PR body states the exact gate command and its result.
 
@@ -263,8 +270,8 @@ until the end. Typical durations: `ci.yml` ~3.5 min, APK ~11 min; give up at
 about twice that and report. Never poll every 30–60 s, and never stream a
 watcher's output.
 
-Opening the PR requests no review. The Copilot review is billed and you request
-it yourself, once the head deserves one — step 10.
+Opening the PR requests no review. The bug hunt is yours to run, once the head
+deserves one — step 10.
 
 **Close every review point.** Each thread gets a fix or an explicit reply saying
 why it will not change, then gets resolved. Reply *in the thread*, not as a
@@ -284,7 +291,7 @@ $m = 'mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResol
 gh api graphql -f query=$m -F id=<PRRT_...>
 ```
 
-### 10. Round 2, the Copilot review, and the APK
+### 10. Round 2, the bug hunt, and the APK
 
 Once it compiles — or once CI has gated it — take the **real diff** back to
 `repo-architect` for round 2. A dispatched round 2 runs on a **different,
@@ -310,47 +317,52 @@ finding is right, just fix it; the diff shows you heard it, so skip the thanks.
 Fix one item per commit.
 
 **A logic commit pushed after the last architect round is unreviewed.** The
-Copilot budget below bounds paid-review churn, not architect rounds — applying
-it to both is how `#attach-caption-guard` shipped commits its reviewer never
-saw, one carrying a defect the Copilot review then caught. Send the new head
-back, or name those commits as unreviewed in the handback — that second option
-is what keeps this from becoming an unbounded loop.
+bug-hunt budget below bounds that pass, not architect rounds — applying it to
+both is how `#attach-caption-guard` shipped commits its reviewer never saw, one
+carrying a defect the outside review then caught. Send the new head back, or
+name those commits as unreviewed in the handback — that second option is what
+keeps this from becoming an unbounded loop.
 
-**Then request the Copilot review — yourself, once.** Nothing requests it for
-you; every request is billed. Call it when the head is one you would defend to
-an outside reviewer: round 2 has cleared and `ci.yml` is green **on that head
-SHA**. Not on a head you already plan to change. Skip it on a doc- or
-process-only PR unless dazewell asked.
-
-Use the `request_copilot_review` tool (Copilot CLI). Without it, run the script
-it wraps — same checks, same JSON:
+**Then run the bug hunt — yourself, once.** Round 2 asks whether the change
+fits the fork; the bug hunt asks what sequence of actions, states or inputs
+makes it do the wrong thing — other chat modes, accounts, sibling paths that
+bypass the new logic, taps inside an async gap, RTL, text boundaries. It runs
+`repo-bug-hunt` in a clean headless session that gets that skill, the code diff
+with each hunk's enclosing method, and read-only access to the checkout:
+nothing of this conversation, so it reads cold and costs little. Run it when
+round 2 has cleared and `ci.yml` is green **on that head SHA**, with that head
+checked out:
 
 ```powershell
-.\.github\scripts\request-copilot-review.ps1 -PullRequest <n> -Wait
+.\.github\scripts\invoke-bug-hunt.ps1 -PullRequest <n>
 ```
 
-It refuses a draft, a head Copilot already reviewed, a request still in flight
-and a spent budget; confirms the request on the timeline, because
-`requested_reviewers` never lists a bot; and returns the review with its inline
-comments. Never hand-roll the request with `gh pr edit --add-reviewer` or a raw
-REST POST.
+Run it in the background; it prints one JSON object when done. It answers
+`no-code` on a doc- or process-only diff, refuses a packet over 160 KB (split
+with `-Path`), and needs the `claude` CLI signed in — if it is not, that is
+dazewell's one-time `claude auth login`, so ask. It bills whichever account
+the CLI is signed into, not this session's. It picks model and effort from
+the risk of the changed lines — data, sending, media, threading, lifecycle,
+account state, core upstream files — not their count, and names its reasons
+in the output. Override with `-Level` only when dazewell asks.
 
-- **Severity floor.** Act only on **Important or above** — data loss, a crash, a
-  race with a user-visible consequence, a wrong-behaviour regression. Nitpicks,
-  naming, comment suggestions and speculative defensive guards are not grounds
-  for another commit. Record them and move on.
-- **Budget: two reviews per PR.** The second only after pushing fixes for an
-  Important-or-above finding, and only once `ci.yml` is green on that new head.
-  If Important-or-above findings remain after it, **stop and report** — more
-  churn there usually means the design needs revisiting, which is a report, not
-  a patch. `-Force` past the budget only when dazewell asks by name.
+- **Verify before acting.** Read every cited `path:line` yourself. A
+  `plausible` finding needs its unproved step proved before you fix it, or a
+  reason it cannot happen.
+- **Severity floor.** It reports only critical and important. Speculative
+  defensive guards are still not grounds for a commit.
+- **Budget: two runs per branch.** The second only after pushing fixes for a
+  finding, and only once `ci.yml` is green on that new head. If findings remain
+  after it, **stop and report** — more churn there usually means the design
+  needs revisiting, which is a report, not a patch. `-Force` past the budget
+  only when dazewell asks by name.
 
-Fix real findings as new commits; note false positives with a reason. Pushing
-no longer re-requests anything.
+Fix real findings as new commits; decline false positives with a reason. It
+opens no GitHub threads, so each finding's disposition (fixed in `<sha>`, or
+declined and why) goes in the handback's Review line.
 
 **Request the on-device APK build the moment you want something tested** —
-apply `build-apk` right after the push, before CI, round 2 or the Copilot
-review. A later fix re-applies the label; name the current build when you ask.
+apply `build-apk` right after the push, before CI, round 2 or the bug hunt. A later fix re-applies the label; name the current build when you ask.
 Report a missing `ci.yml` run for the head SHA as absent, never as a pass: this
 repo has seen `pull_request` events dropped silently.
 
@@ -441,7 +453,7 @@ Branch:        <YYYY-MM-DD>_<slug>
 PR:            <url>  (state, draft: no)
 Compile gate:  local | ci.yml | not applicable (doc-only) — with the evidence
 Diagnostics:   not applicable | added in <sha>, reverted in <sha> | still in (why)
-Review:        <architect verdict; Copilot reviews used n/2, x findings fixed, y declined with reason>
+Review:        <architect verdict; bug hunt runs n/2, x findings fixed, y declined with reason>
 Review threads: <n, all resolved?>
 Processes:     <none> | one block per item, in the process-lifecycle ledger format
 Isolated GRADLE_USER_HOME: <absolute path> | <none>

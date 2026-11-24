@@ -20,12 +20,12 @@ check), `repo-process-lifecycle` (any process you start, and cleanup),
 
 Invoke the skill for the job rather than working from memory.
 
-## Requesting a Copilot review
+## The bug hunt
 
-The `request_copilot_review` tool is a Copilot CLI extension
-(`.github/extensions/copilot-review/`). Claude Code doesn't load it, so run the
-script it wraps: `.\.github\scripts\request-copilot-review.ps1 -PullRequest <n> -Wait`.
-When and how often is in `repo-branch-flow`.
+Never invoke `repo-bug-hunt` with the Skill tool. It is only for the clean
+headless session `.\.github\scripts\invoke-bug-hunt.ps1` starts, which needs the
+`claude` CLI signed in on the machine (`claude auth login`). When and how often
+is in `repo-branch-flow`.
 
 ## Subagents
 
