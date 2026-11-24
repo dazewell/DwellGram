@@ -245,10 +245,18 @@ if ($PacketKB -gt $MaxPacketKB) {
 }
 if (-not (Test-Path $Skill)) { throw "Skill not found at $Skill." }
 
+# A token saved by set-bug-hunt-token.ps1 (DPAPI) overrides the shared CLI
+# login for this script's claude calls only; removed again in the finally.
+$TokenFile = Join-Path $HOME '.claude\bug-hunt-token.txt'
+if (Test-Path $TokenFile) {
+    $env:CLAUDE_CODE_OAUTH_TOKEN = [System.Net.NetworkCredential]::new('',
+        ((Get-Content $TokenFile -Raw).Trim() | ConvertTo-SecureString)).Password
+}
+try {
 # auth status exits non-zero when signed out, so read its JSON, not its code.
 $Auth = try { & claude auth status 2>$null | Out-String | ConvertFrom-Json } catch { $null }
 if (-not $Auth -or -not $Auth.loggedIn) {
-    throw 'The claude CLI is not signed in. Run "claude auth login" once in a terminal, then retry.'
+    throw 'The claude CLI is not signed in (or the saved bug-hunt token is invalid). Run Set-BugHuntToken (.github/scripts/set-bug-hunt-token.ps1), then retry.'
 }
 
 $Schema = @'
@@ -281,6 +289,9 @@ try {
     $ExitCode = $LASTEXITCODE
 } finally {
     Pop-Location
+}
+} finally {
+    Remove-Item Env:CLAUDE_CODE_OAUTH_TOKEN -ErrorAction SilentlyContinue
 }
 $Raw = $Raw | Out-String
 [System.IO.File]::WriteAllText((Join-Path $RunDir 'raw.json'), $Raw, $Utf8)

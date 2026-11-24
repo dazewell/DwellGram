@@ -341,7 +341,8 @@ Run it in the background; it prints one JSON object when done. It answers
 `no-code` on a doc- or process-only diff, refuses a packet over 160 KB (split
 with `-Path`), and needs the `claude` CLI signed in — if it is not, that is
 dazewell's one-time `claude auth login`, so ask. It bills whichever account
-the CLI is signed into, not this session's. It picks model and effort from
+the CLI is signed into, not this session's; a token saved by
+`Set-BugHuntToken` (`set-bug-hunt-token.ps1`) takes precedence. It picks model and effort from
 the risk of the changed lines — data, sending, media, threading, lifecycle,
 account state, core upstream files — not their count, and names its reasons
 in the output. Override with `-Level` only when dazewell asks.
