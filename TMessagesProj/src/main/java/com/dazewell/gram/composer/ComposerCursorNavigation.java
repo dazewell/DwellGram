@@ -12,6 +12,7 @@ final class ComposerCursorNavigation {
     private final String value;
     private final boolean[] boundaries;
     private float desiredX = Float.NaN;
+    private boolean[] wordStops;
 
     ComposerCursorNavigation(CharSequence text) {
         value = text.toString();
@@ -51,6 +52,37 @@ final class ComposerCursorNavigation {
         while (start > 0 && !boundaries[start]) start--;
         while (end < value.length() && !boundaries[end]) end++;
         return new int[] { start, end };
+    }
+
+    /** Word starts and ends, plus both ends of the text, as caret stops for word steps. Built on first use. */
+    private boolean[] wordStops() {
+        if (wordStops != null) return wordStops;
+        wordStops = new boolean[boundaries.length];
+        wordStops[0] = wordStops[value.length()] = true;
+        BreakIterator iterator = BreakIterator.getWordInstance(Locale.getDefault());
+        iterator.setText(value);
+        for (int start = iterator.first(), end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
+            if (hasWord(start, end)) {
+                wordStops[start] = wordStops[end] = true;
+            }
+        }
+        // A stop inside a grapheme or an inline image is no place for the caret.
+        for (int i = 0; i < wordStops.length; i++) {
+            wordStops[i] &= boundaries[i];
+        }
+        return wordStops;
+    }
+
+    /** Logical next or previous word stop; the caller maps left and right onto that per paragraph direction. */
+    int moveWord(int focus, boolean forward) {
+        desiredX = Float.NaN;
+        boolean[] stops = wordStops();
+        focus = Math.max(0, Math.min(stops.length - 1, focus));
+        int step = forward ? 1 : -1;
+        for (int i = focus + step; i >= 0 && i < stops.length; i += step) {
+            if (stops[i]) return i;
+        }
+        return focus;
     }
 
     private boolean hasWord(int start, int end) {

@@ -95,13 +95,16 @@ public class ComposerLayoutActivity extends BaseFragment {
     private static final int TYPE_SENSITIVITY = 11;
     /** Where Send and the mic sit: at the tools row's end, or beside the open field. Both interface styles. */
     private static final int TYPE_SEND_PLACEMENT = 12;
+    /** Cursor's Letters / Words step, in the Cursor group beside its sensitivity. */
+    private static final int TYPE_CURSOR_STEP = 13;
     /** Sentinel "zones" for the slider groups, so one header/footer lookup serves all of them. */
     private static final int GROUP_SCALE = -1;
     private static final int GROUP_ROW_GAP = -2;
     private static final int GROUP_TEXT_SIZE = -3;
     private static final int GROUP_STYLE = -4;
     private static final int GROUP_SWIPE_EXPAND = -5;
-    private static final int GROUP_SENSITIVITY = -6;
+    /** Every Cursor (trackball) setting: one header, its rows, one footer. */
+    private static final int GROUP_CURSOR = -6;
     private static final int GROUP_SEND_PLACEMENT = -7;
     private static final int TAB_HEIGHT = 44;
     private boolean panelTab;
@@ -375,9 +378,10 @@ public class ComposerLayoutActivity extends BaseFragment {
             items.add(new Item(TYPE_SWIPE_EXPAND, GROUP_SWIPE_EXPAND, null));
             items.add(new Item(TYPE_INFO, GROUP_SWIPE_EXPAND, null));
         } else {
-            items.add(new Item(TYPE_SLIDER_HEADER, GROUP_SENSITIVITY, null));
-            items.add(new Item(TYPE_SENSITIVITY, GROUP_SENSITIVITY, null));
-            items.add(new Item(TYPE_INFO, GROUP_SENSITIVITY, null));
+            items.add(new Item(TYPE_SLIDER_HEADER, GROUP_CURSOR, null));
+            items.add(new Item(TYPE_CURSOR_STEP, GROUP_CURSOR, null));
+            items.add(new Item(TYPE_SENSITIVITY, GROUP_CURSOR, null));
+            items.add(new Item(TYPE_INFO, GROUP_CURSOR, null));
             for (int zone : ZONE_ORDER) {
                 items.add(new Item(TYPE_HEADER, zone, null));
                 List<String> keys = zones.get(zone);
@@ -528,6 +532,7 @@ public class ComposerLayoutActivity extends BaseFragment {
         NaConfig.INSTANCE.getInputTextSize().setConfigInt(TEXT_SIZE_DEFAULT);
         NaConfig.INSTANCE.getComposerSwipeExpand().setConfigBool(true);
         NaConfig.INSTANCE.getComposerCursorSensitivity().setConfigInt(100);
+        NaConfig.INSTANCE.getComposerCursorStep().setConfigInt(0);
         lastSaved = ComposerLayout.snapshot();
         buildItems(lastSaved);
         if (adapter != null) {
@@ -553,7 +558,8 @@ public class ComposerLayoutActivity extends BaseFragment {
             // tap-toggle to fire; everything else (headers, footers, placeholders, the scale slider)
             // has no click behaviour, so it can stay disabled as before.
             final int type = baseType(holder.getItemViewType());
-            return type == TYPE_BUTTON || type == TYPE_STYLE || type == TYPE_SEND_PLACEMENT || type == TYPE_SWIPE_EXPAND;
+            return type == TYPE_BUTTON || type == TYPE_STYLE || type == TYPE_SEND_PLACEMENT || type == TYPE_SWIPE_EXPAND
+                    || type == TYPE_CURSOR_STEP;
         }
 
         @Override
@@ -606,10 +612,13 @@ public class ComposerLayoutActivity extends BaseFragment {
                     break;
                 case TYPE_STYLE:
                 case TYPE_SEND_PLACEMENT:
+                case TYPE_CURSOR_STEP:
                     org.telegram.ui.Cells.TextSettingsCell styleCell = new org.telegram.ui.Cells.TextSettingsCell(context);
                     styleCell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-                    styleCell.setOnClickListener(baseType(viewType) == TYPE_STYLE
-                            ? ComposerLayoutActivity.this::showComposerStyleMenu : ComposerLayoutActivity.this::showSendPlacementMenu);
+                    int selectType = baseType(viewType);
+                    styleCell.setOnClickListener(selectType == TYPE_STYLE ? ComposerLayoutActivity.this::showComposerStyleMenu
+                            : selectType == TYPE_SEND_PLACEMENT ? ComposerLayoutActivity.this::showSendPlacementMenu
+                            : ComposerLayoutActivity.this::showCursorStepMenu);
                     view = styleCell;
                     break;
                 case TYPE_SWIPE_EXPAND:
@@ -726,6 +735,10 @@ public class ComposerLayoutActivity extends BaseFragment {
                     ((org.telegram.ui.Cells.TextSettingsCell) holder.itemView).setTextAndValue(
                             LocaleController.getString(R.string.ComposerSendPlacement), sendPlacementName(InterfaceStyleController.sendPlacement()), false);
                     break;
+                case TYPE_CURSOR_STEP:
+                    ((org.telegram.ui.Cells.TextSettingsCell) holder.itemView).setTextAndValue(
+                            LocaleController.getString(R.string.ComposerCursorStep), cursorStepName(ComposerCursorController.wordSteps() ? 1 : 0), true);
+                    break;
                 case TYPE_SWIPE_EXPAND:
                     ((org.telegram.ui.Cells.TextCheckCell) holder.itemView).setTextAndCheck(
                             LocaleController.getString(R.string.ComposerSwipeExpand), NaConfig.INSTANCE.getComposerSwipeExpand().Bool(), false);
@@ -755,7 +768,7 @@ public class ComposerLayoutActivity extends BaseFragment {
 
     private static CharSequence footerText(int zone) {
         switch (zone) {
-            case GROUP_SENSITIVITY:
+            case GROUP_CURSOR:
                 return LocaleController.getString(R.string.ComposerCursorSensitivityInfo);
             case GROUP_SCALE:
                 return LocaleController.getString(R.string.ComposerScaleInfo);
@@ -784,8 +797,8 @@ public class ComposerLayoutActivity extends BaseFragment {
      * two slider groups, but stopped being able to tell four apart. */
     private static int sliderHeaderText(int zone) {
         switch (zone) {
-            case GROUP_SENSITIVITY:
-                return R.string.ComposerCursorSensitivity;
+            case GROUP_CURSOR:
+                return R.string.ComposerCursor;
             case GROUP_ROW_GAP:
                 return R.string.ComposerRowGap;
             case GROUP_TEXT_SIZE:
@@ -804,7 +817,7 @@ public class ComposerLayoutActivity extends BaseFragment {
     private void showComposerStyleMenu(View anchor) {
         showSelectMenu(anchor, new int[]{InterfaceStyleController.COMPOSER_STYLE_FLOATING, InterfaceStyleController.COMPOSER_STYLE_DOCKED},
                 ComposerLayoutActivity::composerStyleName, InterfaceStyleController.composerStyle(),
-                NaConfig.INSTANCE.getComposerLayoutStyle(), TYPE_STYLE, GROUP_STYLE);
+                NaConfig.INSTANCE.getComposerLayoutStyle(), TYPE_STYLE, GROUP_STYLE, true);
     }
 
     private static String sendPlacementName(int placement) {
@@ -815,12 +828,22 @@ public class ComposerLayoutActivity extends BaseFragment {
     private void showSendPlacementMenu(View anchor) {
         showSelectMenu(anchor, new int[]{InterfaceStyleController.SEND_PLACEMENT_ROW, InterfaceStyleController.SEND_PLACEMENT_FIELD},
                 ComposerLayoutActivity::sendPlacementName, InterfaceStyleController.sendPlacement(),
-                NaConfig.INSTANCE.getComposerSendPlacement(), TYPE_SEND_PLACEMENT, GROUP_SEND_PLACEMENT);
+                NaConfig.INSTANCE.getComposerSendPlacement(), TYPE_SEND_PLACEMENT, GROUP_SEND_PLACEMENT, true);
+    }
+
+    private static String cursorStepName(int step) {
+        return LocaleController.getString(step == 1 ? R.string.ComposerCursorStepWords : R.string.ComposerCursorStepLetters);
+    }
+
+    /** No rebuild: Cursor reads the step at the start of every gesture. */
+    private void showCursorStepMenu(View anchor) {
+        showSelectMenu(anchor, new int[]{0, 1}, ComposerLayoutActivity::cursorStepName, ComposerCursorController.wordSteps() ? 1 : 0,
+                NaConfig.INSTANCE.getComposerCursorStep(), TYPE_CURSOR_STEP, GROUP_CURSOR, false);
     }
 
     /** The same popup a settings select box opens. The open chats pick the choice up through the rebuild on leaving. */
     private void showSelectMenu(View anchor, int[] values, java.util.function.IntFunction<String> name, int current,
-                                tw.nekomimi.nekogram.config.ConfigItem config, int type, int group) {
+                                tw.nekomimi.nekogram.config.ConfigItem config, int type, int group, boolean rebuild) {
         final String[] names = new String[values.length];
         for (int i = 0; i < values.length; i++) {
             names[i] = name.apply(values[i]);
@@ -830,11 +853,14 @@ public class ComposerLayoutActivity extends BaseFragment {
             final int value = values[index];
             if (value != current) {
                 config.setConfigInt(value);
-                rebuildPending = true;
                 final int position = rowPosition(type, group);
                 if (adapter != null && position >= 0) {
                     adapter.notifyItemChanged(position);
                 }
+                if (!rebuild) {
+                    return kotlin.Unit.INSTANCE;
+                }
+                rebuildPending = true;
                 // The preview's island, field and send are built for one layout, so they are rebuilt like on a theme change.
                 if (previewCell != null) {
                     previewCell.applyTheme();

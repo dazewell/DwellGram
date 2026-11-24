@@ -1763,6 +1763,8 @@ object NaConfig {
         )
     val composerCursorSensitivity =
         addConfig("ComposerCursorSensitivity", ConfigItem.configTypeInt, 100)
+    val composerCursorStep =
+        addConfig("ComposerCursorStep", ConfigItem.configTypeInt, 0)
     val composerRowGap =
         addConfig(
             "ComposerRowGap",
