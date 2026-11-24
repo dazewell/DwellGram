@@ -112,9 +112,10 @@ to work out which is current, which is exactly the ambiguity this removes. Merge
 the dead ends — they accumulate across handoffs and are the most valuable thing
 on the page. Refresh the date and the sha.
 
-Use `gh pr edit <n> --body-file` with the full body, or the workspace's
-PR-editing tool. Never hand-retype the existing body: read it, replace or append
-the block, write it back.
+Write the block to a file and run
+`.\.github\scripts\set-pr-body.ps1 -PullRequest <n> -HandoffFile <file>`. It
+replaces an existing block or appends the first, keeps the rest of the body
+byte for byte, and reads it back. Never hand-retype the body.
 
 Optionally add a one-line comment pointing at it (`Handed off — see the handoff
 block in the description`) so watchers get a notification. The body stays

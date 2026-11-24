@@ -108,7 +108,8 @@ skipped gate passed.
 - PRs target `dev` and are **not drafts**. The outside review is the bug hunt,
   `.github/scripts/invoke-bug-hunt.ps1`: a cold failure-scenario read in a
   clean session, run once the head is worth it. Budget and timing are in
-  `repo-branch-flow`.
+  `repo-branch-flow`. PR bodies are created and edited only through
+  `.github/scripts/set-pr-body.ps1`, which reads them back.
 - **Close every review point before handoff**: fix it, or reply explaining why
   not, then resolve the thread. Verify none remain unresolved.
 - User-visible change ⇒ its `FEATURES.md` entry ships in the same PR (70 words

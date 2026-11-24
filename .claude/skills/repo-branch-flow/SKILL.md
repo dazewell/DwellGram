@@ -179,8 +179,10 @@ User-visible features open non-draft PRs into `dev` by default; CI/bug/chore PRs
 are optional.
 
 ```powershell
-gh pr create --base dev --head <YYYY-MM-DD>_<slug> --title "<title>" --body "<body>"
+.\.github\scripts\set-pr-body.ps1 -Create -Head <YYYY-MM-DD>_<slug> -Title "<title>" -BodyFile <file>
 ```
+
+Edit bodies with the same script.
 
 `ci.yml` compiles every PR push and is the no-local-tools gate; say so in the
 body. `process-rules.yml` also runs. Prefer `build-apk`: it builds the PR merge ref

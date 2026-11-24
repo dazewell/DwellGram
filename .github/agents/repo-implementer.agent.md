@@ -249,9 +249,16 @@ and only with a `file:line` citation you actually checked.
 Open it into `dev`, **not as a draft**, once it compiles or is about to be gated
 by CI. Non-draft keeps it in the normal review flow; it does not mean reviewed.
 
+Write the body to a file with your file-writing tool, never a shell string,
+then open the PR through the script that reads it back:
+
 ```powershell
-gh pr create --base dev --head <YYYY-MM-DD>_<slug> --title "<title>" --body "<body>"
+.\.github\scripts\set-pr-body.ps1 -Create -Head <YYYY-MM-DD>_<slug> -Title "<title>" -BodyFile <file>
 ```
+
+Every later body edit goes through the same script (`-Replace`, `-AppendFile`,
+`-HandoffFile`, `-BodyFile`), never `gh pr edit --body`: captured `gh` output is
+an array of lines, and rejoining it by hand collapses the body to one line.
 
 The PR body states the exact gate command and its result.
 
