@@ -13,6 +13,7 @@ import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.text.Editable;
+import android.text.Layout;
 import android.text.Selection;
 import android.text.TextWatcher;
 import android.view.HapticFeedbackConstants;
@@ -37,6 +38,8 @@ import com.dazewell.gram.ui.ComposerToolbarLayout;
 /** One composer's UI-thread gesture, selection and draw-only spotlight state. */
 public final class ComposerCursorController {
     private static final int CHARACTER_STEP_DP = 12;
+    // A word step covers more text than a letter, so it takes a longer drag to keep control.
+    private static final int WORD_STEP_DP = 24;
     private static final int LINE_STEP_DP = 24;
     private static final int[] ACTION_LABELS = {
             R.string.ComposerCursorLeft, R.string.ComposerCursorRight,
@@ -52,7 +55,7 @@ public final class ComposerCursorController {
     private final Spotlight spotlight = new Spotlight();
     private EditTextCaption field;
     private ComposerCursorNavigation navigation;
-    private boolean destroyed, pending, active, selecting, tapWaiting;
+    private boolean destroyed, pending, active, selecting, tapWaiting, words;
     private int generation, pointer = -1, anchor, focus, axis = -1, taps;
     private float downX, downY, lastX, lastY, remainder;
     private float tapX, tapY;
@@ -187,6 +190,7 @@ public final class ComposerCursorController {
 
     private void snapshot(boolean selection) {
         selecting = selection;
+        words = wordSteps();
         anchor = field.getSelectionStart();
         focus = field.getSelectionEnd();
         navigation = new ComposerCursorNavigation(field.getText());
@@ -296,6 +300,11 @@ public final class ComposerCursorController {
         return Math.max(50, Math.min(200, xyz.nextalone.nagram.NaConfig.INSTANCE.getComposerCursorSensitivity().Int()));
     }
 
+    /** Stored values other than 1 read as letters, so an absent or unknown value keeps the old behaviour. */
+    static boolean wordSteps() {
+        return xyz.nextalone.nagram.NaConfig.INSTANCE.getComposerCursorStep().Int() == 1;
+    }
+
     private void track(float x, float y) {
         if (x == 0 && y == 0) return;
         boolean horizontal = Math.abs(x) >= Math.abs(y);
@@ -303,7 +312,8 @@ public final class ComposerCursorController {
         if (axis != nextAxis) remainder = 0;
         axis = nextAxis;
         remainder += horizontal ? x : y;
-        float threshold = AndroidUtilities.dp(horizontal ? CHARACTER_STEP_DP : LINE_STEP_DP) * 100f / sensitivity();
+        int step = horizontal ? (words ? WORD_STEP_DP : CHARACTER_STEP_DP) : LINE_STEP_DP;
+        float threshold = AndroidUtilities.dp(step) * 100f / sensitivity();
         while (Math.abs(remainder) >= threshold) {
             move(horizontal ? (remainder < 0 ? 0 : 1) : (remainder < 0 ? 2 : 3));
             remainder -= Math.copySign(threshold, remainder);
@@ -312,7 +322,14 @@ public final class ComposerCursorController {
 
     private void move(int direction) {
         if (!available() || field.getLayout() == null || navigation == null) return;
-        int next = navigation.move(field.getLayout(), focus, direction);
+        Layout layout = field.getLayout();
+        int next;
+        if (direction <= 1 && words) {
+            boolean rtl = layout.getParagraphDirection(layout.getLineForOffset(focus)) == Layout.DIR_RIGHT_TO_LEFT;
+            next = navigation.moveWord(focus, (direction == 1) != rtl);
+        } else {
+            next = navigation.move(layout, focus, direction);
+        }
         if (next == focus) return;
         focus = next;
         Selection.setSelection(field.getText(), selecting ? anchor : focus, focus);

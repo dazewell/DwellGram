@@ -146,9 +146,9 @@ Arrange the button row under Chat settings → Composer Toolbar → Buttons, wit
 
 The attach paperclip remains visible on the toolbar even when the field is full of text, rather than swapping into the header overflow menu.
 
-### Cursor <!-- #composer-cursor --> <!-- #composer-cursor-word --> <!-- #composer-cursor-select-all -->
+### Cursor <!-- #composer-cursor --> <!-- #composer-cursor-word --> <!-- #composer-cursor-select-all --> <!-- #composer-cursor-words -->
 
-Cursor moves the caret and adjusts text selections by dragging, while keeping the whole input highlighted. Double-tap it to select the word at the caret. Add it and adjust its sensitivity from 50% to 200% under Chat settings → Composer Toolbar → Buttons. Cursor is hidden by default; sensitivity defaults to 100%.
+Cursor moves the caret and adjusts text selections by dragging, while keeping the whole input highlighted. Double-tap it to select the word at the caret. Add it under Chat settings → Composer Toolbar → Buttons, where its Cursor group sets whether drags move by letters or jump to word starts and ends, and its sensitivity from 50% to 200%. Defaults are hidden, letters and 100%.
 
 ### Cut, Copy, Paste buttons <!-- #composer-clipboard-actions -->
 

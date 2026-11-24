@@ -1041,7 +1041,10 @@
     <string name="ComposerLayoutButtonsTab">Buttons</string>
     <string name="ComposerLayoutPanelTab">Panel</string>
     <string name="ComposerCursorSensitivity">Cursor sensitivity</string>
-    <string name="ComposerCursorSensitivityInfo">Higher sensitivity moves the cursor farther as you drag.</string>
+    <string name="ComposerCursorSensitivityInfo">Words moves the cursor to the start or end of each word as you drag sideways. Higher sensitivity moves it farther as you drag.</string>
+    <string name="ComposerCursorStep">Move by</string>
+    <string name="ComposerCursorStepLetters">Letters</string>
+    <string name="ComposerCursorStepWords">Words</string>
     <string name="DmSearchDateRangeMenu">Date range…</string>
     <string name="DmSearchDateRange">Date range</string>
     <string name="DmSearchSenderMenu">Sender…</string>
