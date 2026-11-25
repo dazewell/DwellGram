@@ -4281,17 +4281,9 @@ public class ChatActivity extends BaseFragment implements
         // BlurredBackgroundProvider's shadow/stroke hooks - see ComposerGlassProvider.
         blurredBackgroundColorProvider = new com.dazewell.gram.composer.ComposerGlassProvider(currentAccount, themeDelegate, true, com.dazewell.gram.composer.ComposerGlassProvider.ROLE_BUTTON);
         composerGlassColorProvider = new com.dazewell.gram.composer.ComposerGlassProvider(currentAccount, themeDelegate, true, com.dazewell.gram.composer.ComposerGlassProvider.ROLE_COMPOSER);
-        blurredBackgroundColorProviderWhite = new BlurredBackgroundColorProviderThemed(themeDelegate, Theme.key_windowBackgroundWhite) {
-            @Override
-            public int getBackgroundColor() {
-                if (!BlurredBackgroundProviderImpl.checkBlurEnabled(currentAccount, themeDelegate)) {
-                    return ColorUtils.setAlphaComponent(getThemedColor(Theme.key_windowBackgroundWhite), 255);
-                }
-
-                // NagramX: dropped upstream's light-theme alpha 216 override — light now shares dark theme's base formula, like most other glass surfaces (PeerStoriesView's composer intentionally stays at its own 0.8f)
-                return super.getBackgroundColor();
-            }
-        };
+        // NagramX: named ComposerGlassProvider role (not the old anonymous subclass) so the mention/hashtag/inline-bot
+        // panel and the bot "/" command list can flatten under Interface Style MD3 like the composer does - see ROLE_SUGGESTIONS.
+        blurredBackgroundColorProviderWhite = new com.dazewell.gram.composer.ComposerGlassProvider(currentAccount, themeDelegate, true, com.dazewell.gram.composer.ComposerGlassProvider.ROLE_SUGGESTIONS, Theme.key_windowBackgroundWhite);
 
         if (textSelectionHelper == null) {
             Timer.Task t1 = Timer.start(t, "new ChatActivityTextSelectionHelper");

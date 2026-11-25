@@ -122,7 +122,10 @@ public class SearchTagsList extends FrameLayout implements NotificationCenter.No
 
         if (premiumLayout != null) {
             premiumLayout.setBackground(blurredFactory.create(premiumLayout)
-                .setColorProvider(BlurredBackgroundProviderImpl.topPanelChatActivity(resourcesProvider))
+                // NagramX: chatHeaderPanel flattens under the Chat header MD3 toggle; the generic
+                // topPanelChatActivity(resourcesProvider) it replaces never does and is shared by
+                // non-chat callers (admin log, community screens), so it stays untouched.
+                .setColorProvider(BlurredBackgroundProviderImpl.chatHeaderPanel(currentAccount, resourcesProvider, false))
                 .setRadius(dp(9), dp(15), dp(15), dp(9))
                 .setThickness(dp(5f))
                 .setPadding(dp(4))
