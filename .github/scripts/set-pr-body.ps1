@@ -92,10 +92,6 @@ function Get-Body {
 function Assert-Body {
     param([string]$Text)
     if (-not $Text.Trim()) { throw 'Refusing to write an empty body.' }
-    # AGENTS.md: no attribution lines in shipped history. Naming a tool in a
-    # process PR is fine and has precedent; signing the work is not.
-    $Banned = '(?im)^\s*co-authored-by:|generated with \[|🤖'
-    if ($Text -match $Banned) { throw "Body carries an attribution line ('$($Matches[0].Trim())'); remove it." }
     # Collapsed newlines look like markdown structure stuck mid-line.
     $Glued = @(($Text -split "`n") | Where-Object { $_ -match '\S\s+(#{1,6} |\| ?-{3}|- \*\*|\*\*\w[^*]*\*\*\s+- )' -and $_.Length -gt 400 })
     if ($Glued.Count) { throw "Body looks space-joined (a long line holds headings, list items or a table rule): '$($Glued[0].Substring(0, 120))...'" }

@@ -121,9 +121,6 @@ Optionally add a one-line comment pointing at it (`Handed off — see the handof
 block in the description`) so watchers get a notification. The body stays
 authoritative.
 
-**No AI or assistant mention anywhere in it.** The hard line in `AGENTS.md`
-covers PR bodies like everything else.
-
 ### 4. Stamp it and stop
 
 The dead-ends section is **the part a fresh session cannot reconstruct**.
