@@ -112,8 +112,11 @@ These factories have no gate. Their callers are what still looks like Glass:
 - The 2-arg `topPanelChatActivity` (`:231-233`, never flat): the headers of
   `ChannelAdminLogActivity.java:1158`, `CommunityCreateActivity.java:107`,
   `CommunityEditActivity.java:162` and `NekoDelegateFragment.java:180` (the
-  deleted-messages and history screens), and `SearchTagsList.java:125`. Only
-  `ChatActivity.java:5486` passes the flat 4th `setupGlass` argument.
+  deleted-messages and history screens). Only `ChatActivity.java:5486` passes
+  the flat 4th `setupGlass` argument. `SearchTagsList.java:125` also calls it,
+  but only for a premium layout that already exists when the factory is set.
+  That is the profile shared-media path (`SharedMediaLayout.java:3827`), not
+  the chat's tag strip, which gets a gated provider at `ChatActivity.java:10012`.
 - `topPanel` (`:57-71`): the Calls and forum-topics banners
   (`CallLogActivity.java:913`, `TopicsFragment.java:1431`), profile shared
   media (`SharedMediaLayout.java:3727`, `:3776`, `:3827`), bookmarks, the attach
