@@ -1103,13 +1103,9 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
         if (tzClockPill != null && tzClockPill.getVisibility() == VISIBLE) {
             int pillH = tzClockPill.getMeasuredHeight();
             int pillW = tzClockPill.getMeasuredWidth();
-            int pillL;
+            int pillL = tzPillAnchor();
+            tzPillLaidAnchor = pillL;
             if (isCentered()) {
-                // Anchor the pill at the right edge of the visible title content (see
-                // centeredContentRight): that edge is derived from the stable title-box centre and
-                // clamped to the box, so an overflowing gradient-faded name can never push the text
-                // out from under the pill, and it matches the group the glass bubble hugs exactly.
-                pillL = centeredContentRight() + pillLeadingGap();
                 // Keep the pill clear of the right-hand side bubble / avatar.
                 int rightLimit = getMeasuredWidth() - dp(8);
                 if (avatarImageView != null && avatarImageView.getVisibility() == VISIBLE) {
@@ -1119,8 +1115,6 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
                     pillL = Math.max(centeredContentLeft(), rightLimit - pillW);
                 }
             } else {
-                // Left-aligned title: sit right after the text and its trailing drawables.
-                pillL = l + titleContentEnd() + pillLeadingGap();
                 int rightLimit = getMeasuredWidth() - dp(8);
                 if (pillL + pillW > rightLimit) {
                     pillL = Math.max(l, rightLimit - pillW);
@@ -1246,10 +1240,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
             } else {
                 rightDrawable2ContentDescription = null;
             }
-            boolean hadIcon = titleTextView.getRightDrawable2() != null;
             titleTextView.setRightDrawable2(mutedIcon);
-            // NagramX: a laid-out SimpleTextView rebuilds its text in place, so the time-zone pill after the title only moves on our own layout pass
-            if (hadIcon != (mutedIcon != null)) requestLayout();
         }
         updateTitleIconSpacing();
         checkActionBar(true);
@@ -1269,6 +1260,8 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
         titleTextView.setRightDrawable2OffsetX(offset);
         if (changed) {
             requestLayout();
+        } else {
+            relayoutTzPillIfTitleMoved();
         }
     }
 
@@ -2111,6 +2104,31 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
                     - com.dazewell.gram.chattimezone.ChatTimeZoneRenderer.emojiStatusGlyphWidth(emojiStatusDrawable);
         }
         return 0;
+    }
+
+    // Unclamped left edge of the time-zone pill, from the title's current content.
+    private int tzPillAnchor() {
+        if (isCentered()) {
+            // The right edge of the visible title content (see centeredContentRight): derived from
+            // the stable title-box centre and clamped to the box, so an overflowing gradient-faded
+            // name can never push the text out from under the pill, and it matches the group the
+            // glass bubble hugs exactly.
+            return centeredContentRight() + pillLeadingGap();
+        }
+        // Left-aligned title: sit right after the text and its trailing drawables.
+        return titleTextView.getLeft() + titleContentEnd() + pillLeadingGap();
+    }
+
+    private int tzPillLaidAnchor = Integer.MIN_VALUE;
+
+    // NagramX: a laid-out SimpleTextView rebuilds its text and drawables in place without asking us
+    // for a layout, and the emoji status can change its glyph width inside the same drawable, so the
+    // pill would keep the spot it was given against the old title. Behind another screen this
+    // container isn't even re-laid out when it comes back, which left the pill over the status.
+    private void relayoutTzPillIfTitleMoved() {
+        if (tzClockPill != null && tzClockPill.getVisibility() == VISIBLE && tzPillAnchor() != tzPillLaidAnchor) {
+            requestLayout();
+        }
     }
 
     // Gap between the title's trailing content and the time-zone pill. A trailing emoji status
