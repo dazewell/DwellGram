@@ -147,8 +147,8 @@ public class BlurredBackgroundProviderImpl {
                     // NagramX: follow the Blur strength slider like the header and composer; upstream's fixed 82.5-85% read as flat.
                     return Theme.multAlpha(Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground), xyz.nextalone.nagram.NaConfig.interfaceStyleBlurAlpha());
                 })
-                .setStrokeColorTop(0x44FFFFFF, 0)
-                .setStrokeColorBottom(0x22FFFFFF, 0)
+                .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0 : 0x44FFFFFF)) // NagramX: flat under MD3 Buttons, keep only the shadow
+                .setStrokeColorBottom((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0 : 0x22FFFFFF))
                 .setShadowColor(0x38000000, 0)
                 .setShadowLayer(dpf2(3.5f), 0, 0)
                 .setStrokeWidth(dpf2(2 / 3f), dpf2(2 / 3f))
@@ -157,10 +157,19 @@ public class BlurredBackgroundProviderImpl {
 
     public static BlurredBackgroundProvider scrimMenuBackground(Theme.ResourcesProvider resourcesProvider) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
-            .setBackgroundColor((r, isDark) ->
-                Theme.multAlpha(Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground), isDark ? 0.85f : 0.825f))
-            .setStrokeColorTop(0x44FFFFFF, 0)
-            .setStrokeColorBottom(0x22FFFFFF, 0)
+            .setBackgroundColor((r, isDark) -> {
+                final int colorBg = Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground);
+                if (com.dazewell.gram.helpers.InterfaceStyleController.applyButtons()) {
+                    // NagramX: flat surface colour under MD3 Buttons; still follows the Blur strength slider when chat blur is on
+                    if (!LiteMode.isEnabled(LiteMode.FLAG_CHAT_BLUR)) {
+                        return colorBg;
+                    }
+                    return Theme.multAlpha(colorBg, xyz.nextalone.nagram.NaConfig.interfaceStyleBlurAlpha());
+                }
+                return Theme.multAlpha(colorBg, isDark ? 0.85f : 0.825f);
+            })
+            .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0 : 0x44FFFFFF)) // NagramX: flat under MD3 Buttons, keep only the shadow
+            .setStrokeColorBottom((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0 : 0x22FFFFFF))
             .setShadowColor(0x26000000, 0)
             .setShadowLayer(dpf2(4f), 0, 0)
             .setStrokeWidth(dpf2(2 / 3f), dpf2(2 / 3f))
@@ -309,8 +318,15 @@ public class BlurredBackgroundProviderImpl {
     public static BlurredBackgroundProvider bulletin(Theme.ResourcesProvider resourcesProvider) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
             .setBackgroundColor((r, isDark) -> {
-                final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
                 final int colorBg = Theme.getColor(Theme.key_undo_background, r);
+                if (com.dazewell.gram.helpers.InterfaceStyleController.applyButtons()) {
+                    // NagramX: opaque bar under MD3 Buttons; still follows the Blur strength slider when chat blur is on
+                    if (!LiteMode.isEnabled(LiteMode.FLAG_CHAT_BLUR)) {
+                        return ColorUtils.setAlphaComponent(colorBg, 255);
+                    }
+                    return Theme.multAlpha(colorBg, xyz.nextalone.nagram.NaConfig.interfaceStyleBlurAlpha());
+                }
+                final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
                 return Theme.multAlpha(colorBg, alpha);
             })
             //.setStrokeColorTop(0xFFFFFFFF, 0x28FFFFFF)
