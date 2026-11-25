@@ -4282,7 +4282,8 @@ public class ChatActivity extends BaseFragment implements
         blurredBackgroundColorProvider = new com.dazewell.gram.composer.ComposerGlassProvider(currentAccount, themeDelegate, true, com.dazewell.gram.composer.ComposerGlassProvider.ROLE_BUTTON);
         composerGlassColorProvider = new com.dazewell.gram.composer.ComposerGlassProvider(currentAccount, themeDelegate, true, com.dazewell.gram.composer.ComposerGlassProvider.ROLE_COMPOSER);
         // NagramX: named ComposerGlassProvider role (not the old anonymous subclass) so the mention/hashtag/inline-bot
-        // panel and the bot "/" command list can flatten under Interface Style MD3 like the composer does - see ROLE_SUGGESTIONS.
+        // panel and the bot "/" command list can flatten under Interface Style MD3 like the composer does - see
+        // ROLE_SUGGESTIONS. Upstream's light-theme alpha-216 override on this provider stays dropped, as before.
         blurredBackgroundColorProviderWhite = new com.dazewell.gram.composer.ComposerGlassProvider(currentAccount, themeDelegate, true, com.dazewell.gram.composer.ComposerGlassProvider.ROLE_SUGGESTIONS, Theme.key_windowBackgroundWhite);
 
         if (textSelectionHelper == null) {
