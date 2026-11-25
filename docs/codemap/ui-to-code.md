@@ -81,11 +81,63 @@ geometry (`ChatActivity.java:12723-12730`, `:12832-12955`,
 
 Chat header and tag-search providers use the same shared blur-strength alpha
 for translucent MD3 surfaces and fall back to opaque theme roles below the
-RenderEffect/API/blur gate (`BlurredBackgroundProviderImpl.java:211-250`;
+RenderEffect/API/blur gate (`BlurredBackgroundProviderImpl.java:235-292`;
 `NaConfig.kt:1589-1592`). The filter-tab tonal pill remains a separate
 follow-up slice.
 
 *(Established 2026-09-22, during `#interface-style`.)*
+
+## What still draws Glass under MD3, by provider
+
+MD3 is only "Liquid Glass off" (`InterfaceStyleController.java:17-19`). That
+flag drops the refraction shader and nothing else
+(`ChatActivity.java:3092-3100`; `MainTabsActivity.java:437`), so any surface
+whose provider never reads an `apply*()` gate keeps the frosted pill, white
+stroke and shadow. The MD3 surfaces are the ones whose provider branches on a
+gate: `dialogsTopPanel`, the chat header chain, `emojiViewButton` and
+`mainTabsBottomNavigation` (`BlurredBackgroundProviderImpl.java:40-55`,
+`:75-95`, `:107-120`, `:235-292`), plus `ComposerGlassProvider` and
+`Md3ButtonColorProvider`. The main FAB is never glass.
+
+These factories have no gate. Their callers are what still looks like Glass:
+
+- `messageMenuBackground` (`:141-156`): the message menu and reactions bar,
+  the chat and profile ⋮ menus (`ChatActivity.java:5480`, `:34402`, `:35511`;
+  `ProfileActivity.java:4189`).
+- `scrimMenuBackground` (`:158-168`): about 17 call sites, including the
+  app-wide `ItemOptions.java:1534`, `ScrimOptions`, `ContentPreviewViewer`,
+  `AvatarPreviewer` and the poll and to-do item menus.
+- `bulletin` (`:309-322`): `ChatActivity.java:32993` and
+  `GiftMessageBottomSheet.java:479`.
+- The 2-arg `topPanelChatActivity` (`:231-233`, never flat): the headers of
+  `ChannelAdminLogActivity.java:1158`, `CommunityCreateActivity.java:107`,
+  `CommunityEditActivity.java:162` and `NekoDelegateFragment.java:180` (the
+  deleted-messages and history screens), and `SearchTagsList.java:125`. Only
+  `ChatActivity.java:5486` passes the flat 4th `setupGlass` argument.
+- `topPanel` (`:57-71`): the Calls and forum-topics banners
+  (`CallLogActivity.java:913`, `TopicsFragment.java:1431`), profile shared
+  media (`SharedMediaLayout.java:3727`, `:3776`, `:3827`), bookmarks, the attach
+  sheet's audio layout and `SelectAudioAlert`. `inputFieldDialogActivity`
+  (`:324-326`) is an alias for it, used by the attach caption islands and the
+  forward picker's input (`ChatAttachAlert.java:3097`, `:3103`, `:3520`;
+  `DialogsActivity.java:5144`, `:5146`).
+- `mainTabs` (`:21-35`): the attach sheet tab bar and the statistics tabs
+  (`ChatAttachAlert.java:2774`; `StatisticActivity.java:1049`).
+- `inputFieldShareAlert`, `attachMenuSearch`, `premiumButton`, `shadow` and
+  `bottomPanelChatActivity` each have only a few sheet callers.
+- `BlurredBackgroundColorProviderThemed` over `windowBackgroundWhite`: the
+  chat's @mention and bot-command panels (`ChatActivity.java:4284`, `:8175`,
+  `:19753`) and My Profile's bottom buttons (`ProfileActivity.java:3627`).
+
+`topPanel`, `mainTabs`, `inputFieldDialogActivity`, the 2-arg
+`topPanelChatActivity` and `scrimMenuBackground` are shared across unrelated
+screens. Gate one in place only if every caller should change. Otherwise add
+an overload, the way `dialogsTopPanel` and `chatHeaderPanel` were added.
+
+`photoViewer` and `photoViewerMenu` (`:344-365`) have a transparent fill and
+sit over arbitrary media, so they stay glass by design.
+
+*(Established 2026-11-24, MD3 coverage investigation. Caller lines from grep.)*
 
 ## The chat-list header keeps its frosted body and adds only a bottom glint
 
@@ -100,8 +152,8 @@ A separate refractive strip was removed after repeated device screenshots
 still showed an overly heavy lower edge, including after narrowing and feathering.
 The approved simplification retains frosting and glare only; it does not
 establish which layer caused every dark pixel in those screenshots.
-Folder tabs and the search field keep their own glass drawables
-(`DialogsActivity.java:5425-5435`).
+Under Liquid Glass, folder tabs and the search field keep their own glass
+drawables. MD3 skips both (`DialogsActivity.java:5423-5436`).
 
 *(Established 2026-10-29, during `#glass-header-glare`.)*
 
