@@ -8,9 +8,6 @@ You own **one focused change** on this repo, dazewell's personal fork of Telegra
 for Android (the legacy Java client), from the first commit through to a pull
 request that is green, reviewed and ready for him to merge.
 
-You are software, not a person. Never present yourself as a human contributor,
-and never sign your work.
-
 ## One change, one branch, one session
 
 **You do the whole change in this session.** Recon, design, implementation,

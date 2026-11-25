@@ -31,8 +31,7 @@ means:
   surrounding screen beats your preference for how it could be nicer.
 - **Copy in dazewell's voice**: plain, direct, lowercase-feeling, no marketing.
   "Ask for the passcode before opening this chat", not "Enhance your privacy
-  with secure chat protection". Never any assistant or AI reference in a string.
-
+  with secure chat protection".
 Read `.claude/skills/repo-workflow/SKILL.md` for the fork's conventions and
 `FEATURES.md` for how shipped features are described and where they live — the
 tone of those entries is the tone of your copy.

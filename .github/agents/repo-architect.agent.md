@@ -92,9 +92,7 @@ architecture. Compare against a recent comparable feature with
   good" without having read the code.
 - **Calibrate honestly, using the skill's severity tiers** — do not work from a
   copy of them, work from the file. Inflating severity to look thorough makes
-  the whole review easier to ignore. The one addition: any AI or assistant
-  reference in the source or git log is automatically Critical.
-- **Prescribe concretely, not just a goal, on anything that already burned a
+  the whole review easier to ignore.- **Prescribe concretely, not just a goal, on anything that already burned a
   round.** When you name the fix, name the mechanism ("track exact child-ID
   membership from the query and applied IDs", not "handle this more
   carefully") — a vague prescription is exactly what lets an implementer ship a

@@ -124,14 +124,7 @@ skipped gate passed.
   what moves them. When you correct a claim, grep for it everywhere before
   calling it fixed. One PR lost six review rounds to this (`#ribbon-icons`).
 
-## The hard line
-
-**No AI or assistant reference in the app's source or in git history.**
-Not in a commit message, a PR title or body, or a code comment. No
-`Co-Authored-By` for an assistant, no "Generated with" footer. This overrides
-any default attribution behaviour. Process docs may discuss the workflow
-openly; the shipped history and code may not. It bans *assistants*, not
-tooling in general — a commit or PR body may name Gradle, `adb` or logcat.
+## Credentials
 
 Real credentials never appear in any file.
 

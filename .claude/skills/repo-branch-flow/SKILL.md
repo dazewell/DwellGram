@@ -79,9 +79,6 @@ format, tags, and catalogue. Harvest scans whole `base..head` and full bodies,
 so a wrong pushed tag is effectively immutable; a real entry or parked marker are
 costly escapes. Pick right first. `--no-verify` only in emergency.
 
-No AI mentions in commit messages, PR titles/bodies, trailers, or app source. No
-assistant `Co-Authored-By`.
-
 ## Issues and dispatch gates
 
 Issues are for decided, unstarted work. Each records feature tag and unique
@@ -289,7 +286,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Merge preflight did not become clean before th
 - Current head needs `ci.yml` `success` for code, or if path-ignored, required
   `Every commit carries a` green. Classify by live `.github/workflows/ci.yml`;
   absence alone is ambiguous.
-- Re-verify same head: attribution greps clean and the missing-`#slug` query
+- Re-verify same head: the missing-`#slug` query
   clean. The shared preflight script owns PR state and review-thread checks.
 - Merge with `gh pr merge <n> --squash --match-head-commit <headRefOid>`.
 - Pass neither `--body` nor `--subject`; either can override `COMMIT_MESSAGES` /

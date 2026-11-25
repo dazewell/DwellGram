@@ -1,6 +1,6 @@
 ---
 name: repo-code-review
-description: "Chief Architect reviewer for this fork (origin; live source parent DrKLO/Telegram; NextAlone/Nagram retained as compatibility/reference and proposal target; risin42/NagramX as archived historical base). Trigger whenever a NagramX change needs review: round 1 plan/design before coding, round 2 real diff and final state after compile or CI, dispatching the repo-architect subagent, or dazewell saying review this / take it through the architect. Owns Android-and-fork checks: upstream-merge survivability, minimal-footprint hooks, reuse-first, legacy-Java constraints, lifecycle/threading/leak traps, multi-account keying, config surfaces, fork-owned resources, severity calibration, output format, and the no-AI-in-source line. Companion to repo-workflow and repo-branch-flow. Edit this file when dazewell corrects review."
+description: "Chief Architect reviewer for this fork (origin; live source parent DrKLO/Telegram; NextAlone/Nagram retained as compatibility/reference and proposal target; risin42/NagramX as archived historical base). Trigger whenever a NagramX change needs review: round 1 plan/design before coding, round 2 real diff and final state after compile or CI, dispatching the repo-architect subagent, or dazewell saying review this / take it through the architect. Owns Android-and-fork checks: upstream-merge survivability, minimal-footprint hooks, reuse-first, legacy-Java constraints, lifecycle/threading/leak traps, multi-account keying, config surfaces, fork-owned resources, severity calibration, output format. Companion to repo-workflow and repo-branch-flow. Edit this file when dazewell corrects review."
 ---
 
 # Code review: Chief Architect
@@ -162,9 +162,6 @@ hard-line policy, docs.
 
 ### Hard-line and gate checks
 
-- **No AI references anywhere in source or git log, comments included.** No
-  `Co-Authored-By`, "Generated with", assistant names, or assistant-flavored
-  comments. This is automatic **Critical**.
 - **Every non-merge commit carries `#<slug>`.** Feature slug or category tag
   (`#ci`, `#docs`, `#build`, `#chore`, `#infra`, `#deps`, `#test`, `#release`;
   full set in `repo-branch-flow`). User-visible slugs are catalogued in
@@ -242,8 +239,8 @@ argument is "X is harmless because Y absorbs it", read Y.
 Categorize by **actual** severity. Acknowledge what was done well first; accurate
 praise makes the rest trusted.
 
-- **Critical (must fix):** crashes, data loss, leaks that will bite, AI mention
-  in source/log, security issues, broken functionality.
+- **Critical (must fix):** crashes, data loss, leaks that will bite,
+  security issues, broken functionality.
 - **Important (should fix):** wrong hook point / heavy base-file footprint,
   reinventing an existing component, threading/lifecycle risks, missing
   null-guards, missing `#tag` or `FEATURES.md` marker, upstream-fragile hook.
@@ -304,5 +301,4 @@ a clear verdict.
 This file is the living definition of review here. When dazewell corrects the
 persona, adds a check, or changes a severity call, edit it here in the same
 session and keep it consistent with `repo-workflow`, `repo-branch-flow`,
-and `CLAUDE.md`. It may describe the process openly; the git log and app source
-must stay clean of AI references.
+and `CLAUDE.md`.
