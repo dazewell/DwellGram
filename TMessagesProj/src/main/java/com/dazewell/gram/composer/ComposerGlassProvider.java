@@ -14,8 +14,9 @@ import com.dazewell.gram.helpers.InterfaceStyleController;
 
 /**
  * NagramX: color provider for the composer glass family. ChatActivity keeps one default instance
- * for glass button surfaces and a composer instance for the input island, satellite close button,
- * and under-keyboard panel. Named (not anonymous) so it can implement BlurredBackgroundProvider on
+ * for glass button surfaces, a composer instance for the input island, satellite close button,
+ * and under-keyboard panel, and a suggestions instance for the mention/hashtag/inline-bot panel and
+ * the bot "/" command list. Named (not anonymous) so it can implement BlurredBackgroundProvider on
  * top of BlurredBackgroundColorProviderThemed; BlurredBackgroundDrawable.setColorProvider only
  * picks up the shadow/stroke overrides below through that richer interface.
  */
@@ -62,13 +63,14 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
         this.backgroundColorId = backgroundColorId;
     }
 
-    // NagramX: theme-mode "dark", not perceived-brightness "dark" - used by getBackgroundColor() and
-    // getShadowColor() below (NOT by the stroke getters further down - see their comment for why they
-    // stay on the inherited isDark() instead). The inherited isDark() (BlurredBackgroundColorProviderThemed's,
-    // perceived brightness of the panel background color) is deliberately not used for shadow/background:
-    // under a custom theme the panel color's brightness can disagree with the theme's actual day/night
-    // mode, which would let the "dark theme shadow stays 0" requirement leak a shadow in an actual dark
-    // theme with a bright custom panel color.
+    // NagramX: theme-mode "dark", not perceived-brightness "dark" - used by getBackgroundColor() and,
+    // for ROLE_COMPOSER/ROLE_BUTTON only, getShadowColor() below (NOT by the stroke getters further down,
+    // and NOT by ROLE_SUGGESTIONS' own getShadowColor() branch, which deliberately keeps the inherited
+    // isDark() instead - see their own comments for why). The inherited isDark()
+    // (BlurredBackgroundColorProviderThemed's, perceived brightness of the panel background color) is
+    // deliberately not used for the composer/button shadow: under a custom theme the panel color's
+    // brightness can disagree with the theme's actual day/night mode, which would let the "dark theme
+    // shadow stays 0" requirement leak a shadow in an actual dark theme with a bright custom panel color.
     private boolean isDarkTheme() {
         return resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark();
     }
