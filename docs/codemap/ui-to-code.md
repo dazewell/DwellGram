@@ -12,31 +12,31 @@ style enum: `InterfaceStyleController.isMaterialDesign3()` derives MD3 from the
 existing Liquid Glass setting and support gate
 (`InterfaceStyleController.java:17-18`). The page writes Liquid Glass with
 `LiteMode.toggleFlag(...)` and reloads the interface
-(`InterfaceStyleActivity.java:485-491`).
+(`InterfaceStyleActivity.java:483-489`).
 
 The shared Blur strength row is visible in both styles because composer glass
-already consumes it (`InterfaceStyleActivity.java:337-341,517-520`;
-`ComposerGlassProvider.java:74-75`; `NaConfig.kt:1485-1489`). MD3-only rows are
+already consumes it (`InterfaceStyleActivity.java:336-338,528-531`;
+`ComposerGlassProvider.java:74-75`; `NaConfig.kt:1660-1664`). MD3-only rows are
 visible only after the Material Design 3 radio is selected
-(`InterfaceStyleActivity.java:341-360`). The Apply to rows expose Chat header,
-Chat list top bar, Buttons, Composer, Bottom navigation, and Panel dividers;
+(`InterfaceStyleActivity.java:340-358`). The Apply to rows expose Chat header,
+Chat list top bar, Buttons, Composer, and Bottom navigation;
 the Composer row is assigned only while `COMPOSER_STYLE_AVAILABLE` is true,
-which it now is (`InterfaceStyleActivity.java:346-348`;
+which it now is (`InterfaceStyleActivity.java:345-347`;
 `InterfaceStyleController.java:33-36`). Like every other Apply to row, its
-stored default is on (`NaConfig.kt:1467-1471`). The Panel colors row, Match
+stored default is on (`NaConfig.kt:1630-1634`). The Panel colors row, Match
 Classic and Day header color, shows only on MD3 with Classic or Day selected as
-the day theme and defaults off (`InterfaceStyleActivity.java:355-359`;
-`NaConfig.kt:1491-1495`); its render path is the next entry.
+the day theme and defaults off (`InterfaceStyleActivity.java:353-357`;
+`NaConfig.kt:1666-1670`); its render path is the next entry.
 
-Panel dividers are a shipped MD3 row: `NaConfig` stores
-`interfaceStylePanelDividers`, and `InterfaceStyleController.panelDividers()`
-gates the render paths (`NaConfig.kt:1497-1501`;
-`InterfaceStyleController.java:48-50`; `InterfaceStyleActivity.java:353`).
-It draws hairlines coloured as MD3 outline-variant (the local surface blended 12% towards `key_windowBackgroundWhiteBlackText`, `InterfaceStyleController.java:62-70`, because Night/AMOLED `key_divider` is pure black) at
-Dialogs' captured top-surface bottom after `super.dispatchDraw(...)`, and under
-ChatActivity's header group after `super.dispatchDraw(...)`
-(`DialogsActivity.java:1177-1182`; `ChatActivity.java:19608-19616`). The
-floating bottom navigation never meets content edge to edge, so it draws none.
+MD3 panel dividers are gone (removed 2026-11-26). The hairlines under the
+chat-list header, the chat header and the docked composer took four draw-order
+fixes, and the chat-list one was also hiding a rounding bug. The player panel's
+`-14` layout margin is converted by `LayoutHelper.createFrame` as `dp(-14)`, and
+`dp()` rounds up (`LayoutHelper.java:101`; `AndroidUtilities.java:2692-2697`),
+so on a fractional density it is a pixel smaller than `dp(14)`. The surface
+subtracted `dp(14)` and stopped one pixel short of the panel. It now uses
+`dp(-14)` (`DialogsActivity.java:6907-6914`). When a formula mirrors a layout
+margin, round it the way the layout did.
 
 Chat/action-bar surfaces use the existing account-aware
 `topPanelChatActivity(...)` colour logic, but `ChatActivity` calls the
@@ -60,7 +60,9 @@ tab lift, since rows start there in both states at rest (during animations the s
 gap above a visible player or location panel: its flat background starts at the
 panel's `dp(21)` top padding less its `-14` layout margin, 5 dp past the trimmed
 surface with folder tabs and 7 dp without them. While a panel shows, the surface extends to the panel top instead
-(`DialogsActivity.java:5077`, `:5885`, `:6909-6918`). The
+(`DialogsActivity.java:5072`, `:5881`, `:6907-6914`). Like
+ChatActivity's MD3 panel, it drops the card's 11dp side padding, so the player
+runs full width (`DialogsActivity.java:5071-5072`). The
 search/folder rows do not install their own MD3 backgrounds; search-type tabs
 keep only a full-bounds child clip, the search field keeps its rounded control
 background, and the independently animated temporary panel reuses the same

@@ -1428,10 +1428,13 @@ public class TopicsFragment extends BaseFragment implements NotificationCenter.N
 
         topPanelLayout = new DialogsActivityTopPanelLayout(context);
         topPanelLayout.setPadding(dp(11), dp(21), dp(11), dp(21));
-        BlurredBackgroundDrawable topPanelLayoutBackground = iBlur3FactoryLiquidGlass.create(topPanelLayout, BlurredBackgroundProviderImpl.topPanel(resourceProvider));
+        // NagramX: flatten like the chat list's player/location panel under MD3 Chat list top bar.
+        final boolean naxFlatChatListTopBar = com.dazewell.gram.helpers.InterfaceStyleController.applyChatListTopBar();
+        BlurredBackgroundDrawable topPanelLayoutBackground = iBlur3FactoryLiquidGlass.create(topPanelLayout, BlurredBackgroundProviderImpl.dialogsTopPanel(currentAccount, resourceProvider));
         topPanelLayoutBackground.setRadius(dp(24));
-        topPanelLayoutBackground.setPadding(dp(7));
+        topPanelLayoutBackground.setPadding(naxFlatChatListTopBar ? 0 : dp(7));
         topPanelLayout.setBlurredBackground(topPanelLayoutBackground);
+        topPanelLayout.setFlatBackground(naxFlatChatListTopBar);
         topPanelLayout.setOnAnimatedHeightChangedListener(() -> {
             blur3_InvalidateBlur();
             checkUi_listViewPadding();

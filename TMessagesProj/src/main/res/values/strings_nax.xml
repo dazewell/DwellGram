@@ -396,8 +396,6 @@
     <string name="InterfaceStyleBlurStrength">Blur strength</string>
     <string name="InterfaceStyleBlurStrengthAccDescr">Blur strength</string>
     <string name="InterfaceStyleBlurStrengthInfo">How much of the content behind shows through chat headers, the chat list top bar, bottom navigation, and the message field.</string>
-    <string name="InterfaceStylePanelDividers">Panel dividers</string>
-    <string name="InterfaceStylePanelDividersInfo">A thin line where headers and the bottom navigation meet the content.</string>
     <string name="InterfaceStylePanelColorsHeader">Panel colors</string>
     <string name="InterfaceStyleMatchClassicDayHeader">Match Classic and Day header color</string>
     <string name="InterfaceStyleMatchClassicDayHeaderInfo">Solid chat headers and chat list top bar, in Classic\'s original blue. Blur strength doesn\'t apply to them.</string>

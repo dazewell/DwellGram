@@ -910,10 +910,13 @@ public class CallLogActivity extends BaseFragment implements NotificationCenter.
 			checkUi_listViewPadding();
 		});
 
-		BlurredBackgroundDrawable topPanelLayoutBackground = iBlur3FactoryLiquidGlass.create(topPanelLayout, BlurredBackgroundProviderImpl.topPanel(resourceProvider));
+		// NagramX: flatten like the chat list's player/location panel under MD3 Chat list top bar.
+		final boolean naxFlatChatListTopBar = com.dazewell.gram.helpers.InterfaceStyleController.applyChatListTopBar();
+		BlurredBackgroundDrawable topPanelLayoutBackground = iBlur3FactoryLiquidGlass.create(topPanelLayout, BlurredBackgroundProviderImpl.dialogsTopPanel(currentAccount, resourceProvider));
 		topPanelLayoutBackground.setRadius(dp(24));
-		topPanelLayoutBackground.setPadding(dp(7));
+		topPanelLayoutBackground.setPadding(naxFlatChatListTopBar ? 0 : dp(7));
 		topPanelLayout.setBlurredBackground(topPanelLayoutBackground);
+		topPanelLayout.setFlatBackground(naxFlatChatListTopBar);
 
 		fragmentContextViewWrapper = new FrameLayout(context);
 		topPanelLayout.addView(fragmentContextViewWrapper);

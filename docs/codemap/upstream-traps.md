@@ -2294,31 +2294,21 @@ loss. The fix posts the removal instead
 
 *(Established 2026-09-26, `#trigger-cursor-fix`.)*
 
-## The chat top panel sits 5dp under the header, and the header hairline must be drawn at the header's depth
+## The chat top panel sits 5dp under the header
 
 `checkUi_topPanelPositions` lifts `topPanelLayout` (player strip, pinned
 message, join bar) by a stock `dp(5)` so it tucks under the header
-(`ChatActivity.java:13654-13655`). Liquid Glass hides this inside its 7dp
-padding; MD3 zeroes that padding (`:52279`), so the strip's top 5dp sit under
+(`ChatActivity.java:13950-13952`). Liquid Glass hides this inside its 7dp
+padding; MD3 zeroes that padding (`:53245`), so the strip's top 5dp sit under
 the header. A translucent MD3 header matches the strip and hides it; the solid
 Classic/Day header shows it as a clipped strip, so the lift is dropped only
 there.
 
-The MD3 header hairline is drawn in `drawChild` straight after the header
-group's topmost child (`:19545-19547`, anchor at `:19639-19641`): `actionBar`,
-or `actionBarSearchTags` when shown, the only member added after it (`:8665`,
-`:9926`). Drawn after `super.dispatchDraw` it sat above every overlay added
-later, such as the round-video scrim (`:8994`) and forward options
-(`:12556`); special-casing each one was the old fix.
+Upstream drops the chat preview's action bar by `dp(1)` (`:21017-21020`),
+which bares a wallpaper strip above a flat MD3 bar, so the drop is kept only
+for the glass pill.
 
-The chat preview's action bar does not occupy the status bar
-(`BaseFragment.java:333`), so upstream's `inPreviewMode ? statusBarHeight`
-term in its header-bottom formulas (`:19699`, `:41562`) lands a status bar too low;
-the hairline reads the bar's own bottom instead. Upstream also drops the
-preview bar by `dp(1)` (`:20558-20560`), which bares a wallpaper strip above a
-flat MD3 bar, so the drop is kept only for the glass pill.
-
-*(Established 2026-09-27, `#solid-header-panel-fix`, `#round-video-divider-fix`; reworked 2026-09-28, `#separator-overlay-fix`.)*
+*(Established 2026-09-27, `#solid-header-panel-fix`, `#round-video-divider-fix`; reworked 2026-09-28, `#separator-overlay-fix`; header hairline removed 2026-11-26, `#interface-style`.)*
 
 ## Round video records on Camera1 by default, and Camera2 there zooms by crop from 1x
 
