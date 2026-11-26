@@ -14,8 +14,9 @@ import com.dazewell.gram.helpers.InterfaceStyleController;
 
 /**
  * NagramX: color provider for the composer glass family. ChatActivity keeps one default instance
- * for glass button surfaces and a composer instance for the input island, satellite close button,
- * and under-keyboard panel. Named (not anonymous) so it can implement BlurredBackgroundProvider on
+ * for glass button surfaces, a composer instance for the input island, satellite close button,
+ * and under-keyboard panel, and a suggestions instance for the mention/hashtag/inline-bot panel and
+ * the bot "/" command list. Named (not anonymous) so it can implement BlurredBackgroundProvider on
  * top of BlurredBackgroundColorProviderThemed; BlurredBackgroundDrawable.setColorProvider only
  * picks up the shadow/stroke overrides below through that richer interface.
  */
@@ -23,11 +24,16 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     public static final int ROLE_DEFAULT = 0;
     public static final int ROLE_COMPOSER = 1;
     public static final int ROLE_BUTTON = 2;
+    // NagramX: the @mention/#hashtag/inline-bot results panel and the bot "/" command list - they float
+    // above the chat list rather than sitting in the composer row, so they flatten under the same
+    // applyComposer() gate but keep their shadow (see getShadowColor()) and key off their own panel colour.
+    public static final int ROLE_SUGGESTIONS = 3;
 
     private final int currentAccount;
     private final Theme.ResourcesProvider resourcesProvider;
     private final boolean gateOnBlurEnabled;
     private final int role;
+    private final int backgroundColorId;
 
     /**
      * @param gateOnBlurEnabled whether getBackgroundColor() should fall back to an opaque panel
@@ -43,20 +49,28 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     }
 
     public ComposerGlassProvider(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean gateOnBlurEnabled, int role) {
-        super(resourcesProvider, Theme.key_chat_messagePanelBackground);
+        this(currentAccount, resourcesProvider, gateOnBlurEnabled, role, Theme.key_chat_messagePanelBackground);
+    }
+
+    // NagramX: backgroundColorId lets ROLE_SUGGESTIONS key off key_windowBackgroundWhite (the
+    // mention/bot-command dropdowns) instead of the composer panel colour every other role uses.
+    public ComposerGlassProvider(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean gateOnBlurEnabled, int role, int backgroundColorId) {
+        super(resourcesProvider, backgroundColorId);
         this.currentAccount = currentAccount;
         this.resourcesProvider = resourcesProvider;
         this.gateOnBlurEnabled = gateOnBlurEnabled;
         this.role = role;
+        this.backgroundColorId = backgroundColorId;
     }
 
-    // NagramX: theme-mode "dark", not perceived-brightness "dark" - used by getBackgroundColor() and
-    // getShadowColor() below (NOT by the stroke getters further down - see their comment for why they
-    // stay on the inherited isDark() instead). The inherited isDark() (BlurredBackgroundColorProviderThemed's,
-    // perceived brightness of the panel background color) is deliberately not used for shadow/background:
-    // under a custom theme the panel color's brightness can disagree with the theme's actual day/night
-    // mode, which would let the "dark theme shadow stays 0" requirement leak a shadow in an actual dark
-    // theme with a bright custom panel color.
+    // NagramX: theme-mode "dark", not perceived-brightness "dark" - used by getBackgroundColor() and,
+    // for ROLE_COMPOSER/ROLE_BUTTON only, getShadowColor() below (NOT by the stroke getters further down,
+    // and NOT by ROLE_SUGGESTIONS' own getShadowColor() branch, which deliberately keeps the inherited
+    // isDark() instead - see their own comments for why). The inherited isDark()
+    // (BlurredBackgroundColorProviderThemed's, perceived brightness of the panel background color) is
+    // deliberately not used for the composer/button shadow: under a custom theme the panel color's
+    // brightness can disagree with the theme's actual day/night mode, which would let the "dark theme
+    // shadow stays 0" requirement leak a shadow in an actual dark theme with a bright custom panel color.
     private boolean isDarkTheme() {
         return resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark();
     }
@@ -65,18 +79,23 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     public int getBackgroundColor() {
         NaConfig.migrateComposerGlassTransparency(isDarkTheme());
         if (isFlatMd3()) {
-            return ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), 255);
+            return ColorUtils.setAlphaComponent(Theme.getColor(backgroundColorId, resourcesProvider), 255);
         }
         if (gateOnBlurEnabled && !BlurredBackgroundProviderImpl.checkBlurEnabled(currentAccount, resourcesProvider)) {
-            return ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), 255);
+            return ColorUtils.setAlphaComponent(Theme.getColor(backgroundColorId, resourcesProvider), 255);
+        }
+        if (role == ROLE_SUGGESTIONS) {
+            // NagramX: keeps the dropdown's original LiteMode-based glass alpha (the base class' own
+            // formula) instead of the composer's user-configurable blur-strength slider - unrelated surface.
+            return super.getBackgroundColor();
         }
 
         // NagramX: composer glass shares Interface Style's blur-strength value, capped to its old 0-50% pass-through band in NaConfig so the pill cannot disappear into the wallpaper.
-        return Theme.multAlpha(Theme.getColor(Theme.key_chat_messagePanelBackground, resourcesProvider), NaConfig.interfaceStyleBlurAlpha());
+        return Theme.multAlpha(Theme.getColor(backgroundColorId, resourcesProvider), NaConfig.interfaceStyleBlurAlpha());
     }
 
     private boolean isFlatMd3() {
-        return role == ROLE_COMPOSER && InterfaceStyleController.applyComposer()
+        return (role == ROLE_COMPOSER || role == ROLE_SUGGESTIONS) && InterfaceStyleController.applyComposer()
                 || role == ROLE_BUTTON && InterfaceStyleController.applyButtons();
     }
 
@@ -85,6 +104,11 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     // change once light theme has been judged on device.
     @Override
     public int getShadowColor() {
+        if (role == ROLE_SUGGESTIONS) {
+            // NagramX: these dropdowns float above the chat list/keyboard even when MD3 flattens the
+            // fill, so they keep their pre-flatten shadow unconditionally - unchanged formula/predicate.
+            return isDark() ? 0 : 0x20000000;
+        }
         if (isFlatMd3()) {
             return 0;
         }
@@ -134,9 +158,11 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     // NagramX: stronger 3D shadow per dazewell's ask, architect-reviewed for the 75%-scale composer:
     // Paint.setShadowLayer's visible reach is ~2x radius (NinePatchBuilder's own blurPad budget), so
     // dpf2(3) stays inside the smallest real clearance at that scale (the row's own reserved band, dp(6)).
+    // ROLE_SUGGESTIONS keeps BlurredBackgroundDrawable's own pre-existing defaults (dpf2(1)/dpf2(1/3f)) -
+    // this role is only gaining a flatten gate, not the composer's separately-reviewed shadow geometry.
     @Override
     public float getShadowRadius() {
-        return dpf2(3);
+        return role == ROLE_SUGGESTIONS ? dpf2(1) : dpf2(3);
     }
 
     @Override
@@ -146,6 +172,6 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
 
     @Override
     public float getShadowDy() {
-        return dpf2(2 / 3f);
+        return role == ROLE_SUGGESTIONS ? dpf2(1 / 3f) : dpf2(2 / 3f);
     }
 }
