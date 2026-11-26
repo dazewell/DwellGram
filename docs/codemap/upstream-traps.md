@@ -2298,8 +2298,8 @@ loss. The fix posts the removal instead
 
 `checkUi_topPanelPositions` lifts `topPanelLayout` (player strip, pinned
 message, join bar) by a stock `dp(5)` so it tucks under the header
-(`ChatActivity.java:13654-13655`). Liquid Glass hides this inside its 7dp
-padding; MD3 zeroes that padding (`:52279`), so the strip's top 5dp sit under
+(`ChatActivity.java:13950-13952`). Liquid Glass hides this inside its 7dp
+padding; MD3 zeroes that padding (`:53245`), so the strip's top 5dp sit under
 the header. A translucent MD3 header matches the strip and hides it; the solid
 Classic/Day header shows it as a clipped strip, so the lift is dropped only
 there.

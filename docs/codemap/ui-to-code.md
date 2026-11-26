@@ -12,29 +12,31 @@ style enum: `InterfaceStyleController.isMaterialDesign3()` derives MD3 from the
 existing Liquid Glass setting and support gate
 (`InterfaceStyleController.java:17-18`). The page writes Liquid Glass with
 `LiteMode.toggleFlag(...)` and reloads the interface
-(`InterfaceStyleActivity.java:485-491`).
+(`InterfaceStyleActivity.java:483-489`).
 
 The shared Blur strength row is visible in both styles because composer glass
-already consumes it (`InterfaceStyleActivity.java:337-341,517-520`;
-`ComposerGlassProvider.java:74-75`; `NaConfig.kt:1485-1489`). MD3-only rows are
+already consumes it (`InterfaceStyleActivity.java:336-338,528-531`;
+`ComposerGlassProvider.java:74-75`; `NaConfig.kt:1660-1664`). MD3-only rows are
 visible only after the Material Design 3 radio is selected
-(`InterfaceStyleActivity.java:341-360`). The Apply to rows expose Chat header,
+(`InterfaceStyleActivity.java:340-358`). The Apply to rows expose Chat header,
 Chat list top bar, Buttons, Composer, and Bottom navigation;
 the Composer row is assigned only while `COMPOSER_STYLE_AVAILABLE` is true,
-which it now is (`InterfaceStyleActivity.java:346-348`;
+which it now is (`InterfaceStyleActivity.java:345-347`;
 `InterfaceStyleController.java:33-36`). Like every other Apply to row, its
-stored default is on (`NaConfig.kt:1467-1471`). The Panel colors row, Match
+stored default is on (`NaConfig.kt:1630-1634`). The Panel colors row, Match
 Classic and Day header color, shows only on MD3 with Classic or Day selected as
-the day theme and defaults off (`InterfaceStyleActivity.java:355-359`;
-`NaConfig.kt:1491-1495`); its render path is the next entry.
+the day theme and defaults off (`InterfaceStyleActivity.java:353-357`;
+`NaConfig.kt:1666-1670`); its render path is the next entry.
 
 MD3 panel dividers are gone (removed 2026-11-26). The hairlines under the
 chat-list header, the chat header and the docked composer took four draw-order
-fixes, and they were also hiding a seam: with them off, the chat list showed a
-one-pixel gap above a player, because the header surface and the panel's flat
-background only met edge to edge. The surface now runs `dp(1)` under the panel,
-which is drawn over it (`DialogsActivity.java:6906-6913`). Close a seam like
-that by overlapping the surfaces, not by drawing a line over it.
+fixes, and the chat-list one was also hiding a rounding bug. The player panel's
+`-14` layout margin is converted by `LayoutHelper.createFrame` as `dp(-14)`, and
+`dp()` rounds up (`LayoutHelper.java:101`; `AndroidUtilities.java:2692-2697`),
+so on a fractional density it is a pixel smaller than `dp(14)`. The surface
+subtracted `dp(14)` and stopped one pixel short of the panel. It now uses
+`dp(-14)` (`DialogsActivity.java:6906-6913`). When a formula mirrors a layout
+margin, round it the way the layout did.
 
 Chat/action-bar surfaces use the existing account-aware
 `topPanelChatActivity(...)` colour logic, but `ChatActivity` calls the

@@ -6905,8 +6905,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             if (fragmentView != null) {
                 // NagramX: the flat panel background starts at its top padding less the dp(14) layout margin, below
                 // the dp(5)-trimmed tab surface, so while a player or location panel shows the surface reaches it.
-                // It runs dp(1) under the panel, which is drawn over it: two edges that only meet leave a seam row.
-                final float panelTop = (filtersTabHeight + topPanelLayout.getPaddingTop() - dp(14) + dp(1) - searchOffset)
+                // The margin is laid out as dp(-14), and dp() rounds up, so -dp(14) would stop a pixel short of the panel.
+                final float panelTop = (filtersTabHeight + topPanelLayout.getPaddingTop() + dp(-14) - searchOffset)
                     * topPanelsVisibility * (1f - animatorSearchVisible.getFloatValue());
                 final ContentView naxContentView = (ContentView) fragmentView;
                 naxContentView.naxTopSurfaceAdditionalHeight = Math.max(naxContentView.naxTopSurfaceAdditionalHeight,
