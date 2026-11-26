@@ -71,10 +71,6 @@ public class InterfaceStyleController {
         return applyBottomNavigation() && NaConfig.INSTANCE.getInterfaceStyleRoundedNavigation().Bool();
     }
 
-    public static boolean panelDividers() {
-        return isMaterialDesign3() && NaConfig.INSTANCE.getInterfaceStylePanelDividers().Bool();
-    }
-
     // Solid Classic/Day chat header and chat-list top bar, rendered by InterfaceStyleSolidHeader.
     public static final boolean MATCH_CLASSIC_DAY_HEADER_AVAILABLE = true;
 

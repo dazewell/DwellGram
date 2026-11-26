@@ -1669,12 +1669,6 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false // off by default, unlike the Apply to rows: it replaces the 12.4.0 Classic look
         )
-    val interfaceStylePanelDividers =
-        addConfig(
-            "InterfaceStylePanelDividers",
-            ConfigItem.configTypeBool,
-            true
-        )
     val ignoreUnreadCount =
         addConfig(
             "IgnoreUnreadCount",

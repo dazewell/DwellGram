@@ -133,7 +133,6 @@ public final class ComposerMd3Surface {
 
     private final Theme.ResourcesProvider resourcesProvider;
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint dividerPaint = new Paint();
     private final Paint edgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     {
         edgePaint.setStyle(Paint.Style.STROKE);
@@ -255,16 +254,15 @@ public final class ComposerMd3Surface {
 
     // A soft shadow in the theme's own panel-shadow colour lifts the island. On a dark theme the shadow vanishes
     // into the wallpaper, so a faint light edge, brighter on top, traces it instead.
-    // Docked, only the top edge is on screen: it takes the panel divider when those are on, the shadow and the dark
-    // theme's light edge otherwise, never both.
+    // Docked, only the top edge is on screen, so it keeps the shadow and the dark theme's light top edge.
     private BlurredBackgroundProvider frostProvider() {
         if (docked) {
             return new BlurredBackgroundProviderBuilder(resourcesProvider)
                     .setBackgroundColor((r, isDark) -> Theme.multAlpha(surfaceColor(), frostAlpha()))
-                    .setStrokeColorTop((r, isDark) -> isDark && !InterfaceStyleController.panelDividers() ? DARK_EDGE_TOP : 0)
+                    .setStrokeColorTop(0, DARK_EDGE_TOP)
                     .setStrokeColorBottom(0, 0)
                     .setStrokeWidth(dpf2(1), dpf2(1))
-                    .setShadowColor((r, isDark) -> InterfaceStyleController.panelDividers() ? 0 : shadowColor())
+                    .setShadowColor((r, isDark) -> shadowColor())
                     .setShadowLayer(dp(SHADOW_RADIUS), 0, 0)
                     .build();
         }
@@ -381,10 +379,6 @@ public final class ComposerMd3Surface {
 
     public int primaryColor() {
         return Theme.getColor(Theme.key_chat_messagePanelSend, resourcesProvider);
-    }
-
-    private int outlineVariantColor(int surface) {
-        return InterfaceStyleController.panelDividerPaint(surface, resourcesProvider).getColor();
     }
 
     public boolean contains(float x, float y) {
@@ -635,7 +629,7 @@ public final class ComposerMd3Surface {
             canvas.drawPath(islandPath, fillPaint);
         }
 
-        drawContents(canvas, width, height, pill, alpha, inputFactor, drawPill, pillLeft, pillRight, topViewProgress, topViewHeight, surface, underKeyboard);
+        drawContents(canvas, width, height, pill, alpha, inputFactor, drawPill, pillLeft, pillRight, topViewProgress, topViewHeight, underKeyboard);
     }
 
     /**
@@ -688,7 +682,6 @@ public final class ComposerMd3Surface {
         islandPath.addRect(island, Path.Direction.CW);
 
         final int surface = surfaceColor();
-        final boolean dividers = InterfaceStyleController.panelDividers();
         final int frostAlpha = Math.round(255 * barFactor);
         if (frost != null && frost.getAlpha() != frostAlpha) {
             // Only on a change: every setAlpha re-records the blur's display list.
@@ -703,19 +696,13 @@ public final class ComposerMd3Surface {
                 frost.draw(canvas);
             } else {
                 fillPaint.setColor(Theme.multAlpha(surface, barFactor));
-                if (!dividers) {
-                    fillPaint.setShadowLayer(dp(SHADOW_RADIUS), 0, 0, Theme.multAlpha(shadowColor(), barFactor));
-                }
+                fillPaint.setShadowLayer(dp(SHADOW_RADIUS), 0, 0, Theme.multAlpha(shadowColor(), barFactor));
                 canvas.drawRect(island, fillPaint);
                 fillPaint.clearShadowLayer();
-                if (!dividers && isDark()) {
+                if (isDark()) {
                     fillPaint.setColor(Theme.multAlpha(DARK_EDGE_TOP, barFactor));
                     canvas.drawRect(island.left, island.top, island.right, island.top + dpf2(1), fillPaint);
                 }
-            }
-            if (dividers) {
-                dividerPaint.setColor(Theme.multAlpha(outlineVariantColor(surface), barFactor));
-                canvas.drawRect(island.left, island.top, island.right, island.top + Math.max(1, dp(0.66f)), dividerPaint);
             }
         }
 
@@ -730,12 +717,12 @@ public final class ComposerMd3Surface {
                 canvas.drawRoundRect(rect, r, r, fillPaint);
             }
         }
-        drawContents(canvas, width, height, pill, alpha, inputFactor, drawPill, pillLeft, pillRight, topViewProgress, topViewHeight, surface, underKeyboard);
+        drawContents(canvas, width, height, pill, alpha, inputFactor, drawPill, pillLeft, pillRight, topViewProgress, topViewHeight, underKeyboard);
     }
 
     /** The field, the reply strip, the send slot and the under-keyboard panel, shared by the island and the docked panel. */
     private void drawContents(Canvas canvas, int width, int height, Rect pill, float alpha, float inputFactor, boolean drawPill,
-                              float pillLeft, float pillRight, float topViewProgress, float topViewHeight, int surface,
+                              float pillLeft, float pillRight, float topViewProgress, float topViewHeight,
                               Rect underKeyboard) {
         final int container = containerOverlay();
         // The reply strip stops where the send and close controls begin; so does the field, unless the send column sits
@@ -829,10 +816,6 @@ public final class ComposerMd3Surface {
         if (underKeyboard != null) {
             fillPaint.setColor(Theme.getColor(Theme.key_chat_emojiPanelBackground, resourcesProvider));
             canvas.drawRect(0, underKeyboard.top, width, height, fillPaint);
-            if (InterfaceStyleController.panelDividers()) {
-                dividerPaint.setColor(outlineVariantColor(surface));
-                canvas.drawRect(0, underKeyboard.top, width, underKeyboard.top + Math.max(1, dp(0.66f)), dividerPaint);
-            }
         }
     }
 

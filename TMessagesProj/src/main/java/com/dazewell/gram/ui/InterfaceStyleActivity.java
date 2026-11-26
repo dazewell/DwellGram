@@ -86,7 +86,6 @@ public class InterfaceStyleActivity extends BaseNekoXSettingsActivity {
     private final AbstractConfigCell applyComposerRow = bind(new ConfigCellTextCheck(NaConfig.INSTANCE.getInterfaceStyleApplyComposer(), getString(R.string.InterfaceStyleApplyComposerInfo)));
     private final AbstractConfigCell applyBottomNavigationRow = bind(new ConfigCellTextCheck(NaConfig.INSTANCE.getInterfaceStyleApplyBottomNavigation(), getString(R.string.InterfaceStyleApplyBottomNavigationInfo)));
     private final AbstractConfigCell roundedNavigationRow = bind(new ConfigCellTextCheck(NaConfig.INSTANCE.getInterfaceStyleRoundedNavigation(), getString(R.string.InterfaceStyleRoundedNavigationInfo)));
-    private final AbstractConfigCell panelDividersRow = bind(new ConfigCellTextCheck(NaConfig.INSTANCE.getInterfaceStylePanelDividers(), getString(R.string.InterfaceStylePanelDividersInfo)));
     private final AbstractConfigCell dividerApplyTo = bind(new ConfigCellDivider());
 
     private final AbstractConfigCell headerPanelColors = bind(new ConfigCellHeader(getString(R.string.InterfaceStylePanelColorsHeader)));
@@ -169,7 +168,7 @@ public class InterfaceStyleActivity extends BaseNekoXSettingsActivity {
     // The rows that were on this page before the move: every click on them is refused while power saving blocks the style
     private final Set<AbstractConfigCell> powerSaverGatedRows = new HashSet<>(Arrays.asList(
             liquidGlassRow, materialDesign3Row, applyChatHeaderRow, applyChatListTopBarRow, applyButtonsRow, applyComposerRow,
-            applyBottomNavigationRow, roundedNavigationRow, panelDividersRow, matchClassicDayHeaderRow));
+            applyBottomNavigationRow, roundedNavigationRow, matchClassicDayHeaderRow));
     // The keys whose change repaints the whole interface; the rest below are the keys that came over from General
     private final Set<String> styleKeys = new HashSet<>(Arrays.asList(
             NaConfig.INSTANCE.getInterfaceStyleApplyChatHeader().getKey(),
@@ -178,7 +177,6 @@ public class InterfaceStyleActivity extends BaseNekoXSettingsActivity {
             NaConfig.INSTANCE.getInterfaceStyleApplyComposer().getKey(),
             NaConfig.INSTANCE.getInterfaceStyleApplyBottomNavigation().getKey(),
             NaConfig.INSTANCE.getInterfaceStyleRoundedNavigation().getKey(),
-            NaConfig.INSTANCE.getInterfaceStylePanelDividers().getKey(),
             NaConfig.INSTANCE.getInterfaceStyleMatchClassicDayHeader().getKey()));
 
     private ListAdapter listAdapter;
@@ -351,7 +349,6 @@ public class InterfaceStyleActivity extends BaseNekoXSettingsActivity {
             if (NaConfig.INSTANCE.getInterfaceStyleApplyBottomNavigation().Bool()) {
                 rows.add(roundedNavigationRow);
             }
-            rows.add(panelDividersRow);
             rows.add(dividerApplyTo);
             if (InterfaceStyleController.MATCH_CLASSIC_DAY_HEADER_AVAILABLE && isClassicOrDayTheme()) {
                 rows.add(headerPanelColors);
