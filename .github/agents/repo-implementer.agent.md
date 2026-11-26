@@ -265,7 +265,9 @@ run finishes — `gh run watch <run-id> --exit-status`, run in the background so
 its output stays out of context, or a Monitor whose until-loop prints nothing
 until the end. Typical durations: `ci.yml` ~3.5 min, APK ~11 min; give up at
 about twice that and report. Never poll every 30–60 s, and never stream a
-watcher's output.
+watcher's output. The desktop app's Auto-fix wakes you on failures, conflicts
+and comments, never on green, so a step that waits for green still needs that
+watch.
 
 Opening the PR requests no review. The bug hunt is yours to run, once the head
 deserves one — step 10.
