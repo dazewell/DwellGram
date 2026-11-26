@@ -5068,7 +5068,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 .setColorProvider(BlurredBackgroundProviderImpl.dialogsTopPanel(currentAccount, resourceProvider))
                 .setPadding(naxFlatChatListTopBar ? 0 : dp(7));
 
-            topPanelLayout.setPadding(dp(11), dp(21), dp(11), dp(21));
+            // NagramX: MD3 panels are full-width bars, as in ChatActivity; the side inset only suits the floating card.
+            topPanelLayout.setPadding(naxFlatChatListTopBar ? 0 : dp(11), dp(21), naxFlatChatListTopBar ? 0 : dp(11), dp(21));
             topPanelLayout.setBlurredBackground(topPanelLayoutBackground);
             topPanelLayout.setFlatBackground(naxFlatChatListTopBar);
             topPanelLayout.setDefaultRadiusDp(communityId != 0 ? 18 : 24);

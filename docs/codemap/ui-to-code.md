@@ -35,7 +35,7 @@ fixes, and the chat-list one was also hiding a rounding bug. The player panel's
 `dp()` rounds up (`LayoutHelper.java:101`; `AndroidUtilities.java:2692-2697`),
 so on a fractional density it is a pixel smaller than `dp(14)`. The surface
 subtracted `dp(14)` and stopped one pixel short of the panel. It now uses
-`dp(-14)` (`DialogsActivity.java:6906-6913`). When a formula mirrors a layout
+`dp(-14)` (`DialogsActivity.java:6907-6914`). When a formula mirrors a layout
 margin, round it the way the layout did.
 
 Chat/action-bar surfaces use the existing account-aware
@@ -60,7 +60,9 @@ tab lift, since rows start there in both states at rest (during animations the s
 gap above a visible player or location panel: its flat background starts at the
 panel's `dp(21)` top padding less its `-14` layout margin, 5 dp past the trimmed
 surface with folder tabs and 7 dp without them. While a panel shows, the surface extends to the panel top instead
-(`DialogsActivity.java:5071`, `:5880`, `:6906-6913`). The
+(`DialogsActivity.java:5072`, `:5881`, `:6907-6914`). Like
+ChatActivity's MD3 panel, it drops the card's 11dp side padding, so the player
+runs full width (`DialogsActivity.java:5071-5072`). The
 search/folder rows do not install their own MD3 backgrounds; search-type tabs
 keep only a full-bounds child clip, the search field keeps its rounded control
 background, and the independently animated temporary panel reuses the same
