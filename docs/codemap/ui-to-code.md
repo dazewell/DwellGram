@@ -30,7 +30,11 @@ the day theme and defaults off (`InterfaceStyleActivity.java:355-359`;
 
 MD3 panel dividers are gone (removed 2026-11-26). The hairlines under the
 chat-list header, the chat header and the docked composer took four draw-order
-fixes.
+fixes, and they were also hiding a seam: with them off, the chat list showed a
+one-pixel gap above a player, because the header surface and the panel's flat
+background only met edge to edge. The surface now runs `dp(1)` under the panel,
+which is drawn over it (`DialogsActivity.java:6906-6913`). Close a seam like
+that by overlapping the surfaces, not by drawing a line over it.
 
 Chat/action-bar surfaces use the existing account-aware
 `topPanelChatActivity(...)` colour logic, but `ChatActivity` calls the
@@ -54,7 +58,7 @@ tab lift, since rows start there in both states at rest (during animations the s
 gap above a visible player or location panel: its flat background starts at the
 panel's `dp(21)` top padding less its `-14` layout margin, 5 dp past the trimmed
 surface with folder tabs and 7 dp without them. While a panel shows, the surface extends to the panel top instead
-(`DialogsActivity.java:5071`, `:5880`, `:6906-6912`). The
+(`DialogsActivity.java:5071`, `:5880`, `:6906-6913`). The
 search/folder rows do not install their own MD3 backgrounds; search-type tabs
 keep only a full-bounds child clip, the search field keeps its rounded control
 background, and the independently animated temporary panel reuses the same
