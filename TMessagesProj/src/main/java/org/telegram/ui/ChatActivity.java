@@ -19953,9 +19953,6 @@ public class ChatActivity extends BaseFragment implements
                 return true;
             }
             if (switchingFromTopics && child == actionBar) {
-                if (naxIsHeaderDividerAnchor(child)) {
-                    naxDrawHeaderDivider(canvas); // NagramX: the bar itself is drawn after the fade, but its hairline keeps its depth
-                }
                 return true;
             }
             if (child == instantCameraView) {
@@ -20016,9 +20013,6 @@ public class ChatActivity extends BaseFragment implements
                     super.drawChild(canvas, instantCameraView, drawingTime);
                 }
                 result = super.drawChild(canvas, child, drawingTime);
-                if (naxIsHeaderDividerAnchor(child)) {
-                    naxDrawHeaderDivider(canvas);
-                }
                 if (isVideo && child == chatListView && messageObject.type != MessageObject.TYPE_ROUND_VIDEO && videoPlayerContainer != null && videoPlayerContainer.getTag() != null) {
                     canvas.save();
                     float transitionOffset = 0;
@@ -20105,31 +20099,6 @@ public class ChatActivity extends BaseFragment implements
             super.onSizeChanged(w, h, oldw, oldh);
             Blur3Utils.checkBitmapSourceMatrixScale(scrimBlur3SourceBitmap, fragmentView);
             scrimBlur3Factory.invalidateAllLinkedViews();
-        }
-
-        // NagramX: the hairline is part of the header group, so it is drawn straight after the group's topmost
-        // child and everything added later (forward options, round video scrim, selection handles) covers it.
-        // actionBarSearchTags is the only group member added after actionBar.
-        private boolean naxIsHeaderDividerAnchor(View child) {
-            return child == (actionBarSearchTags != null && actionBarSearchTags.getVisibility() == VISIBLE ? actionBarSearchTags : actionBar);
-        }
-
-        // NagramX: MD3 hairline under the whole header group, following the pinned panel as it grows and collapses.
-        // The preview header does not occupy the status bar, so its real bottom is read off the bar, not padded.
-        private void naxDrawHeaderDivider(Canvas canvas) {
-            if (actionBar != null && actionBar.getVisibility() == VISIBLE && com.dazewell.gram.helpers.InterfaceStyleController.applyChatHeader() && com.dazewell.gram.helpers.InterfaceStyleController.panelDividers()) {
-                float naxHeaderBottom = actionBar.getY() + actionBar.getMeasuredHeight() + (actionBarSearchTags != null ? actionBarSearchTags.getCurrentHeight() : 0) + (hashtagSearchTabs != null ? hashtagSearchTabs.getCurrentHeight() : 0);
-                if (topPanelLayout != null && topPanelLayout.getMetadata().getTotalVisibility() > 0) {
-                    // An expanded input hides the pinned bar and grows into its rows, so a shrinking panel's line keeps to
-                    // where the panel ends up instead of riding the bar's exit out of step with the island. A panel
-                    // appearing meanwhile still carries the line down its growing edge.
-                    final float animatedHeight = topPanelLayout.getMetadata().getTotalHeight();
-                    final float panelHeight = chatActivityEnterView != null && chatActivityEnterView.isMessageEditExpanded()
-                        ? Math.min(animatedHeight, topPanelLayout.getSumHeightOfAllVisibleChild()) : animatedHeight;
-                    naxHeaderBottom = Math.max(naxHeaderBottom, topPanelLayout.getY() + panelHeight);
-                }
-                canvas.drawRect(0, naxHeaderBottom, getMeasuredWidth(), naxHeaderBottom + Math.max(1, AndroidUtilities.dp(0.66f)), com.dazewell.gram.helpers.InterfaceStyleController.panelDividerPaint(com.dazewell.gram.helpers.InterfaceStyleController.chatHeaderSurfaceColor(themeDelegate), themeDelegate));
-            }
         }
 
         @Override
