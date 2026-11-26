@@ -19,7 +19,7 @@ already consumes it (`InterfaceStyleActivity.java:337-341,517-520`;
 `ComposerGlassProvider.java:74-75`; `NaConfig.kt:1485-1489`). MD3-only rows are
 visible only after the Material Design 3 radio is selected
 (`InterfaceStyleActivity.java:341-360`). The Apply to rows expose Chat header,
-Chat list top bar, Buttons, Composer, Bottom navigation, and Panel dividers;
+Chat list top bar, Buttons, Composer, and Bottom navigation;
 the Composer row is assigned only while `COMPOSER_STYLE_AVAILABLE` is true,
 which it now is (`InterfaceStyleActivity.java:346-348`;
 `InterfaceStyleController.java:33-36`). Like every other Apply to row, its
@@ -28,15 +28,9 @@ Classic and Day header color, shows only on MD3 with Classic or Day selected as
 the day theme and defaults off (`InterfaceStyleActivity.java:355-359`;
 `NaConfig.kt:1491-1495`); its render path is the next entry.
 
-Panel dividers are a shipped MD3 row: `NaConfig` stores
-`interfaceStylePanelDividers`, and `InterfaceStyleController.panelDividers()`
-gates the render paths (`NaConfig.kt:1497-1501`;
-`InterfaceStyleController.java:48-50`; `InterfaceStyleActivity.java:353`).
-It draws hairlines coloured as MD3 outline-variant (the local surface blended 12% towards `key_windowBackgroundWhiteBlackText`, `InterfaceStyleController.java:62-70`, because Night/AMOLED `key_divider` is pure black) at
-Dialogs' captured top-surface bottom after `super.dispatchDraw(...)`, and under
-ChatActivity's header group after `super.dispatchDraw(...)`
-(`DialogsActivity.java:1177-1182`; `ChatActivity.java:19608-19616`). The
-floating bottom navigation never meets content edge to edge, so it draws none.
+MD3 panel dividers are gone (removed 2026-11-26). The hairlines under the
+chat-list header, the chat header and the docked composer took four draw-order
+fixes.
 
 Chat/action-bar surfaces use the existing account-aware
 `topPanelChatActivity(...)` colour logic, but `ChatActivity` calls the
@@ -60,7 +54,7 @@ tab lift, since rows start there in both states at rest (during animations the s
 gap above a visible player or location panel: its flat background starts at the
 panel's `dp(21)` top padding less its `-14` layout margin, 5 dp past the trimmed
 surface with folder tabs and 7 dp without them. While a panel shows, the surface extends to the panel top instead
-(`DialogsActivity.java:5077`, `:5885`, `:6909-6918`). The
+(`DialogsActivity.java:5071`, `:5880`, `:6906-6912`). The
 search/folder rows do not install their own MD3 backgrounds; search-type tabs
 keep only a full-bounds child clip, the search field keeps its rounded control
 background, and the independently animated temporary panel reuses the same

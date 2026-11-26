@@ -840,8 +840,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
         private Paint actionBarSearchPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private boolean naxTopSurfaceDrawn;
-        // NagramX: carries the painted MD3 surface edge from drawChild to the divider in dispatchDraw.
-        private float naxTopSurfaceBottom;
         private float naxTopSurfaceAdditionalHeight;
 
         public ContentView(Context context) {
@@ -960,7 +958,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 final float bottom = top + getActionBarFullHeight() + naxTopSurfaceAdditionalHeight;
                 final float surfaceTop = Math.max(0, top);
                 final float surfaceBottom = Math.max(surfaceTop, bottom);
-                naxTopSurfaceBottom = surfaceBottom;
                 // NagramX: use the real frosted source only when the drawable can sample it;
                 // older or blur-disabled paths keep the opaque MD3 fallback.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -1192,9 +1189,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             super.dispatchDraw(canvas);
             if (!com.dazewell.gram.helpers.InterfaceStyleController.applyChatListTopBar()) {
                 drawHeaderShadow(canvas, top + actionBarHeight);
-            } else if (naxTopSurfaceDrawn && com.dazewell.gram.helpers.InterfaceStyleController.panelDividers()) {
-                // NagramX: after the children so no page or tab strip covers the MD3 hairline.
-                canvas.drawRect(0, naxTopSurfaceBottom, getMeasuredWidth(), naxTopSurfaceBottom + Math.max(1, AndroidUtilities.dp(0.66f)), com.dazewell.gram.helpers.InterfaceStyleController.panelDividerPaint(getDialogsTopSurfaceColor(), resourceProvider));
             }
 
             /*if (fragmentContextView != null && fragmentContextView.isCallStyle()) {
