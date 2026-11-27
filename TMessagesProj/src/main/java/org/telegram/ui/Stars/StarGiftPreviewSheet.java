@@ -418,8 +418,10 @@ public class StarGiftPreviewSheet extends BottomSheetWithRecyclerListView {
         BlurredBackgroundDrawable drawable = glassFactory.create(tabsSelectorView);
         drawable.setPadding(dp(4));
         drawable.setRadius(dp(28));
-        drawable.setColorProvider(new BlurredBackgroundColorProviderThemed(resourcesProvider, Theme.key_windowBackgroundWhite));
+        // NagramX: flat under MD3 Buttons, like the other gift pills; elevate() for the same lift.
+        drawable.setColorProvider(new com.dazewell.gram.ui.Md3ButtonColorProvider(resourcesProvider, Theme.key_windowBackgroundWhite));
         tabsSelectorView.setBackground(drawable);
+        com.dazewell.gram.ui.Md3ButtonColorProvider.elevate(tabsSelectorView, drawable);
         containerView.addView(tabsSelectorView, LayoutHelper.createFrame(268, 64, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL, 0, 0, 0, 5));
 
         selectedAttributes = new Attributes(

@@ -3625,10 +3625,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 source.setColor(getThemedColor(Theme.key_windowBackgroundWhite));
                 BlurredBackgroundDrawableViewFactory factory = new BlurredBackgroundDrawableViewFactory(source);
                 Button2 button2 = new Button2(context);
-                BlurredBackgroundDrawable drawable = factory.create(button2, new BlurredBackgroundColorProviderThemed(resourcesProvider, Theme.key_windowBackgroundWhite));
+                // NagramX: flat under MD3 Buttons; elevate() gives it an edge since the pill's own fill is
+                // the same windowBackgroundWhite key as the screen behind it.
+                BlurredBackgroundDrawable drawable = factory.create(button2, new com.dazewell.gram.ui.Md3ButtonColorProvider(resourcesProvider, Theme.key_windowBackgroundWhite));
                 drawable.setPadding(dp(8));
                 drawable.setRadius(dp(22));
                 button2.setBackground(drawable);
+                com.dazewell.gram.ui.Md3ButtonColorProvider.elevate(button2, drawable);
 
                 bottomButtonContainer[a] = new FrameLayout(context);
 
