@@ -1046,7 +1046,8 @@ public class StatisticActivity extends BaseFragment implements NotificationCente
         }
 
         if (tabViews != null) {
-            BlurredBackgroundDrawable tabsViewBackground = iBlur3FactoryLiquidGlass.create(tabsView, BlurredBackgroundProviderImpl.mainTabs(resourceProvider));
+            // NagramX: follows Apply to -> Bottom navigation (#interface-style); shape stays this bar's own.
+            BlurredBackgroundDrawable tabsViewBackground = iBlur3FactoryLiquidGlass.create(tabsView, BlurredBackgroundProviderImpl.sheetTabsBottomNavigation(currentAccount, resourceProvider));
             tabsViewBackground.setRadius(dp(DialogsActivity.MAIN_TABS_HEIGHT / 2f));
             tabsViewBackground.setPadding(dp(DialogsActivity.MAIN_TABS_MARGIN - 0.334f));
             tabsView.setBackground(tabsViewBackground);

@@ -2771,7 +2771,8 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
 
         containerView.addView(bottomFadeView, LayoutHelper.createFrameMatchParent());
 
-        BlurredBackgroundDrawable tabsViewBackground = iBlur3FactoryLiquidGlass.create(buttonsRecyclerViewWrapper, BlurredBackgroundProviderImpl.mainTabs(resourcesProvider));
+        // NagramX: follows Apply to -> Bottom navigation (#interface-style); shape stays this sheet's own.
+        BlurredBackgroundDrawable tabsViewBackground = iBlur3FactoryLiquidGlass.create(buttonsRecyclerViewWrapper, BlurredBackgroundProviderImpl.sheetTabsBottomNavigation(currentAccount, resourcesProvider));
         tabsViewBackground.setRadius(dp(56 / 2f));
         tabsViewBackground.setPadding(dp(7));
         buttonsRecyclerViewWrapper.setBackground(tabsViewBackground);
