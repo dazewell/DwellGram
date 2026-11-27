@@ -519,15 +519,14 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
             searchField.setupBlurredBackground(factory.create(searchField, BlurredBackgroundProviderImpl.attachSheetSearchPanel(parentAlert.currentAccount, resourcesProvider, frostedSourceAvailable)));
         }
         if (topPanelLayout != null) {
-            // NagramX (#interface-style): this is the same call/live-location banner CallLogActivity and
-            // TopicsFragment already flatten under Apply to -> Chat list top bar (#662); match it so the
-            // banner looks the same wherever it shows, not the Buttons toggle this file's search field uses.
-            final boolean naxFlatChatListTopBar = com.dazewell.gram.helpers.InterfaceStyleController.applyChatListTopBar();
-            final BlurredBackgroundDrawable topPanelLayoutBackground = factory.create(topPanelLayout, BlurredBackgroundProviderImpl.dialogsTopPanel(parentAlert.currentAccount, resourcesProvider));
+            // NagramX (#interface-style): the call/live-location banner stays a rounded pill here, unlike
+            // CallLogActivity/TopicsFragment's flat #662 treatment - inside the attach sheet it sits among
+            // the other pill-shaped panels, so it uses the same provider/gate as the search field above
+            // (dazewell's device test on #674) instead of dialogsTopPanel's flat actionBarDefault band.
+            final BlurredBackgroundDrawable topPanelLayoutBackground = factory.create(topPanelLayout, BlurredBackgroundProviderImpl.attachSheetSearchPanel(parentAlert.currentAccount, resourcesProvider, frostedSourceAvailable));
             topPanelLayoutBackground.setRadius(dp(24));
-            topPanelLayoutBackground.setPadding(naxFlatChatListTopBar ? 0 : dp(7));
+            topPanelLayoutBackground.setPadding(dp(7));
             topPanelLayout.setBlurredBackground(topPanelLayoutBackground);
-            topPanelLayout.setFlatBackground(naxFlatChatListTopBar);
         }
     }
 

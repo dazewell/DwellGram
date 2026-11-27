@@ -209,9 +209,14 @@ These factories have no gate. Their callers are what still looks like Glass:
   uses the stock `ActionBarMenuItem` search-expand, not a separate provider),
   so it needed no code of its own. `ChatAttachAlertAudioLayout`'s
   `topPanelLayout` is the call/live-location banner (`FragmentContextView`),
-  not search chrome — matched to `dialogsTopPanel` + `setFlatBackground`
-  under Apply to → Chat list top bar, same treatment PR #662 gave
-  `CallLogActivity`/`TopicsFragment`'s identical banner, not Buttons.
+  not search chrome. It was first matched to `dialogsTopPanel` +
+  `setFlatBackground`, PR #662's flat treatment of the identical banner in
+  `CallLogActivity`/`TopicsFragment` — wrong here: dazewell's device test on
+  #674 found a flat `actionBarDefault` band looks out of place among the
+  attach sheet's other pill-shaped panels. It stays a rounded pill
+  (`setRadius(dp(24))`, `setPadding(dp(7))`, unconditional, no
+  `setFlatBackground` call) and shares `attachSheetSearchPanel` with the
+  search field above it, so both change together under the same gate.
 
 `topPanel`, `mainTabs`, `inputFieldDialogActivity`, the 2-arg
 `topPanelChatActivity` and `scrimMenuBackground` are shared across unrelated
