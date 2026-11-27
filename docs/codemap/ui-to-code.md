@@ -158,12 +158,24 @@ These factories have no gate. Their callers are what still looks like Glass:
 - `mainTabs` (`:21-35`): `StarGiftPreviewSheet`'s tab selector is the one
   caller left ungated (out of scope, gifts).
 - Done (S6, #interface-style): the attach sheet tab bar and the statistics
-  tabs (`ChatAttachAlert.java:2775`; `StatisticActivity.java:1050`) now call a
-  new gated overload, `sheetTabsBottomNavigation` (`:62-67`), which falls
-  back to `mainTabs()` when Bottom navigation is off and otherwise returns
-  `mainTabsBottomNavigation()`'s material. Radius, padding and each
-  `GlassTabView`'s selector stay each bar's own - neither is a floating
-  full-width panel like the real nav, so only the material changed (PR #673).
+  tabs now call a new gated overload, `sheetTabsBottomNavigation`
+  (`BlurredBackgroundProviderImpl.java:62-67`), which falls back to
+  `mainTabs()` when Bottom navigation is off and otherwise returns
+  `mainTabsBottomNavigation()`'s material. Radius and padding stay each
+  bar's own - neither is a floating full-width panel like the real nav, so
+  only the material changed. Each `GlassTabView`'s selector DOES follow the
+  switch too (dazewell overrode the initial UX call after device-testing the
+  first cut): `setNavigationIndicator(NAVIGATION_INDICATOR_MD3)`, same as the
+  real nav, which fixes two things at once in `GlassTabView.dispatchDraw()` -
+  the Glass indicator draws at half the MD3 alpha (`:174`) and only the Glass
+  branch scales in on selection (`:186-188`, now mirrored for MD3 by a
+  `attachScale`-clamped `canvas.scale` so the attach sheet's own open
+  animation doesn't flash the indicator before its icon grows in). Statistics
+  also now forces `MainTabsLayout.setFillWidth()` under the switch, the same
+  mechanism the real nav uses to fit its labels under the MD3 indicator's
+  text-size budget (`MainTabsLayout.java` `onMeasure`). Rounded navigation
+  parity (the real nav's sliding whole-tab highlight) is NOT covered for
+  either bar - a known follow-up, not silently dropped (PR #673).
 - `attachMenuSearch` has only a few sheet callers.
 - The chat's @mention and bot-command panels moved to
   `ComposerGlassProvider.ROLE_SUGGESTIONS` (`ChatActivity.java:4287`), gated by
