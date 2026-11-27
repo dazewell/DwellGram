@@ -462,8 +462,8 @@ public final class ComposerMd3Surface {
         return extraLift() + (docked - extraLift()) * dock;
     }
 
-    // NagramX (#interface-style): public so BlurredBackgroundProviderImpl.photoViewerComposer can reuse this
-    // exact curve instead of a second one that could drift from it (same reason sheetCaptionProvider does).
+    // NagramX (#interface-style): public so sheetCaptionProvider (above) can reuse this exact curve instead
+    // of a second one that could drift from it.
     public static float frostAlpha() {
         return 1f - (1f - NaConfig.interfaceStyleBlurAlpha()) * FROST_SHARE;
     }
