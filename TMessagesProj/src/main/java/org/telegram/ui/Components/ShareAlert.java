@@ -1853,7 +1853,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         }
 
 
-        // NagramX (#interface-style, S5): share sheet islands match the chat composer's own MD3 frost under Apply to Composer.
+        // NagramX (#interface-style): share sheet islands match the chat composer's own MD3 frost under Apply to Composer.
         emojiViewChildBg = iBlur3FactoryFrostedLiquidGlass.create(sizeNotifierFrameLayout, BlurredBackgroundProviderImpl.inputFieldShareAlert(currentAccount, resourcesProvider, iBlur3SourceGlassFrosted != null));
         emojiViewChildBg.enableInAppKeyboardOptimization();
         emojiViewChildBg.setRadius(dp(29), dp(29), 0, 0);

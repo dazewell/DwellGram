@@ -5135,8 +5135,18 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             chatInputViewsContainer = new ChatInputViewsContainer(context);
             chatInputViewsContainer.setClipChildren(false);
             chatInputViewsContainer.setWindowInsetsProvider(windowInsetsStateHolder);
-            // NagramX (#interface-style, S5): the forward picker's comment field follows the attach sheet's
+            // NagramX (#interface-style): the forward picker's comment field follows the attach sheet's
             // caption island under Apply to Composer - same gated provider, same frost recipe.
+            // NagramX (#interface-style): temporary - dazewell reported this island opaque under MD3 with
+            // Composer and chat blur both on. ChatAttachAlert's and ShareAlert's captions (identical gate,
+            // identical BlurredBackgroundProviderImpl.sheetCaptionProvider formula) passed on device, so this
+            // probe pins down whether this one call site's gate actually differs, or whether it is frosted
+            // correctly and only reads as opaque because of what sits behind it. Remove once resolved.
+            android.util.Log.i("NAX_SMOKE_interface-style", "sheet-caption forward-picker: account=" + currentAccount
+                + " frostedSourceAvailable=" + (iBlur3SourceGlassFrosted != null)
+                + " sdkFrostCapable=" + (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+                + " checkBlurEnabled=" + BlurredBackgroundProviderImpl.checkBlurEnabled(currentAccount, resourceProvider)
+                + " frostAlpha=" + com.dazewell.gram.composer.ComposerMd3Surface.frostAlpha());
             chatInputViewsContainer.setInputIslandBubbleDrawable(
                 iBlur3FactoryLiquidGlass.create(chatInputViewsContainer, BlurredBackgroundProviderImpl.sheetCaptionInput(currentAccount, resourceProvider, iBlur3SourceGlassFrosted != null)));
             chatInputViewsContainer.setUnderKeyboardBackgroundDrawable(
