@@ -4200,7 +4200,8 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         }
 
         if (photoLayout != null) {
-            photoLayout.gridView.getFastScroll().applyBlurDrawables(iBlur3FactoryLiquidGlass, BlurredBackgroundProviderImpl.topPanel(resourcesProvider));
+            // NagramX (#interface-style): opaque pill under Apply to -> Buttons, never frosted.
+            photoLayout.gridView.getFastScroll().applyBlurDrawables(iBlur3FactoryLiquidGlass, BlurredBackgroundProviderImpl.attachSheetPill(resourcesProvider));
         }
 
         passcodeView = new PasscodeView(context);
@@ -4215,14 +4216,25 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                     return //overridenWebviewBackgroundColor;
                              ColorUtils.blendARGB(colorTarget, overridenWebviewBackgroundColor, 0.75f);
                 }
+                // NagramX (#interface-style): flat header bar under Apply to -> Buttons, frosted only
+                // when a frosted source exists (same signal sheetCaptionInput already uses on this class).
+                if (com.dazewell.gram.helpers.InterfaceStyleController.applyButtons()) {
+                    if (iBlur3SourceGlassFrosted != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && BlurredBackgroundProviderImpl.checkBlurEnabled(currentAccount, r)) {
+                        return Theme.multAlpha(colorTarget, xyz.nextalone.nagram.NaConfig.interfaceStyleBlurAlpha());
+                    }
+                    return ColorUtils.setAlphaComponent(colorTarget, 255);
+                }
 
                 return BlurredBackgroundProviderImpl.solveSrcColor(colorBg, colorTarget, alpha);
             })
-            .setStrokeColorTop((r, isDark) -> hasOverridenWebviewBackgroundColor ? 0 : isDark ? 0x28FFFFFF : 0xFFFFFFFF)
-            .setStrokeColorBottom((r, isDark) -> hasOverridenWebviewBackgroundColor ? 0 : isDark ? 0x14FFFFFF : 0xFFFFFFFF)
+            .setStrokeColorTop((r, isDark) -> hasOverridenWebviewBackgroundColor || com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : isDark ? 0x28FFFFFF : 0xFFFFFFFF)
+            .setStrokeColorBottom((r, isDark) -> hasOverridenWebviewBackgroundColor || com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : isDark ? 0x14FFFFFF : 0xFFFFFFFF)
             .setShadowColor((r, isDark) -> {
                 if (hasOverridenWebviewBackgroundColor) {
                     return AndroidUtilities.computePerceivedBrightness(overridenWebviewBackgroundColor) > 0.72f ? 0x20000000 : 0x40FFFFFF;
+                }
+                if (com.dazewell.gram.helpers.InterfaceStyleController.applyButtons()) {
+                    return 0;
                 }
                 return isDark ? 0 : 0x20000000;
             })
@@ -5043,7 +5055,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         }
         if (contactsLayout == null) {
             layouts[2] = contactsLayout = new ChatAttachAlertContactsLayout(this, getContext(), resourcesProvider);
-            contactsLayout.setupBlurredSearchField(iBlur3FactoryLiquidGlass);
+            contactsLayout.setupBlurredSearchField(iBlur3FactoryLiquidGlass, iBlur3SourceGlassFrosted != null);
             contactsLayout.setDelegate(new ChatAttachAlertContactsLayout.PhonebookShareAlertDelegate() {
                 @Override
                 public void didSelectContact(TLRPC.User user, boolean notify, int scheduleDate, long effectId, boolean invertMedia, long payStars) {
@@ -5067,7 +5079,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
     private void openQuickRepliesLayout() {
         if (quickRepliesLayout == null) {
             layouts[7] = quickRepliesLayout = new ChatAttachAlertQuickRepliesLayout(this, getContext(), resourcesProvider);
-            quickRepliesLayout.setupBlurredSearchField(iBlur3FactoryLiquidGlass);
+            quickRepliesLayout.setupBlurredSearchField(iBlur3FactoryLiquidGlass, iBlur3SourceGlassFrosted != null);
         }
         showLayout(quickRepliesLayout);
     }
@@ -5085,7 +5097,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         }
         if (audioLayout == null) {
             layouts[3] = audioLayout = new ChatAttachAlertAudioLayout(this, getContext(), resourcesProvider);
-            audioLayout.setupBlurredSearchField(iBlur3FactoryLiquidGlass);
+            audioLayout.setupBlurredSearchField(iBlur3FactoryLiquidGlass, iBlur3SourceGlassFrosted != null);
             audioLayout.setDelegate((audios, caption, notify, scheduleDate, scheduleRepeatPeriod, effectId, invertMedia, payStars) -> {
                 if (audioSelectDelegate != null) {
                     audioSelectDelegate.didSelectAudio(audios, caption, notify, scheduleDate, scheduleRepeatPeriod, effectId, invertMedia, payStars);

@@ -513,15 +513,21 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
         return true;
     }
 
-    public void setupBlurredSearchField(BlurredBackgroundDrawableViewFactory factory) {
+    public void setupBlurredSearchField(BlurredBackgroundDrawableViewFactory factory, boolean frostedSourceAvailable) {
         if (searchField != null) {
-            searchField.setupBlurredBackground(factory.create(searchField, BlurredBackgroundProviderImpl.topPanel(resourcesProvider)));
+            // NagramX (#interface-style): panel under Apply to -> Buttons, frost rule when a frosted source exists.
+            searchField.setupBlurredBackground(factory.create(searchField, BlurredBackgroundProviderImpl.attachSheetSearchPanel(parentAlert.currentAccount, resourcesProvider, frostedSourceAvailable)));
         }
         if (topPanelLayout != null) {
-            final BlurredBackgroundDrawable topPanelLayoutBackground = factory.create(topPanelLayout, BlurredBackgroundProviderImpl.topPanel(resourcesProvider));
+            // NagramX (#interface-style): this is the same call/live-location banner CallLogActivity and
+            // TopicsFragment already flatten under Apply to -> Chat list top bar (#662); match it so the
+            // banner looks the same wherever it shows, not the Buttons toggle this file's search field uses.
+            final boolean naxFlatChatListTopBar = com.dazewell.gram.helpers.InterfaceStyleController.applyChatListTopBar();
+            final BlurredBackgroundDrawable topPanelLayoutBackground = factory.create(topPanelLayout, BlurredBackgroundProviderImpl.dialogsTopPanel(parentAlert.currentAccount, resourcesProvider));
             topPanelLayoutBackground.setRadius(dp(24));
-            topPanelLayoutBackground.setPadding(dp(7));
+            topPanelLayoutBackground.setPadding(naxFlatChatListTopBar ? 0 : dp(7));
             topPanelLayout.setBlurredBackground(topPanelLayoutBackground);
+            topPanelLayout.setFlatBackground(naxFlatChatListTopBar);
         }
     }
 

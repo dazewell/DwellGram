@@ -234,7 +234,8 @@ public class SelectAudioAlert extends BottomSheetWithRecyclerListView implements
         searchField.editText.setHint(LocaleController.getString(R.string.Search));
         frameLayout.addView(fadeView, LayoutHelper.createFrameMatchParent());
         frameLayout.addView(searchField, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.TOP | Gravity.LEFT, 0, 8, 0, 4));
-        searchField.setupBlurredBackground(iBlur3FactoryLiquidGlass.create(searchField, BlurredBackgroundProviderImpl.topPanel(resourcesProvider)));
+        // NagramX (#interface-style): panel under Apply to -> Buttons, frost rule when a frosted source exists.
+        searchField.setupBlurredBackground(iBlur3FactoryLiquidGlass.create(searchField, BlurredBackgroundProviderImpl.attachSheetSearchPanel(currentAccount, resourcesProvider, iBlur3SourceGlassFrosted != null)));
         frameLayout.setPadding(backgroundPaddingLeft + dp(8), 0, backgroundPaddingLeft + dp(8), 0);
         containerView.addView(frameLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.FILL_HORIZONTAL));
 

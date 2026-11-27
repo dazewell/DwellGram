@@ -70,6 +70,57 @@ public class BlurredBackgroundProviderImpl {
             .build();
     }
 
+    // NagramX (#interface-style): gated overload for topPanel's two in-scope callers under Apply to ->
+    // Buttons - the attach sheet's Audio search field and SelectAudioAlert's search field. A separate
+    // method rather than gating topPanel in place, same reason as dialogsTopPanel/chatHeaderPanel:
+    // topPanel has ~10 unrelated callers (Calls/topics banners, profile shared media, bookmarks) that
+    // must keep the plain glass look.
+    public static BlurredBackgroundProvider attachSheetSearchPanel(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean frostedSourceAvailable) {
+        return new BlurredBackgroundProviderBuilder(resourcesProvider)
+            .setBackgroundColor((r, isDark) -> {
+                if (com.dazewell.gram.helpers.InterfaceStyleController.applyButtons()) {
+                    final int color = Theme.getColor(Theme.key_windowBackgroundWhite, r);
+                    if (frostedSourceAvailable && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && checkBlurEnabled(currentAccount, resourcesProvider)) {
+                        return Theme.multAlpha(color, xyz.nextalone.nagram.NaConfig.interfaceStyleBlurAlpha());
+                    }
+                    return ColorUtils.setAlphaComponent(color, 255);
+                }
+                final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
+                final int colorBg = Theme.getColor(Theme.key_windowBackgroundWhite, r);
+                final int colorTarget = Theme.getColor(Theme.key_glass_targetMainTopPanel, r);
+                return solveSrcColor(colorBg, colorTarget, alpha);
+            })
+            .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x06FFFFFF : 0x11000000))
+            .setStrokeColorBottom((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x11FFFFFF : 0x20000000))
+            .setShadowColor((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x04FFFFFF : 0x20000000))
+            .setShadowLayer(dpf2(2.667f), 0, dpf2(0.85f))
+            .setStrokeWidth(dpf2(0.4f), dpf2(0.4f))
+            .build();
+    }
+
+    // NagramX (#interface-style): gated overload for topPanel's other two in-scope callers under Apply
+    // to -> Buttons - the attach sheet's gallery fast-scroll circle and drag-time date/letter tag
+    // (ChatAttachAlert). Opaque, no rim, no shadow, same family as emojiViewButton; unlike
+    // attachSheetSearchPanel above, a small floating pill never frosts.
+    public static BlurredBackgroundProvider attachSheetPill(Theme.ResourcesProvider resourcesProvider) {
+        return new BlurredBackgroundProviderBuilder(resourcesProvider)
+            .setBackgroundColor((r, isDark) -> {
+                final int colorBg = Theme.getColor(Theme.key_windowBackgroundWhite, r);
+                if (com.dazewell.gram.helpers.InterfaceStyleController.applyButtons()) {
+                    return ColorUtils.setAlphaComponent(colorBg, 255);
+                }
+                final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
+                final int colorTarget = Theme.getColor(Theme.key_glass_targetMainTopPanel, r);
+                return solveSrcColor(colorBg, colorTarget, alpha);
+            })
+            .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x06FFFFFF : 0x11000000))
+            .setStrokeColorBottom((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x11FFFFFF : 0x20000000))
+            .setShadowColor((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x04FFFFFF : 0x20000000))
+            .setShadowLayer(dpf2(2.667f), 0, dpf2(0.85f))
+            .setStrokeWidth(dpf2(0.4f), dpf2(0.4f))
+            .build();
+    }
+
     // NagramX: DialogsActivity needs an Interface Style branch without changing the many unrelated
     // generic topPanel consumers such as media pickers and shared-media tabs.
     public static BlurredBackgroundProvider dialogsTopPanel(int currentAccount, Theme.ResourcesProvider resourcesProvider) {
@@ -176,16 +227,24 @@ public class BlurredBackgroundProviderImpl {
             .build();
     }
 
-    public static BlurredBackgroundProvider attachMenuSearch(Theme.ResourcesProvider resourcesProvider) {
+    // NagramX (#interface-style): gated in place, not an overload - every caller here is one of the
+    // attach sheet's own search fields (Contacts, Quick replies), none shared elsewhere.
+    public static BlurredBackgroundProvider attachMenuSearch(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean frostedSourceAvailable) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
                 .setBackgroundColor((r, isDark) -> {
-                    final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
                     final int colorBg = Theme.getColor(Theme.key_windowBackgroundWhite, r);
+                    if (com.dazewell.gram.helpers.InterfaceStyleController.applyButtons()) {
+                        if (frostedSourceAvailable && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && checkBlurEnabled(currentAccount, resourcesProvider)) {
+                            return Theme.multAlpha(colorBg, xyz.nextalone.nagram.NaConfig.interfaceStyleBlurAlpha());
+                        }
+                        return ColorUtils.setAlphaComponent(colorBg, 255);
+                    }
+                    final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
                     return Theme.multAlpha(colorBg, alpha);
                 })
-                .setStrokeColorTop(0x17000000, 0x17FFFFFF)
-                .setStrokeColorBottom(0x17000000, 0x17FFFFFF)
-                .setShadowColor(0x11000000, 0x04FFFFFF)
+                .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x17FFFFFF : 0x17000000))
+                .setStrokeColorBottom((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x17FFFFFF : 0x17000000))
+                .setShadowColor((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x04FFFFFF : 0x11000000))
                 .setShadowLayer(dpf2(2), 0, dpf2(1 / 3f))
                 .setStrokeWidth(dpf2(0.4f), dpf2(0.4f))
                 .build();
