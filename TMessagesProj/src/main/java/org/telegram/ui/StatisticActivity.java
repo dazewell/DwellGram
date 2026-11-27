@@ -203,6 +203,9 @@ public class StatisticActivity extends BaseFragment implements NotificationCente
 
     private MainTabsLayout tabsView;
     private GlassTabView[] tabs;
+    // NagramX (#interface-style): read once in createView, like the rest of this fragment's gates;
+    // referenced from updateRoundedSelector() below, called from the ViewPagerFixed hooks further down.
+    private boolean roundedBottomNavigation;
 
     public StatisticActivity(Bundle args) {
         super(args);
@@ -628,6 +631,22 @@ public class StatisticActivity extends BaseFragment implements NotificationCente
         tabsView = new MainTabsLayout(context, resourceProvider);
         tabsView.setPadding(dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4));
 
+        // NagramX: Apply to -> Bottom navigation (#interface-style) - the same three-way indicator
+        // MainTabsActivity gives the real tabs: Rounded's whole-tab sliding highlight (this bar reuses
+        // MainTabsLayout/ViewPagerFixed directly, see setRoundedNavigation/updateRoundedSelector below),
+        // else the MD3 indicator, else unchanged Glass.
+        roundedBottomNavigation = com.dazewell.gram.helpers.InterfaceStyleController.roundedBottomNavigation();
+        final boolean md3BottomNavigation = com.dazewell.gram.helpers.InterfaceStyleController.applyBottomNavigation();
+        final int navigationIndicator = roundedBottomNavigation ? GlassTabView.NAVIGATION_INDICATOR_ROUNDED : md3BottomNavigation ? GlassTabView.NAVIGATION_INDICATOR_MD3 : GlassTabView.NAVIGATION_INDICATOR_GLASS;
+        tabsView.setRoundedNavigation(roundedBottomNavigation);
+        // NagramX: the real nav's MD3 highlight height formula (MainTabsHelper.getRoundedNavigationIndicatorHeight())
+        // assumes its own floating 64dp panel; this bar's pill never changes height for MD3, so override to its own
+        // 48dp tab height instead (MAIN_TABS_HEIGHT 56dp pill - the same 2x4dp inset that formula uses).
+        tabsView.setRoundedSelectorHeight(roundedBottomNavigation ? dp(DialogsActivity.MAIN_TABS_HEIGHT - 2 * tw.nekomimi.nekogram.helpers.MainTabsHelper.MD3_NAVIGATION_SCRIM_INSET) : 0);
+        // NagramX: forces the same smallest text pass the real MD3 bar forces for its 32dp indicator (MainTabsLayout
+        // onMeasure), and the same equal-width cells - fillWidth is dropped back to the chosen pass under Rounded
+        // (MainTabsLayout.onMeasure), same as the real nav.
+        tabsView.setFillWidth(md3BottomNavigation);
         for (int index = 0; index < tabs.length; index++) {
             final GlassTabView view = tabs[index];
             final int position = index;
@@ -637,6 +656,7 @@ public class StatisticActivity extends BaseFragment implements NotificationCente
                 selectTab(position, true);
             });
 
+            tabs[index].setNavigationIndicator(navigationIndicator);
             tabsView.addView(tabs[index]);
             tabsView.setViewVisible(view, true, false);
         }
@@ -650,6 +670,7 @@ public class StatisticActivity extends BaseFragment implements NotificationCente
                 if (isDragByGesture) {
                     selectTab(Math.round(position), true);
                 }
+                updateRoundedSelector(); // NagramX (#interface-style)
                 blur3_InvalidateBlur();
                 checkUi_actionBar();
             }
@@ -659,6 +680,9 @@ public class StatisticActivity extends BaseFragment implements NotificationCente
                 super.onScrollEnd();
                 selectTab(viewPagerFixed.getCurrentPosition(), true);
                 setGestureSelectedOverride(0, false);
+                if (roundedBottomNavigation) {
+                    tabsView.clearRoundedSelector(); // NagramX (#interface-style)
+                }
                 blur3_InvalidateBlur();
             }
 
@@ -1046,7 +1070,8 @@ public class StatisticActivity extends BaseFragment implements NotificationCente
         }
 
         if (tabViews != null) {
-            BlurredBackgroundDrawable tabsViewBackground = iBlur3FactoryLiquidGlass.create(tabsView, BlurredBackgroundProviderImpl.mainTabs(resourceProvider));
+            // NagramX: follows Apply to -> Bottom navigation (#interface-style); shape stays this bar's own.
+            BlurredBackgroundDrawable tabsViewBackground = iBlur3FactoryLiquidGlass.create(tabsView, BlurredBackgroundProviderImpl.sheetTabsBottomNavigation(currentAccount, resourceProvider));
             tabsViewBackground.setRadius(dp(DialogsActivity.MAIN_TABS_HEIGHT / 2f));
             tabsViewBackground.setPadding(dp(DialogsActivity.MAIN_TABS_MARGIN - 0.334f));
             tabsView.setBackground(tabsViewBackground);
@@ -3613,6 +3638,25 @@ public class StatisticActivity extends BaseFragment implements NotificationCente
             tabs[index].setGestureSelectedOverride(visibility, allow);
         }
         tabsView.invalidate();
+    }
+
+    // NagramX (#interface-style): mirrors MainTabsActivity.updateRoundedSelector() - this fragment's tabs
+    // index 1:1 with viewPagerFixed's pages (selectTab() above uses "a == position" directly, and the
+    // adapter never has more pages than tabs.length), so no indexToPosition/visibleTabAt/bounds-check
+    // indirection is needed here - ViewPagerFixed itself keeps currentPosition/nextPosition in range.
+    private void updateRoundedSelector() {
+        if (!roundedBottomNavigation) {
+            return;
+        }
+        final GlassTabView from = tabs[viewPagerFixed.getCurrentPosition()];
+        final int nextPosition = viewPagerFixed.getNextPosition();
+        final GlassTabView next = nextPosition >= 0 ? tabs[nextPosition] : null;
+        final GlassTabView to = next == null ? from : next;
+        final float t = next == null ? 0 : 1f - viewPagerFixed.getCurrentPositionAlpha();
+        tabsView.setRoundedSelector(
+            org.telegram.messenger.AndroidUtilities.lerp(from.getX() + from.getWidth() / 2f, to.getX() + to.getWidth() / 2f, t),
+            org.telegram.messenger.AndroidUtilities.lerp((float) from.getWidth(), (float) to.getWidth(), t)
+        );
     }
 
 

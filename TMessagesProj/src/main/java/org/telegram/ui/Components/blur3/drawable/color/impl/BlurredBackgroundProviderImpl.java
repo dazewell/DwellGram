@@ -34,9 +34,9 @@ public class BlurredBackgroundProviderImpl {
             .build();
     }
 
-    // NagramX: Keep the MD3 navigation surface separate so attach/statistics keep the glass provider. It floats, so it
-    // takes the MD3 composer's shadow and, in dark themes where that shadow is lost, a faint light edge the Glare
-    // switch gates like every other stroke. Frosted like the MD3 chat header while blur is on, opaque otherwise.
+    // NagramX: It floats, so it takes the MD3 composer's shadow and, in dark themes where that shadow is lost, a
+    // faint light edge the Glare switch gates like every other stroke. Frosted like the MD3 chat header while blur
+    // is on, opaque otherwise.
     public static BlurredBackgroundProvider mainTabsBottomNavigation(int currentAccount, Theme.ResourcesProvider resourcesProvider) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
             .setBackgroundColor((r, isDark) -> {
@@ -52,6 +52,18 @@ public class BlurredBackgroundProviderImpl {
             .setShadowLayer(dpf2(4), 0, dpf2(2))
             .setStrokeWidth(dpf2(1), dpf2(1))
             .build();
+    }
+
+    // NagramX (#interface-style): gated overload for the attach sheet tab bar and the Statistics
+    // tabs. mainTabs() takes no account for checkBlurEnabled, so gating it in place would mean
+    // threading one through its only other callers (MainTabsActivity, MainTabsPreviewCell), which
+    // already branch on applyBottomNavigation() themselves and use mainTabs() as their own
+    // glass-off side.
+    public static BlurredBackgroundProvider sheetTabsBottomNavigation(int currentAccount, Theme.ResourcesProvider resourcesProvider) {
+        if (!com.dazewell.gram.helpers.InterfaceStyleController.applyBottomNavigation()) {
+            return mainTabs(resourcesProvider);
+        }
+        return mainTabsBottomNavigation(currentAccount, resourcesProvider);
     }
 
     public static BlurredBackgroundProvider topPanel(Theme.ResourcesProvider resourcesProvider) {

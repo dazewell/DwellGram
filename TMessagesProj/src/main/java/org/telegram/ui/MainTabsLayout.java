@@ -95,6 +95,22 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         }
     }
 
+    // NagramX: 0 keeps the real nav's own height formula; a caller whose panel isn't the real nav's
+    // floating MD3 height (Statistics' bottom tab bar, fixed height regardless of style, #interface-style)
+    // overrides it.
+    private int roundedSelectorHeightOverridePx;
+
+    public void setRoundedSelectorHeight(int px) {
+        if (this.roundedSelectorHeightOverridePx != px) {
+            this.roundedSelectorHeightOverridePx = px;
+            invalidate();
+        }
+    }
+
+    private float roundedSelectorHeight() {
+        return roundedSelectorHeightOverridePx > 0 ? roundedSelectorHeightOverridePx : dp(tw.nekomimi.nekogram.helpers.MainTabsHelper.getRoundedNavigationIndicatorHeight());
+    }
+
     private void drawRoundedSelector(Canvas canvas) {
         float x = roundedSelectorX, width = roundedSelectorWidth;
         if (!hasRoundedSelector) {
@@ -105,7 +121,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             x = selected.getX() + selected.getWidth() / 2f;
             width = selected.getWidth();
         }
-        final float height = dp(tw.nekomimi.nekogram.helpers.MainTabsHelper.getRoundedNavigationIndicatorHeight());
+        final float height = roundedSelectorHeight();
         final float r = Math.min(width, height) / 2f;
         selectorPaint.setColor(Theme.multAlpha(Theme.getColor(Theme.key_glass_tabSelected, resourcesProvider), 0.18f));
         canvas.drawRoundRect(x - width / 2f, (getHeight() - height) / 2f, x + width / 2f, (getHeight() + height) / 2f, r, r, selectorPaint);
@@ -383,7 +399,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         if (drawCustomSelector) {
             final float x = animatedLongSelectedViewCenterX + animatedLongSelectedViewOffsetX;
             final float sWidth = getInterpolatedWidthByX(x, this);
-            final float sHeight = roundedNavigation ? dp(tw.nekomimi.nekogram.helpers.MainTabsHelper.getRoundedNavigationIndicatorHeight()) : getHeight() - getPaddingTop() - getPaddingBottom();
+            final float sHeight = roundedNavigation ? roundedSelectorHeight() : getHeight() - getPaddingTop() - getPaddingBottom();
 
             canvas.drawRoundRect(
                     x - sWidth / 2f, (getHeight() - sHeight) / 2f,

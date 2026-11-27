@@ -150,14 +150,64 @@ These factories have no gate. Their callers are what still looks like Glass:
   (`NekoDelegateFragment.java:183-187`). It is padding rather than translation
   because `ActionBar.java:1324` rewrites the translation when search opens or
   closes.
-- `topPanel` (`:57-71`): profile shared media (`SharedMediaLayout.java:3727`,
+- `topPanel` (`:69-83`): profile shared media (`SharedMediaLayout.java:3727`,
   `:3776`, `:3827`) and bookmarks (`BookmarkManagerActivity.java:635`).
-  `inputFieldDialogActivity` (`:431-433`) is an alias for it, kept only for any
+  `inputFieldDialogActivity` (`:443-445`) is an alias for it, kept only for any
   caller that isn't gated. (The Calls/forum-topics banners and the attach
   sheet's audio search field/`SelectAudioAlert`, both formerly listed here,
   are done — see the S7 entry below.)
-- `mainTabs` (`:21-35`): the attach sheet tab bar and the statistics tabs
-  (`ChatAttachAlert.java:2774`; `StatisticActivity.java:1049`).
+- `mainTabs` (`:21-35`): `StarGiftPreviewSheet`'s tab selector is the one
+  caller left ungated (out of scope, gifts).
+- Done (S6, #interface-style): the attach sheet tab bar and the statistics
+  tabs call a new gated overload, `sheetTabsBottomNavigation`
+  (`BlurredBackgroundProviderImpl.java:62-67`), falling back to `mainTabs()`
+  when Bottom navigation is off and otherwise returning
+  `mainTabsBottomNavigation()`'s material; radius and padding stay each
+  bar's own. Each `GlassTabView`'s selector also follows the switch:
+  `setNavigationIndicator()` picks `NAVIGATION_INDICATOR_ROUNDED` when
+  Rounded navigation is on, else `NAVIGATION_INDICATOR_MD3`, else unchanged
+  Glass - the same three-way choice `MainTabsActivity` makes for the real
+  tabs. The MD3 indicator's alpha (`GlassTabView.java:174`) and its
+  attach-sheet-open-animation scale clamp (`:190-193`) are shared with the
+  real nav's own provider; the Rounded indicator draws nothing itself
+  (`GlassTabView.dispatchDraw()`'s `NAVIGATION_INDICATOR_ROUNDED` guard) -
+  the highlight is drawn by the container, below. Statistics also forces
+  `MainTabsLayout.setFillWidth()` under MD3 or Rounded, the same mechanism
+  the real nav uses to fit labels under the indicator's text-size budget.
+
+  Rounded navigation's whole-tab sliding highlight is reused, not rebuilt,
+  wherever the container already supports it. Statistics' `tabsView` is a
+  real `MainTabsLayout` driven by its own `ViewPagerFixed`
+  (`StatisticActivity.java`), so it calls `setRoundedNavigation()` directly
+  and a new `updateRoundedSelector()` mirrors
+  `MainTabsActivity.updateRoundedSelector()` (`MainTabsActivity.java:996-1013`)
+  call-for-call off this fragment's own `ViewPagerFixed` hooks (tabs index
+  1:1 with pager positions here, no `indexToPosition` indirection).
+  `MainTabsLayout` gained one addition for this, `setRoundedSelectorHeight()`
+  (`MainTabsLayout.java:98-112`; 0 keeps the real nav's own floating-64dp-panel
+  formula; Statistics overrides to its own fixed 48dp tab height, the same
+  2x4dp inset off a different base).
+
+  The attach sheet has no `MainTabsLayout`/`ViewPagerFixed` to reuse (a
+  tap-only `RecyclerView` of variable-width buttons), so
+  `com.dazewell.gram.helpers.AttachRoundedSelector` mirrors the real nav's
+  material (18% `key_glass_tabSelected`, a stadium) and its slide (540ms
+  `CubicBezierInterpolator.EASE_OUT_QUINT`, `ViewPagerFixed.scrollToPosition()`'s
+  own duration/easing) without the container to drive it from. Hooked at
+  `ChatAttachAlert.showLayout()` (every tab switch's one chokepoint) and
+  drawn inside `buttonsRecyclerView.dispatchDraw()`, not the wrapper, so its
+  existing outline clip applies to the highlight too (its edge fade doesn't -
+  that's a separate `drawChild` saveLayer per child, drawn after). Every
+  frame re-resolves "the selected button" via
+  `ChatAttachAlert.findSelectedAttachButton()` (`:1201-1209`, reads
+  `GlassTabView.isTabSelected()` rather than `AttachButton`/`AttachBotButton`'s
+  different id schemes), never holding a `View` across the slide, since the
+  row can scroll or the adapter can rebind mid-animation. The attach sheet's
+  own open-animation alpha/scale (`ChatAttachAlert.java`'s `ATTACH_ALERT_PROGRESS`
+  property; `GlassTabView.java:542-554` `attachScale`) feeds the highlight's
+  own paint alpha and a matching `canvas.scale`, with an explicit
+  `buttonsRecyclerView.invalidate()` alongside them - setting a child's alpha
+  or scale invalidates that child, not the parent that draws the highlight.
 - The chat's @mention and bot-command panels moved to
   `ComposerGlassProvider.ROLE_SUGGESTIONS` (`ChatActivity.java:4287`), gated by
   Apply to → Composer.
