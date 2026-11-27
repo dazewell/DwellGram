@@ -159,12 +159,34 @@ These factories have no gate. Their callers are what still looks like Glass:
   `DialogsActivity.java:5144`, `:5146`).
 - `mainTabs` (`:21-35`): the attach sheet tab bar and the statistics tabs
   (`ChatAttachAlert.java:2774`; `StatisticActivity.java:1049`).
-- `inputFieldShareAlert`, `attachMenuSearch`, `premiumButton`, `shadow` and
-  `bottomPanelChatActivity` each have only a few sheet callers.
-- `BlurredBackgroundColorProviderThemed` over `windowBackgroundWhite`: My
-  Profile's bottom buttons (`ProfileActivity.java:3628`). The chat's @mention
-  and bot-command panels moved to `ComposerGlassProvider.ROLE_SUGGESTIONS`
-  (`ChatActivity.java:4287`), gated by Apply to → Composer.
+- `inputFieldShareAlert`, `attachMenuSearch` each have only a few sheet
+  callers.
+- The chat's @mention and bot-command panels moved to
+  `ComposerGlassProvider.ROLE_SUGGESTIONS` (`ChatActivity.java:4287`), gated by
+  Apply to → Composer.
+- Done (S8): `bottomPanelChatActivity`, `premiumButton` and `shadow` are gated
+  on `applyButtons()` in place (PR #671) — the gift note sheet's input island
+  and under-keyboard panel (`GiftMessageBottomSheet.java:171`, `:173`, a
+  panel, so it still frosts at `interfaceStyleBlurAlpha()` when chat blur is
+  on and the API is ≥ 31), the confirm pills on Settings → Name colour
+  (`PeerColorActivity.java:1842`), Premium preview
+  (`PremiumPreviewFragment.java:935`) and the gift-selection sheet
+  (`SelectGiftsBottomSheet.java:226`, buttons, so fully opaque instead), and
+  the resale filter chips (`ResaleGiftsFragment.java:287`, `:310` — `shadow`
+  sets no background, so only its rim is dropped; the shadow stays, because
+  the chips' own fill is nearly the same white as the screen behind them and
+  the shadow is their only edge). Every bare
+  `BlurredBackgroundColorProviderThemed(resourcesProvider,
+  key_windowBackgroundWhite)` site repo-wide was swapped to
+  `Md3ButtonColorProvider` plus `Md3ButtonColorProvider.elevate()` (PR #672):
+  My Profile's Add-post/Save buttons (`ProfileActivity.java:3630`), the
+  gifts-tab pill (`ProfileGiftsContainer.java:1294`), the wallet card's send
+  pill (`ProfileWalletCardDialog.java:232`), and the gift customization
+  model/backdrop/pattern tab selector (`StarGiftPreviewSheet.java:422`).
+  `SendGiftSheet.java:264`'s outgoing-message bubble preview and the Stories
+  sites (`PeerStoriesView.java:549`, `CaptionContainerView.java:157`, `:165`)
+  use the same themed-white construction but are message/Stories previews,
+  not buttons, so they were left out.
 
 `topPanel`, `mainTabs`, `inputFieldDialogActivity`, the 2-arg
 `topPanelChatActivity` and `scrimMenuBackground` are shared across unrelated
