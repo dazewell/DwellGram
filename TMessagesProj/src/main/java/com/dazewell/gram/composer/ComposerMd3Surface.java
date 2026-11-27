@@ -281,18 +281,25 @@ public final class ComposerMd3Surface {
     }
 
     /**
-     * S5 (#interface-style): the MD3 sheet-caption islands (attach sheet, forward picker, share sheet) reuse
-     * this exact recipe via BlurredBackgroundProviderImpl.sheetCaptionInput/inputFieldShareAlert, so they
-     * match the chat composer instead of getting a second hand-tuned one: no stroke, this frosted fill while
-     * {@code frosted} (the caller has already worked out whether blur, the API level and a frosted source
-     * are all available) or an opaque one otherwise, and the composer's own floating shadow either way -
-     * these sheet islands never dock like the composer itself can, so they always get frostProvider()'s
-     * non-docked branch's shadow, never its docked top-edge-only one.
+     * NagramX (#interface-style): the MD3 sheet-caption islands (attach sheet, forward picker, share sheet)
+     * reuse this recipe via BlurredBackgroundProviderImpl.sheetCaptionInput/inputFieldShareAlert instead of a
+     * second hand-tuned one: no stroke (the composer's own dark-theme top/bottom edge is a composer-specific
+     * detail, deliberately not carried over here), the composer's frosted fill while blur is on, the API
+     * supports render-node frosting and a frosted source exists, an opaque fill otherwise, and the composer's
+     * floating shadow either way - these sheet islands have no docked variant to switch to. frosted/account
+     * and the resources provider are read live on every colour sample, the same as BlurredBackgroundProviderImpl's
+     * other gated providers (dialogsTopPanel, topPanelChatActivity), so a blur-setting or theme change between
+     * builds is picked up without rebuilding the sheet.
      */
-    public static BlurredBackgroundProvider sheetCaptionProvider(Theme.ResourcesProvider resourcesProvider, boolean frosted) {
+    public static BlurredBackgroundProvider sheetCaptionProvider(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean frostedSourceAvailable) {
         final ComposerMd3Surface surface = new ComposerMd3Surface(resourcesProvider);
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
-                .setBackgroundColor((r, isDark) -> frosted ? Theme.multAlpha(surface.surfaceColor(), frostAlpha()) : surface.surfaceColor())
+                .setBackgroundColor((r, isDark) -> {
+                    final boolean frosted = frostedSourceAvailable
+                            && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                            && BlurredBackgroundProviderImpl.checkBlurEnabled(currentAccount, resourcesProvider);
+                    return frosted ? Theme.multAlpha(surface.surfaceColor(), frostAlpha()) : surface.surfaceColor();
+                })
                 .setShadowColor((r, isDark) -> surface.shadowColor())
                 .setShadowLayer(dp(SHADOW_RADIUS), 0, dp(SHADOW_DY))
                 .build();
@@ -391,7 +398,7 @@ public final class ComposerMd3Surface {
         return field ? key : ColorUtils.blendARGB(ColorUtils.setAlphaComponent(gboardSurface, 255), ColorUtils.setAlphaComponent(key, 255), STRIP_TOWARD_FIELD);
     }
 
-    // S5 (#interface-style): public for the same reason as frostAlpha() above.
+    // NagramX (#interface-style): public so sheetCaptionProvider (see below) can reuse this formula.
     public int shadowColor() {
         return ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_chat_messagePanelShadow, resourcesProvider), SHADOW_ALPHA);
     }
@@ -481,8 +488,8 @@ public final class ComposerMd3Surface {
         return extraLift() + (docked - extraLift()) * dock;
     }
 
-    // S5 (#interface-style): public so sheetCaptionProvider (and BlurredBackgroundProviderImpl beyond it) can
-    // reuse this exact curve instead of a second one that could drift from it.
+    // NagramX (#interface-style): public so sheetCaptionProvider (above) can reuse this exact curve instead
+    // of a second one that could drift from it.
     public static float frostAlpha() {
         return 1f - (1f - NaConfig.interfaceStyleBlurAlpha()) * FROST_SHARE;
     }

@@ -341,7 +341,7 @@ public class BlurredBackgroundProviderImpl {
         return topPanel(resourcesProvider);
     }
 
-    // NagramX (#interface-style, S5): gated overload for inputFieldDialogActivity's only two callers - the
+    // NagramX (#interface-style): gated overload for inputFieldDialogActivity's only two callers - the
     // attach sheet's caption islands and the forward picker's comment field (ChatAttachAlert, DialogsActivity).
     // Added as a separate method rather than gating inputFieldDialogActivity/topPanel in place, same reason as
     // dialogsTopPanel/chatHeaderPanel: topPanel has ~10 unrelated callers (Calls/topics banners, profile
@@ -350,16 +350,14 @@ public class BlurredBackgroundProviderImpl {
         if (!com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
             return inputFieldDialogActivity(resourcesProvider);
         }
-        final boolean frosted = frostedSourceAvailable && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && checkBlurEnabled(currentAccount, resourcesProvider);
-        return com.dazewell.gram.composer.ComposerMd3Surface.sheetCaptionProvider(resourcesProvider, frosted);
+        return com.dazewell.gram.composer.ComposerMd3Surface.sheetCaptionProvider(currentAccount, resourcesProvider, frostedSourceAvailable);
     }
 
     public static BlurredBackgroundProvider inputFieldShareAlert(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean frostedSourceAvailable) {
-        // NagramX (#interface-style, S5): gated in place, not an overload - every caller here is one of
+        // NagramX (#interface-style): gated in place, not an overload - every caller here is one of
         // ShareAlert's own floating islands (caption, picker-bottom row, timestamp row), none shared elsewhere.
         if (com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
-            final boolean frosted = frostedSourceAvailable && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && checkBlurEnabled(currentAccount, resourcesProvider);
-            return com.dazewell.gram.composer.ComposerMd3Surface.sheetCaptionProvider(resourcesProvider, frosted);
+            return com.dazewell.gram.composer.ComposerMd3Surface.sheetCaptionProvider(currentAccount, resourcesProvider, frostedSourceAvailable);
         }
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
                 .setBackgroundColor((r, isDark) -> {
