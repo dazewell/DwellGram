@@ -226,11 +226,14 @@ public class ProfileWalletCardDialog extends Dialog {
         buttonBlurFactory = new BlurredBackgroundDrawableViewFactory(buttonBlur);
         buttonBlurFactory.setSourceRootView(new ViewPositionWatcher(root), root);
         sendPill = new ProfileActivity.Button2(getContext());
+        // NagramX: flat under MD3 Buttons, like the other Button2 pills; elevate() for the same lift,
+        // checked by eye here since this pill's source is a captured backdrop, not a flat theme colour.
         BlurredBackgroundDrawable background = buttonBlurFactory.create(sendPill,
-                new BlurredBackgroundColorProviderThemed(fragment.getResourceProvider(), Theme.key_windowBackgroundWhite));
+                new com.dazewell.gram.ui.Md3ButtonColorProvider(fragment.getResourceProvider(), Theme.key_windowBackgroundWhite));
         background.setPadding(dp(8));
         background.setRadius(dp(22));
         sendPill.setBackground(background);
+        com.dazewell.gram.ui.Md3ButtonColorProvider.elevate(sendPill, background);
         ScaleStateListAnimator.apply(sendPill, .02f, 1.2f);
         ButtonWithCounterView send = new ButtonWithCounterView(getContext(), fragment.getResourceProvider());
         send.setUseWrapContent(true);
