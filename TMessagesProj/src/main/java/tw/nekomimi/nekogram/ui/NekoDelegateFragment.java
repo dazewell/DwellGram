@@ -177,7 +177,9 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
         actionBar.setAddToContainer(false);
         actionBar.setCastShadows(false);
         actionBar.setOccupyStatusBar(!AndroidUtilities.isTablet());
-        actionBar.setupGlass(actionBarDrawableFactory, BlurredBackgroundProviderImpl.topPanelChatActivity(getResourceProvider()));
+        // NagramX: the chat's header provider and flat flag for MD3 Chat header. The factory differs from the wallpaper
+        // one only when the frosted content source was built, which is what decides frosted versus opaque.
+        actionBar.setupGlass(actionBarDrawableFactory, BlurredBackgroundProviderImpl.chatHeaderPanel(currentAccount, getResourceProvider(), actionBarDrawableFactory != wallpaperDrawableFactory), false, com.dazewell.gram.helpers.InterfaceStyleController.applyChatHeader());
         AndroidUtilities.removeFromParent(actionBar);
         ChatActivityFadeView fadeView = new ChatActivityFadeView(container.getContext());
         fadeView.setup(wallpaperDrawableFactory);

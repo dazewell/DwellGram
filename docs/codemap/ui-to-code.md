@@ -111,14 +111,23 @@ These factories have no gate. Their callers are what still looks like Glass:
   `AvatarPreviewer` and the poll and to-do item menus.
 - `bulletin` (`:309-322`): `ChatActivity.java:32993` and
   `GiftMessageBottomSheet.java:479`.
-- The 2-arg `topPanelChatActivity` (`:231-233`, never flat): the headers of
-  `ChannelAdminLogActivity.java:1158`, `CommunityCreateActivity.java:107`,
-  `CommunityEditActivity.java:162` and `NekoDelegateFragment.java:180` (the
-  deleted-messages and history screens). Only `ChatActivity.java:5486` passes
-  the flat 4th `setupGlass` argument. `SearchTagsList.java:125` also calls it,
-  but only for a premium layout that already exists when the factory is set.
-  That is the profile shared-media path (`SharedMediaLayout.java:3827`), not
-  the chat's tag strip, which gets a gated provider at `ChatActivity.java:10012`.
+- The plain `topPanelChatActivity` (`:223-225`, `:240-242`, never flat) has
+  one caller left, `SearchTagsList.java:125`, and only for a premium layout
+  that already exists when the factory is set. That is the profile shared-media
+  path (`SharedMediaLayout.java:3827`), not the chat's tag strip, which gets a
+  gated provider at `ChatActivity.java:10005`.
+- Done (S2): the screens with the chat-style header use `chatHeaderPanel`
+  and pass their real frosted-source flag. Recent actions and the
+  deleted-messages and history screens also pass the flat 4th `setupGlass`
+  argument, as `ChatActivity.java:5479` does
+  (`ChannelAdminLogActivity.java:1159`, `NekoDelegateFragment.java:182`).
+  Create and Edit community don't (`CommunityCreateActivity.java:108`,
+  `CommunityEditActivity.java:163`). They are back-only bars over a hero
+  avatar 36dp below the status bar, which a 56dp flat bar would cover, so under
+  MD3 the back pill just loses its rim and shadow. The Recent actions bottom
+  bar uses `ComposerGlassProvider.channelButtons` (`ComposerGlassProvider.java:181`,
+  `ChannelAdminLogActivity.java:1494`). That bar is ROLE_BUTTON, opaque under
+  Buttons, and keeps `bottomPanelChatActivity` otherwise.
 - `topPanel` (`:57-71`): the Calls and forum-topics banners
   (`CallLogActivity.java:913`, `TopicsFragment.java:1431`), profile shared
   media (`SharedMediaLayout.java:3727`, `:3776`, `:3827`), bookmarks, the attach
@@ -478,7 +487,7 @@ on the upstream close button and carries its accent as a separate rounded bar
 Buttons provider's. It is the island glass shrunk to the button run by
 `setInputBubbleOffsets` (`ChatActivity.java:9356`), because
 `ChatActivityChannelButtonsLayout.setupDrawableForContainer()` (`:155`) is only
-called from `ChannelAdminLogActivity.java:1511`. Dropping the island glass
+called from `ChannelAdminLogActivity.java:1498`. Dropping the island glass
 without painting that run is what blanked channel chats in #409. The reply strip
 stops short of the send column using the existing `getComposerPrimaryEndInset()`, on
 the left under `LocaleController.isRTL` (`ComposerMd3Surface.java:636-652`;

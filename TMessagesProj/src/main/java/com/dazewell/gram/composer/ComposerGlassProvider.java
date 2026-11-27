@@ -174,4 +174,13 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     public float getShadowDy() {
         return role == ROLE_SUGGESTIONS ? dpf2(1 / 3f) : dpf2(2 / 3f);
     }
+
+    // NagramX: the Recent actions bottom bar. Under Apply to -> Buttons it flattens like the chat's channel buttons;
+    // otherwise it keeps upstream's bottom-panel glass, because ROLE_BUTTON's own glass fill and shadow differ from it.
+    // Picked once at createView, like the header above it; the Interface Style screen rebuilds fragments on a toggle.
+    public static BlurredBackgroundProvider channelButtons(int currentAccount, Theme.ResourcesProvider resourcesProvider) {
+        return InterfaceStyleController.applyButtons()
+                ? new ComposerGlassProvider(currentAccount, resourcesProvider, true, ROLE_BUTTON)
+                : BlurredBackgroundProviderImpl.bottomPanelChatActivity(resourcesProvider);
+    }
 }

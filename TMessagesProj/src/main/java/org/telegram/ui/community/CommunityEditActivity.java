@@ -159,7 +159,8 @@ public class CommunityEditActivity extends BaseFragment implements ImageUpdater.
         BlurredBackgroundSourceColor sourceColor = new BlurredBackgroundSourceColor();
         sourceColor.setColor(getThemedColor(Theme.key_windowBackgroundWhite));
         BlurredBackgroundDrawableViewFactory factory = new BlurredBackgroundDrawableViewFactory(sourceColor);
-        actionBar.setupGlass(factory, BlurredBackgroundProviderImpl.topPanelChatActivity(resourceProvider));
+        // NagramX: MD3 Chat header drops the back pill's rim and shadow. No flat bar here: it would cover the hero avatar.
+        actionBar.setupGlass(factory, BlurredBackgroundProviderImpl.chatHeaderPanel(currentAccount, resourceProvider, false));
         actionBar.setGlassOnlyBack();
 
         containerView = new FrameLayout(context) {

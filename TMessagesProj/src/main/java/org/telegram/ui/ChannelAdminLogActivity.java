@@ -1155,7 +1155,8 @@ public class ChannelAdminLogActivity extends BaseFragment implements Notificatio
 
         contentView.setOccupyStatusBar(!AndroidUtilities.isTablet());
         contentView.setBackgroundImage(Theme.getCachedWallpaper(), Theme.isWallpaperMotion());
-        actionBar.setupGlass(glassBackgroundDrawableFactory, BlurredBackgroundProviderImpl.topPanelChatActivity(resourceProvider));
+        // NagramX: the chat's header provider and flat flag, so Interface Style MD3's Chat header covers this chat-styled screen too.
+        actionBar.setupGlass(glassBackgroundDrawableFactory, BlurredBackgroundProviderImpl.chatHeaderPanel(currentAccount, resourceProvider, glassBackgroundSourceFrostedRenderNode != null), false, com.dazewell.gram.helpers.InterfaceStyleController.applyChatHeader());
         emptyViewContainer = new FrameLayout(context);
         emptyViewContainer.setVisibility(View.INVISIBLE);
         contentView.addView(emptyViewContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER));
@@ -1489,7 +1490,8 @@ public class ChannelAdminLogActivity extends BaseFragment implements Notificatio
         contentView.addView(actionBar);
 
         bottomOverlayChat2 = new ChatActivityChannelButtonsLayout(context, resourceProvider,
-            BlurredBackgroundProviderImpl.bottomPanelChatActivity(resourceProvider), glassBackgroundDrawableFactory);
+            // NagramX: not bottomPanelChatActivity in place, which the gift note sheet shares; the helper keeps it when Buttons is off.
+            com.dazewell.gram.composer.ComposerGlassProvider.channelButtons(currentAccount, resourceProvider), glassBackgroundDrawableFactory);
         bottomOverlayChat2.setTotalVisibilityFactor(1f);
         bottomOverlayChat2.setTranslationY(-AndroidUtilities.navigationBarHeight);
         bottomOverlayChat2.showButton(ChatActivityChannelButtonsLayout.BUTTON_RECENT_ACTIONS_INFO, true, false);
