@@ -179,6 +179,12 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
                 tmpRectF.set((viewWidth - indicatorWidth) / 2f, top, (viewWidth + indicatorWidth) / 2f, top + indicatorHeight);
                 // NagramX: a rounded rectangle, not a stadium, so it nests in the MD3 panel's family of corners.
                 final float indicatorRadius = dp(tw.nekomimi.nekogram.helpers.MainTabsHelper.MD3_NAVIGATION_INDICATOR_RADIUS);
+                // NagramX: the attach sheet's open animation drives attachScale from 0 before icon/label grow in;
+                // without this the indicator (untouched by that scale, unlike the icon/label above) would flash
+                // at full size on the selected tab while they're still invisible. No-op off the attach sheet,
+                // where attachScale stays its default 1.
+                final float md3Scale = MathUtils.clamp(attachScale, 0, 1);
+                canvas.scale(md3Scale, md3Scale, tmpRectF.centerX(), tmpRectF.centerY());
                 canvas.drawRoundRect(tmpRectF, indicatorRadius, indicatorRadius, paintCounterBackground);
             } else {
                 tmpRectF.set(0, 0, viewWidth, getHeight());

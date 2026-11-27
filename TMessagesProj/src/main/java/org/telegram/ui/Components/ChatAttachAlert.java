@@ -1200,6 +1200,10 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
 
             glassTabView = GlassTabView.createAttachTab(context, resourcesProvider);
             addView(glassTabView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+            // NagramX: Apply to -> Bottom navigation (#interface-style) - draws the main tabs' MD3 indicator (a
+            // rounded rect around the icon, not the Glass stadium around icon+label), so its alpha, shape and
+            // plain fade-in match them instead of the dimmer, scaling-in Glass selector.
+            glassTabView.setNavigationIndicator(com.dazewell.gram.helpers.InterfaceStyleController.applyBottomNavigation() ? GlassTabView.NAVIGATION_INDICATOR_MD3 : GlassTabView.NAVIGATION_INDICATOR_GLASS);
         }
 
         void updateCheckedState(boolean animate) {
@@ -1246,6 +1250,8 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                 }
             });
             addView(glassTabView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+            // NagramX: Apply to -> Bottom navigation (#interface-style) - same indicator match as AttachButton above.
+            glassTabView.setNavigationIndicator(com.dazewell.gram.helpers.InterfaceStyleController.applyBottomNavigation() ? GlassTabView.NAVIGATION_INDICATOR_MD3 : GlassTabView.NAVIGATION_INDICATOR_GLASS);
         }
 
         @Override

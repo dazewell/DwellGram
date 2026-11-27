@@ -628,6 +628,14 @@ public class StatisticActivity extends BaseFragment implements NotificationCente
         tabsView = new MainTabsLayout(context, resourceProvider);
         tabsView.setPadding(dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4));
 
+        // NagramX: Apply to -> Bottom navigation (#interface-style) - the selector matches the main tabs' MD3
+        // colour/alpha and drops the Glass scale-in, not just the pill's material swapped below.
+        final boolean md3BottomNavigation = com.dazewell.gram.helpers.InterfaceStyleController.applyBottomNavigation();
+        final int navigationIndicator = md3BottomNavigation ? GlassTabView.NAVIGATION_INDICATOR_MD3 : GlassTabView.NAVIGATION_INDICATOR_GLASS;
+        // NagramX: forces the same smallest text pass the real MD3 bar forces for its 32dp indicator (MainTabsLayout
+        // onMeasure) - these tabs' labels would otherwise keep whatever larger pass fits this bar's own fixed width,
+        // which clips under the MD3 label position sized for that smaller text.
+        tabsView.setFillWidth(md3BottomNavigation);
         for (int index = 0; index < tabs.length; index++) {
             final GlassTabView view = tabs[index];
             final int position = index;
@@ -637,6 +645,7 @@ public class StatisticActivity extends BaseFragment implements NotificationCente
                 selectTab(position, true);
             });
 
+            tabs[index].setNavigationIndicator(navigationIndicator);
             tabsView.addView(tabs[index]);
             tabsView.setViewVisible(view, true, false);
         }
