@@ -168,9 +168,9 @@ public class GiftMessageBottomSheet extends BottomSheet {
         chatInputViewsContainer.setClipChildren(false);
         chatInputViewsContainer.setWindowInsetsProvider(windowInsetsStateHolder);
         chatInputViewsContainer.setInputIslandBubbleDrawable(
-            navbarContentDrawableFactory.create(chatInputViewsContainer, BlurredBackgroundProviderImpl.bottomPanelChatActivity(resourcesProvider)));
+            navbarContentDrawableFactory.create(chatInputViewsContainer, BlurredBackgroundProviderImpl.giftNoteComposerPanel(resourcesProvider)));
         chatInputViewsContainer.setUnderKeyboardBackgroundDrawable(
-            navbarContentDrawableFactory.create(chatInputViewsContainer, BlurredBackgroundProviderImpl.bottomPanelChatActivity(resourcesProvider)));
+            navbarContentDrawableFactory.create(chatInputViewsContainer, BlurredBackgroundProviderImpl.giftNoteComposerPanel(resourcesProvider)));
         chatInputBubbleContainer = chatInputViewsContainer.getInputIslandBubbleContainer();
         chatInputBubbleContainer.setClipChildren(false);
         chatInputInAppContainer = chatInputViewsContainer.getInAppKeyboardBubbleContainer();

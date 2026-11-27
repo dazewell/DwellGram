@@ -378,9 +378,9 @@
     <string name="InterfaceStyleApplyChatListTopBar">Chat list top bar</string>
     <string name="InterfaceStyleApplyChatListTopBarInfo">Search, filters, and the top panel in the chat list.</string>
     <string name="InterfaceStyleApplyButtons">Buttons</string>
-    <string name="InterfaceStyleApplyButtonsInfo">Floating and pill-shaped buttons in chats, the chat list, and the emoji keyboard, plus menus and pop-up bars.</string>
+    <string name="InterfaceStyleApplyButtonsInfo">Floating and pill-shaped buttons in chats, the chat list, and the emoji keyboard, plus menus, pop-up bars, and the gift and profile buttons.</string>
     <string name="InterfaceStyleApplyComposer">Composer</string>
-    <string name="InterfaceStyleApplyComposerInfo">The message field and its tools row in chats, drawn as one Material Design 3 island or docked panel, the panel under the keyboard, the mention and command lists above it, and the caption field in the attach sheet, forward picker and share sheet.</string>
+    <string name="InterfaceStyleApplyComposerInfo">The message field and its tools row in chats, drawn as one Material Design 3 island or docked panel, the panel under the keyboard, the mention and command lists above it, the gift note\'s input panel, and the caption field in the attach sheet, forward picker and share sheet.</string>
     <string name="ComposerStyle">Composer style</string>
     <string name="ComposerStyleFloating">Floating</string>
     <string name="ComposerStyleDocked">Docked</string>

@@ -220,6 +220,38 @@ public class BlurredBackgroundProviderImpl {
                 .build();
     }
 
+    // NagramX: split out of bottomPanelChatActivity (#671) rather than gating that shared factory in
+    // place, because ComposerGlassProvider.channelButtons()'s fallback to bottomPanelChatActivity()
+    // depends on it staying plain glass whenever Buttons is off, regardless of Composer's own setting.
+    public static BlurredBackgroundProvider giftNoteComposerPanel(Theme.ResourcesProvider resourcesProvider) {
+        return new BlurredBackgroundProviderBuilder(resourcesProvider)
+                .setBackgroundColor((r, isDark) -> {
+                    // NagramX: the gift note sheet's input panel is the chat composer under another name,
+                    // so it frosts at the Blur strength slider under MD3 Composer (dazewell's call on #671,
+                    // not Buttons); opaque otherwise, same as the non-MD3 "blur disabled" branch below.
+                    if (com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
+                        final int colorBg = Theme.getColor(Theme.key_chat_messagePanelBackground, r);
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && checkBlurEnabled(resourcesProvider)) {
+                            return Theme.multAlpha(colorBg, xyz.nextalone.nagram.NaConfig.interfaceStyleBlurAlpha());
+                        }
+                        return ColorUtils.setAlphaComponent(colorBg, 255);
+                    }
+                    if (!checkBlurEnabled(resourcesProvider)) {
+                        return ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_chat_messagePanelBackground, r), 255);
+                    }
+
+                    final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
+                    final int colorBg = Theme.getColor(Theme.key_chat_messagePanelBackground, r);
+                    return Theme.multAlpha(colorBg, alpha);
+                })
+                .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyComposer() ? 0 : (isDark ? 0x28FFFFFF : 0xFFFFFFFF))
+                .setStrokeColorBottom((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyComposer() ? 0 : (isDark ? 0x14FFFFFF : 0xFFFFFFFF))
+                .setShadowColor((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyComposer() ? 0 : (isDark ? 0 : 0x20000000))
+                //.setShadowLayer(dpf2(10 / 3f), 0, dpf2(2 / 3f))
+                .setStrokeWidth(dpf2(0.5f), dpf2(0.5f))
+                .build();
+    }
+
     public static BlurredBackgroundProvider topPanelChatActivity(Theme.ResourcesProvider resourcesProvider) {
         return topPanelChatActivity(UserConfig.selectedAccount, resourcesProvider);
     }
@@ -434,11 +466,19 @@ public class BlurredBackgroundProviderImpl {
 
     public static BlurredBackgroundProvider premiumButton(Theme.ResourcesProvider resourcesProvider) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
-            .setBackgroundColor((r, isDark) ->
-                Theme.multAlpha(Theme.getColor(Theme.key_dialogBackground, r), 0.78f))
-            .setStrokeColorTop(0xFFFFFFFF, 0x20FFFFFF)
-            .setStrokeColorBottom(0, 0x20FFFFFF)
-            .setShadowColor(0x48000000, 0x04FFFFFF)
+            .setBackgroundColor((r, isDark) -> {
+                final int colorBg = Theme.getColor(Theme.key_dialogBackground, r);
+                // NagramX: this confirm pill (Name colour, Premium preview, the gift-selection confirm
+                // pill) is a button, not a panel, so under MD3 Buttons it goes fully opaque like
+                // Md3ButtonColorProvider rather than frosting.
+                if (com.dazewell.gram.helpers.InterfaceStyleController.applyButtons()) {
+                    return ColorUtils.setAlphaComponent(colorBg, 255);
+                }
+                return Theme.multAlpha(colorBg, 0.78f);
+            })
+            .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x20FFFFFF : 0xFFFFFFFF))
+            .setStrokeColorBottom((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x20FFFFFF : 0))
+            .setShadowColor((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x04FFFFFF : 0x48000000))
             .setShadowLayer(dpf2(2 / 3f), 0, 0)
             .setStrokeWidth(dpf2(0.67f), dpf2(0.67f))
             .build();
@@ -446,8 +486,12 @@ public class BlurredBackgroundProviderImpl {
 
     public static BlurredBackgroundProvider shadow(Theme.ResourcesProvider resourcesProvider) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
-            .setStrokeColorTop(0, 0x28FFFFFF)
-            .setStrokeColorBottom(0, 0x14FFFFFF)
+            // NagramX: the resale filter pills' own fill is this factory's blur source
+            // (windowBackgroundWhite, ResaleGiftsFragment's iBlur3SourceColor), nearly the same colour as
+            // the screen behind them, so flat under MD3 Buttons drops only the rim, keeping the shadow
+            // as their one visible edge, like messageMenuBackground/scrimMenuBackground.
+            .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x28FFFFFF : 0))
+            .setStrokeColorBottom((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x14FFFFFF : 0))
             .setShadowColor(0x30000000, 0x04FFFFFF)
             .setShadowLayer(dpf2(12 / 3f), 0, dpf2(1 / 3f))
             .setStrokeWidth(dpf2(0.4f), dpf2(0.4f))
