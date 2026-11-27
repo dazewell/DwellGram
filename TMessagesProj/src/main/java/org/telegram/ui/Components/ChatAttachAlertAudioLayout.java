@@ -513,12 +513,17 @@ public class ChatAttachAlertAudioLayout extends ChatAttachAlert.AttachAlertLayou
         return true;
     }
 
-    public void setupBlurredSearchField(BlurredBackgroundDrawableViewFactory factory) {
+    public void setupBlurredSearchField(BlurredBackgroundDrawableViewFactory factory, boolean frostedSourceAvailable) {
         if (searchField != null) {
-            searchField.setupBlurredBackground(factory.create(searchField, BlurredBackgroundProviderImpl.topPanel(resourcesProvider)));
+            // NagramX (#interface-style): panel under Apply to -> Buttons, frost rule when a frosted source exists.
+            searchField.setupBlurredBackground(factory.create(searchField, BlurredBackgroundProviderImpl.attachSheetSearchPanel(parentAlert.currentAccount, resourcesProvider, frostedSourceAvailable)));
         }
         if (topPanelLayout != null) {
-            final BlurredBackgroundDrawable topPanelLayoutBackground = factory.create(topPanelLayout, BlurredBackgroundProviderImpl.topPanel(resourcesProvider));
+            // NagramX (#interface-style): the call/live-location banner stays a rounded pill here, unlike
+            // CallLogActivity/TopicsFragment's flat #662 treatment - inside the attach sheet it sits among
+            // the other pill-shaped panels, so it uses the same provider/gate as the search field above
+            // (dazewell's device test on #674) instead of dialogsTopPanel's flat actionBarDefault band.
+            final BlurredBackgroundDrawable topPanelLayoutBackground = factory.create(topPanelLayout, BlurredBackgroundProviderImpl.attachSheetSearchPanel(parentAlert.currentAccount, resourcesProvider, frostedSourceAvailable));
             topPanelLayoutBackground.setRadius(dp(24));
             topPanelLayoutBackground.setPadding(dp(7));
             topPanelLayout.setBlurredBackground(topPanelLayoutBackground);

@@ -544,9 +544,9 @@ public class ChatAttachAlertContactsLayout extends ChatAttachAlert.AttachAlertLa
         parentAlert.updateCountButton(checked ? 1 : 2);
     }
 
-    public void setupBlurredSearchField(BlurredBackgroundDrawableViewFactory factory) {
+    public void setupBlurredSearchField(BlurredBackgroundDrawableViewFactory factory, boolean frostedSourceAvailable) {
         if (searchField != null) {
-            searchField.setupBlurredBackground(factory.create(searchField, BlurredBackgroundProviderImpl.attachMenuSearch(resourcesProvider)));
+            searchField.setupBlurredBackground(factory.create(searchField, BlurredBackgroundProviderImpl.attachMenuSearch(parentAlert.currentAccount, resourcesProvider, frostedSourceAvailable)));
         }
     }
 

@@ -497,5 +497,7 @@ Long-press a downloaded set under N-Settings → Chat → Emoji sets to delete i
 <!-- #update-checks-off -->
 <!-- #metadata-channel-off -->
 <!-- #solid-themes -->
+<!-- prose reference to PR 662 in an #interface-style commit body, read as a tag -->
+<!-- #662-style -->
 <!-- The Transcription entries above were split from one commit tagged #transcribe-retry;
      #whisper-transcription and #groq-transcription-provider are new slugs for that split. -->
