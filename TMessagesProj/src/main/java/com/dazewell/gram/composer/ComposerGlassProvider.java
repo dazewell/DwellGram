@@ -25,8 +25,9 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     public static final int ROLE_COMPOSER = 1;
     public static final int ROLE_BUTTON = 2;
     // NagramX: the @mention/#hashtag/inline-bot results panel and the bot "/" command list - they float
-    // above the chat list rather than sitting in the composer row, so they flatten under the same
-    // applyComposer() gate but keep their shadow (see getShadowColor()) and key off their own panel colour.
+    // above the chat list rather than sitting in the composer row, so under the same applyComposer() gate
+    // they drop the stroke and frost like the MD3 header (opaque without blur or a frosted source), but
+    // keep their shadow (see getShadowColor()) and key off their own panel colour.
     public static final int ROLE_SUGGESTIONS = 3;
 
     private final int currentAccount;
@@ -34,6 +35,7 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     private final boolean gateOnBlurEnabled;
     private final int role;
     private final int backgroundColorId;
+    private final boolean frostedSourceAvailable;
 
     /**
      * @param gateOnBlurEnabled whether getBackgroundColor() should fall back to an opaque panel
@@ -49,18 +51,21 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     }
 
     public ComposerGlassProvider(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean gateOnBlurEnabled, int role) {
-        this(currentAccount, resourcesProvider, gateOnBlurEnabled, role, Theme.key_chat_messagePanelBackground);
+        this(currentAccount, resourcesProvider, gateOnBlurEnabled, role, Theme.key_chat_messagePanelBackground, false);
     }
 
     // NagramX: backgroundColorId lets ROLE_SUGGESTIONS key off key_windowBackgroundWhite (the
     // mention/bot-command dropdowns) instead of the composer panel colour every other role uses.
-    public ComposerGlassProvider(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean gateOnBlurEnabled, int role, int backgroundColorId) {
+    // frostedSourceAvailable: whether the chat built its frosted source at open; without one the
+    // factories wrap the raw wallpaper, so the MD3 frost would show it unblurred.
+    public ComposerGlassProvider(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean gateOnBlurEnabled, int role, int backgroundColorId, boolean frostedSourceAvailable) {
         super(resourcesProvider, backgroundColorId);
         this.currentAccount = currentAccount;
         this.resourcesProvider = resourcesProvider;
         this.gateOnBlurEnabled = gateOnBlurEnabled;
         this.role = role;
         this.backgroundColorId = backgroundColorId;
+        this.frostedSourceAvailable = frostedSourceAvailable;
     }
 
     // NagramX: theme-mode "dark", not perceived-brightness "dark" - used by getBackgroundColor() and,
@@ -79,6 +84,12 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     public int getBackgroundColor() {
         NaConfig.migrateComposerGlassTransparency(isDarkTheme());
         if (isFlatMd3()) {
+            // NagramX: the dropdowns frost under MD3 like the MD3 header and composer island, opaque
+            // without blur or a frosted source; the composer and button roles are unchanged.
+            if (role == ROLE_SUGGESTIONS && frostedSourceAvailable && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                    && BlurredBackgroundProviderImpl.checkBlurEnabled(currentAccount, resourcesProvider)) {
+                return Theme.multAlpha(Theme.getColor(backgroundColorId, resourcesProvider), NaConfig.interfaceStyleBlurAlpha());
+            }
             return ColorUtils.setAlphaComponent(Theme.getColor(backgroundColorId, resourcesProvider), 255);
         }
         if (gateOnBlurEnabled && !BlurredBackgroundProviderImpl.checkBlurEnabled(currentAccount, resourcesProvider)) {
