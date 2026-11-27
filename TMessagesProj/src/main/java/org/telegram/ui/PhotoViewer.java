@@ -7605,7 +7605,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         };
         pickerViewSendButton.setCircleSize(dp(52), dp(38));
         pickerViewSendButton.newCounterPos = true;
-        pickerViewSendButton.setBlurredBackgroundDrawable(iBlur3FactoryFrostedLiquidGlass.create(pickerViewSendButton).setColorProvider(BlurredBackgroundProviderImpl.photoViewer(resourcesProvider)));
+        // NagramX (#interface-style): MD3 drops the halo's white rim only - see photoViewerSendButtonRing.
+        pickerViewSendButton.setBlurredBackgroundDrawable(iBlur3FactoryFrostedLiquidGlass.create(pickerViewSendButton).setColorProvider(BlurredBackgroundProviderImpl.photoViewerSendButtonRing(resourcesProvider)));
         containerView.addView(pickerViewSendButton, LayoutHelper.createFrame(120, 120, Gravity.RIGHT | Gravity.BOTTOM, 0, 0, 8, 2f));
         pickerViewSendButton.setContentDescription(getString("Send", R.string.Send));
         ScaleStateListAnimator.apply(pickerViewSendButton);
@@ -7806,8 +7807,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         };
         itemsLayout.setOrientation(LinearLayout.HORIZONTAL);
         itemsLayout.setPadding(dp(2), 0, dp(2), 0);
+        // NagramX (#interface-style): the crop/rotate/mirror/paint/HD/adjust tools pill, MD3-flattened.
         itemsLayout.setBackground(iBlur3FactoryFrostedLiquidGlass.create(itemsLayout)
-            .setColorProvider(BlurredBackgroundProviderImpl.photoViewer(resourcesProvider))
+            .setColorProvider(BlurredBackgroundProviderImpl.photoViewerComposer(currentAccount, resourcesProvider))
             .setPadding(dp(2))
             .setRadius(dp(22)));
 

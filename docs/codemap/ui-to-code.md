@@ -193,10 +193,20 @@ These factories have no gate. Their callers are what still looks like Glass:
 screens. Gate one in place only if every caller should change. Otherwise add
 an overload, the way `dialogsTopPanel` and `chatHeaderPanel` were added.
 
-`photoViewer` and `photoViewerMenu` (`:344-365`) have a transparent fill and
-sit over arbitrary media, so they stay glass by design.
+`photoViewer` (`:360-372`) and `photoViewerMenu` (`:374-381`) have a
+transparent fill and sit over arbitrary media, so their remaining callers
+(delete button, video-cover-edit, mute button, poll-attach-mode controls, the
+paint tool's own sub-toolbar, the poll-mode back button, and the
+text-selection popup) stay glass by design. The photo editor's own caption
+box, its mention and emoji backdrops, the move-caption pill and the tools
+pill moved to `photoViewerComposer` (`:387-403`, gated on `applyComposer()`),
+and the send button's halo dropped its stroke via
+`photoViewerSendButtonRing` (`:409-416`), both under Apply to → Composer.
+`PhotoViewer.java`, `CaptionContainerView.java` and `CaptionPhotoViewer.java`
+caller lines move; re-grep before citing them.
 
-*(Established 2026-11-24, MD3 coverage investigation. Caller lines from grep.)*
+*(Established 2026-11-24, MD3 coverage investigation; photo editor corrected
+2026-11-26, `#interface-style`. Caller lines from grep.)*
 
 ## The chat-list header keeps its frosted body and adds only a bottom glint
 

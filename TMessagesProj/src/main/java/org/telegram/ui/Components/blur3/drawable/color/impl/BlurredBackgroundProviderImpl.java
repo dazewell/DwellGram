@@ -389,6 +389,41 @@ public class BlurredBackgroundProviderImpl {
                 .build();
     }
 
+    // NagramX (#interface-style): gated overload for the photo editor's caption box, its mention/emoji
+    // backdrops, the move-caption pill and the tools pill. Not an edit to photoViewer() in place: its other
+    // callers (delete button, cover-edit, mute button, poll-attach controls, the paint tool's own sub-toolbar,
+    // the poll-mode back button) keep the unconverted Glass look.
+    public static BlurredBackgroundProvider photoViewerComposer(int currentAccount, Theme.ResourcesProvider resourcesProvider) {
+        if (!com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
+            return photoViewer(resourcesProvider);
+        }
+        final boolean frosted = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                && checkBlurEnabled(currentAccount, resourcesProvider);
+        // A fixed dark tone, not a theme key - this chrome floats over arbitrary media and has to stay legible
+        // over a bright photo regardless of the app's light/dark theme. 0xFF1A1A1A is the colorTarget photoViewer()
+        // already names above but never uses (its fill is hard-coded transparent).
+        return new BlurredBackgroundProviderBuilder(resourcesProvider)
+                .setBackgroundColor((r, isDark) -> frosted
+                        ? Theme.multAlpha(0xFF1A1A1A, com.dazewell.gram.composer.ComposerMd3Surface.frostAlpha())
+                        : 0xFF1A1A1A)
+                .setShadowColor((r, isDark) -> 0x40000000)
+                .setShadowLayer(dpf2(10 / 3f), 0, dpf2(2 / 3f))
+                .build();
+    }
+
+    // NagramX (#interface-style): the send button's blur drawable is a halo drawn behind the opaque accent
+    // circle (ChatActivityEnterView's SendButton, 7dp bigger than the circle, painted first). A tonal fill
+    // there would newly show as a ring around the button, so MD3 only drops the stroke; the fill stays the
+    // same hard-coded-transparent return as photoViewer() above.
+    public static BlurredBackgroundProvider photoViewerSendButtonRing(Theme.ResourcesProvider resourcesProvider) {
+        if (!com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
+            return photoViewer(resourcesProvider);
+        }
+        return new BlurredBackgroundProviderBuilder(resourcesProvider)
+                .setBackgroundColor((r, isDark) -> 0)
+                .build();
+    }
+
     public static BlurredBackgroundProvider premiumButton(Theme.ResourcesProvider resourcesProvider) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
             .setBackgroundColor((r, isDark) -> {
