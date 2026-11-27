@@ -152,10 +152,10 @@ These factories have no gate. Their callers are what still looks like Glass:
   closes.
 - `topPanel` (`:57-71`): profile shared media (`SharedMediaLayout.java:3727`,
   `:3776`, `:3827`) and bookmarks (`BookmarkManagerActivity.java:635`).
-  `inputFieldDialogActivity` (`:324-326`) is an alias for it, kept only for any
+  `inputFieldDialogActivity` (`:431-433`) is an alias for it, kept only for any
   caller that isn't gated. (The Calls/forum-topics banners and the attach
   sheet's audio search field/`SelectAudioAlert`, both formerly listed here,
-  are done — see the S7 entry below; this bullet was stale citation drift.)
+  are done — see the S7 entry below.)
 - `mainTabs` (`:21-35`): the attach sheet tab bar and the statistics tabs
   (`ChatAttachAlert.java:2774`; `StatisticActivity.java:1049`).
 - The chat's @mention and bot-command panels moved to
@@ -196,13 +196,13 @@ These factories have no gate. Their callers are what still looks like Glass:
 - Done (S7, #interface-style): `BlurredBackgroundProviderImpl` gained two new
   overloads of `topPanel` — `attachSheetSearchPanel(currentAccount, rp,
   frostedSourceAvailable)` (panel/frost-rule) for the attach sheet's Audio
-  search field (`ChatAttachAlertAudioLayout.java:518`) and `SelectAudioAlert`'s
-  search field (`SelectAudioAlert.java:237`), and `attachSheetPill(rp)`
+  search field (`ChatAttachAlertAudioLayout.java:519`) and `SelectAudioAlert`'s
+  search field (`SelectAudioAlert.java:238`), and `attachSheetPill(rp)`
   (opaque, never frosted) for the gallery fast-scroll circle/tag bubble
-  (`ChatAttachAlert.java:4203`). `attachMenuSearch` is gated in place instead
+  (`ChatAttachAlert.java:4204`). `attachMenuSearch` is gated in place instead
   (both its callers — `ChatAttachAlertContactsLayout.java:549`,
   `ChatAttachAlertQuickRepliesLayout.java:445` — are in scope). The attach
-  header's own local `colorProvider` (`ChatAttachAlert.java:4209-4233`, never
+  header's own local `colorProvider` (`ChatAttachAlert.java:4210-4243`, never
   shared) gets an `applyButtons()` branch after its existing bot-webapp
   override, which still wins unconditionally. The File layout's search sits
   inside that same header `ActionBar` (`ChatAttachAlertDocumentLayout.java`

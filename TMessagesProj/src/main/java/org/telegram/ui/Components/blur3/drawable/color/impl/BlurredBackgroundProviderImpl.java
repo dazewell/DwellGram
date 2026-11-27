@@ -73,8 +73,8 @@ public class BlurredBackgroundProviderImpl {
     // NagramX (#interface-style): gated overload for topPanel's two in-scope callers under Apply to ->
     // Buttons - the attach sheet's Audio search field and SelectAudioAlert's search field. A separate
     // method rather than gating topPanel in place, same reason as dialogsTopPanel/chatHeaderPanel:
-    // topPanel has ~10 unrelated callers (Calls/topics banners, profile shared media, bookmarks) that
-    // must keep the plain glass look.
+    // topPanel has other unrelated callers (profile shared media, bookmarks) that must keep the plain
+    // glass look.
     public static BlurredBackgroundProvider attachSheetSearchPanel(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean frostedSourceAvailable) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
             .setBackgroundColor((r, isDark) -> {
