@@ -150,11 +150,12 @@ These factories have no gate. Their callers are what still looks like Glass:
   (`NekoDelegateFragment.java:183-187`). It is padding rather than translation
   because `ActionBar.java:1324` rewrites the translation when search opens or
   closes.
-- `topPanel` (`:57-71`): the Calls and forum-topics banners
-  (`CallLogActivity.java:913`, `TopicsFragment.java:1431`), profile shared
-  media (`SharedMediaLayout.java:3727`, `:3776`, `:3827`), bookmarks, the attach
-  sheet's audio layout and `SelectAudioAlert`. `inputFieldDialogActivity`
-  (`:324-326`) is an alias for it, kept only for any caller that isn't gated.
+- `topPanel` (`:69-83`): profile shared media (`SharedMediaLayout.java:3727`,
+  `:3776`, `:3827`) and bookmarks (`BookmarkManagerActivity.java:635`).
+  `inputFieldDialogActivity` (`:443-445`) is an alias for it, kept only for any
+  caller that isn't gated. (The Calls/forum-topics banners and the attach
+  sheet's audio search field/`SelectAudioAlert`, both formerly listed here,
+  are done — see the S7 entry below.)
 - `mainTabs` (`:21-35`): `StarGiftPreviewSheet`'s tab selector is the one
   caller left ungated (out of scope, gifts).
 - Done (S6, #interface-style): the attach sheet tab bar and the statistics
@@ -207,7 +208,6 @@ These factories have no gate. Their callers are what still looks like Glass:
   own paint alpha and a matching `canvas.scale`, with an explicit
   `buttonsRecyclerView.invalidate()` alongside them - setting a child's alpha
   or scale invalidates that child, not the parent that draws the highlight.
-- `attachMenuSearch` has only a few sheet callers.
 - The chat's @mention and bot-command panels moved to
   `ComposerGlassProvider.ROLE_SUGGESTIONS` (`ChatActivity.java:4287`), gated by
   Apply to → Composer.
@@ -243,6 +243,30 @@ These factories have no gate. Their callers are what still looks like Glass:
   sites (`PeerStoriesView.java:549`, `CaptionContainerView.java:157`, `:165`)
   use the same themed-white construction but are message/Stories previews,
   not buttons, so they were left out.
+- Done (S7, #interface-style): `BlurredBackgroundProviderImpl` gained two new
+  overloads of `topPanel` — `attachSheetSearchPanel(currentAccount, rp,
+  frostedSourceAvailable)` (panel/frost-rule) for the attach sheet's Audio
+  search field (`ChatAttachAlertAudioLayout.java:519`) and `SelectAudioAlert`'s
+  search field (`SelectAudioAlert.java:238`), and `attachSheetPill(rp)`
+  (opaque, never frosted) for the gallery fast-scroll circle/tag bubble
+  (`ChatAttachAlert.java:4204`). `attachMenuSearch` is gated in place instead
+  (both its callers — `ChatAttachAlertContactsLayout.java:549`,
+  `ChatAttachAlertQuickRepliesLayout.java:445` — are in scope). The attach
+  header's own local `colorProvider` (`ChatAttachAlert.java:4210-4243`, never
+  shared) gets an `applyButtons()` branch after its existing bot-webapp
+  override, which still wins unconditionally. The File layout's search sits
+  inside that same header `ActionBar` (`ChatAttachAlertDocumentLayout.java`
+  uses the stock `ActionBarMenuItem` search-expand, not a separate provider),
+  so it needed no code of its own. `ChatAttachAlertAudioLayout`'s
+  `topPanelLayout` is the call/live-location banner (`FragmentContextView`),
+  not search chrome. It was first matched to `dialogsTopPanel` +
+  `setFlatBackground`, PR #662's flat treatment of the identical banner in
+  `CallLogActivity`/`TopicsFragment` — wrong here: dazewell's device test on
+  #674 found a flat `actionBarDefault` band looks out of place among the
+  attach sheet's other pill-shaped panels. It stays a rounded pill
+  (`setRadius(dp(24))`, `setPadding(dp(7))`, unconditional, no
+  `setFlatBackground` call) and shares `attachSheetSearchPanel` with the
+  search field above it, so both change together under the same gate.
 
 `topPanel`, `mainTabs`, `inputFieldDialogActivity`, the 2-arg
 `topPanelChatActivity` and `scrimMenuBackground` are shared across unrelated

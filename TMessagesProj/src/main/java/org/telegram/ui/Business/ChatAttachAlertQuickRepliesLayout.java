@@ -440,9 +440,9 @@ public class ChatAttachAlertQuickRepliesLayout extends ChatAttachAlert.AttachAle
         updateEmptyView();
     }
 
-    public void setupBlurredSearchField(BlurredBackgroundDrawableViewFactory factory) {
+    public void setupBlurredSearchField(BlurredBackgroundDrawableViewFactory factory, boolean frostedSourceAvailable) {
         if (searchField != null) {
-            searchField.setupBlurredBackground(factory.create(searchField, BlurredBackgroundProviderImpl.attachMenuSearch(resourcesProvider)));
+            searchField.setupBlurredBackground(factory.create(searchField, BlurredBackgroundProviderImpl.attachMenuSearch(parentAlert.currentAccount, resourcesProvider, frostedSourceAvailable)));
         }
     }
 
