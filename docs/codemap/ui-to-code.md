@@ -101,6 +101,14 @@ gate: `dialogsTopPanel`, the chat header chain, `emojiViewButton` and
 `:75-95`, `:107-120`, `:235-292`), plus `ComposerGlassProvider` and
 `Md3ButtonColorProvider`. The main FAB is never glass.
 
+Converting a surface to MD3 drops the stroke and the glass tint, not the blur.
+On API 31+ with chat blur on, an MD3 surface is frosted at the Blur strength
+alpha, and it is opaque only when blur is off (`BlurredBackgroundProviderImpl.java:44-45`,
+`:79-80`, `:252-253`; `ComposerGlassProvider.java:82-85`). The composer's
+opaque `ROLE_COMPOSER` fill is not the reference to follow: under MD3,
+`ComposerMd3Surface` paints the frosted island instead
+(`ComposerMd3Surface.java:45-48`).
+
 These factories have no gate. Their callers are what still looks like Glass:
 
 - `messageMenuBackground` (`:141-156`): the message menu and reactions bar,

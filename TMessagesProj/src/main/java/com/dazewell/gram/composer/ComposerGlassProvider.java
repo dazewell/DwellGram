@@ -25,8 +25,8 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     public static final int ROLE_COMPOSER = 1;
     public static final int ROLE_BUTTON = 2;
     // NagramX: the @mention/#hashtag/inline-bot results panel and the bot "/" command list - they float
-    // above the chat list rather than sitting in the composer row, so they flatten under the same
-    // applyComposer() gate but keep their shadow (see getShadowColor()) and key off their own panel colour.
+    // above the chat list rather than sitting in the composer row, so under the same applyComposer() gate
+    // they drop the stroke and frost like the MD3 header (opaque with blur off) but keep their shadow (see getShadowColor()) and key off their own panel colour.
     public static final int ROLE_SUGGESTIONS = 3;
 
     private final int currentAccount;
@@ -79,6 +79,11 @@ public class ComposerGlassProvider extends BlurredBackgroundColorProviderThemed 
     public int getBackgroundColor() {
         NaConfig.migrateComposerGlassTransparency(isDarkTheme());
         if (isFlatMd3()) {
+            // NagramX: the dropdowns frost under MD3 while blur is on, like the MD3 header and composer island (opaque with blur off); the composer and button roles are unchanged.
+            if (role == ROLE_SUGGESTIONS && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                    && BlurredBackgroundProviderImpl.checkBlurEnabled(currentAccount, resourcesProvider)) {
+                return Theme.multAlpha(Theme.getColor(backgroundColorId, resourcesProvider), NaConfig.interfaceStyleBlurAlpha());
+            }
             return ColorUtils.setAlphaComponent(Theme.getColor(backgroundColorId, resourcesProvider), 255);
         }
         if (gateOnBlurEnabled && !BlurredBackgroundProviderImpl.checkBlurEnabled(currentAccount, resourcesProvider)) {
