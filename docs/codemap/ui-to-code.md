@@ -103,11 +103,13 @@ gate: `dialogsTopPanel`, the chat header chain, `emojiViewButton` and
 
 Converting a surface to MD3 drops the stroke and the glass tint, not the blur.
 On API 31+ with chat blur on, an MD3 surface is frosted at the Blur strength
-alpha, and it is opaque only when blur is off (`BlurredBackgroundProviderImpl.java:44-45`,
-`:79-80`, `:252-253`; `ComposerGlassProvider.java:82-85`). The composer's
-opaque `ROLE_COMPOSER` fill is not the reference to follow: under MD3,
-`ComposerMd3Surface` paints the frosted island instead
-(`ComposerMd3Surface.java:45-48`).
+alpha (`BlurredBackgroundProviderImpl.java:44-45`, `:79-80`, `:252-253`;
+`ComposerGlassProvider.java:89-91`). It is opaque when blur is off, and in a
+chat, also when no frosted source existed at chat open: blur can be turned on
+mid-chat, and the factories then wrap the raw wallpaper
+(`ChatActivity.java:3112-3113`; `ComposerMd3Surface.java:236-246`). The
+composer's opaque `ROLE_COMPOSER` fill is not the reference to follow, because
+under MD3 `ComposerMd3Surface` paints the frosted island instead.
 
 These factories have no gate. Their callers are what still looks like Glass:
 
@@ -138,9 +140,10 @@ These factories have no gate. Their callers are what still looks like Glass:
   (`ChatAttachAlert.java:2774`; `StatisticActivity.java:1049`).
 - `inputFieldShareAlert`, `attachMenuSearch`, `premiumButton`, `shadow` and
   `bottomPanelChatActivity` each have only a few sheet callers.
-- `BlurredBackgroundColorProviderThemed` over `windowBackgroundWhite`: the
-  chat's @mention and bot-command panels (`ChatActivity.java:4284`, `:8175`,
-  `:19753`) and My Profile's bottom buttons (`ProfileActivity.java:3627`).
+- `BlurredBackgroundColorProviderThemed` over `windowBackgroundWhite`: My
+  Profile's bottom buttons (`ProfileActivity.java:3628`). The chat's @mention
+  and bot-command panels moved to `ComposerGlassProvider.ROLE_SUGGESTIONS`
+  (`ChatActivity.java:4287`), gated by Apply to → Composer.
 
 `topPanel`, `mainTabs`, `inputFieldDialogActivity`, the 2-arg
 `topPanelChatActivity` and `scrimMenuBackground` are shared across unrelated
