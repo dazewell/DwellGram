@@ -127,7 +127,10 @@ These factories have no gate. Their callers are what still looks like Glass:
   MD3 the back pill just loses its rim and shadow. The Recent actions bottom
   bar uses `ComposerGlassProvider.channelButtons` (`ComposerGlassProvider.java:181`,
   `ChannelAdminLogActivity.java:1494`). That bar is ROLE_BUTTON, opaque under
-  Buttons, and keeps `bottomPanelChatActivity` otherwise.
+  Buttons, and keeps `bottomPanelChatActivity` otherwise. Using
+  `chatHeaderPanel` rather than `chatHeaderSurface` is deliberate: Match Classic
+  and Day header stays chat-only, as it is for the report-mode chat, because
+  these screens don't push its foreground colours.
 - `topPanel` (`:57-71`): the Calls and forum-topics banners
   (`CallLogActivity.java:913`, `TopicsFragment.java:1431`), profile shared
   media (`SharedMediaLayout.java:3727`, `:3776`, `:3827`), bookmarks, the attach
