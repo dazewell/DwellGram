@@ -204,9 +204,10 @@ public class BlurredBackgroundProviderImpl {
     public static BlurredBackgroundProvider bottomPanelChatActivity(Theme.ResourcesProvider resourcesProvider) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
                 .setBackgroundColor((r, isDark) -> {
-                    // NagramX: the gift note sheet's input panel, frosted at the Blur strength slider under
-                    // MD3 Buttons; opaque otherwise, same as the non-MD3 "blur disabled" branch below.
-                    if (com.dazewell.gram.helpers.InterfaceStyleController.applyButtons()) {
+                    // NagramX: the gift note sheet's input panel is the chat composer under another name,
+                    // so it frosts at the Blur strength slider under MD3 Composer (dazewell's call on #671,
+                    // not Buttons); opaque otherwise, same as the non-MD3 "blur disabled" branch below.
+                    if (com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
                         final int colorBg = Theme.getColor(Theme.key_chat_messagePanelBackground, r);
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && checkBlurEnabled(resourcesProvider)) {
                             return Theme.multAlpha(colorBg, xyz.nextalone.nagram.NaConfig.interfaceStyleBlurAlpha());
@@ -221,9 +222,9 @@ public class BlurredBackgroundProviderImpl {
                     final int colorBg = Theme.getColor(Theme.key_chat_messagePanelBackground, r);
                     return Theme.multAlpha(colorBg, alpha);
                 })
-                .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x28FFFFFF : 0xFFFFFFFF))
-                .setStrokeColorBottom((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x14FFFFFF : 0xFFFFFFFF))
-                .setShadowColor((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0 : 0x20000000))
+                .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyComposer() ? 0 : (isDark ? 0x28FFFFFF : 0xFFFFFFFF))
+                .setStrokeColorBottom((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyComposer() ? 0 : (isDark ? 0x14FFFFFF : 0xFFFFFFFF))
+                .setShadowColor((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyComposer() ? 0 : (isDark ? 0 : 0x20000000))
                 //.setShadowLayer(dpf2(10 / 3f), 0, dpf2(2 / 3f))
                 .setStrokeWidth(dpf2(0.5f), dpf2(0.5f))
                 .build();

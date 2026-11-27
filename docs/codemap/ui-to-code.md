@@ -164,8 +164,10 @@ These factories have no gate. Their callers are what still looks like Glass:
 - The chat's @mention and bot-command panels moved to
   `ComposerGlassProvider.ROLE_SUGGESTIONS` (`ChatActivity.java:4287`), gated by
   Apply to → Composer.
-- Done (S8): `bottomPanelChatActivity`, `premiumButton` and `shadow` are gated
-  on `applyButtons()` in place (PR #671) — the gift note sheet's input island
+- Done (S8): `premiumButton` and `shadow` are gated on `applyButtons()` in
+  place (PR #671); `bottomPanelChatActivity` is gated on `applyComposer()`
+  instead (dazewell's call: the gift note sheet's input panel is the chat
+  composer under another name) — it is the gift note sheet's input island
   and under-keyboard panel (`GiftMessageBottomSheet.java:171`, `:173`, a
   panel, so it still frosts at `interfaceStyleBlurAlpha()` when chat blur is
   on and the API is ≥ 31), the confirm pills on Settings → Name colour
