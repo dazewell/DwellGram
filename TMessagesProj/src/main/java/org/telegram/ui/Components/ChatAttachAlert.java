@@ -3094,13 +3094,14 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         };
         frameLayout2.addView(captionContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.FILL));
 
-        emojiViewChildBg = iBlur3FactoryFrostedLiquidGlass.create(sizeNotifierFrameLayout, BlurredBackgroundProviderImpl.inputFieldDialogActivity(resourcesProvider));
+        // NagramX (#interface-style, S5): caption islands match the chat composer's own MD3 frost under Apply to Composer.
+        emojiViewChildBg = iBlur3FactoryFrostedLiquidGlass.create(sizeNotifierFrameLayout, BlurredBackgroundProviderImpl.sheetCaptionInput(currentAccount, resourcesProvider, iBlur3SourceGlassFrosted != null));
         emojiViewChildBg.enableInAppKeyboardOptimization();
         emojiViewChildBg.setRadius(dp(29), dp(29), 0, 0);
         emojiViewChildBg.setThickness(dp(32));
         emojiViewChildBg.setIntensity(0.4f);
 
-        captionContainerBg = iBlur3FactoryLiquidGlass.create(captionContainer, BlurredBackgroundProviderImpl.inputFieldDialogActivity(resourcesProvider));
+        captionContainerBg = iBlur3FactoryLiquidGlass.create(captionContainer, BlurredBackgroundProviderImpl.sheetCaptionInput(currentAccount, resourcesProvider, iBlur3SourceGlassFrosted != null));
         captionContainerBg.setRadius(dp(22));
         captionContainerBg.setPadding(dp(7));
         captionContainer.setPadding(dp(7), dp(5), dp(7), dp(5));
@@ -3517,7 +3518,8 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
 
         commentTextView.addView(moveCaptionButton, LayoutHelper.createFrame(40, 40, Gravity.BOTTOM | Gravity.RIGHT, 0, 0, 0, 4));
 
-        BlurredBackgroundDrawable drawable2 = iBlur3FactoryLiquidGlass.create(topCommentContainer, BlurredBackgroundProviderImpl.inputFieldDialogActivity(resourcesProvider));
+        // NagramX (#interface-style, S5): moved-above-media caption keeps the same MD3 frost as the docked one above.
+        BlurredBackgroundDrawable drawable2 = iBlur3FactoryLiquidGlass.create(topCommentContainer, BlurredBackgroundProviderImpl.sheetCaptionInput(currentAccount, resourcesProvider, iBlur3SourceGlassFrosted != null));
         drawable2.setRadius(dp(22));
         drawable2.setPadding(dp(7));
         topCommentContainer.setBackground(drawable2);

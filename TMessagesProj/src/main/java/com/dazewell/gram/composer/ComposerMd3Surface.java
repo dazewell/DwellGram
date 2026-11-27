@@ -280,6 +280,24 @@ public final class ComposerMd3Surface {
         return resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark();
     }
 
+    /**
+     * S5 (#interface-style): the MD3 sheet-caption islands (attach sheet, forward picker, share sheet) reuse
+     * this exact recipe via BlurredBackgroundProviderImpl.sheetCaptionInput/inputFieldShareAlert, so they
+     * match the chat composer instead of getting a second hand-tuned one: no stroke, this frosted fill while
+     * {@code frosted} (the caller has already worked out whether blur, the API level and a frosted source
+     * are all available) or an opaque one otherwise, and the composer's own floating shadow either way -
+     * these sheet islands never dock like the composer itself can, so they always get frostProvider()'s
+     * non-docked branch's shadow, never its docked top-edge-only one.
+     */
+    public static BlurredBackgroundProvider sheetCaptionProvider(Theme.ResourcesProvider resourcesProvider, boolean frosted) {
+        final ComposerMd3Surface surface = new ComposerMd3Surface(resourcesProvider);
+        return new BlurredBackgroundProviderBuilder(resourcesProvider)
+                .setBackgroundColor((r, isDark) -> frosted ? Theme.multAlpha(surface.surfaceColor(), frostAlpha()) : surface.surfaceColor())
+                .setShadowColor((r, isDark) -> surface.shadowColor())
+                .setShadowLayer(dp(SHADOW_RADIUS), 0, dp(SHADOW_DY))
+                .build();
+    }
+
     // The reply row centres its icon in a 52dp column that starts at the strip's edge, so the accent bar drawn
     // inside that column crowds it. Move the icon to sit midway between the bar and the text, which starts where
     // the column ends. Runs before the host draws its children, and setTranslationX ignores an unchanged value.
@@ -373,7 +391,8 @@ public final class ComposerMd3Surface {
         return field ? key : ColorUtils.blendARGB(ColorUtils.setAlphaComponent(gboardSurface, 255), ColorUtils.setAlphaComponent(key, 255), STRIP_TOWARD_FIELD);
     }
 
-    private int shadowColor() {
+    // S5 (#interface-style): public for the same reason as frostAlpha() above.
+    public int shadowColor() {
         return ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_chat_messagePanelShadow, resourcesProvider), SHADOW_ALPHA);
     }
 
@@ -462,7 +481,9 @@ public final class ComposerMd3Surface {
         return extraLift() + (docked - extraLift()) * dock;
     }
 
-    private static float frostAlpha() {
+    // S5 (#interface-style): public so sheetCaptionProvider (and BlurredBackgroundProviderImpl beyond it) can
+    // reuse this exact curve instead of a second one that could drift from it.
+    public static float frostAlpha() {
         return 1f - (1f - NaConfig.interfaceStyleBlurAlpha()) * FROST_SHARE;
     }
 

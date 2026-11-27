@@ -1853,19 +1853,20 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         }
 
 
-        emojiViewChildBg = iBlur3FactoryFrostedLiquidGlass.create(sizeNotifierFrameLayout, BlurredBackgroundProviderImpl.inputFieldShareAlert(resourcesProvider));
+        // NagramX (#interface-style, S5): share sheet islands match the chat composer's own MD3 frost under Apply to Composer.
+        emojiViewChildBg = iBlur3FactoryFrostedLiquidGlass.create(sizeNotifierFrameLayout, BlurredBackgroundProviderImpl.inputFieldShareAlert(currentAccount, resourcesProvider, iBlur3SourceGlassFrosted != null));
         emojiViewChildBg.enableInAppKeyboardOptimization();
         emojiViewChildBg.setRadius(dp(29), dp(29), 0, 0);
         emojiViewChildBg.setThickness(dp(32));
         emojiViewChildBg.setIntensity(0.4f);
 
-        captionContainerBg = iBlur3FactoryLiquidGlass.create(frameLayout2, BlurredBackgroundProviderImpl.inputFieldShareAlert(resourcesProvider));
+        captionContainerBg = iBlur3FactoryLiquidGlass.create(frameLayout2, BlurredBackgroundProviderImpl.inputFieldShareAlert(currentAccount, resourcesProvider, iBlur3SourceGlassFrosted != null));
         captionContainerBg.setRadius(dp(22));
         captionContainerBg.setPadding(dp(9));
         frameLayout2.setPadding(dp(9), dp(7), dp(9), dp(7));
 
         if (pickerBottomLayout != null) {
-            BlurredBackgroundDrawable d = iBlur3FactoryLiquidGlass.create(pickerBottomLayout, BlurredBackgroundProviderImpl.inputFieldShareAlert(resourcesProvider));
+            BlurredBackgroundDrawable d = iBlur3FactoryLiquidGlass.create(pickerBottomLayout, BlurredBackgroundProviderImpl.inputFieldShareAlert(currentAccount, resourcesProvider, iBlur3SourceGlassFrosted != null));
             d.setPadding(dp(9));
             d.setRadius(dp(22));
             pickerBottomLayout.setBackground(d);
@@ -1873,7 +1874,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
         }
 
         if (timestampFrameLayout != null) {
-            BlurredBackgroundDrawable d = iBlur3FactoryLiquidGlass.create(timestampFrameLayout, BlurredBackgroundProviderImpl.inputFieldShareAlert(resourcesProvider));
+            BlurredBackgroundDrawable d = iBlur3FactoryLiquidGlass.create(timestampFrameLayout, BlurredBackgroundProviderImpl.inputFieldShareAlert(currentAccount, resourcesProvider, iBlur3SourceGlassFrosted != null));
             d.setPadding(dp(9));
             d.setRadius(dp(22));
             timestampFrameLayout.setBackground(d);

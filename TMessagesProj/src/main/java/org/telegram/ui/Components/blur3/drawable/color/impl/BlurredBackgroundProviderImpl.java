@@ -341,7 +341,26 @@ public class BlurredBackgroundProviderImpl {
         return topPanel(resourcesProvider);
     }
 
-    public static BlurredBackgroundProvider inputFieldShareAlert(Theme.ResourcesProvider resourcesProvider) {
+    // NagramX (#interface-style, S5): gated overload for inputFieldDialogActivity's only two callers - the
+    // attach sheet's caption islands and the forward picker's comment field (ChatAttachAlert, DialogsActivity).
+    // Added as a separate method rather than gating inputFieldDialogActivity/topPanel in place, same reason as
+    // dialogsTopPanel/chatHeaderPanel: topPanel has ~10 unrelated callers (Calls/topics banners, profile
+    // shared media, bookmarks, attach audio, SelectAudioAlert) that must keep the plain glass look.
+    public static BlurredBackgroundProvider sheetCaptionInput(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean frostedSourceAvailable) {
+        if (!com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
+            return inputFieldDialogActivity(resourcesProvider);
+        }
+        final boolean frosted = frostedSourceAvailable && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && checkBlurEnabled(currentAccount, resourcesProvider);
+        return com.dazewell.gram.composer.ComposerMd3Surface.sheetCaptionProvider(resourcesProvider, frosted);
+    }
+
+    public static BlurredBackgroundProvider inputFieldShareAlert(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean frostedSourceAvailable) {
+        // NagramX (#interface-style, S5): gated in place, not an overload - every caller here is one of
+        // ShareAlert's own floating islands (caption, picker-bottom row, timestamp row), none shared elsewhere.
+        if (com.dazewell.gram.helpers.InterfaceStyleController.applyComposer()) {
+            final boolean frosted = frostedSourceAvailable && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && checkBlurEnabled(currentAccount, resourcesProvider);
+            return com.dazewell.gram.composer.ComposerMd3Surface.sheetCaptionProvider(resourcesProvider, frosted);
+        }
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
                 .setBackgroundColor((r, isDark) -> {
                     final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
