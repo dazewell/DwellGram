@@ -60,8 +60,7 @@ public final class WebMessagesGate {
 
     /** The user flipped the switch. UI thread. */
     public static void onToggled() {
-        // Turning it off unloads every running widget now. The engine process, if one was started, has no session
-        // left and goes with the next app restart.
+        // Turning it off unloads every running widget now, and no new session can start.
         if (!enabled()) org.telegram.utils.twidget.WidgetMedia.onKillSwitch();
         org.telegram.messenger.Utilities.globalQueue.postRunnable(WebMessagesGate::syncEngineComponent);
     }
