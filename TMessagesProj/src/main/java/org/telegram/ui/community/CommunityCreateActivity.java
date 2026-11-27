@@ -20,6 +20,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
@@ -30,6 +31,7 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BackDrawable;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.ActionBar.ThemeBind;
 import org.telegram.ui.Cells.ProfileSearchCell;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.AvatarDrawable;
@@ -42,12 +44,30 @@ import org.telegram.ui.Components.UniversalAdapter;
 import org.telegram.ui.Components.UniversalRecyclerView;
 import org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory;
 import org.telegram.ui.Components.blur3.drawable.color.impl.BlurredBackgroundProviderImpl;
-import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceColor;
+import org.telegram.utils.glass.source.GlassSourceColor;
 import org.telegram.ui.community.sheet.CommunityAddOptionsSheet;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 
 public class CommunityCreateActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
+
+    private GlassSourceColor actionBarSourceColor;
+
+    @Override
+    public void onThemeColorsChanged() {
+        super.onThemeColorsChanged();
+        try {
+            if (actionBarSourceColor != null) {
+                actionBarSourceColor.setColor(getThemedColor(Theme.key_windowBackgroundWhite));
+            }
+            if (actionBar != null) {
+                actionBar.invalidate();
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+    }
     private long dialogId;
     private TLRPC.Chat currentChat;
     private TLRPC.User currentUser;
@@ -100,8 +120,9 @@ public class CommunityCreateActivity extends BaseFragment implements Notificatio
                 }
             }
         });
-        BlurredBackgroundSourceColor sourceColor = new BlurredBackgroundSourceColor();
+        GlassSourceColor sourceColor = new GlassSourceColor();
         sourceColor.setColor(getThemedColor(Theme.key_windowBackgroundWhite));
+        actionBarSourceColor = sourceColor;
         BlurredBackgroundDrawableViewFactory factory = new BlurredBackgroundDrawableViewFactory(sourceColor);
         actionBar.setBackground(null);
         // NagramX: MD3 Chat header drops the back pill's rim and shadow. No flat bar here: it would cover the hero avatar.
@@ -109,7 +130,7 @@ public class CommunityCreateActivity extends BaseFragment implements Notificatio
         actionBar.setGlassOnlyBack();
 
         containerView = new FrameLayout(context);
-        containerView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
+        ThemeBind.backgroundColor(containerView, Theme.key_windowBackgroundGray);
 
 
         communityHeaderView = new CommunityHeaderView(context, resourceProvider);
@@ -129,6 +150,7 @@ public class CommunityCreateActivity extends BaseFragment implements Notificatio
         listView = new UniversalRecyclerView(this, this::fillItems, this::onClick, this::onLongClick);
         listView.setClipToPadding(false);
         listView.adapter.setApplyBackground(false);
+        listView.adapter.setCompactTextCells(true);
         listView.setSections();
         containerView.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         containerView.addView(actionBar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP));
@@ -304,6 +326,11 @@ public class CommunityCreateActivity extends BaseFragment implements Notificatio
         public void updateColors() {
             titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourcesProvider));
             subtitleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2, resourcesProvider));
+        }
+        @Override
+        public void addColorKeys(HashSet<Integer> colors) {
+            colors.add(Theme.key_windowBackgroundWhiteBlackText);
+            colors.add(Theme.key_windowBackgroundWhiteGrayText2);
         }
 
         public void setTitle(CharSequence text) {

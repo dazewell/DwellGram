@@ -34,7 +34,7 @@ import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
 import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundProvider;
 import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundProviderBuilder;
 import org.telegram.ui.Components.blur3.drawable.color.impl.BlurredBackgroundProviderImpl;
-import org.telegram.ui.Components.blur3.source.BlurredBackgroundSource;
+import org.telegram.utils.glass.source.GlassSource;
 import org.telegram.ui.Components.chat.ChatInputViewsContainer;
 import org.telegram.ui.Components.chat.ViewPositionWatcher;
 
@@ -238,7 +238,7 @@ public final class ComposerMd3Surface {
      * source because the shared one hands out drawables with the Liquid Glass shader when that is enabled.
      * Without a source (below API 31, or chat blur off when the chat opened) the island stays opaque.
      */
-    public void attachFrost(@Nullable BlurredBackgroundSource source, ViewPositionWatcher watcher, ViewGroup root,
+    public void attachFrost(@Nullable GlassSource source, ViewPositionWatcher watcher, ViewGroup root,
                             ReferenceList<View> linkedViews, ReferenceList<BlurredBackgroundDrawable> linkedDrawables,
                             View view, int account) {
         if (source == null) {
@@ -643,9 +643,9 @@ public final class ComposerMd3Surface {
                     final float edge = dpf2(1);
                     edgePaint.setStrokeWidth(edge);
                     edgePaint.setColor(Theme.multAlpha(DARK_EDGE_TOP, barFactor));
-                    BlurredBackgroundDrawable.drawStroke(canvas, island.left, island.top, island.right, island.bottom, islandRadii, edge, true, edgePaint);
+                    BlurredBackgroundDrawable.drawStroke(canvas, island.left, island.top, island.right, island.bottom, islandRadii[0], edge, true, edgePaint); // NagramX: the helper takes one radius per half; islandRadii is uniform per half
                     edgePaint.setColor(Theme.multAlpha(DARK_EDGE_BOTTOM, barFactor));
-                    BlurredBackgroundDrawable.drawStroke(canvas, island.left, island.top, island.right, island.bottom, islandRadii, edge, false, edgePaint);
+                    BlurredBackgroundDrawable.drawStroke(canvas, island.left, island.top, island.right, island.bottom, islandRadii[4], edge, false, edgePaint);
                 }
             }
         }

@@ -30,7 +30,6 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RLottieImageView;
 import org.telegram.ui.Components.blur3.BlurredBackgroundDrawableViewFactory;
 import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
-import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawableRenderNode;
 import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundColorProvider;
 import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundProvider;
 
@@ -1149,9 +1148,8 @@ public final class ComposerToolbarLayout extends FrameLayout {
                 return;
             }
             for (BlurredBackgroundDrawable drawable : bubbles) {
-                if (drawable instanceof BlurredBackgroundDrawableRenderNode) {
-                    ((BlurredBackgroundDrawableRenderNode) drawable).invalidateDisplayList();
-                }
+                // NagramX: upstream merged the render node drawable into BlurredBackgroundDrawable; a drawable without a display list ignores this
+                drawable.invalidateDisplayList();
             }
             invalidate();
         }

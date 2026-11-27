@@ -51,6 +51,7 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.ChatMessageCell;
+import org.telegram.ui.Cells.ChatMessageTransitionParams;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.Bulletin;
 import org.telegram.ui.Components.BulletinFactory;
@@ -63,16 +64,21 @@ import org.telegram.ui.Components.blur3.DownscaleScrollableNoiseSuppressor;
 import org.telegram.ui.Components.blur3.ViewGroupPartRenderer;
 import org.telegram.ui.Components.blur3.capture.IBlur3Capture;
 import org.telegram.ui.Components.blur3.drawable.color.impl.BlurredBackgroundProviderImpl;
-import org.telegram.ui.Components.blur3.source.BlurredBackgroundSource;
-import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceBitmap;
-import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceRenderNode;
-import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceWrapped;
+import org.telegram.utils.glass.GlassEngine;
+import org.telegram.utils.glass.positions.GlassPositionsArray;
+import org.telegram.utils.glass.positions.GlassPositionsMerger;
+import org.telegram.utils.glass.source.GlassSource;
+import org.telegram.utils.glass.source.GlassSourceBitmap;
+import org.telegram.utils.glass.source.GlassSourceRenderNode;
+import org.telegram.utils.glass.source.GlassSourceWrapped;
 import org.telegram.ui.Components.chat.ViewPositionWatcher;
 import org.telegram.ui.Components.chat.WallpaperBitmapProvider;
 import org.telegram.ui.Components.chat.layouts.ChatActivityFadeView;
 import org.telegram.ui.ContactAddActivity;
 import org.telegram.ui.ProfileActivity;
 import org.telegram.ui.recyclerview.ChatListItemAnimator;
+
+import me.vkryl.core.BitwiseUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -113,7 +119,7 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
     protected class ScrimFrameLayout extends SizeNotifierFrameLayout {
 
         private final WallpaperBitmapProvider wallpaperBitmapProvider = new WallpaperBitmapProvider();
-        private final BlurredBackgroundSourceWrapped glassBackgroundSourceWallpaper = new BlurredBackgroundSourceWrapped();
+        private final GlassSourceWrapped glassBackgroundSourceWallpaper = new GlassSourceWrapped();
 
         public ScrimFrameLayout(Context context) {
             super(context);
@@ -122,7 +128,7 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
         @Override
         public void onUpdateBackgroundDrawable(Drawable drawable) {
             super.onUpdateBackgroundDrawable(drawable);
-            BlurredBackgroundSource source = wallpaperBitmapProvider.updateSourceFromBackgroundViewDrawable(drawable);
+            GlassSource source = wallpaperBitmapProvider.updateSourceFromBackgroundViewDrawable(drawable);
             glassBackgroundSourceWallpaper.setSource(source);
             updateGlassBackgroundSourceSize();
         }
@@ -134,8 +140,8 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
         }
 
         private void updateGlassBackgroundSourceSize() {
-            BlurredBackgroundSource source = glassBackgroundSourceWallpaper.getSource();
-            if (source instanceof BlurredBackgroundSourceBitmap bitmapSource) {
+            GlassSource source = glassBackgroundSourceWallpaper.getSource();
+            if (source instanceof GlassSourceBitmap bitmapSource) {
                 bitmapSource.setParentSize(getMeasuredWidth(), getMeasuredHeight(), 0);
             }
         }
@@ -151,11 +157,11 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
         if (actionBar == null) {
             return;
         }
-        BlurredBackgroundSource source;
+        GlassSource source;
         if (container instanceof ScrimFrameLayout scrimFrameLayout) {
             source = scrimFrameLayout.glassBackgroundSourceWallpaper;
         } else {
-            BlurredBackgroundSourceWrapped sourceWallpaper = new BlurredBackgroundSourceWrapped();
+            GlassSourceWrapped sourceWallpaper = new GlassSourceWrapped();
             sourceWallpaper.setSource(new WallpaperBitmapProvider().updateSourceFromBackgroundViewDrawable(Theme.getCachedWallpaper()));
             source = sourceWallpaper;
         }
@@ -165,11 +171,12 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
         BlurredBackgroundDrawableViewFactory actionBarDrawableFactory = wallpaperDrawableFactory;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SharedConfig.chatBlurEnabled()) {
             boolean liquidGlassEnabled = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
-            BlurredBackgroundSourceRenderNode contentGlassSource = new BlurredBackgroundSourceRenderNode(source);
+            GlassSourceRenderNode contentGlassSource = new GlassSourceRenderNode(source);
             DownscaleScrollableNoiseSuppressor contentGlassNoiseSuppressor = new DownscaleScrollableNoiseSuppressor();
             contentGlassSource.setUnderSource(source);
             contentGlassSource.setScrollableNoiseSuppressor(contentGlassNoiseSuppressor, DownscaleScrollableNoiseSuppressor.DRAW_GLASS);
             actionBarDrawableFactory = new BlurredBackgroundDrawableViewFactory(contentGlassSource);
+            actionBarDrawableFactory.setGlassEngine(glassEngine); // NagramX: the engine tracks this factory's drawables for the capture positions
             actionBarDrawableFactory.setSourceRootView(viewPositionWatcher, container);
             actionBarDrawableFactory.setLiquidGlassEffectAllowed(liquidGlassEnabled);
             setupContentGlassSource(container, listView, contentGlassSource, contentGlassNoiseSuppressor, liquidGlassEnabled ? dp(8) : dp(48));
@@ -199,7 +206,7 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private void setupContentGlassSource(@NonNull ViewGroup container, @NonNull RecyclerListView listView, @NonNull BlurredBackgroundSourceRenderNode source, @NonNull DownscaleScrollableNoiseSuppressor noiseSuppressor, int capturePadding) {
+    private void setupContentGlassSource(@NonNull ViewGroup container, @NonNull RecyclerListView listView, @NonNull GlassSourceRenderNode source, @NonNull DownscaleScrollableNoiseSuppressor noiseSuppressor, int capturePadding) {
         ContentGlassSourceUpdater updater = new ContentGlassSourceUpdater(container, listView, source, noiseSuppressor, capturePadding);
         View.OnLayoutChangeListener updateListener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updater.requestUpdate();
         container.addOnLayoutChangeListener(updateListener);
@@ -211,7 +218,12 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
                 updater.requestUpdate();
             }
         });
-        source.setOnDrawablesRelativePositionChangeListener(updater::requestUpdate);
+        // NagramX: upstream dropped the source's drawable position callbacks; the glass engine now reports the positions of the
+        // drawables registered through the factory (setGlassEngine) and calls back after every draw that changed anything.
+        glassEngine.setGlassInvalidationListener(updater::onGlassInvalidated);
+        glassEngine.setPositionsMerger(new GlassPositionsMerger(Float.POSITIVE_INFINITY, dp(48)));
+        glassEngine.addNoiseSuppressor(noiseSuppressor);
+        glassEngine.addScrolledView(listView);
         updater.requestUpdate();
     }
 
@@ -219,15 +231,13 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
     private final class ContentGlassSourceUpdater {
 
         private final ViewGroup container;
-        private final BlurredBackgroundSourceRenderNode source;
+        private final GlassSourceRenderNode source;
         private final DownscaleScrollableNoiseSuppressor noiseSuppressor;
         private final int capturePadding;
-        private final ArrayList<RectF> positions = new ArrayList<>();
-        private final ArrayList<RectF> positionsMerged = new ArrayList<>();
         private final IBlur3Capture capture;
         private boolean updateScheduled;
 
-        private ContentGlassSourceUpdater(@NonNull ViewGroup container, @NonNull RecyclerListView listView, @NonNull BlurredBackgroundSourceRenderNode source, @NonNull DownscaleScrollableNoiseSuppressor noiseSuppressor, int capturePadding) {
+        private ContentGlassSourceUpdater(@NonNull ViewGroup container, @NonNull RecyclerListView listView, @NonNull GlassSourceRenderNode source, @NonNull DownscaleScrollableNoiseSuppressor noiseSuppressor, int capturePadding) {
             this.container = container;
             this.source = source;
             this.noiseSuppressor = noiseSuppressor;
@@ -246,13 +256,23 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
             });
         }
 
+        private void onGlassInvalidated(int flags) {
+            if (container.getWidth() == 0 || container.getHeight() == 0) {
+                return;
+            }
+            if (BitwiseUtils.hasFlag(flags, GlassEngine.FLAG_INVALIDATED_POSITIONS)) {
+                // read right away: the engine's array is rebuilt on the next change of the positions
+                final GlassPositionsArray positions = glassEngine.getAllVisibleDrawablesWithDisplayListPositionsMerged();
+                positions.outset(capturePadding, capturePadding);
+                noiseSuppressor.setupRenderNodes(positions);
+            }
+            update();
+        }
+
         private void update() {
             if (container.getWidth() == 0 || container.getHeight() == 0) {
                 return;
             }
-            int count = source.getVisiblePositions(positions, 0, capturePadding);
-            count = RectFMergeBounding.mergeOverlapping(positions, count, positionsMerged);
-            noiseSuppressor.setupRenderNodes(positionsMerged, count);
             if (noiseSuppressor.invalidateResultRenderNodes(capture, container.getWidth(), container.getHeight())) {
                 source.invalidateDisplayListForDrawables();
                 actionBar.invalidate();
@@ -1126,7 +1146,7 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
     }
 
     private void animateCellChange(@NonNull ChatMessageCell messageCell) {
-        ChatMessageCell.TransitionParams params = messageCell.getTransitionParams();
+        ChatMessageTransitionParams params = messageCell.getTransitionParams();
         if (!params.supportChangeAnimation()) {
             return;
         }

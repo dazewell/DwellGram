@@ -765,7 +765,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.fileUploaded);
+        NotificationCenter.getInstance(currentAccount).addWeakObserver(this, NotificationCenter.fileUploaded);
         NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.didSetNewTheme);
     }
 
@@ -2785,7 +2785,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
                         if (currentSession instanceof CameraSession) {
                             rotationAngle = ((CameraSession) currentSession).getWorldAngle();
                         } else if (currentSession instanceof Camera2Session) {
-                            rotationAngle = ((Camera2Session) currentSession).getWorldAngle();
+                            rotationAngle = ((Camera2Session) currentSession).getRoundVideoRotationAngle();
                         } else {
                             rotationAngle = 0;
                         }
