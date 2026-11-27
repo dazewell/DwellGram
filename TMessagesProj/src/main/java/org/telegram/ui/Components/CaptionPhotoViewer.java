@@ -268,8 +268,9 @@ public class CaptionPhotoViewer extends CaptionContainerView {
 
             if (factoryForMentions != null) {
                 if (backgroundForCaptionButton == null) {
+                    // NagramX (#interface-style): the move-caption pill, this class's own override - no shared-class risk.
                     backgroundForCaptionButton = factoryForMentions.create(this)
-                        .setColorProvider(BlurredBackgroundProviderImpl.photoViewer(resourcesProvider))
+                        .setColorProvider(BlurredBackgroundProviderImpl.photoViewerComposer(currentAccount, resourcesProvider))
                         .setPadding(dp(5))
                         .setRadius(dp(16));
                 }

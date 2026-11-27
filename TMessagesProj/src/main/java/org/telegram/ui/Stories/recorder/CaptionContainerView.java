@@ -250,8 +250,10 @@ public class CaptionContainerView extends FrameLayout {
                             }
                         }
 
+                        // NagramX (#interface-style): factoryForMentions is only ever set by CaptionPhotoViewer's
+                        // callers, never by the story recorder's own caption - MD3-flattening this cannot touch it.
                         blurredBackgroundDrawable = factoryForMentions.create(view)
-                            .setColorProvider(BlurredBackgroundProviderImpl.photoViewer(resourcesProvider));
+                            .setColorProvider(BlurredBackgroundProviderImpl.photoViewerComposer(currentAccount, resourcesProvider));
                         blurredBackgroundDrawable.setRadius(dp(29), dp(29), rightBottomRadius, leftBottomRadius, true);
                         blurredBackgroundDrawable.enableInAppKeyboardOptimization();
                         blurredBackgroundDrawable.setThickness(dp(32));
@@ -581,7 +583,8 @@ public class CaptionContainerView extends FrameLayout {
             }
         });
         if (factoryForMentions != null) {
-            mentionContainer.setBackgroundDrawable(factoryForMentions.create(mentionContainer).setColorProvider(BlurredBackgroundProviderImpl.photoViewer(resourcesProvider)));
+            // NagramX (#interface-style): same factoryForMentions isolation as above - photo-viewer-only.
+            mentionContainer.setBackgroundDrawable(factoryForMentions.create(mentionContainer).setColorProvider(BlurredBackgroundProviderImpl.photoViewerComposer(currentAccount, resourcesProvider)));
         }
         containerView.addView(mentionContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.BOTTOM));
         setupMentionContainer();
@@ -1062,8 +1065,9 @@ public class CaptionContainerView extends FrameLayout {
         final float r = lerp(dp(21), 0, keyboardT * (1.0f - forceRound()));
         if (factoryForMentions != null) {
             if (backgroundForCaptionField == null) {
+                // NagramX (#interface-style): same factoryForMentions isolation as above - photo-viewer-only.
                 backgroundForCaptionField = factoryForMentions.create(this)
-                    .setColorProvider(BlurredBackgroundProviderImpl.photoViewer(resourcesProvider))
+                    .setColorProvider(BlurredBackgroundProviderImpl.photoViewerComposer(currentAccount, resourcesProvider))
                     .setPadding(dp(5))
                     .setRadius(dp(22));
             }
