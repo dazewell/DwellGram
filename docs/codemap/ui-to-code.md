@@ -155,8 +155,15 @@ These factories have no gate. Their callers are what still looks like Glass:
   media (`SharedMediaLayout.java:3727`, `:3776`, `:3827`), bookmarks, the attach
   sheet's audio layout and `SelectAudioAlert`. `inputFieldDialogActivity`
   (`:324-326`) is an alias for it, kept only for any caller that isn't gated.
-- `mainTabs` (`:21-35`): the attach sheet tab bar and the statistics tabs
-  (`ChatAttachAlert.java:2774`; `StatisticActivity.java:1049`).
+- `mainTabs` (`:21-35`): `StarGiftPreviewSheet`'s tab selector is the one
+  caller left ungated (out of scope, gifts).
+- Done (S6, #interface-style): the attach sheet tab bar and the statistics
+  tabs (`ChatAttachAlert.java:2775`; `StatisticActivity.java:1050`) now call a
+  new gated overload, `sheetTabsBottomNavigation` (`:62-67`), which falls
+  back to `mainTabs()` when Bottom navigation is off and otherwise returns
+  `mainTabsBottomNavigation()`'s material. Radius, padding and each
+  `GlassTabView`'s selector stay each bar's own - neither is a floating
+  full-width panel like the real nav, so only the material changed (PR #673).
 - `attachMenuSearch` has only a few sheet callers.
 - The chat's @mention and bot-command panels moved to
   `ComposerGlassProvider.ROLE_SUGGESTIONS` (`ChatActivity.java:4287`), gated by
