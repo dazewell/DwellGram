@@ -154,13 +154,10 @@ These factories have no gate. Their callers are what still looks like Glass:
   (`CallLogActivity.java:913`, `TopicsFragment.java:1431`), profile shared
   media (`SharedMediaLayout.java:3727`, `:3776`, `:3827`), bookmarks, the attach
   sheet's audio layout and `SelectAudioAlert`. `inputFieldDialogActivity`
-  (`:324-326`) is an alias for it, used by the attach caption islands and the
-  forward picker's input (`ChatAttachAlert.java:3097`, `:3103`, `:3520`;
-  `DialogsActivity.java:5144`, `:5146`).
+  (`:324-326`) is an alias for it, kept only for any caller that isn't gated.
 - `mainTabs` (`:21-35`): the attach sheet tab bar and the statistics tabs
   (`ChatAttachAlert.java:2774`; `StatisticActivity.java:1049`).
-- `inputFieldShareAlert`, `attachMenuSearch` each have only a few sheet
-  callers.
+- `attachMenuSearch` has only a few sheet callers.
 - The chat's @mention and bot-command panels moved to
   `ComposerGlassProvider.ROLE_SUGGESTIONS` (`ChatActivity.java:4287`), gated by
   Apply to → Composer.
@@ -216,6 +213,18 @@ caller lines move; re-grep before citing them.
 
 *(Established 2026-11-24, MD3 coverage investigation; photo editor corrected
 2026-11-26, `#interface-style`. Caller lines from grep.)*
+
+**Done (S5, #interface-style):** the attach sheet's caption islands
+(`ChatAttachAlert.java:3098`, `:3104`, `:3522`), the forward picker's comment
+field (`DialogsActivity.java:5141`, `:5143`) and the share sheet's
+caption/picker-bottom/timestamp islands (`ShareAlert.java:1857`, `:1863`,
+`:1869`, `:1877`) now call the gated `BlurredBackgroundProviderImpl.sheetCaptionInput`
+(a new overload; `inputFieldDialogActivity`/`topPanel` untouched) or
+`inputFieldShareAlert` (gated in place - every caller is a ShareAlert island).
+Both reuse `ComposerMd3Surface.sheetCaptionProvider` so the MD3 look matches
+the chat composer's own frost exactly.
+
+*(Established 2026-11-26, S5/#interface-style PR.)*
 
 ## The chat-list header keeps its frosted body and adds only a bottom glint
 

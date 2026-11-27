@@ -5135,10 +5135,12 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             chatInputViewsContainer = new ChatInputViewsContainer(context);
             chatInputViewsContainer.setClipChildren(false);
             chatInputViewsContainer.setWindowInsetsProvider(windowInsetsStateHolder);
+            // NagramX (#interface-style): the forward picker's comment field follows the attach sheet's
+            // caption island under Apply to Composer - same gated provider, same frost recipe.
             chatInputViewsContainer.setInputIslandBubbleDrawable(
-                iBlur3FactoryLiquidGlass.create(chatInputViewsContainer, BlurredBackgroundProviderImpl.inputFieldDialogActivity(resourceProvider)));
+                iBlur3FactoryLiquidGlass.create(chatInputViewsContainer, BlurredBackgroundProviderImpl.sheetCaptionInput(currentAccount, resourceProvider, iBlur3SourceGlassFrosted != null)));
             chatInputViewsContainer.setUnderKeyboardBackgroundDrawable(
-                iBlur3FactoryFrostedLiquidGlass.create(chatInputViewsContainer, BlurredBackgroundProviderImpl.inputFieldDialogActivity(resourceProvider)));
+                iBlur3FactoryFrostedLiquidGlass.create(chatInputViewsContainer, BlurredBackgroundProviderImpl.sheetCaptionInput(currentAccount, resourceProvider, iBlur3SourceGlassFrosted != null)));
 
             BlurredBackgroundWithFadeDrawable fadeDrawable = new BlurredBackgroundWithFadeDrawable(
                     iBlur3FactoryFade.create(chatInputViewsContainer, null));
