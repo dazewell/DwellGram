@@ -751,8 +751,11 @@
         </receiver>
 
         <!-- The widget engine (HTML widgets' code): no permissions, files or network; one process for every widget. -->
+        <!-- NagramX: off until N-Settings > Chat > Web messages is on (WebMessagesGate enables it then), so the OS
+             refuses to start the process that runs a widget's code. -->
         <service
             android:name="org.telegram.utils.twidget.WidgetEngineService"
+            android:enabled="false"
             android:process=":widgets"
             android:isolatedProcess="true"
             android:exported="false" />

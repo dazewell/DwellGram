@@ -321,6 +321,8 @@ public final class WidgetSandboxSession {
      * widgets off. No native session is created then, so no widget code runs in the client. Any thread.
      */
     public static boolean disabledByConfig() {
+        // NagramX: web messages stay off until the user turns them on, whatever the server config says.
+        if (!com.dazewell.gram.webmessages.WebMessagesGate.enabled()) return true;
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
             if (UserConfig.getInstance(a).isClientActivated() && AppGlobalConfig.getInstance(a).widgetsDisabled.get()) {
                 return true;

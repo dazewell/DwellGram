@@ -652,6 +652,8 @@
     <string name="QuickScheduleButtonNotice">Keep calendar button visible when typing to quickly schedule more messages</string>
     <string name="CombinePinnedWithPlayer">Combine pinned message with player</string>
     <string name="CombinePinnedWithPlayerNotice">Show a shortened pinned message beside the music player in one row to save space</string>
+    <string name="WebMessages">Web messages</string>
+    <string name="WebMessagesNotice">Run the interactive HTML widgets bots send in messages. Their code runs on this device, so keep this off unless you trust the bots you use</string>
     <string name="RememberedSendAction">Remembered send action</string>
     <string name="RememberedSendActionNotice">Also available by long-pressing Send.</string>
     <string name="RememberSendActionBehavior">Behavior</string>

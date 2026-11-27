@@ -328,6 +328,8 @@ public class ApplicationLoader extends Application {
             DownloadController.getInstance(a);
         }
         BillingController.getInstance().startConnection();
+        // NagramX: the engine service's enabled state follows the web messages switch, before anything could bind it.
+        Utilities.globalQueue.postRunnable(com.dazewell.gram.webmessages.WebMessagesGate::syncEngineComponent);
         // HTML widgets: the isolated engine's process up front, after the app's own start, so that a widget's first
         // frame does not wait for it.
         AndroidUtilities.runOnUIThread(() -> Utilities.globalQueue.postRunnable(
