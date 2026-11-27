@@ -1127,6 +1127,10 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
     private View bottomFadeView;
     protected FrameLayout buttonsRecyclerViewWrapper;
     protected RecyclerListView buttonsRecyclerView;
+    // NagramX (#interface-style): read once, like the rest of this sheet's Interface Style gates -
+    // the setting can't change while the sheet is shown.
+    private final boolean roundedBottomNavigationForAttach = com.dazewell.gram.helpers.InterfaceStyleController.roundedBottomNavigation();
+    private com.dazewell.gram.helpers.AttachRoundedSelector attachRoundedSelector;
 
     private LinearLayoutManager buttonsLayoutManager;
     private ButtonsAdapter buttonsAdapter;
@@ -1190,6 +1194,20 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
         }
     }
 
+    // NagramX (#interface-style): works uniformly across AttachButton (currentId) and AttachBotButton
+    // (-currentUser.id) without caring which id scheme is selected, by reading the already-updated
+    // GlassTabView state instead. Used both by AttachRoundedSelector's live lookup and to snapshot the
+    // "from" button in showLayout() before selectedId changes.
+    private View findSelectedAttachButton() {
+        for (int a = 0, n = buttonsRecyclerView.getChildCount(); a < n; a++) {
+            final View child = buttonsRecyclerView.getChildAt(a);
+            if (child instanceof AttachButtonBase && ((AttachButtonBase) child).glassTabView.isTabSelected()) {
+                return child;
+            }
+        }
+        return null;
+    }
+
     private class AttachButton extends AttachButtonBase {
         private int currentId;
 
@@ -1200,10 +1218,10 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
 
             glassTabView = GlassTabView.createAttachTab(context, resourcesProvider);
             addView(glassTabView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-            // NagramX: Apply to -> Bottom navigation (#interface-style) - draws the main tabs' MD3 indicator (a
-            // rounded rect around the icon, not the Glass stadium around icon+label), so its alpha, shape and
-            // plain fade-in match them instead of the dimmer, scaling-in Glass selector.
-            glassTabView.setNavigationIndicator(com.dazewell.gram.helpers.InterfaceStyleController.applyBottomNavigation() ? GlassTabView.NAVIGATION_INDICATOR_MD3 : GlassTabView.NAVIGATION_INDICATOR_GLASS);
+            // NagramX: Apply to -> Bottom navigation (#interface-style) - the same three-way indicator
+            // MainTabsActivity gives the real tabs; AttachRoundedSelector draws Rounded's whole-tab highlight,
+            // so this tab draws none of its own under that mode (GlassTabView skips NAVIGATION_INDICATOR_ROUNDED).
+            glassTabView.setNavigationIndicator(roundedBottomNavigationForAttach ? GlassTabView.NAVIGATION_INDICATOR_ROUNDED : com.dazewell.gram.helpers.InterfaceStyleController.applyBottomNavigation() ? GlassTabView.NAVIGATION_INDICATOR_MD3 : GlassTabView.NAVIGATION_INDICATOR_GLASS);
         }
 
         void updateCheckedState(boolean animate) {
@@ -1251,7 +1269,7 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
             });
             addView(glassTabView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
             // NagramX: Apply to -> Bottom navigation (#interface-style) - same indicator match as AttachButton above.
-            glassTabView.setNavigationIndicator(com.dazewell.gram.helpers.InterfaceStyleController.applyBottomNavigation() ? GlassTabView.NAVIGATION_INDICATOR_MD3 : GlassTabView.NAVIGATION_INDICATOR_GLASS);
+            glassTabView.setNavigationIndicator(roundedBottomNavigationForAttach ? GlassTabView.NAVIGATION_INDICATOR_ROUNDED : com.dazewell.gram.helpers.InterfaceStyleController.applyBottomNavigation() ? GlassTabView.NAVIGATION_INDICATOR_MD3 : GlassTabView.NAVIGATION_INDICATOR_GLASS);
         }
 
         @Override
@@ -2664,6 +2682,13 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
             @Override
             protected void dispatchDraw(@NonNull Canvas canvas) {
                 mHasFadeLeft = mHasFadeRight = false;
+                // NagramX (#interface-style): drawn here, not on the wrapper, so the row's own outline clip
+                // (drawFaded's clipRect below) applies to the highlight too. Its edge fade doesn't - that's
+                // drawChild's own saveLayer per child, which runs after this, so a selected tab exactly at
+                // the scrolled edge keeps a sharper highlight edge than its fading content.
+                if (roundedBottomNavigationForAttach) {
+                    attachRoundedSelector.draw(canvas);
+                }
                 super.dispatchDraw(canvas);
                 hasFadeLeft.setValue(mHasFadeLeft, true);
                 hasFadeRight.setValue(mHasFadeRight, true);
@@ -2738,6 +2763,23 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                 super.onMeasure(widthSpec, heightSpec);
             }
         };
+        // NagramX (#interface-style): constructed even when Rounded navigation is off - cheap, and lets the
+        // dispatchDraw/showLayout hooks above and below just check roundedBottomNavigationForAttach, with no
+        // separate null check for "not built yet" to get wrong.
+        attachRoundedSelector = new com.dazewell.gram.helpers.AttachRoundedSelector(
+            new com.dazewell.gram.helpers.AttachRoundedSelector.TabLocator() {
+                @Override
+                public View findSelected() {
+                    return findSelectedAttachButton();
+                }
+
+                @Override
+                public float attachScaleOf(View button) {
+                    return button instanceof AttachButtonBase ? ((AttachButtonBase) button).glassTabView.attachScale : 1f;
+                }
+            },
+            resourcesProvider
+        );
         buttonsRecyclerView.setClipChildren(true);
         buttonsRecyclerView.setClipToPadding(false);
         buttonsRecyclerView.setAdapter(buttonsAdapter = new ButtonsAdapter(context));
@@ -4757,6 +4799,9 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
             botAttachLayouts.valueAt(i).setMeasureOffsetY(0);
         }
 
+        // NagramX (#interface-style): snapshot the pre-switch selection before selectedId changes below,
+        // so AttachRoundedSelector can slide from it.
+        final View previouslySelectedAttachButton = roundedBottomNavigationForAttach ? findSelectedAttachButton() : null;
         selectedId = newId;
         int count = buttonsRecyclerView.getChildCount();
         for (int a = 0; a < count; a++) {
@@ -4768,6 +4813,9 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                 AttachBotButton attachButton = (AttachBotButton) child;
                 attachButton.updateCheckedState(true);
             }
+        }
+        if (roundedBottomNavigationForAttach) {
+            attachRoundedSelector.onSelectionChanged(previouslySelectedAttachButton, animated, buttonsRecyclerView);
         }
         int t = currentAttachLayout.getFirstOffset() - dp(11) - scrollOffsetY[0];
         nextAttachLayout = layout;
@@ -5444,6 +5492,12 @@ public class ChatAttachAlert extends BottomSheet implements NotificationCenter.N
                     AttachButtonBase attachButton = (AttachButtonBase) child;
                     attachButton.glassTabView.setAttachScale(scale);
                 }
+            }
+            // NagramX (#interface-style): the row draws the Rounded highlight itself, in its own
+            // dispatchDraw, above - the setAlpha/setAttachScale calls above only invalidate the
+            // children they're called on, which doesn't guarantee the row redraws its own content too.
+            if (roundedBottomNavigationForAttach) {
+                buttonsRecyclerView.invalidate();
             }
         }
 
