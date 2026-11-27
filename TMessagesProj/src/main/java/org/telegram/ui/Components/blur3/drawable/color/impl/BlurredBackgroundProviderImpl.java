@@ -204,6 +204,28 @@ public class BlurredBackgroundProviderImpl {
     public static BlurredBackgroundProvider bottomPanelChatActivity(Theme.ResourcesProvider resourcesProvider) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
                 .setBackgroundColor((r, isDark) -> {
+                    if (!checkBlurEnabled(resourcesProvider)) {
+                        return ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_chat_messagePanelBackground, r), 255);
+                    }
+
+                    final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
+                    final int colorBg = Theme.getColor(Theme.key_chat_messagePanelBackground, r);
+                    return Theme.multAlpha(colorBg, alpha);
+                })
+                .setStrokeColorTop(0xFFFFFFFF, 0x28FFFFFF)
+                .setStrokeColorBottom(0xFFFFFFFF, 0x14FFFFFF)
+                .setShadowColor(0x20000000, 0)
+                //.setShadowLayer(dpf2(10 / 3f), 0, dpf2(2 / 3f))
+                .setStrokeWidth(dpf2(0.5f), dpf2(0.5f))
+                .build();
+    }
+
+    // NagramX: split out of bottomPanelChatActivity (#671) rather than gating that shared factory in
+    // place, because ComposerGlassProvider.channelButtons()'s fallback to bottomPanelChatActivity()
+    // depends on it staying plain glass whenever Buttons is off, regardless of Composer's own setting.
+    public static BlurredBackgroundProvider giftNoteComposerPanel(Theme.ResourcesProvider resourcesProvider) {
+        return new BlurredBackgroundProviderBuilder(resourcesProvider)
+                .setBackgroundColor((r, isDark) -> {
                     // NagramX: the gift note sheet's input panel is the chat composer under another name,
                     // so it frosts at the Blur strength slider under MD3 Composer (dazewell's call on #671,
                     // not Buttons); opaque otherwise, same as the non-MD3 "blur disabled" branch below.

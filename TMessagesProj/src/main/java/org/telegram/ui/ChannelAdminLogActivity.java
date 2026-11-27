@@ -1490,7 +1490,7 @@ public class ChannelAdminLogActivity extends BaseFragment implements Notificatio
         contentView.addView(actionBar);
 
         bottomOverlayChat2 = new ChatActivityChannelButtonsLayout(context, resourceProvider,
-            // NagramX: not bottomPanelChatActivity in place, which the gift note sheet shares; the helper keeps it when Buttons is off.
+            // NagramX: not bottomPanelChatActivity in place; the helper keeps it, plain glass, when Buttons is off.
             com.dazewell.gram.composer.ComposerGlassProvider.channelButtons(currentAccount, resourceProvider), glassBackgroundDrawableFactory);
         bottomOverlayChat2.setTotalVisibilityFactor(1f);
         bottomOverlayChat2.setTranslationY(-AndroidUtilities.navigationBarHeight);

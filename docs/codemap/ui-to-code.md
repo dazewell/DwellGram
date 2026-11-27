@@ -165,12 +165,19 @@ These factories have no gate. Their callers are what still looks like Glass:
   `ComposerGlassProvider.ROLE_SUGGESTIONS` (`ChatActivity.java:4287`), gated by
   Apply to → Composer.
 - Done (S8): `premiumButton` and `shadow` are gated on `applyButtons()` in
-  place (PR #671); `bottomPanelChatActivity` is gated on `applyComposer()`
+  place (PR #671). The gift note sheet's input island and under-keyboard
+  panel moved to a new `giftNoteComposerPanel`, gated on `applyComposer()`
   instead (dazewell's call: the gift note sheet's input panel is the chat
-  composer under another name) — it is the gift note sheet's input island
-  and under-keyboard panel (`GiftMessageBottomSheet.java:171`, `:173`, a
-  panel, so it still frosts at `interfaceStyleBlurAlpha()` when chat blur is
-  on and the API is ≥ 31), the confirm pills on Settings → Name colour
+  composer under another name) — split out of `bottomPanelChatActivity`
+  rather than gating it in place, because `ComposerGlassProvider
+  .channelButtons()`'s fallback to `bottomPanelChatActivity()` (the Recent
+  actions bottom bar, `:138-140` above) depends on that factory staying
+  plain glass whenever Buttons is off, regardless of Composer's setting;
+  `bottomPanelChatActivity` itself is back to its pre-S8, ungated form.
+  `giftNoteComposerPanel` is the gift note sheet's input island and
+  under-keyboard panel (`GiftMessageBottomSheet.java:171`, `:173`, a panel,
+  so it still frosts at `interfaceStyleBlurAlpha()` when chat blur is on and
+  the API is ≥ 31). The confirm pills on Settings → Name colour
   (`PeerColorActivity.java:1842`), Premium preview
   (`PremiumPreviewFragment.java:935`) and the gift-selection sheet
   (`SelectGiftsBottomSheet.java:226`, buttons, so fully opaque instead), and
