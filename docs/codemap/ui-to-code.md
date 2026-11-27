@@ -130,7 +130,11 @@ These factories have no gate. Their callers are what still looks like Glass:
   Buttons, and keeps `bottomPanelChatActivity` otherwise. Using
   `chatHeaderPanel` rather than `chatHeaderSurface` is deliberate: Match Classic
   and Day header stays chat-only, as it is for the report-mode chat, because
-  these screens don't push its foreground colours.
+  these screens don't push its foreground colours. A menu built before
+  `setupGlass` keeps glass margins of -5dp a side (`ActionBarMenu.java:659-669`),
+  so a flat bar shifts it by -5dp rather than 0 (`ActionBar.java:292-294`).
+  Otherwise the end icon sits 5dp too close to the edge, which is easy to see on
+  a single search icon.
 - `topPanel` (`:57-71`): the Calls and forum-topics banners
   (`CallLogActivity.java:913`, `TopicsFragment.java:1431`), profile shared
   media (`SharedMediaLayout.java:3727`, `:3776`, `:3827`), bookmarks, the attach
@@ -210,13 +214,13 @@ that build (`ChatActivity.java:13123`).
 
 Anything painted *behind* the MD3 chat header but under its title and icons goes
 in ActionBar's flat branch, right after `glassDrawable.draw` and before
-`super.dispatchDraw` (`ActionBar.java:2395-2399`); the per-chat photo background
+`super.dispatchDraw` (`ActionBar.java:2412-2416`); the per-chat photo background
 (`#header-avatar-bg`) hangs off that as the `naxHeaderBg` field. Glass never
 takes the branch. Two traps there: `rebuildAllFragmentViews` swaps in a new
 ActionBar while the ChatActivity lives on (`ActionBarLayout.java:3366-3381`), so
 per-header state belongs to the ActionBar's attach/detach, not the fragment; and
-the action-mode bar is created INVISIBLE at alpha 1 (`ActionBar.java:883`), so
-`getActionModeFactor()` (`:811`) reads 1 until selection mode has been shown once.
+the action-mode bar is created INVISIBLE at alpha 1 (`ActionBar.java:890`), so
+`getActionModeFactor()` (`:818`) reads 1 until selection mode has been shown once.
 The pinned/call/translate strips under the header are one `ChatActivityTopPanelLayout`,
 a sibling of the ActionBar in `contentView` (`ChatActivity.java:8663-8665`); its
 equivalent spot is after `backgroundDrawable.draw` (`ChatActivityTopPanelLayout.java:141`),
@@ -241,7 +245,7 @@ null, routes through it (`DialogsActivity.java:3752`;
 paint follows the search blend (`DialogsActivity.java:962-967,977-978`), and
 `isLightStatusBar()` follows the surface, or white while searching (`:13182-13185`). The main list is a tab of MainTabsActivity, which asks the visible tab only once it has a view and otherwise falls back to its own white action bar (`ViewPagerActivity.java:217-219`), so createView asks for a re-check (`InterfaceStyleSolidHeader.java:204-211`). The NagramX title span and the ActionBar subtitle overlay read the logo key through their own providers, so both get the scoped one (`TypefaceHelper.java:161-162`; `DialogsActivity.java:3271-3272`). The downloads icon is a child view drawn from `Theme.getColor` with no provider, so `setItemsColor` never reaches it and it maps its own colour (`DownloadProgressIcon.java:63-67`).
 
-Selection mode keeps its 12.4.0 look. In chats the MD3 action mode is drawn straight on the header surface, so `chatHeaderSurface` stays themed while action mode shows, and ActionBar refreshes its cached glass colour on show and hide (`ActionBar.java:937,1110`). In the chat list the tabs switch to `profile_tab*` keys meant for white (`DialogsActivity.java:10463`), so the surface blends to white by `progressToActionMode` as it does for search (`:600`), and frosts again while selecting, matching the header above it (`:967`).
+Selection mode keeps its 12.4.0 look. In chats the MD3 action mode is drawn straight on the header surface, so `chatHeaderSurface` stays themed while action mode shows, and ActionBar refreshes its cached glass colour on show and hide (`ActionBar.java:944,1117`). In the chat list the tabs switch to `profile_tab*` keys meant for white (`DialogsActivity.java:10463`), so the surface blends to white by `progressToActionMode` as it does for search (`:600`), and frosts again while selecting, matching the header above it (`:967`).
 
 Both fragments need the re-push because their header ThemeDescriptions are
 key-only: `ActionBarLayout.setThemeAnimationValue` writes every description
@@ -375,7 +379,7 @@ blurred pill, flat MD3 a plain surface (`FolderTabsPreviewCell.java:122-130`;
 
 Four rows have no preview because the real surface cannot be hosted without a fragment.
 The action-bar decoration is painted in `ActionBar.drawChild` against the title view's text
-bounds (`ActionBar.java:462`, `:480-484`, `:495`), so only a look-alike is possible, and the
+bounds (`ActionBar.java:469`, `:487-491`, `:502`), so only a look-alike is possible, and the
 page's own bar already shows it. The chat decoration is drawn on the chat's backdrop by
 `SizeNotifierFrameLayout.checkSnowflake` (`SizeNotifierFrameLayout.java:562-569`), again
 look-alike only. The "Apply to" group restyles five different surfaces with no single view, and

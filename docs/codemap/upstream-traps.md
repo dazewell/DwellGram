@@ -2110,7 +2110,7 @@ on the centered forum pill only, through the one-arg overload, because there the
 pill is supposed to match a non-forum chat exactly; and since the four-arg write
 cannot clear it again, it calls `setRadius(0)` on the way back out so the
 non-centered pill stays byte-identical to upstream
-(`ActionBar.updateGlassForumRadius`, `ActionBar.java:287-307`). Fixing the gap
+(`ActionBar.updateGlassForumRadius`, `ActionBar.java:312-332`). Fixing the gap
 properly means fixing the four-arg overload, which changes every caller of it at
 once and wants its own branch and its own device build.
 
@@ -2900,7 +2900,7 @@ waits for `hasVideoToSend()`.
 
 ## An action mode built before setupGlass paints a solid bar over the glass
 
-`ActionBar.createActionMode` sets the themed solid `actionModeColor` background when the bar is not yet in glass mode (`ActionBar.java:872-874`, written through `:824-831`). `ActionBar.setupGlass` only retro-fits an existing mode with `setTranslationX` and `setGlassMode(true)` (`ActionBar.java:276-279`) — it never clears that colour. So on a glass screen any mode created during `createView` before the glass setup call comes up solid. `ChatActivity` builds its mode lazily on first selection instead (`createActionMode()` at `ChatActivity.java:11619`, reached from the selection path), which is the pattern to copy. The reverse trap also holds: `hideActionMode` leaves the mode view around, so creating once and showing/hiding is fine.
+`ActionBar.createActionMode` sets the themed solid `actionModeColor` background when the bar is not yet in glass mode (`ActionBar.java:879-881`, written through `:831-838`). `ActionBar.setupGlass` only retro-fits an existing mode with `setTranslationX` and `setGlassMode(true)` (`ActionBar.java:276-279`) — it never clears that colour. So on a glass screen any mode created during `createView` before the glass setup call comes up solid. `ChatActivity` builds its mode lazily on first selection instead (`createActionMode()` at `ChatActivity.java:11619`, reached from the selection path), which is the pattern to copy. The reverse trap also holds: `hideActionMode` leaves the mode view around, so creating once and showing/hiding is fine.
 
 *(Established 2026-10-25, `#bookmarks-multiselect`, PR 555.)*
 

@@ -270,11 +270,11 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
             .setPadding(dp(6));
 
         if (menu != null) {
-            menu.setTranslationX(naxGlassTranslationX(-dp(10)));
+            menu.setTranslationX(naxGlassMenuTranslationX(-dp(10)));
             menu.setGlassMode(true);
         }
         if (actionMode != null) {
-            actionMode.setTranslationX(naxGlassTranslationX(-dp(10)));
+            actionMode.setTranslationX(naxGlassMenuTranslationX(-dp(10)));
             actionMode.setGlassMode(true);
         }
         if (backButtonImageView != null) {
@@ -284,6 +284,13 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
 
     private float naxGlassTranslationX(float translationX) {
         return naxFlatGlassHeader ? 0 : translationX;
+    }
+
+    // NagramX: glass menus give every item -5dp side margins (ActionBarMenu.onMeasure), which the pill's
+    // shift absorbs. A flat bar has no pill, so it cancels only the last item's outer 5dp, leaving the
+    // end icon where a stock bar puts it instead of 5dp past it.
+    private float naxGlassMenuTranslationX(float translationX) {
+        return naxFlatGlassHeader ? -dp(5) : translationX;
     }
 
     // NagramX: upstream squares the forum pill's left corners to match the topic squircle sitting
@@ -865,7 +872,7 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
                 }
             }
         };
-        actionMode.setTranslationX(glassMode ? naxGlassTranslationX(-dp(10)) : 0);
+        actionMode.setTranslationX(glassMode ? naxGlassMenuTranslationX(-dp(10)) : 0);
         actionMode.setGlassMode(glassMode);
         actionMode.isActionMode = true;
         actionMode.setClickable(true);
@@ -1314,7 +1321,7 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
             }
 
             if (glassMode && menu != null) {
-                menu.setTranslationX(naxGlassTranslationX(-lerp((float) dp(10), dp(5), searchFieldVisibleAlpha)));
+                menu.setTranslationX(naxGlassMenuTranslationX(-lerp((float) dp(10), dp(5), searchFieldVisibleAlpha)));
             }
             if (backgroundUpdateListener != null) {
                 backgroundUpdateListener.run();
