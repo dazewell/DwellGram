@@ -180,6 +180,11 @@ public abstract class NekoDelegateFragment extends BaseFragment implements Notif
         // NagramX: the chat's header provider and flat flag for MD3 Chat header. The factory differs from the wallpaper
         // one only when the frosted content source was built, which is what decides frosted versus opaque.
         actionBar.setupGlass(actionBarDrawableFactory, BlurredBackgroundProviderImpl.chatHeaderPanel(currentAccount, getResourceProvider(), actionBarDrawableFactory != wallpaperDrawableFactory), false, com.dazewell.gram.helpers.InterfaceStyleController.applyChatHeader());
+        // NagramX: on these plain-title flat bars the search icon at the stock end slot reads as touching the edge, so 4dp
+        // of end padding gives it Back's inset. Padding, not translation: ActionBar rewrites the menu's translation on search.
+        if (com.dazewell.gram.helpers.InterfaceStyleController.applyChatHeader()) {
+            actionBar.createMenu().setPadding(0, 0, dp(4), 0);
+        }
         AndroidUtilities.removeFromParent(actionBar);
         ChatActivityFadeView fadeView = new ChatActivityFadeView(container.getContext());
         fadeView.setup(wallpaperDrawableFactory);

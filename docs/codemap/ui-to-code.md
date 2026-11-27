@@ -134,7 +134,12 @@ These factories have no gate. Their callers are what still looks like Glass:
   `setupGlass` keeps glass margins of -5dp a side (`ActionBarMenu.java:659-669`),
   so a flat bar shifts it by -5dp rather than 0 (`ActionBar.java:292-294`).
   Otherwise the end icon sits 5dp too close to the edge, which is easy to see on
-  a single search icon.
+  a single search icon. That leaves it in the stock slot, centred 24dp from the
+  edge, while Back's is 27dp. On the plain-title deleted-messages and history bars
+  that still read as touching the edge, so they add 4dp of menu end padding
+  (`NekoDelegateFragment.java:183-187`). It is padding rather than translation
+  because `ActionBar.java:1324` rewrites the translation when search opens or
+  closes.
 - `topPanel` (`:57-71`): the Calls and forum-topics banners
   (`CallLogActivity.java:913`, `TopicsFragment.java:1431`), profile shared
   media (`SharedMediaLayout.java:3727`, `:3776`, `:3827`), bookmarks, the attach
