@@ -110,6 +110,8 @@ public final class GramWalletWidget {
 
     private static void show(Context context, int account, TLRPC.User bot, JSONObject call,
             Theme.ResourcesProvider resourcesProvider, Delegate delegate) {
+        // NagramX: a call that waited for the wallet while web messages were turned off is dropped, not shown.
+        if (org.telegram.utils.twidget.WidgetSandboxSession.disabledByConfig()) { delegate.failed(); return; }
         GramWallet wallet = GramWallet.getInstance(account);
         String address = wallet.getAddress();
         byte[] publicKey = wallet.getPublicKey();
@@ -241,6 +243,8 @@ public final class GramWalletWidget {
         });
         confirm.setOnClickListener(v -> {
             if (window.guarded() || window.busy) return;
+            // NagramX: no transfer from a widget's window once web messages are off.
+            if (org.telegram.utils.twidget.WidgetSandboxSession.disabledByConfig()) { window.finish(Delegate::failed); return; }
             if (state[0] == 2) {
                 WalletActivity.openOnramp(account, transaction.total - wallet.getBalance(), error -> {});
                 return;
@@ -406,6 +410,8 @@ public final class GramWalletWidget {
         });
         sign.setOnClickListener(v -> {
             if (window.guarded() || window.busy) return;
+            // NagramX: no signature from a widget's window once web messages are off.
+            if (org.telegram.utils.twidget.WidgetSandboxSession.disabledByConfig()) { window.finish(Delegate::failed); return; }
             window.busy = true;
             sign.setLoading(true);
             updateButtons.run();

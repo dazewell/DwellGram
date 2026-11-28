@@ -332,6 +332,8 @@ public final class RichWidgetBlock extends RichMessageLayout.RichBlock
 
     @Override
     protected void onDraw(Canvas canvas) {
+        // NagramX: with web messages off nothing runs here; say so instead of leaving an empty box.
+        if (player == null && !com.dazewell.gram.webmessages.WebMessagesGate.enabled()) { com.dazewell.gram.webmessages.WebMessagesGate.drawOffPlaceholder(canvas, widthPx(), laidOutHeight, root.isOut(), resourcesProvider()); return; }
         if (player == null) return;
         if (themeSignature != WidgetSandboxTheme.signature(resourcesProvider(), root.isOut())) updateTheme();
         // The paddings are known when drawn; the widget was laid out for bleed() on both sides.

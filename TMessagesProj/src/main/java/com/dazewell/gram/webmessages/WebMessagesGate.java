@@ -3,9 +3,18 @@ package com.dazewell.gram.webmessages;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Canvas;
+import android.text.Layout;
+import android.text.StaticLayout;
+import android.text.TextPaint;
 
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.R;
+import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.Theme;
 
 import xyz.nextalone.nagram.NaConfig;
 
@@ -18,8 +27,9 @@ import xyz.nextalone.nagram.NaConfig;
  * manifest. Android will not bind or start a disabled component, so with the switch off no widget code can run
  * even if a Java path forgets to check.
  * <li>Upstream's own kill switch. {@code WidgetSandboxSession.disabledByConfig()} reads true while this is off, so
- * no session is made, the engine is never prewarmed, and a widget message keeps its placeholder without its
- * payload being unpacked.
+ * no session is made, the engine is never prewarmed, and a widget message shows {@link #drawOffPlaceholder}
+ * without its payload being unpacked. A widget or wallet request already on its way when the switch goes off is
+ * dropped where it would be sent.
  * </ul>
  *
  * App-wide, not per account: it decides whether this install runs widget code at all.
@@ -56,6 +66,33 @@ public final class WebMessagesGate {
         } catch (Throwable e) {
             FileLog.e(e);
         }
+    }
+
+    /** The error a widget request gets instead of going out while the switch is off. */
+    public static TLRPC.TL_error refused() {
+        TLRPC.TL_error error = new TLRPC.TL_error();
+        error.code = 403;
+        error.text = "WEB_MESSAGES_DISABLED";
+        return error;
+    }
+
+    private static TextPaint placeholderPaint;
+
+    /** What a widget message shows while the switch is off: a static note, nothing of the widget's own. UI thread. */
+    public static void drawOffPlaceholder(Canvas canvas, int width, int height, boolean out, Theme.ResourcesProvider resourcesProvider) {
+        int textWidth = width - AndroidUtilities.dp(24);
+        if (textWidth <= 0 || height <= 0) return;
+        if (placeholderPaint == null) {
+            placeholderPaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
+            placeholderPaint.setTextSize(AndroidUtilities.dp(14));
+        }
+        placeholderPaint.setColor(Theme.getColor(out ? Theme.key_chat_outTimeText : Theme.key_chat_inTimeText, resourcesProvider));
+        String text = LocaleController.getString(R.string.WebMessagesOff) + '\n' + LocaleController.getString(R.string.WebMessagesOffHint);
+        StaticLayout layout = new StaticLayout(text, placeholderPaint, textWidth, Layout.Alignment.ALIGN_CENTER, 1f, 0f, false);
+        canvas.save();
+        canvas.translate((width - textWidth) / 2f, Math.max(0, (height - layout.getHeight()) / 2f));
+        layout.draw(canvas);
+        canvas.restore();
     }
 
     /** The user flipped the switch. UI thread. */
