@@ -116,6 +116,8 @@ Swiping up at the end of a channel normally jumps to the next unread channel, an
 
 ### Web messages off by default <!-- #web-messages-gate -->
 
+Bots can send interactive HTML widgets inside messages, and their code runs on your phone. DwellGram keeps them off: a widget message shows **Web message (turned off)**, and the engine that would run it stays disabled. Turn them on in N-Settings → Chats → **Web messages** (off by default), then restart the app.
+
 ## Composer and input
 
 ### Composer toolbar <!-- #composer-toolbar --> <!-- #composer-bubbles --> <!-- #toggle-formatting --> <!-- #glass-lone-circle -->
