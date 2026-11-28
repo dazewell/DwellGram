@@ -144,6 +144,19 @@ public class SimpleTextView extends View implements Drawable.Callback {
         emojiStackColorFilter = new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN);
     }
 
+    // NAX_SMOKE_title-fade probe: who sets an action bar title to alpha 0.
+    public boolean naxTitleProbe;
+    public static String naxZeroStack;
+
+    @Override
+    public void setAlpha(float alpha) {
+        if (naxTitleProbe && alpha == 0f && getAlpha() != 0f) {
+            naxZeroStack = android.util.Log.getStackTraceString(new Throwable("title alpha 0"));
+            android.util.Log.w("NAX_SMOKE_title-fade", naxZeroStack);
+        }
+        super.setAlpha(alpha);
+    }
+
     public SimpleTextView(Context context) {
         super(context);
         textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);

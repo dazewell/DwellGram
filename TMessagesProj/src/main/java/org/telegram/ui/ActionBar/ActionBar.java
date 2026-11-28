@@ -747,6 +747,7 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
             return;
         }
         titleTextView[i] = new SimpleTextView(getContext());
+        titleTextView[i].naxTitleProbe = true; // NAX_SMOKE_title-fade
         titleTextView[i].setGravity(/*isCenterTitle*/isCentered() || centerTitleAndGlass ? Gravity.CENTER : Gravity.LEFT | Gravity.CENTER_VERTICAL);
         if (titleColorToSet != 0) {
             titleTextView[i].setTextColor(titleColorToSet);
