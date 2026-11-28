@@ -187,7 +187,10 @@ public class BaseFragmentSimpleGlass {
 
         glassBlurredFadeDrawable.setDirection(GlassFadeDirection.TOP);
         glassBlurredFadeDrawable.setOverlayColorSource(glassBackgroundSourceColor);
-        glassBlurredFadeDrawable.setOverlayAlpha(160);
+        // NagramX (#interface-style): MD3 keeps the blur but drops the tint wash over it, same rule
+        // applyButtons() already applies to these screens' pill chrome; the opaque fallback below is
+        // load-bearing (it alone hides scrolled content with no blur) and is left unchanged.
+        glassBlurredFadeDrawable.setOverlayAlpha(com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : 160);
         glassBlurredFadeDrawable.setMaskRange(gradientRangeMask);
         glassBlurredFadeDrawable.setOverlayRange(gradientRangeFade);
 
@@ -212,7 +215,8 @@ public class BaseFragmentSimpleGlass {
 
         glassBlurredFadeDrawable.setDirection(GlassFadeDirection.BOTTOM);
         glassBlurredFadeDrawable.setOverlayColorSource(glassBackgroundSourceColor);
-        glassBlurredFadeDrawable.setOverlayAlpha(160);
+        // NagramX (#interface-style): same MD3 tint-drop as the header fade above.
+        glassBlurredFadeDrawable.setOverlayAlpha(com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : 160);
         glassBlurredFadeDrawable.setMaskRange(gradientRangeMask);
         glassBlurredFadeDrawable.setOverlayRange(gradientRangeFade);
 
