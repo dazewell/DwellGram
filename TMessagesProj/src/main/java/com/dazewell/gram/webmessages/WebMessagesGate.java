@@ -41,7 +41,7 @@ public final class WebMessagesGate {
     /**
      * Brings the engine service's enabled state in line with the switch. The package manager keeps that state on
      * its own, so it can disagree with the setting after a settings reset or a restored backup: checked at every
-     * start. Background thread.
+     * start (background thread) and on a toggle (UI thread). Any thread.
      */
     public static void syncEngineComponent() {
         Context context = ApplicationLoader.applicationContext;
@@ -62,6 +62,8 @@ public final class WebMessagesGate {
     public static void onToggled() {
         // Turning it off unloads every running widget now, and no new session can start.
         if (!enabled()) org.telegram.utils.twidget.WidgetMedia.onKillSwitch();
-        org.telegram.messenger.Utilities.globalQueue.postRunnable(WebMessagesGate::syncEngineComponent);
+        // Here rather than queued: the setting already reads on, so a widget shown before a queued enable ran would
+        // find the engine disabled and stay blank. One package-manager call, as the app icon picker makes on a tap.
+        syncEngineComponent();
     }
 }
