@@ -1967,6 +1967,9 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
     }
 
     boolean overlayTitleAnimationInProgress;
+    // NagramX: the title the overlay swap is fading in, and the alpha it is heading to.
+    private SimpleTextView overlayFadingTitle;
+    private float overlayFadingAlpha;
 
     public void setTitleOverlayText(String title, int titleId, Runnable action) {
         if (!allowOverlayTitle || parentFragment.parentLayout == null) {
@@ -2045,15 +2048,20 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
             }
             overlayTitleAnimationInProgress = true;
             // the new title keeps the alpha the title had, e.g. hidden under the topics opened in the side panel
-            final float titleAlpha = adaptiveBackgroundHideTitle ? 1.0f - onTopAnimated : titleTextView[0].getAlpha();
+            // NagramX: a title still fading in from the previous swap was cancelled above at a passing alpha (0 when
+            // connection updates come back to back at start); taking that left the chat-list title invisible.
+            final float titleAlpha = adaptiveBackgroundHideTitle ? 1.0f - onTopAnimated : titleTextView[0] == overlayFadingTitle ? overlayFadingAlpha : titleTextView[0].getAlpha();
             SimpleTextView tmp = titleTextView[1];
             titleTextView[1] = titleTextView[0];
             titleTextView[0] = tmp;
             titleTextView[0].setAlpha(0);
             titleTextView[0].setTranslationY(-dp(20));
+            final SimpleTextView fading = overlayFadingTitle = titleTextView[0]; // NagramX: see titleAlpha above
+            overlayFadingAlpha = titleAlpha;
             titleTextView[0].animate()
                     .alpha(titleAlpha)
                     .translationY(0)
+                    .withEndAction(() -> { if (overlayFadingTitle == fading) overlayFadingTitle = null; }) // NagramX: not run when cancelled
                     .setDuration(220).start();
             ViewPropertyAnimator animator = titleTextView[1].animate()
                     .alpha(0);
