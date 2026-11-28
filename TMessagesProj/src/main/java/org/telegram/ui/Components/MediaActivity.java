@@ -386,12 +386,19 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
 
     // NagramX (#interface-style): mirrors StatisticActivity.updateRoundedSelector() - this bar only ever has
     // the two stories tabs, and onTabProgress's progress already carries the same 0..1 drag fraction
-    // ViewPagerFixed's getPositionAnimated() gives that method, so no from/next lookup is needed here.
+    // StatisticActivity reads off ViewPagerFixed.getCurrentPositionAlpha(), so no from/next lookup is needed
+    // here. Clears back to the resting findSelectedTab() draw at either end, same as StatisticActivity's
+    // onScrollEnd - otherwise a later re-measure at different tab positions (e.g. a width change) would leave
+    // the highlight stuck at this gesture's geometry until the next swipe.
     private void updateStoriesRoundedSelector(float progress) {
         if (!storiesRoundedBottomNavigation || storiesTabsView == null) {
             return;
         }
         final float t = Math.max(0f, Math.min(1f, progress - SharedMediaLayout.TAB_STORIES));
+        if (t <= 0f || t >= 1f) {
+            storiesTabsView.clearRoundedSelector();
+            return;
+        }
         final GlassTabView from = storiesTabs[0];
         final GlassTabView to = storiesTabs[1];
         storiesTabsView.setRoundedSelector(

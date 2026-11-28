@@ -54,8 +54,8 @@ public class BlurredBackgroundProviderImpl {
             .build();
     }
 
-    // NagramX (#interface-style): gated overload for the attach sheet tab bar and the Statistics
-    // tabs. mainTabs() takes no account for checkBlurEnabled, so gating it in place would mean
+    // NagramX (#interface-style): gated overload for the attach sheet tab bar, the Statistics tabs
+    // and MediaActivity's stories tabs. mainTabs() takes no account for checkBlurEnabled, so gating it in place would mean
     // threading one through its only other callers (MainTabsActivity, MainTabsPreviewCell), which
     // already branch on applyBottomNavigation() themselves and use mainTabs() as their own
     // glass-off side.
