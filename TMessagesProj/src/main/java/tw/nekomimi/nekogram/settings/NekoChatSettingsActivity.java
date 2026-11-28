@@ -655,7 +655,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
             }
             if (key.equals(NaConfig.INSTANCE.getWebMessages().getKey())) {
                 com.dazewell.gram.webmessages.WebMessagesGate.onToggled();
-                // Widgets already laid out in open chats only pick the switch up when they are built again.
+                // Widgets already on screen in open chats only pick the switch up once they are attached again.
                 if (com.dazewell.gram.webmessages.WebMessagesGate.enabled()) tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             }
             if (key.equals(NekoConfig.disableProximityEvents.getKey())) {

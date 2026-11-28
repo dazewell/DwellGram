@@ -655,7 +655,6 @@
     <string name="WebMessages">Web messages</string>
     <string name="WebMessagesNotice">Run the interactive HTML widgets bots send in messages. Their code runs on this device, so keep this off unless you trust the bots you use</string>
     <string name="WebMessagesOff">Web message (turned off)</string>
-    <string name="WebMessagesOffHint">N-Settings › Chat › Web messages</string>
     <string name="RememberedSendAction">Remembered send action</string>
     <string name="RememberedSendActionNotice">Also available by long-pressing Send.</string>
     <string name="RememberSendActionBehavior">Behavior</string>

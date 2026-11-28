@@ -29,7 +29,7 @@ import xyz.nextalone.nagram.NaConfig;
  * <li>Upstream's own kill switch. {@code WidgetSandboxSession.disabledByConfig()} reads true while this is off, so
  * no session is made, the engine is never prewarmed, and a widget message shows {@link #drawOffPlaceholder}
  * without its payload being unpacked. A widget or wallet request already on its way when the switch goes off is
- * dropped where it would be sent.
+ * dropped where it would be sent, except the outcome of a transfer already sent, which the bot must still get.
  * </ul>
  *
  * App-wide, not per account: it decides whether this install runs widget code at all.
@@ -77,8 +77,13 @@ public final class WebMessagesGate {
     }
 
     private static TextPaint placeholderPaint;
+    private static StaticLayout placeholderLayout;
+    private static String placeholderText;
 
-    /** What a widget message shows while the switch is off: a static note, nothing of the widget's own. UI thread. */
+    /**
+     * What a widget message shows while the switch is off: a static note, nothing of the widget's own, within
+     * `width` x `height` (the content box). UI thread.
+     */
     public static void drawOffPlaceholder(Canvas canvas, int width, int height, boolean out, Theme.ResourcesProvider resourcesProvider) {
         int textWidth = width - AndroidUtilities.dp(24);
         if (textWidth <= 0 || height <= 0) return;
@@ -87,11 +92,17 @@ public final class WebMessagesGate {
             placeholderPaint.setTextSize(AndroidUtilities.dp(14));
         }
         placeholderPaint.setColor(Theme.getColor(out ? Theme.key_chat_outTimeText : Theme.key_chat_inTimeText, resourcesProvider));
-        String text = LocaleController.getString(R.string.WebMessagesOff) + '\n' + LocaleController.getString(R.string.WebMessagesOffHint);
-        StaticLayout layout = new StaticLayout(text, placeholderPaint, textWidth, Layout.Alignment.ALIGN_CENTER, 1f, 0f, false);
+        // The hint is built from the labels the user sees on the way there, so it follows a rename or the language.
+        String text = LocaleController.getString(R.string.WebMessagesOff) + '\n' + LocaleController.getString(R.string.NekoSettings)
+                + " › " + LocaleController.getString(R.string.Chat) + " › " + LocaleController.getString(R.string.WebMessages);
+        if (placeholderLayout == null || placeholderLayout.getWidth() != textWidth || !text.equals(placeholderText)) {
+            placeholderLayout = new StaticLayout(text, placeholderPaint, textWidth, Layout.Alignment.ALIGN_CENTER, 1f, 0f, false);
+            placeholderText = text;
+        }
         canvas.save();
-        canvas.translate((width - textWidth) / 2f, Math.max(0, (height - layout.getHeight()) / 2f));
-        layout.draw(canvas);
+        canvas.clipRect(0, 0, width, height);
+        canvas.translate((width - textWidth) / 2f, Math.max(0, (height - placeholderLayout.getHeight()) / 2f));
+        placeholderLayout.draw(canvas);
         canvas.restore();
     }
 

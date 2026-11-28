@@ -942,8 +942,9 @@ public final class WidgetMedia {
      * would drop what the bot needs.
      */
     private static void sendQuery(Entry entry, TLRPC.WidgetQueryType type, byte[] data, int[] requestId, Utilities.Callback2<TLRPC.TL_messages_botWidgetQueryAnswer, TLRPC.TL_error> done) {
-        // NagramX: nothing a widget asked for goes out once web messages are off, a wallet outcome or retry included.
-        if (WidgetSandboxSession.disabledByConfig()) { AndroidUtilities.runOnUIThread(() -> done.run(null, com.dazewell.gram.webmessages.WebMessagesGate.refused())); return; }
+        // NagramX: nothing a widget asked for goes out once web messages are off, a retry included, except the outcome of
+        // a transfer already sent: the Gram has moved, and the bot must still hear of it. No widget code runs for that.
+        if (WidgetSandboxSession.disabledByConfig() && !(type instanceof TLRPC.TL_widgetQueryTypeSentTransaction)) { AndroidUtilities.runOnUIThread(() -> done.run(null, com.dazewell.gram.webmessages.WebMessagesGate.refused())); return; }
         final boolean plain = type instanceof TLRPC.TL_widgetQueryTypeData && !((TLRPC.TL_widgetQueryTypeData) type).with_wallet;
         final boolean legacy = legacyQuery[entry.account];
         if (legacy && !plain) {
