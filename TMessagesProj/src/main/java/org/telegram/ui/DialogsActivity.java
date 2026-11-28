@@ -5755,6 +5755,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
                 if (actionBar.getTitleTextView() != null) {
                     actionBar.getTitleTextView().setAlpha(1f - progress);
+                    actionBar.overlayTitleAlpha = 1f - progress; // NagramX: a title swapped in under the topics stays hidden
                     if (actionBar.getTitleTextView().getAlpha() > 0) {
                         actionBar.getTitleTextView().setVisibility(View.VISIBLE);
                     }
