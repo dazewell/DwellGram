@@ -208,6 +208,30 @@ These factories have no gate. Their callers are what still looks like Glass:
   own paint alpha and a matching `canvas.scale`, with an explicit
   `buttonsRecyclerView.invalidate()` alongside them - setting a child's alpha
   or scale invalidates that child, not the parent that draws the highlight.
+- Done (S9, #interface-style): the Telegram 13.2.2 sync (#676) added a third,
+  previously-ungated `mainTabs()` caller - `MediaActivity`'s own-stories tab
+  bar (posted/archived, the Stories/media screen opened from a profile),
+  `MediaActivity.java:326` (was `mainTabs(getResourceProvider())`, now
+  `sheetTabsBottomNavigation(currentAccount, ...)`). It is a real
+  `MainTabsLayout` of two `GlassTabView`s, so it gets the same treatment as
+  Statistics' bar above rather than the attach sheet's tap-only one:
+  `setRoundedNavigation()`/`setRoundedSelectorHeight()` called directly
+  (`MediaActivity.java:308-316`), `setNavigationIndicator()` per tab
+  (`:320`), and a `updateStoriesRoundedSelector()` mirroring
+  `StatisticActivity.updateRoundedSelector()` off this screen's own
+  continuous drag signal, `SharedMediaLayout.onTabProgress(float)`
+  (`MediaActivity.java:380-391`, called from `:660`) rather than a
+  `ViewPagerFixed` hook - there are only ever the two stories tabs, indexed
+  1:1 with that progress value, so no `indexToPosition` lookup is needed.
+  `setFillWidth()` is not called here: unlike Statistics' bar, this one's
+  parent is `WRAP_CONTENT`-width (`MediaActivity.java:338`'s
+  `LayoutHelper.createFrame`), so there is no extra width for it to
+  distribute. Checked the other two `mainTabs()` callers the same sync
+  touched, `MainTabsPreviewCell` and `MainTabsActivity` - both already branch
+  on `applyBottomNavigation()` themselves before calling `mainTabs()` as
+  their own glass-off side, so neither bypasses the gate.
+  `StarGiftPreviewSheet`'s tab selector remains the one caller left ungated
+  (out of scope, gifts).
 - The chat's @mention and bot-command panels moved to
   `ComposerGlassProvider.ROLE_SUGGESTIONS` (`ChatActivity.java:4287`), gated by
   Apply to → Composer.

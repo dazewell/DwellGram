@@ -80,6 +80,7 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
     private MainTabsLayout storiesTabsView;
     private final GlassTabView[] storiesTabs = new GlassTabView[2];
     private int storiesTabsSelected = -1;
+    private boolean storiesRoundedBottomNavigation; // NagramX (#interface-style): read in updateStoriesRoundedSelector below
     private FrameLayout buttonContainer;
     private ButtonWithCounterView button;
     private BoolAnimator actionModeBottomAnimator;
@@ -301,13 +302,28 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
         storiesTabsView.setPadding(dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4));
         storiesTabs[0] = GlassTabView.createMainTab(context, getResourceProvider(), GlassTabView.TabAnimation.STORIES_SAVED, R.string.ProfileMyStoriesTab);
         storiesTabs[1] = GlassTabView.createMainTab(context, getResourceProvider(), GlassTabView.TabAnimation.STORIES_ARCHIVE, R.string.ProfileStoriesArchiveTab);
+        // NagramX: Apply to -> Bottom navigation (#interface-style) - same three-way indicator StatisticActivity's
+        // own MainTabsLayout bar gives its tabs: Rounded's sliding highlight (see updateStoriesRoundedSelector
+        // below), else the MD3 indicator, else unchanged Glass.
+        storiesRoundedBottomNavigation = com.dazewell.gram.helpers.InterfaceStyleController.roundedBottomNavigation();
+        final boolean storiesMd3BottomNavigation = com.dazewell.gram.helpers.InterfaceStyleController.applyBottomNavigation();
+        final int storiesNavigationIndicator = storiesRoundedBottomNavigation ? GlassTabView.NAVIGATION_INDICATOR_ROUNDED
+            : storiesMd3BottomNavigation ? GlassTabView.NAVIGATION_INDICATOR_MD3 : GlassTabView.NAVIGATION_INDICATOR_GLASS;
+        storiesTabsView.setRoundedNavigation(storiesRoundedBottomNavigation);
+        // NagramX: this pill never changes height for MD3 like the real nav's floating panel does, so override to
+        // its own 48dp tab height (MAIN_TABS_HEIGHT 56dp - the same 2x4dp inset MainTabsHelper's formula uses).
+        storiesTabsView.setRoundedSelectorHeight(storiesRoundedBottomNavigation
+            ? dp(DialogsActivity.MAIN_TABS_HEIGHT - 2 * tw.nekomimi.nekogram.helpers.MainTabsHelper.MD3_NAVIGATION_SCRIM_INSET) : 0);
         for (int i = 0; i < storiesTabs.length; ++i) {
             final int index = i;
             storiesTabs[i].setOnClickListener(v -> sharedMediaLayout.scrollToPage(SharedMediaLayout.TAB_STORIES + index));
+            storiesTabs[i].setNavigationIndicator(storiesNavigationIndicator); // NagramX (#interface-style)
             storiesTabsView.addView(storiesTabs[i]);
             storiesTabsView.setViewVisible(storiesTabs[i], true, false);
         }
-        final BlurredBackgroundDrawable tabsBackground = glass.factory.create(storiesTabsView, BlurredBackgroundProviderImpl.mainTabs(getResourceProvider()));
+        // NagramX: follows Apply to -> Bottom navigation (#interface-style), same as the attach sheet and
+        // Statistics tab bars; this bar's shape (set below) stays its own.
+        final BlurredBackgroundDrawable tabsBackground = glass.factory.create(storiesTabsView, BlurredBackgroundProviderImpl.sheetTabsBottomNavigation(currentAccount, getResourceProvider()));
         tabsBackground.setRadius(dp(DialogsActivity.MAIN_TABS_HEIGHT / 2f));
         tabsBackground.setPadding(dp(DialogsActivity.MAIN_TABS_MARGIN - 0.334f));
         storiesTabsView.setBackground(tabsBackground);
@@ -356,6 +372,22 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
         }
         storiesTabsSelected = selected;
         storiesTabsView.setTabSelected(storiesTabs[selected], animated);
+    }
+
+    // NagramX (#interface-style): mirrors StatisticActivity.updateRoundedSelector() - this bar only ever has
+    // the two stories tabs, and onTabProgress's progress already carries the same 0..1 drag fraction
+    // ViewPagerFixed's getPositionAnimated() gives that method, so no from/next lookup is needed here.
+    private void updateStoriesRoundedSelector(float progress) {
+        if (!storiesRoundedBottomNavigation || storiesTabsView == null) {
+            return;
+        }
+        final float t = Math.max(0f, Math.min(1f, progress - SharedMediaLayout.TAB_STORIES));
+        final GlassTabView from = storiesTabs[0];
+        final GlassTabView to = storiesTabs[1];
+        storiesTabsView.setRoundedSelector(
+            AndroidUtilities.lerp(from.getX() + from.getWidth() / 2f, to.getX() + to.getWidth() / 2f, t),
+            AndroidUtilities.lerp((float) from.getWidth(), (float) to.getWidth(), t)
+        );
     }
 
     private void onStoriesButtonClick() {
@@ -625,6 +657,7 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
                 }
                 updateStoriesTabs(Math.round(progress - TAB_STORIES) > 0 ? 1 : 0, true);
                 updateTitle(true);
+                updateStoriesRoundedSelector(progress); // NagramX (#interface-style)
             }
         };
     }
