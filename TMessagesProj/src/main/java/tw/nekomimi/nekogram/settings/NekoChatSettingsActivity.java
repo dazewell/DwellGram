@@ -128,6 +128,7 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
     private final AbstractConfigCell combinePinnedWithPlayerRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getCombinePinnedWithPlayer(), getString(R.string.CombinePinnedWithPlayerNotice)));
     private final AbstractConfigCell fixLinkPreviewRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getFixLinkPreview(), "x.com -> fixupx.com"));
     private final AbstractConfigCell disableLinkPreviewByDefaultRow = cellGroup.appendCell(new ConfigCellTextCheck(NekoConfig.disableLinkPreviewByDefault));
+    private final AbstractConfigCell webMessagesRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getWebMessages(), getString(R.string.WebMessagesNotice)));
     private final AbstractConfigCell deleteChatForBothSidesRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getDeleteChatForBothSides()));
     private final AbstractConfigCell showMessageIDRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getShowMessageID()));
     private final AbstractConfigCell personalRepliesRow = cellGroup.appendCell(new ConfigCellTextCheck(NaConfig.INSTANCE.getPersonalReplies(), getString(R.string.PersonalRepliesNotice)));
@@ -651,6 +652,11 @@ public class NekoChatSettingsActivity extends BaseNekoXSettingsActivity implemen
             // NagramX: switching the gestures off and on again brings back their hints, as on first use
             if (key.equals(NaConfig.INSTANCE.getVideoMessagesHoldToSend().getKey())) {
                 com.dazewell.gram.videonote.VideoHoldToSend.resetHints();
+            }
+            if (key.equals(NaConfig.INSTANCE.getWebMessages().getKey())) {
+                com.dazewell.gram.webmessages.WebMessagesGate.onToggled();
+                // Widgets already on screen in open chats only pick the switch up once they are attached again.
+                if (com.dazewell.gram.webmessages.WebMessagesGate.enabled()) tooltip.showWithAction(0, UndoView.ACTION_NEED_RESTART, null, null);
             }
             if (key.equals(NekoConfig.disableProximityEvents.getKey())) {
                 MediaController.getInstance().recreateProximityWakeLock();

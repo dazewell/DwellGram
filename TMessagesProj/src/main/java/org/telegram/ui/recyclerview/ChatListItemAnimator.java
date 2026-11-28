@@ -27,6 +27,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.BotHelpCell;
 import org.telegram.ui.Cells.ChatActionCell;
 import org.telegram.ui.Cells.ChatMessageCell;
+import org.telegram.ui.Cells.ChatMessageTransitionParams;
 import org.telegram.ui.Cells.UserInfoCell;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.ChatGreetingsView;
@@ -480,7 +481,7 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         MoveInfoExtended moveInfo = new MoveInfoExtended(holder, fromX, fromY, toX, toY);
 
         if (chatMessageCell != null) {
-            ChatMessageCell.TransitionParams params = chatMessageCell.getTransitionParams();
+            ChatMessageTransitionParams params = chatMessageCell.getTransitionParams();
 
             if (!params.supportChangeAnimation()) {
                 if (deltaX == 0 && deltaY == 0) {
@@ -819,7 +820,7 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
             animatorSet.playTogether(valueAnimator);
         } else if (holder.itemView instanceof ChatMessageCell) {
             ChatMessageCell chatMessageCell = (ChatMessageCell) holder.itemView;
-            ChatMessageCell.TransitionParams params = chatMessageCell.getTransitionParams();
+            ChatMessageTransitionParams params = chatMessageCell.getTransitionParams();
             ObjectAnimator objectAnimator = ObjectAnimator.ofFloat(chatMessageCell, chatMessageCell.ANIMATION_OFFSET_X, 0);
             animatorSet.playTogether(objectAnimator);
 
@@ -1145,7 +1146,7 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
             extended.right = info.right;
             extended.bottom = info.bottom;
 
-            ChatMessageCell.TransitionParams params = chatMessageCell.getTransitionParams();
+            ChatMessageTransitionParams params = chatMessageCell.getTransitionParams();
             extended.imageX = params.lastDrawingImageX;
             extended.imageY = params.lastDrawingImageY;
             extended.imageWidth = params.lastDrawingImageW;

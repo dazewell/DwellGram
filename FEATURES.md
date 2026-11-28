@@ -114,6 +114,10 @@ In the profile picker (long-press the header bell, ⋮ Alerts, or the Notificati
 
 Swiping up at the end of a channel normally jumps to the next unread channel, and once the current folder runs out it moves on to other folders and the archive. N-Settings → Chat → Channels → *Swipe to Next Within Folder* keeps it in the folder you opened the channel from. Off by default.
 
+### Web messages off by default <!-- #web-messages-gate -->
+
+Bots can send interactive HTML widgets inside messages, and their code runs on your phone. DwellGram keeps them off: a widget message shows **Web message (turned off)**, and the engine that would run it stays disabled. Turn them on in N-Settings → Chats → **Web messages** (off by default), then restart the app.
+
 ## Composer and input
 
 ### Composer toolbar <!-- #composer-toolbar --> <!-- #composer-bubbles --> <!-- #toggle-formatting --> <!-- #glass-lone-circle -->

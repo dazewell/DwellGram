@@ -158,6 +158,8 @@ android {
         buildConfigField 'int', 'APP_ID', appId
         buildConfigField 'String', 'APP_HASH', '"' + appHash + '"'
         buildConfigField 'long', 'BUILD_TIMESTAMP', buildTimestamp + 'L'
+        // NagramX: upstream's glass and widget code reads BuildConfig.DEBUG_PRIVATE_VERSION; this fork's flag lives in BuildVars (false), so the generated one is off too.
+        buildConfigField 'boolean', 'DEBUG_PRIVATE_VERSION', 'false'
 
         // NagramX: the self-update channel (#self-update), from the UPDATE_CHANNEL_* repo variables in staging.yml.
         // Unset or malformed bakes in 0, which leaves the updater unavailable. The tag is per package so
@@ -200,6 +202,11 @@ android {
         language {
             enableSplit = false
         }
+    }
+
+    // NagramX: upstream 13.2.2's widget engine talks to its isolated process over AIDL (IWidgetEngine).
+    buildFeatures {
+        aidl true
     }
 
     externalNativeBuild {
@@ -310,6 +317,9 @@ dependencies {
     compileOnly 'org.checkerframework:checker-compat-qual:2.5.0'
     implementation 'com.google.firebase:firebase-messaging:25.1.2'
     implementation 'com.google.firebase:firebase-crashlytics:20.1.0'
+    // NagramX: upstream 13.2.2's SIM-card login (FirebasePhoneNumberVerificationHelper); version via upstream's BoM.
+    implementation platform('com.google.firebase:firebase-bom:34.19.0')
+    implementation 'com.google.firebase:firebase-pnv'
     implementation 'com.google.android.gms:play-services-cast-framework:22.3.1'
     implementation 'com.google.android.gms:play-services-maps:20.0.0'
     implementation 'com.google.android.gms:play-services-auth:21.6.0'

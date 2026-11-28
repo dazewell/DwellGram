@@ -111,11 +111,13 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.ApiException;
 // import com.google.android.gms.safetynet.SafetyNet;
+import com.google.android.gms.tasks.CancellationTokenSource;
 // import com.google.android.gms.tasks.Task;
 // import com.google.android.play.core.integrity.IntegrityManager;
 // import com.google.android.play.core.integrity.IntegrityManagerFactory;
 // import com.google.android.play.core.integrity.IntegrityTokenRequest;
 // import com.google.android.play.core.integrity.IntegrityTokenResponse;
+import com.google.firebase.pnv.VerificationSupportResult;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -131,6 +133,7 @@ import org.telegram.messenger.CallReceiver;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.FirebasePhoneNumberVerificationHelper;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaDataController;
@@ -148,6 +151,7 @@ import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.SerializedData;
+import org.telegram.tgnet.TLMethod;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.tl.TL_account;
@@ -158,11 +162,13 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.INavigationLayout;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.ActionBar.ThemeBind;
 import org.telegram.ui.ActionBar.ThemeDescription;
 import org.telegram.ui.Cells.CheckBoxCell;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.AnimatedPhoneNumberEditText;
 import org.telegram.ui.Components.AvatarDrawable;
+import org.telegram.ui.Components.ForegroundColorSpanThemable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.Components.Bulletin;
 import org.telegram.ui.Components.BulletinFactory;
@@ -174,6 +180,7 @@ import org.telegram.ui.Components.FragmentFloatingButton;
 import org.telegram.ui.Components.ImageUpdater;
 import org.telegram.ui.Components.ItemOptions;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.TableView;
 import org.telegram.ui.Components.LinkPath;
 import org.telegram.ui.Components.LinkSpanDrawable;
 import org.telegram.ui.Components.LoadingDrawable;
@@ -219,6 +226,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -412,7 +421,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
     private boolean forceDisableSafetyNet;
 
-    private static class ProgressView extends View {
+    private static class ProgressView extends View implements Theme.Colorable {
 
         private final Path path = new Path();
         private final RectF rect = new RectF();
@@ -477,7 +486,21 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 postInvalidateOnAnimation();
             }
         }
-    }
+    
+        private int colorsGeneration = ThemeBind.generation();
+
+        @Override
+        public void updateColors() {
+            try {
+                paint.setColor(Theme.getColor(Theme.key_login_progressInner));
+                paint2.setColor(Theme.getColor(Theme.key_login_progressOuter));
+                invalidate();
+        
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+        }
+}
 
     public LoginActivity() {
         super();
@@ -546,8 +569,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
     @Override
     public boolean onFragmentCreate() {
-        getNotificationCenter().addObserver(this, NotificationCenter.didUpdateConnectionState);
-        getNotificationCenter().addObserver(this, NotificationCenter.newSuggestionsAvailable);
+        getNotificationCenter().addWeakObserver(this, NotificationCenter.didUpdateConnectionState);
+        getNotificationCenter().addWeakObserver(this, NotificationCenter.newSuggestionsAvailable);
         return super.onFragmentCreate();
     }
 
@@ -776,7 +799,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             emailChangeSkipButton.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
             emailChangeSkipButton.setPadding(AndroidUtilities.dp(16), 0, AndroidUtilities.dp(16), 0);
             emailChangeSkipButton.setText(getString(R.string.YourEmailSkip));
-            emailChangeSkipButton.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4));
+            ThemeBind.textColor(emailChangeSkipButton, Theme.key_windowBackgroundWhiteBlueText4);
             sizeNotifierFrameLayout.addView(emailChangeSkipButton, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 30, Gravity.TOP | Gravity.RIGHT, 0, 16, 16, 0));
             emailChangeSkipButton.setOnClickListener(v -> {
                 if (emailChangeSkipCallback != null) {
@@ -886,6 +909,11 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
         if (isInCancelAccountDeletionMode()) {
             fillNextCodeParams(cancelDeletionParams, cancelDeletionCode, false);
+        }
+        if (pendingOpen != null) {
+            final Runnable open = pendingOpen;
+            pendingOpen = null;
+            open.run();
         }
 
         return fragmentView;
@@ -1807,7 +1835,14 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         return str.toUpperCase().replaceAll(" ", "_");
     }
 
+    private Runnable pendingOpen;
+
     public void open(String phone, TLRPC.auth_SentCode res) {
+        if (fragmentView == null) {
+            // opened from a purchase callback before the fragment got its views (e.g. it was not presented yet)
+            pendingOpen = () -> open(phone, res);
+            return;
+        }
         paid = true;
         Bundle params = new Bundle();
         params.putString("phone", "+" + phone);
@@ -2028,6 +2063,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         private LinkSpanDrawable.LinksTextView subtitleView;
         private View codeDividerView;
         private ImageView chevronRight;
+        private int chevronRightFilterColor, chevronRightSelectorColor;
         private CheckBoxCell syncContactsBox;
         private CheckBoxCell testBackendCheckBox;
 
@@ -2122,8 +2158,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 TextView tv = new TextView(context);
                 tv.setPadding(dp(16), dp(12), dp(16), dp(12));
                 tv.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
-                tv.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-                tv.setHintTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteHintText));
+                ThemeBind.textColor(tv, Theme.key_windowBackgroundWhiteBlackText);
+                ThemeBind.hintTextColor(tv, Theme.key_windowBackgroundWhiteHintText);
                 tv.setMaxLines(1);
                 tv.setSingleLine(true);
                 tv.setEllipsize(TextUtils.TruncateAt.END);
@@ -2764,8 +2800,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 textView.setHintTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteHintText));
             }
 
-            chevronRight.setColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteHintText));
-            chevronRight.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), 1));
+            chevronRightFilterColor = applyColorFilter(chevronRight, Theme.getColor(Theme.key_windowBackgroundWhiteHintText), chevronRightFilterColor, PorterDuff.Mode.SRC_ATOP);
+            chevronRightSelectorColor = applySelectorBackground(chevronRight, getThemedColor(Theme.key_listSelector), chevronRightSelectorColor, 1);
 
             plusTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
 
@@ -2799,7 +2835,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         @Override
         protected void onAttachedToWindow() {
             super.onAttachedToWindow();
-            NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.emojiLoaded);
+            NotificationCenter.getGlobalInstance().addWeakObserver(this, NotificationCenter.emojiLoaded);
         }
 
         @Override
@@ -3031,7 +3067,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                             builder.setMessage(getString("AllowReadCall", R.string.AllowReadCall));
                                             resId = R.raw.incoming_calls;
                                         }
-                                        builder.setTopAnimation(resId, 46, false, Theme.getColor(Theme.key_dialogTopBackground));
+                                        builder.setTopAnimation(resId, 46, false, Theme.getColor(Theme.key_dialogTopBackground)); builder.setTopBackgroundColorKey(Theme.key_dialogTopBackground, null);
                                         permissionsDialog = showDialog(builder.create());
                                         confirmedNumber = true;
                                     } else {
@@ -3108,7 +3144,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                 builder.setMessage(getString("AllowReadCall", R.string.AllowReadCall));
                                 resId = R.raw.incoming_calls;
                             }
-                            builder.setTopAnimation(resId, 46, false, Theme.getColor(Theme.key_dialogTopBackground));
+                            builder.setTopAnimation(resId, 46, false, Theme.getColor(Theme.key_dialogTopBackground)); builder.setTopBackgroundColorKey(Theme.key_dialogTopBackground, null);
                             permissionsDialog = showDialog(builder.create());
                             confirmedNumber = true;
                         } else {
@@ -3337,7 +3373,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 if (!isRequestingFirebaseSms) {
                     needHideProgress(false);
                 }
-            }), ConnectionsManager.RequestFlagFailOnServerErrors | ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagTryDifferentDc | ConnectionsManager.RequestFlagEnableUnauthorized);
+            }), ConnectionsManager.RequestFlagDoNotWaitFloodWait | ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagTryDifferentDc | ConnectionsManager.RequestFlagEnableUnauthorized);
             needShowProgress(reqId);
         }
 
@@ -3372,7 +3408,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                         preferences.edit().putBoolean("firstloginshow", false).commit();
                                         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
 
-                                        builder.setTopAnimation(R.raw.incoming_calls, 46, false, Theme.getColor(Theme.key_dialogTopBackground));
+                                        builder.setTopAnimation(R.raw.incoming_calls, 46, false, Theme.getColor(Theme.key_dialogTopBackground)); builder.setTopBackgroundColorKey(Theme.key_dialogTopBackground, null);
                                         builder.setPositiveButton(getString("Continue", R.string.Continue), null);
                                         builder.setMessage(getString("AllowFillNumber", R.string.AllowFillNumber));
                                         permissionsShowDialog = showDialog(builder.create(), true, null);
@@ -3488,6 +3524,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 }
                 if (activityMode == MODE_LOGIN) {
                     // requestPasskey(false);
+                    // requestFpnv(); // NagramX: the fork keeps the login screen from auto-starting Google-backed flows on show
                 }
             }, SHOW_DELAY);
         }
@@ -3499,6 +3536,176 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 cancelRequestingPasskey.run();
                 cancelRequestingPasskey = null;
             }
+            fpnvDestroyed = true;
+            if (waitingConfigForFpnv) {
+                waitingConfigForFpnv = false;
+                NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.configLoaded);
+            }
+            if (fpnvCancellationTokenSource != null) {
+                fpnvCancellationTokenSource.cancel();
+                fpnvCancellationTokenSource = null;
+            }
+            if (fpnvProgressDialog != null) {
+                fpnvProgressDialog.dismiss();
+                fpnvProgressDialog = null;
+            }
+            if (fpnvConsentDialog != null) {
+                fpnvConsentDialog.dismiss();
+                fpnvConsentDialog = null;
+            }
+        }
+
+        private boolean requestedFpnv;
+        private boolean waitingConfigForFpnv;
+        private boolean fpnvDestroyed;
+        private CancellationTokenSource fpnvCancellationTokenSource;
+        private AlertDialog fpnvProgressDialog;
+        private AlertDialog fpnvConsentDialog;
+
+        // Automatic sign-in on the phone page: Firebase PNV when the server allows it,
+        // the SIM supports it and the user agrees; otherwise (or when it fails) a passkey.
+        private void requestFpnv() {
+            if (activityMode != MODE_LOGIN || requestedFpnv || fpnvDestroyed) {
+                return;
+            }
+            final MessagesController messagesController = MessagesController.getInstance(currentAccount);
+            if (!messagesController.remoteConfigLoaded) {
+                if (!waitingConfigForFpnv) {
+                    waitingConfigForFpnv = true;
+                    NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.configLoaded);
+                    ConnectionsManager.getInstance(currentAccount).updateDcSettings();
+                }
+                return;
+            }
+
+            requestedFpnv = true;
+            if (!BuildVars.SUPPORTS_FPNV || !messagesController.fpnvAllowed) {
+                requestPasskey(false, false);
+                return;
+            }
+            FirebasePhoneNumberVerificationHelper.getVerificationSupportInfo(results -> {
+                if (!canStartAutoLogin()) {
+                    return;
+                }
+                if (results != null && !results.isEmpty()) {
+                    showFpnvConsent(results.get(0));
+                } else {
+                    requestPasskey(false, false);
+                }
+            });
+        }
+
+        // The system sheet opens only after the user agrees here; declining falls back to a passkey.
+        private void showFpnvConsent(VerificationSupportResult verificationSupportResult) {
+            final Context context = getContext();
+            final FirebasePhoneNumberVerificationHelper.SimInfo sim = FirebasePhoneNumberVerificationHelper.getSimInfo(context, verificationSupportResult);
+
+            final TableView tableView = new TableView(context, resourceProvider);
+            if (sim.carrierName != null) {
+                tableView.addRow(getString(R.string.FpnvConsentCarrier), sim.carrierName);
+            }
+            if (sim.slot >= 0) {
+                tableView.addRow(getString(R.string.FpnvConsentSimSlot), formatString(R.string.FpnvConsentSimSlotValue, sim.slot + 1));
+            }
+            if (sim.phoneNumber != null) {
+                tableView.addRow(getString(R.string.FpnvConsentPhoneNumber), sim.phoneNumber.startsWith("+") ? PhoneFormat.getInstance().format(sim.phoneNumber) : sim.phoneNumber);
+            }
+            final FrameLayout tableContainer = new FrameLayout(context);
+            tableContainer.addView(tableView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.FILL_HORIZONTAL, 24, 4, 24, 4));
+
+            final boolean[] confirmed = new boolean[1];
+            final AlertDialog.Builder builder = new AlertDialog.Builder(context, resourceProvider);
+            builder.setTitle(getString(R.string.FpnvConsentTitle));
+            builder.setMessage(getString(R.string.FpnvConsentText));
+            builder.setView(tableContainer);
+            builder.setPositiveButton(getString(R.string.FpnvConsentContinue), (d, which) -> {
+                confirmed[0] = true;
+                if (canStartAutoLogin()) {
+                    requestLoginViaFirebasePhoneNumberVerification();
+                }
+            });
+            builder.setNegativeButton(getString(R.string.Cancel), null);
+            final AlertDialog dialog = builder.create();
+            dialog.setOnDismissListener(d -> {
+                if (fpnvConsentDialog == dialog) {
+                    fpnvConsentDialog = null;
+                }
+                if (!confirmed[0] && canStartAutoLogin()) {
+                    requestPasskey(false, false);
+                }
+            });
+            fpnvConsentDialog = dialog;
+            dialog.show();
+        }
+
+        private boolean canStartAutoLogin() {
+            final Activity activity = getParentActivity();
+            return !fpnvDestroyed && !nextPressed && currentViewNum == VIEW_PHONE_INPUT && activity != null && !activity.isFinishing();
+        }
+
+        private void requestLoginViaFirebasePhoneNumberVerification() {
+            final Executor executor = AndroidUtilities::runOnUIThread;
+            final CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+            fpnvCancellationTokenSource = cancellationTokenSource;
+
+            FirebasePhoneNumberVerificationHelper.loginViaFirebasePhoneNumberVerification(
+                getContext(), currentAccount, cancellationTokenSource.getToken(), () -> {
+                    if (!canStartAutoLogin()) {
+                        return;
+                    }
+                    final AlertDialog progressDialog = new AlertDialog(getContext(), AlertDialog.ALERT_TYPE_SPINNER);
+                    progressDialog.setOnCancelListener(d -> cancellationTokenSource.cancel());
+                    progressDialog.show();
+                    fpnvProgressDialog = progressDialog;
+                })
+                    .addOnCompleteListener(executor, r -> {
+                        if (fpnvProgressDialog != null) {
+                            fpnvProgressDialog.dismiss();
+                            fpnvProgressDialog = null;
+                        }
+                        if (fpnvCancellationTokenSource == cancellationTokenSource) {
+                            fpnvCancellationTokenSource = null;
+                        }
+                    })
+                    .addOnSuccessListener(executor, authAuthorization -> {
+                        if (fpnvDestroyed) {
+                            return;
+                        }
+                        if (authAuthorization instanceof TLRPC.TL_auth_authorizationSignUpRequired) {
+                            final TLRPC.TL_auth_authorizationSignUpRequired authorization =
+                                (TLRPC.TL_auth_authorizationSignUpRequired) authAuthorization;
+                            if (authorization.terms_of_service != null) {
+                                currentTermsOfService = authorization.terms_of_service;
+                            }
+                            Bundle params = new Bundle();
+                            params.putBoolean("fromFirebasePhoneNumberVerification", true);
+                            setPage(VIEW_REGISTER, true, params, false);
+                        } else if (authAuthorization instanceof TLRPC.TL_auth_authorization) {
+                            onAuthSuccess((TLRPC.TL_auth_authorization) authAuthorization);
+                        } else {
+                            requestPasskey(false, false);
+                        }
+                    })
+                    .addOnFailureListener(executor, exception -> {
+                        if (fpnvDestroyed) {
+                            return;
+                        }
+                        if (exception instanceof ConnectionsManager.RequestException) {
+                            final String err = exception.getMessage();
+                            if (err != null && err.contains("SESSION_PASSWORD_NEEDED")) {
+                                requestPassword();
+                                return;
+                            }
+                            if (err != null && BuildVars.DEBUG_VERSION) {
+                                BulletinFactory.of(slideViewsContainer, null).showForError(err);
+                            }
+                        } else if (!(exception instanceof CancellationException)) {
+                            FileLog.e(exception);
+                        }
+                        if (canStartAutoLogin()) {
+                            requestPasskey(false, false);
+                        }
+                    });
         }
 
         private boolean requestedPasskey = false;
@@ -3550,25 +3757,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     }
                 }
                 if (err != null && err.contains("SESSION_PASSWORD_NEEDED")) {
-                    final TL_account.getPassword req2 = new TL_account.getPassword();
-                    ConnectionsManager.getInstance(currentAccount).sendRequest(req2, (response1, error1) -> AndroidUtilities.runOnUIThread(() -> {
-                        nextPressed = false;
-                        showDoneButton(false, true);
-                        if (error1 == null) {
-                            final TL_account.Password password = (TL_account.Password) response1;
-                            if (!TwoStepVerificationActivity.canHandleCurrentPassword(password, true)) {
-                                AlertsCreator.showUpdateAppAlert(getParentActivity(), getString("UpdateAppAlert", R.string.UpdateAppAlert), true);
-                                return;
-                            }
-                            final Bundle bundle = new Bundle();
-                            final SerializedData data = new SerializedData(password.getObjectSize());
-                            password.serializeToStream(data);
-                            bundle.putString("password", Utilities.bytesToHex(data.toByteArray()));
-                            setPage(VIEW_PASSWORD, true, bundle, false);
-                        } else {
-                            needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), error1.text);
-                        }
-                    }), ConnectionsManager.RequestFlagFailOnServerErrors | ConnectionsManager.RequestFlagWithoutLogin);
+                    requestPassword();
                 } else if (err != null) {
                     // if (BuildVars.DEBUG_VERSION)
                         BulletinFactory.of(LoginActivity.this).showForError(err);
@@ -3579,6 +3768,29 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 }
             });
         }
+
+        private void requestPassword() {
+            final TL_account.getPassword req2 = new TL_account.getPassword();
+            ConnectionsManager.getInstance(currentAccount).sendRequest(req2, (response1, error1) -> AndroidUtilities.runOnUIThread(() -> {
+                nextPressed = false;
+                showDoneButton(false, true);
+                if (error1 == null) {
+                    final TL_account.Password password = (TL_account.Password) response1;
+                    if (!TwoStepVerificationActivity.canHandleCurrentPassword(password, true)) {
+                        AlertsCreator.showUpdateAppAlert(getParentActivity(), getString("UpdateAppAlert", R.string.UpdateAppAlert), true);
+                        return;
+                    }
+                    final Bundle bundle = new Bundle();
+                    final SerializedData data = new SerializedData(password.getObjectSize());
+                    password.serializeToStream(data);
+                    bundle.putString("password", Utilities.bytesToHex(data.toByteArray()));
+                    setPage(VIEW_PASSWORD, true, bundle, false);
+                } else {
+                    needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), error1.text);
+                }
+            }), ConnectionsManager.RequestFlagFailOnServerErrors | ConnectionsManager.RequestFlagWithoutLogin);
+        }
+
 
         @Override
         public String getHeaderName() {
@@ -3613,6 +3825,14 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         public void didReceivedNotification(int id, int account, Object... args) {
             if (id == NotificationCenter.emojiLoaded) {
                 countryButton.getCurrentView().invalidate();
+            } else if (id == NotificationCenter.configLoaded && account == currentAccount) {
+                if (waitingConfigForFpnv) {
+                    waitingConfigForFpnv = false;
+                    NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.configLoaded);
+                    if (canStartAutoLogin()) {
+                        requestFpnv();
+                    }
+                }
             }
         }
     }
@@ -3687,6 +3907,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         private TextView missedCallDescriptionSubtitle;
         private TextView missedCallDescriptionSubtitle2;
         private ImageView missedCallArrowIcon, missedCallPhoneIcon;
+        private int missedCallArrowIconColor, missedCallPhoneIconColor;
 
         private RLottieDrawable starsToDotsDrawable;
         private RLottieDrawable dotsDrawable;
@@ -3881,8 +4102,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             }
 
             prevTypeTextView = new LoadingTextView(context);
-            prevTypeTextView.setLinkTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
-            prevTypeTextView.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteValueText));
+            ThemeBind.linkTextColor(prevTypeTextView, Theme.key_windowBackgroundWhiteValueText);
+            ThemeBind.textColor(prevTypeTextView, Theme.key_windowBackgroundWhiteValueText, LoginActivity.this.getResourceProvider());
             prevTypeTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
             prevTypeTextView.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
             prevTypeTextView.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(8), AndroidUtilities.dp(14), AndroidUtilities.dp(16));
@@ -3902,7 +4123,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     return getVisibility() == View.VISIBLE && !(time > 0 && timeTimer != null);
                 }
             };
-            timeText.setLinkTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
+            ThemeBind.linkTextColor(timeText, Theme.key_windowBackgroundWhiteValueText);
             timeText.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
             timeText.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(8), AndroidUtilities.dp(14), AndroidUtilities.dp(16));
             timeText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
@@ -3916,7 +4137,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 }
                 isResendingCode = true;
                 timeText.invalidate();
-                timeText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
+                ThemeBind.textColor(timeText, Theme.key_windowBackgroundWhiteValueText);
 
                 if (nextType == AUTH_TYPE_CALL || nextType == AUTH_TYPE_SMS || nextType == AUTH_TYPE_PHRASE || nextType == AUTH_TYPE_WORD || nextType == AUTH_TYPE_MISSED_CALL || nextType == AUTH_TYPE_FRAGMENT_SMS) {
 //                    timeText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText6));
@@ -4007,7 +4228,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 openFragmentButton.setOrientation(HORIZONTAL);
                 openFragmentButton.setGravity(Gravity.CENTER);
                 openFragmentButton.setPadding(AndroidUtilities.dp(34), 0, AndroidUtilities.dp(34), 0);
-                openFragmentButton.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), Theme.getColor(Theme.key_changephoneinfo_image2), Theme.getColor(Theme.key_chats_actionPressedBackground)));
+                ThemeBind.selectorBackground(openFragmentButton, Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), Theme.getColor(Theme.key_changephoneinfo_image2), Theme.getColor(Theme.key_chats_actionPressedBackground)), ThemeBind.of(Theme.key_changephoneinfo_image2), ThemeBind.of(Theme.key_chats_actionPressedBackground));
                 openFragmentButton.setOnClickListener(v -> {
                     try {
                         getContext().startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
@@ -4228,8 +4449,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             if (currentType == AUTH_TYPE_MISSED_CALL) {
                 missedCallDescriptionSubtitle.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
                 missedCallDescriptionSubtitle2.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
-                missedCallArrowIcon.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteInputFieldActivated), PorterDuff.Mode.SRC_IN));
-                missedCallPhoneIcon.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText), PorterDuff.Mode.SRC_IN));
+                missedCallArrowIconColor = applyColorFilter(missedCallArrowIcon, Theme.getColor(Theme.key_windowBackgroundWhiteInputFieldActivated), missedCallArrowIconColor, PorterDuff.Mode.SRC_IN);
+                missedCallPhoneIconColor = applyColorFilter(missedCallPhoneIcon, Theme.getColor(Theme.key_windowBackgroundWhiteBlackText), missedCallPhoneIconColor, PorterDuff.Mode.SRC_IN);
                 prefixTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
             }
 
@@ -4429,7 +4650,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     timeText.setVisibility(GONE);
                     if (problemText != null) {
                         problemText.setVisibility(VISIBLE);
-                        problemText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
+                        ThemeBind.textColor(problemText, Theme.key_windowBackgroundWhiteValueText);
                         int resId;
                         if (nextType == AUTH_TYPE_PHRASE) {
                             resId = R.string.ReturnEnteringPhrase;
@@ -4746,7 +4967,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             if (timeTimer != null) {
                 return;
             }
-            timeText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText6));
+            ThemeBind.textColor(timeText, Theme.key_windowBackgroundWhiteGrayText6);
             timeText.setTag(R.id.color_key_tag, Theme.key_windowBackgroundWhiteGrayText6);
             if (progressView != null) {
                 progressView.resetProgressAnimation();
@@ -4786,7 +5007,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                 } else {
                                     timeText.setText(getString("RequestSmsButton", R.string.RequestSmsButton));
                                 }
-                                timeText.setTextColor(Theme.getColor(Theme.key_chats_actionBackground));
+                                ThemeBind.textColor(timeText, Theme.key_chats_actionBackground);
                                 timeText.setTag(R.id.color_key_tag, Theme.key_chats_actionBackground);
                             }
                         }
@@ -4796,7 +5017,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         }
 
         private void destroyTimer() {
-            timeText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText6));
+            ThemeBind.textColor(timeText, Theme.key_windowBackgroundWhiteGrayText6);
             timeText.setTag(R.id.color_key_tag, Theme.key_windowBackgroundWhiteGrayText6);
             try {
                 synchronized (timerSync) {
@@ -5346,7 +5567,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     }
 
 
-    public class LoadingTextView extends TextView {
+    public class LoadingTextView extends TextView implements Theme.Colorable {
 
         private final Drawable rippleDrawable = Theme.createSelectorDrawable(Theme.multAlpha(Theme.getColor(Theme.key_windowBackgroundWhiteValueText), .10f), Theme.RIPPLE_MASK_ROUNDRECT_6DP);
         public final LoadingDrawable loadingDrawable = new LoadingDrawable();
@@ -5356,6 +5577,38 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             rippleDrawable.setCallback(this);
             loadingDrawable.setAppearByGradient(true);
             loadingDrawable.setSpeed(.8f);
+        }
+
+        private int colorsGeneration = ThemeBind.generation();
+        private int appliedRippleColor = Theme.multAlpha(Theme.getColor(Theme.key_windowBackgroundWhiteValueText), .10f);
+
+        @Override
+        public void updateColors() {
+            try {
+                final int rippleColor = Theme.multAlpha(Theme.getColor(Theme.key_windowBackgroundWhiteValueText), .10f);
+                if (rippleDrawable != null && rippleColor != appliedRippleColor) {
+                    Theme.setSelectorDrawableColor(rippleDrawable, rippleColor, true);
+                }
+                appliedRippleColor = rippleColor;
+                if (loadingDrawable != null) {
+                    final int color = getThemedColor(Theme.key_chat_linkSelectBackground);
+                    loadingDrawable.setColors(
+                            Theme.multAlpha(color, 0.85f),
+                            Theme.multAlpha(color, 2f),
+                            Theme.multAlpha(color, 3.5f),
+                            Theme.multAlpha(color, 6f)
+                    );
+                }
+                invalidate();
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+        }
+
+        @Override
+        public void addColorKeys(HashSet<Integer> colors) {
+            colors.add(Theme.key_windowBackgroundWhiteValueText);
+            colors.add(Theme.key_chat_linkSelectBackground);
         }
 
         @Override
@@ -5914,8 +6167,18 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             confirmTextView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
             resetAccountText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
             resetAccountTime.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-            resetAccountButton.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), Theme.getColor(Theme.key_changephoneinfo_image2), Theme.getColor(Theme.key_chats_actionPressedBackground)));
+            final int resetColor = Theme.getColor(Theme.key_changephoneinfo_image2), resetPressedColor = Theme.getColor(Theme.key_chats_actionPressedBackground);
+            if (resetAccountButton.getBackground() == null) {
+                resetAccountButton.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(6), resetColor, resetPressedColor));
+            } else if (resetColor != resetAccountButtonColor || resetPressedColor != resetAccountButtonPressedColor) {
+                Theme.setSelectorDrawableColor(resetAccountButton.getBackground(), resetColor, false);
+                Theme.setSelectorDrawableColor(resetAccountButton.getBackground(), resetPressedColor, true);
+            }
+            resetAccountButtonColor = resetColor;
+            resetAccountButtonPressedColor = resetPressedColor;
         }
+
+        private int resetAccountButtonColor, resetAccountButtonPressedColor;
 
         @Override
         public String getHeaderName() {
@@ -6883,7 +7146,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             if (startIndex != endIndex && startIndex != -1 && endIndex != -1) {
                 ssb.replace(endIndex, endIndex + 1, "");
                 ssb.replace(startIndex, startIndex + 1, "");
-                ssb.setSpan(new ForegroundColorSpan(getThemedColor(Theme.key_windowBackgroundWhiteBlueText4)), startIndex, endIndex - 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                ssb.setSpan(new ForegroundColorSpanThemable(Theme.key_windowBackgroundWhiteBlueText4, LoginActivity.this.getResourceProvider()), startIndex, endIndex - 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
 
             emailResetInView.setText(ssb);
@@ -7579,7 +7842,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         }
 
                         passwordButton.setTag(isPasswordVisible);
-                        passwordButton.setColorFilter(Theme.getColor(isPasswordVisible ? Theme.key_windowBackgroundWhiteInputFieldActivated : Theme.key_windowBackgroundWhiteHintText));
+                        ThemeBind.colorFilter(passwordButton, isPasswordVisible ? Theme.key_windowBackgroundWhiteInputFieldActivated : Theme.key_windowBackgroundWhiteHintText, PorterDuff.Mode.SRC_ATOP);
                     });
                     linearLayout.addView(passwordButton, LayoutHelper.createLinearRelatively(24, 24, 0, 0, 0, 14, 0));
 
@@ -7642,10 +7905,12 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             }
             cancelButton.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4));
             if (passwordButton != null) {
-                passwordButton.setColorFilter(Theme.getColor(isPasswordVisible ? Theme.key_windowBackgroundWhiteInputFieldActivated : Theme.key_windowBackgroundWhiteHintText));
-                passwordButton.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), 1));
+                passwordButtonFilterColor = applyColorFilter(passwordButton, Theme.getColor(isPasswordVisible ? Theme.key_windowBackgroundWhiteInputFieldActivated : Theme.key_windowBackgroundWhiteHintText), passwordButtonFilterColor, PorterDuff.Mode.SRC_ATOP);
+                passwordButtonSelectorColor = applySelectorBackground(passwordButton, getThemedColor(Theme.key_listSelector), passwordButtonSelectorColor, 1);
             }
         }
+
+        private int passwordButtonFilterColor, passwordButtonSelectorColor;
 
         @Override
         public boolean needBackButton() {
@@ -7857,6 +8122,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         private FrameLayout editTextContainer;
         private String requestPhone;
         private String phoneHash;
+        private boolean fromFirebasePhoneNumberVerification;
         private Bundle currentParams;
         private boolean nextPressed = false;
 
@@ -8362,6 +8628,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             lastNameField.setText("");
             requestPhone = params.getString("phoneFormated");
             phoneHash = params.getString("phoneHash");
+            fromFirebasePhoneNumberVerification = params.getBoolean("fromFirebasePhoneNumberVerification");
             currentParams = params;
         }
 
@@ -8379,13 +8646,23 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 return;
             }
             nextPressed = true;
-            TLRPC.TL_auth_signUp req = new TLRPC.TL_auth_signUp();
-            req.phone_code_hash = phoneHash;
-            req.phone_number = requestPhone;
-            req.first_name = firstNameField.getText().toString();
-            req.last_name = lastNameField.getText().toString();
+
+            final TLMethod<TLRPC.auth_Authorization> request;
+            if (fromFirebasePhoneNumberVerification) {
+                TLRPC.TL_auth_firebasePnvSignUp req = new TLRPC.TL_auth_firebasePnvSignUp();
+                req.first_name = firstNameField.getText().toString();
+                req.last_name = lastNameField.getText().toString();
+                request = req;
+            } else {
+                TLRPC.TL_auth_signUp req = new TLRPC.TL_auth_signUp();
+                req.phone_code_hash = phoneHash;
+                req.phone_number = requestPhone;
+                req.first_name = firstNameField.getText().toString();
+                req.last_name = lastNameField.getText().toString();
+                request = req;
+            }
             needShowProgress(0);
-            ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+            ConnectionsManager.getInstance(currentAccount).sendRequestTyped(request, AndroidUtilities::runOnUIThread, (response, error) -> {
                 nextPressed = false;
                 if (response instanceof TLRPC.TL_auth_authorization) {
                     hidePrivacyView();
@@ -8417,7 +8694,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), error.text);
                     }
                 }
-            }), ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagFailOnServerErrors);
+            }, ConnectionsManager.RequestFlagWithoutLogin | ConnectionsManager.RequestFlagFailOnServerErrors);
         }
 
         @Override
@@ -8720,7 +8997,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 public void onAnimationEnd(Animator animation) {
                     keyboardLinearLayout.setAlpha(1);
                     startMessagingButton.setVisibility(View.VISIBLE);
-                    fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    ThemeBind.backgroundColor(fragmentView, Theme.key_windowBackgroundWhite);
                     floatingButton.setButtonVisible(true, false);
 
                     FrameLayout frameLayout = (FrameLayout) fragmentView;
@@ -8776,8 +9053,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     private void updateColors() {
         fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
 
-        backButtonView.setColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-        backButtonView.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector)));
+        backButtonFilterColor = applyColorFilter(backButtonView, Theme.getColor(Theme.key_windowBackgroundWhiteBlackText), backButtonFilterColor, PorterDuff.Mode.SRC_ATOP);
+        backButtonSelectorColor = applySelectorBackground(backButtonView, Theme.getColor(Theme.key_listSelector), backButtonSelectorColor, Theme.RIPPLE_MASK_CIRCLE_20DP);
 
         // proxyDrawable.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText), PorterDuff.Mode.SRC_IN));
         // proxyButtonView.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector)));
@@ -8798,6 +9075,48 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         keyboardView.updateColors();
         if (phoneNumberConfirmView != null) {
             phoneNumberConfirmView.updateColors();
+        }
+    }
+
+    private int backButtonFilterColor, backButtonSelectorColor, proxyDrawableColor, proxyButtonSelectorColor;
+
+    /** {@code view.setColorFilter(new PorterDuffColorFilter(color, mode))} only when the color changed; returns the applied color */
+    private static int applyColorFilter(ImageView view, int color, int lastColor, PorterDuff.Mode mode) {
+        if (view != null && (color != lastColor || view.getColorFilter() == null)) {
+            view.setColorFilter(new PorterDuffColorFilter(color, mode));
+        }
+        return color;
+    }
+
+    /** creates the Theme.createSelectorDrawable(color, maskType) background once, then recolors it in place; returns the applied color */
+    private static int applySelectorBackground(View view, int color, int lastColor, int maskType) {
+        if (view == null) {
+            return color;
+        }
+        final Drawable background = view.getBackground();
+        if (background == null) {
+            view.setBackground(Theme.createSelectorDrawable(color, maskType));
+        } else if (color != lastColor) {
+            Theme.setSelectorDrawableColor(background, color, true);
+        }
+        return color;
+    }
+
+    @Override
+    public void onThemeColorsChanged() {
+        try {
+            if (fragmentView == null || backButtonView == null || proxyDrawable == null || proxyButtonView == null || radialProgressView == null
+                    || floatingButton == null || floatingButtonIcon == null || keyboardView == null) {
+                return;
+            }
+            for (SlideView slideView : views) {
+                if (slideView == null) {
+                    return;
+                }
+            }
+            updateColors();
+        } catch (Exception e) {
+            FileLog.e(e);
         }
     }
 
@@ -8955,10 +9274,19 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             requestLayout();
         }
 
+        private int popupLayoutColor;
+
         private void updateColors() {
             fabTransform.setColor(Theme.getColor(Theme.key_chats_actionIcon));
             fabTransform.setBackgroundColor(Theme.getColor(Theme.key_chats_actionBackground));
-            popupLayout.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), Theme.getColor(Theme.key_dialogBackground)));
+            final int popupColor = Theme.getColor(Theme.key_dialogBackground);
+            if (popupLayout.getBackground() == null) {
+                popupLayout.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), popupColor));
+            } else if (popupColor != popupLayoutColor) {
+                Theme.setDrawableColor(popupLayout.getBackground(), popupColor);
+                popupLayout.invalidate();
+            }
+            popupLayoutColor = popupColor;
             confirmMessageView.setTextColor(Theme.getColor(Theme.key_dialogTextGray2));
             numberView.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
             editTextView.setTextColor(Theme.getColor(Theme.key_changephoneinfo_image2));
@@ -9307,8 +9635,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             pasteTextView.setPadding(dp(10), 0, dp(10), 0);
             pasteTextView.setGravity(Gravity.CENTER);
             int textColor = Theme.getColor(Theme.key_windowBackgroundWhiteBlueText2, resourceProvider);
-            pasteTextView.setTextColor(textColor);
-            pasteTextView.setBackground(Theme.createSimpleSelectorRoundRectDrawable(dp(6), Theme.multAlpha(textColor, .12f), Theme.multAlpha(textColor, .15f)));
+            ThemeBind.textColor(pasteTextView, Theme.key_windowBackgroundWhiteBlueText2, resourceProvider);
+            ThemeBind.selectorBackground(pasteTextView, Theme.createSimpleSelectorRoundRectDrawable(dp(6), Theme.multAlpha(textColor, .12f), Theme.multAlpha(textColor, .15f)), ThemeBind.multAlpha(Theme.key_windowBackgroundWhiteBlueText2, .12f), ThemeBind.multAlpha(Theme.key_windowBackgroundWhiteBlueText2, .15f), resourceProvider);
             ScaleStateListAnimator.apply(pasteTextView, .1f, 1.5f);
             codeField.setPadding(dp(16), dp(16 - 2.66f), dp(16), dp(16 - 2.66f));
             pasteTextView.setOnClickListener(v -> {
@@ -9352,8 +9680,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             fieldContainer.addView(infoContainer, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
             prevTypeTextView = new LoadingTextView(context);
-            prevTypeTextView.setLinkTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
-            prevTypeTextView.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteValueText));
+            ThemeBind.linkTextColor(prevTypeTextView, Theme.key_windowBackgroundWhiteValueText);
+            ThemeBind.textColor(prevTypeTextView, Theme.key_windowBackgroundWhiteValueText, LoginActivity.this.getResourceProvider());
             prevTypeTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
             prevTypeTextView.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
             prevTypeTextView.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(8), AndroidUtilities.dp(14), AndroidUtilities.dp(16));
@@ -9365,7 +9693,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             errorTextView.setPivotX(0);
             errorTextView.setPivotY(0);
             errorTextView.setText(getString(a == 0 ? R.string.SMSWordError : R.string.SMSPhraseError));
-            errorTextView.setTextColor(getThemedColor(Theme.key_text_RedRegular));
+            ThemeBind.textColor(errorTextView, Theme.key_text_RedRegular, LoginActivity.this.getResourceProvider());
             errorTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
             infoContainer.addView(errorTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.FILL, 16, 8, 16, 8));
             errorTextView.setAlpha(0f);
@@ -9377,7 +9705,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             infoTextView.setPivotX(0);
             infoTextView.setPivotY(0);
             infoTextView.setText(getString(a == 0 ? R.string.SMSWordPasteHint : R.string.SMSPhrasePasteHint));
-            infoTextView.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteGrayText));
+            ThemeBind.textColor(infoTextView, Theme.key_windowBackgroundWhiteGrayText, LoginActivity.this.getResourceProvider());
             infoTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
             infoContainer.addView(infoTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.FILL, 16, 8, 16, 8));
 
@@ -9391,7 +9719,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     return getVisibility() == View.VISIBLE && !(time > 0 && timeTimer != null);
                 }
             };
-            timeText.setLinkTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
+            ThemeBind.linkTextColor(timeText, Theme.key_windowBackgroundWhiteValueText);
             timeText.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
             timeText.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(8), AndroidUtilities.dp(14), AndroidUtilities.dp(16));
             timeText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
@@ -9411,7 +9739,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 if (nextType == AUTH_TYPE_CALL || nextType == AUTH_TYPE_SMS || nextType == AUTH_TYPE_MISSED_CALL || nextType == AUTH_TYPE_FRAGMENT_SMS) {
                     isResendingCode = true;
                     timeText.invalidate();
-                    timeText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
+                    ThemeBind.textColor(timeText, Theme.key_windowBackgroundWhiteValueText);
 //                    timeText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText6));
                     timeText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
                     if (nextType == AUTH_TYPE_CALL || nextType == AUTH_TYPE_MISSED_CALL) {
@@ -9552,7 +9880,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         public void setParams(Bundle params, boolean restore) {
             if (params == null) {
                 if (nextCodeParams != null && nextCodeAuth != null) {
-                    timeText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
+                    ThemeBind.textColor(timeText, Theme.key_windowBackgroundWhiteValueText);
                     int resId;
                     if (nextType == AUTH_TYPE_PHRASE) {
                         resId = R.string.ReturnEnteringPhrase;
@@ -9621,7 +9949,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             animateError(false);
 
             lastCurrentTime = System.currentTimeMillis();
-            timeText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+            ThemeBind.textColor(timeText, Theme.key_windowBackgroundWhiteGrayText);
             if (nextType == AUTH_TYPE_SMS || nextType == AUTH_TYPE_CALL || nextType == AUTH_TYPE_FLASH_CALL) {
                 createTimer();
             } else {
@@ -9807,7 +10135,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
             isResendingCode = true;
             timeText.invalidate();
-            timeText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteValueText));
+            ThemeBind.textColor(timeText, Theme.key_windowBackgroundWhiteValueText);
 //            problemText.invalidate();
 
             final Bundle params = new Bundle();
@@ -9957,7 +10285,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             if (timeTimer != null) {
                 return;
             }
-            timeText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+            ThemeBind.textColor(timeText, Theme.key_windowBackgroundWhiteGrayText);
             timeText.setTag(R.id.color_key_tag, Theme.key_windowBackgroundWhiteGrayText);
 //            if (progressView != null) {
 //                progressView.resetProgressAnimation();
@@ -9999,7 +10327,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                 } else {
                                     timeText.setText(replaceArrows(getString(R.string.RequestAnotherSMS), true, 0, 0));
                                 }
-                                timeText.setTextColor(Theme.getColor(Theme.key_chats_actionBackground));
+                                ThemeBind.textColor(timeText, Theme.key_chats_actionBackground);
                                 timeText.setTag(R.id.color_key_tag, Theme.key_chats_actionBackground);
                             }
                         }
@@ -10009,7 +10337,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         }
 
         private void destroyTimer() {
-            timeText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+            ThemeBind.textColor(timeText, Theme.key_windowBackgroundWhiteGrayText);
             timeText.setTag(R.id.color_key_tag, Theme.key_windowBackgroundWhiteGrayText);
             try {
                 synchronized (timerSync) {
@@ -10106,8 +10434,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             optionsButton = new ImageView(context);
             optionsButton.setImageResource(R.drawable.ic_ab_other);
             optionsButton.setScaleType(ImageView.ScaleType.CENTER);
-            optionsButton.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText, resourceProvider), PorterDuff.Mode.SRC_IN));
-            optionsButton.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector)));
+            ThemeBind.colorFilter(optionsButton, Theme.key_windowBackgroundWhiteBlackText, resourceProvider, PorterDuff.Mode.SRC_IN);
+            ThemeBind.selectorBackground(optionsButton, Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector)), null, ThemeBind.of(Theme.key_listSelector));
             topView.addView(optionsButton, LayoutHelper.createFrame(32, 32, Gravity.RIGHT | Gravity.TOP, 0, 16, -2, 0));
 
             GLIconTextureView iconTextureView = new GLIconTextureView(context, GLIconRenderer.DIALOG_STYLE, Icon3D.TYPE_COIN) {
@@ -10136,7 +10464,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
             TextView textView = new TextView(context);
             textView.setText(getString(R.string.SMSFeeTitle));
-            textView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+            ThemeBind.textColor(textView, Theme.key_windowBackgroundWhiteBlackText);
             textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
             textView.setTypeface(AndroidUtilities.bold());
             textView.setGravity(Gravity.CENTER);

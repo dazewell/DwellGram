@@ -2035,6 +2035,12 @@ object NaConfig {
             ConfigItem.configTypeBool,
             false
         )
+    val webMessages =
+        addConfig(
+            "WebMessages",
+            ConfigItem.configTypeBool,
+            false // upstream's HTML widgets in messages; WebMessagesGate
+        )
 
     val preferredTranslateTargetLangList = ArrayList<String>()
     fun updatePreferredTranslateTargetLangList() {

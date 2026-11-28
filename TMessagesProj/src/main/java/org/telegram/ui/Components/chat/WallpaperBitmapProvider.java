@@ -12,21 +12,21 @@ import android.graphics.drawable.Drawable;
 import org.telegram.messenger.Utilities;
 import org.telegram.ui.ChatBackgroundDrawable;
 import org.telegram.ui.Components.MotionBackgroundDrawable;
-import org.telegram.ui.Components.blur3.source.BlurredBackgroundSource;
-import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceBitmap;
-import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceColor;
-import org.telegram.ui.Components.blur3.source.BlurredBackgroundSourceWrapped;
+import org.telegram.utils.glass.source.GlassSource;
+import org.telegram.utils.glass.source.GlassSourceBitmap;
+import org.telegram.utils.glass.source.GlassSourceColor;
+import org.telegram.utils.glass.source.GlassSourceWrapped;
 import org.telegram.ui.Components.blur3.utils.BitmapMemoizedMetadata;
 
 public class WallpaperBitmapProvider {
 
-    private final BlurredBackgroundSourceColor sourceColor = new BlurredBackgroundSourceColor();
-    private final BlurredBackgroundSourceBitmap sourceBitmap = new BlurredBackgroundSourceBitmap();
+    private final GlassSourceColor sourceColor = new GlassSourceColor();
+    private final GlassSourceBitmap sourceBitmap = new GlassSourceBitmap();
 
     // NagramX: a flat-black proxy for an intensity<0 motion wallpaper. Kept as a separate object from
     // sourceColor rather than reused: sourceColor holds a colour wallpaper's fill, this holds a motion
     // wallpaper's flat black, and one field cannot carry both without cross-writing them on a switch.
-    private final BlurredBackgroundSourceColor blackSourceColor = new BlurredBackgroundSourceColor();
+    private final GlassSourceColor blackSourceColor = new GlassSourceColor();
 
     // NagramX: the keyboard pans the wallpaper vertically (SizeNotifierFrameLayout adds
     // backgroundTranslationY to the wallpaper's draw y). The glass proxy is a separate bitmap sampled
@@ -43,17 +43,17 @@ public class WallpaperBitmapProvider {
 
     private static final Rect tmpRect = new Rect();
 
-    public BlurredBackgroundSource updateSourceFromBackgroundViewDrawable(
+    public GlassSource updateSourceFromBackgroundViewDrawable(
         Drawable drawable
     ) {
-        final BlurredBackgroundSource result = updateSourceFromBackgroundViewDrawableInner(drawable);
+        final GlassSource result = updateSourceFromBackgroundViewDrawableInner(drawable);
         // NagramX: the branches above may rebuild sourceBitmap's cover matrix (setBitmap on a wallpaper
         // or type switch), which resets it to identity and loses the keyboard shift, so re-assert it.
         applyBackgroundTranslation();
         return result;
     }
 
-    private BlurredBackgroundSource updateSourceFromBackgroundViewDrawableInner(
+    private GlassSource updateSourceFromBackgroundViewDrawableInner(
         Drawable drawable
     ) {
         // NagramX: default off; only the bare-bitmap wallpaper branch below opts the source into the
@@ -162,7 +162,7 @@ public class WallpaperBitmapProvider {
         private final float[] appliedValues = new float[9];
         private boolean tracked;
 
-        void apply(BlurredBackgroundSourceBitmap source, int translationY) {
+        void apply(GlassSourceBitmap source, int translationY) {
             // getMatrix() hands back the source's live bitmapMatrix, so read its values out rather than
             // mutating it in place. If those values no longer match what we last wrote, the source rebuilt
             // its cover matrix (setBitmap/setParentSize) since our last pass, so adopt the live matrix as
@@ -185,35 +185,35 @@ public class WallpaperBitmapProvider {
         }
     }
 
-    public int getNavigationBarColor(BlurredBackgroundSource source) {
-        if (source instanceof BlurredBackgroundSourceColor) {
-            return ((BlurredBackgroundSourceColor) source).getColor();
+    public int getNavigationBarColor(GlassSource source) {
+        if (source instanceof GlassSourceColor) {
+            return ((GlassSourceColor) source).getColor();
         }
 
-        if (source instanceof BlurredBackgroundSourceBitmap) {
-            final Bitmap bitmap = ((BlurredBackgroundSourceBitmap) source).getBitmap();
+        if (source instanceof GlassSourceBitmap) {
+            final Bitmap bitmap = ((GlassSourceBitmap) source).getBitmap();
             return navbarColorFromBitmap.get(bitmap);
         }
 
-        if (source instanceof BlurredBackgroundSourceWrapped) {
-            return getNavigationBarColor(((BlurredBackgroundSourceWrapped) source).getSource());
+        if (source instanceof GlassSourceWrapped) {
+            return getNavigationBarColor(((GlassSourceWrapped) source).getSource());
         }
 
         return 0;
     }
 
-    public int getStatusBarColor(BlurredBackgroundSource source) {
-        if (source instanceof BlurredBackgroundSourceColor) {
-            return ((BlurredBackgroundSourceColor) source).getColor();
+    public int getStatusBarColor(GlassSource source) {
+        if (source instanceof GlassSourceColor) {
+            return ((GlassSourceColor) source).getColor();
         }
 
-        if (source instanceof BlurredBackgroundSourceBitmap) {
-            final Bitmap bitmap = ((BlurredBackgroundSourceBitmap) source).getBitmap();
+        if (source instanceof GlassSourceBitmap) {
+            final Bitmap bitmap = ((GlassSourceBitmap) source).getBitmap();
             return statusBarColorFromBitmap.get(bitmap);
         }
 
-        if (source instanceof BlurredBackgroundSourceWrapped) {
-            return getStatusBarColor(((BlurredBackgroundSourceWrapped) source).getSource());
+        if (source instanceof GlassSourceWrapped) {
+            return getStatusBarColor(((GlassSourceWrapped) source).getSource());
         }
 
         return 0;
