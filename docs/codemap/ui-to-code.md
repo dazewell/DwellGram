@@ -156,8 +156,13 @@ These factories have no gate. Their callers are what still looks like Glass:
   caller that isn't gated. (The Calls/forum-topics banners and the attach
   sheet's audio search field/`SelectAudioAlert`, both formerly listed here,
   are done — see the S7 entry below.)
-- `mainTabs` (`:21-35`): `StarGiftPreviewSheet`'s tab selector is the one
-  caller left ungated (out of scope, gifts).
+- `mainTabs` (`:21-35`): no caller is left ungated as of S9 below. Its two
+  remaining direct callers, `MainTabsActivity.java:484` and
+  `MainTabsPreviewCell.java:114`, already branch on `applyBottomNavigation()`
+  themselves and use it as their own glass-off side; `StarGiftPreviewSheet`'s
+  tab selector is a `GlassTabsView` subclass (`StarGiftPreviewSheet.java:918`),
+  not a `mainTabs()` caller, and its model/backdrop/pattern pill was gated
+  separately under S8 (`StarGiftPreviewSheet.java:422`, PR #672).
 - Done (S6, #interface-style): the attach sheet tab bar and the statistics
   tabs call a new gated overload, `sheetTabsBottomNavigation`
   (`BlurredBackgroundProviderImpl.java:62-67`), falling back to `mainTabs()`
@@ -211,27 +216,31 @@ These factories have no gate. Their callers are what still looks like Glass:
 - Done (S9, #interface-style): the Telegram 13.2.2 sync (#676) added a third,
   previously-ungated `mainTabs()` caller - `MediaActivity`'s own-stories tab
   bar (posted/archived, the Stories/media screen opened from a profile),
-  `MediaActivity.java:326` (was `mainTabs(getResourceProvider())`, now
+  `MediaActivity.java:336` (was `mainTabs(getResourceProvider())`, now
   `sheetTabsBottomNavigation(currentAccount, ...)`). It is a real
   `MainTabsLayout` of two `GlassTabView`s, so it gets the same treatment as
   Statistics' bar above rather than the attach sheet's tap-only one:
   `setRoundedNavigation()`/`setRoundedSelectorHeight()` called directly
-  (`MediaActivity.java:308-316`), `setNavigationIndicator()` per tab
-  (`:320`), and a `updateStoriesRoundedSelector()` mirroring
+  (`MediaActivity.java:317-326`), `setNavigationIndicator()` per tab
+  (`:330`), and a `updateStoriesRoundedSelector()` mirroring
   `StatisticActivity.updateRoundedSelector()` off this screen's own
   continuous drag signal, `SharedMediaLayout.onTabProgress(float)`
-  (`MediaActivity.java:380-391`, called from `:660`) rather than a
+  (`MediaActivity.java:393-408`, called from `:677`) rather than a
   `ViewPagerFixed` hook - there are only ever the two stories tabs, indexed
-  1:1 with that progress value, so no `indexToPosition` lookup is needed.
-  `setFillWidth()` is not called here: unlike Statistics' bar, this one's
-  parent is `WRAP_CONTENT`-width (`MediaActivity.java:338`'s
-  `LayoutHelper.createFrame`), so there is no extra width for it to
-  distribute. Checked the other two `mainTabs()` callers the same sync
+  1:1 with that progress value, so no `indexToPosition` lookup is needed; it
+  clears back to the resting `findSelectedTab()` draw at either end
+  (`:398-400`), same as `StatisticActivity.onScrollEnd()`. This bar's parent
+  is `WRAP_CONTENT`-width (`MediaActivity.java:340`'s `LayoutHelper.createFrame`),
+  unlike Statistics' `MATCH_PARENT` wrapper, so `setFillWidth()` needs its own
+  `setMaxWidth()` cap (`:307`) rather than reusing Statistics' - without it,
+  `MainTabsLayout.onMeasure()`'s equal-cell split under MD3 would divide the
+  bar's whole `AT_MOST` width (the screen) between the two tabs instead of a
+  320dp pill. Checked the other two `mainTabs()` callers the same sync
   touched, `MainTabsPreviewCell` and `MainTabsActivity` - both already branch
   on `applyBottomNavigation()` themselves before calling `mainTabs()` as
-  their own glass-off side, so neither bypasses the gate.
-  `StarGiftPreviewSheet`'s tab selector remains the one caller left ungated
-  (out of scope, gifts).
+  their own glass-off side, so neither bypasses the gate; see the corrected
+  `mainTabs` bullet above for why `StarGiftPreviewSheet` was never one of
+  these callers either.
 - The chat's @mention and bot-command panels moved to
   `ComposerGlassProvider.ROLE_SUGGESTIONS` (`ChatActivity.java:4287`), gated by
   Apply to → Composer.
