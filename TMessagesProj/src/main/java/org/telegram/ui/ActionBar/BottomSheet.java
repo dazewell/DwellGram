@@ -1099,7 +1099,7 @@ public class BottomSheet extends Dialog implements BaseFragment.AttachedSheet {
         if (simpleMenuOverlay == null) {
             final GlassEngine engine = new GlassEngine();
             engine.setRoot(container);
-            simpleMenuGlass = new BaseFragmentSimpleGlass(engine, () -> getThemedColor(Theme.key_dialogBackground));
+            simpleMenuGlass = new BaseFragmentSimpleGlass(currentAccount, engine, () -> getThemedColor(Theme.key_dialogBackground)); // NagramX: so its glass can checkBlurEnabled(account, ...)
             simpleMenuGlass.setViews(container, null, resourcesProvider);
             simpleMenuGlass.setCapture((canvas, position) -> {
                 final View sheet = containerView;

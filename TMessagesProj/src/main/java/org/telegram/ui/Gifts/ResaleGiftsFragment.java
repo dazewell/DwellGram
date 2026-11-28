@@ -232,7 +232,7 @@ public class ResaleGiftsFragment extends BaseFragment implements FactorAnimator.
 
         final BalancePill balanceView = new BalancePill(context, currentAccount, resourceProvider);
         balanceView.setBackground(glass.factory.create(balanceView)
-            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider))
+            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, glass.hasFrostedGlassSource()))
             .setRadius(dp(23))
             .setPadding(dp(BalancePill.GLASS_PADDING_DP)));
         ScaleStateListAnimator.apply(balanceView);
@@ -243,7 +243,7 @@ public class ResaleGiftsFragment extends BaseFragment implements FactorAnimator.
         balanceView.setOnWidthChanged(width -> simpleActionBar.setTitleMinSideInset(width + dp(6)));
         simpleActionBar.addView(balanceView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 46 + BalancePill.GLASS_PADDING_DP * 2, Gravity.RIGHT));
 
-        filterGlassColors = BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider);
+        filterGlassColors = BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, glass.hasFrostedGlassSource());
         filtersContainer = new LinearLayout(context);
         filtersContainer.setOrientation(LinearLayout.HORIZONTAL);
         filtersContainer.setClipChildren(false);
@@ -282,7 +282,7 @@ public class ResaleGiftsFragment extends BaseFragment implements FactorAnimator.
         onlyStarsContainer = new FrameLayout(context);
         onlyStarsContainer.setPadding(dp(8), dp(8), dp(8), dp(8));
         onlyStarsContainer.setBackground(glass.factory.create(onlyStarsContainer)
-            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider))
+            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, glass.hasFrostedGlassSource()))
             .setPadding(dp(8))
             .setRadius(dp(FILTER_HEIGHT_DP / 2f)));
         onlyStarsContainer.setOnClickListener(v -> {
@@ -301,7 +301,7 @@ public class ResaleGiftsFragment extends BaseFragment implements FactorAnimator.
         clearFiltersContainer = new FrameLayout(context);
         clearFiltersContainer.setPadding(dp(8), dp(8), dp(8), dp(8));
         clearFiltersContainer.setBackground(glass.factory.create(clearFiltersContainer)
-            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider))
+            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, glass.hasFrostedGlassSource()))
             .setPadding(dp(8))
             .setRadius(dp(22)));
         fragmentView.addView(clearFiltersContainer, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 44 + 8 + 8, Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM));

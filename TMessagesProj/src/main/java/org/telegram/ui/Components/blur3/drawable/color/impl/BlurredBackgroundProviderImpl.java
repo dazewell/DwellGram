@@ -419,29 +419,51 @@ public class BlurredBackgroundProviderImpl {
         return Color.alpha(Theme.getColor(Theme.key_chat_compact_glassOutline, resourcesProvider)) != 0 ? 0 : color;
     }
 
-    public static BlurredBackgroundProvider simpleActionBar(Theme.ResourcesProvider resourcesProvider) {
+    // NagramX (#interface-style): gated in place, not an overload - every caller is one of the floating
+    // back/menu/done pills (and lookalikes: tab bars, filter chips, map pills) on a simple-ActionBar screen,
+    // same reasoning as attachMenuSearch above. frostedSourceAvailable is BaseFragmentSimpleGlass's structural
+    // hasFrostedGlassSource(), not its live getFrostedGlassSource() - every caller captures this once.
+    public static BlurredBackgroundProvider simpleActionBar(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean frostedSourceAvailable) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
             .setBackgroundColor((r, isDark) -> {
+                if (com.dazewell.gram.helpers.InterfaceStyleController.applyButtons()) {
+                    final int colorBg = Theme.getColor(Theme.key_windowBackgroundWhite, r);
+                    if (frostedSourceAvailable && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && checkBlurEnabled(currentAccount, resourcesProvider)) {
+                        return Theme.multAlpha(colorBg, xyz.nextalone.nagram.NaConfig.interfaceStyleBlurAlpha());
+                    }
+                    return ColorUtils.setAlphaComponent(colorBg, 255);
+                }
                 final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.80f;
                 final int colorBg = Theme.getColor(Theme.key_windowBackgroundGray, r);
                 final int colorTarget = Theme.getColor(Theme.key_windowBackgroundWhite, r);
                 return solveSrcColor(colorBg, colorTarget, alpha);
             })
-            .setStrokeColorTop(0xFFFFFFFF, 0x20FFFFFF)
-            .setStrokeColorBottom(0xFFFFFFFF, 0x14FFFFFF)
-            .setShadowColor(0x16333333, 0)
+            .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x20FFFFFF : 0xFFFFFFFF))
+            .setStrokeColorBottom((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x14FFFFFF : 0xFFFFFFFF))
+            .setShadowColor((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0 : 0x16333333))
             .setShadowLayer(dpf2(24 / 3f), 0, dpf2(7f / 3f))
             .setStrokeWidth(dpf2(0.55f), dpf2(0.55f))
             .build();
     }
 
     /** A frosted sheet over the content, e.g. the list over the map: the content shows through its blur. */
-    public static BlurredBackgroundProvider frostedSheet(Theme.ResourcesProvider resourcesProvider) {
+    // NagramX (#interface-style): gated in place, same reasoning as simpleActionBar() above - its one
+    // caller (LocationActivity's sheet) is itself a simple-ActionBar screen.
+    public static BlurredBackgroundProvider frostedSheet(int currentAccount, Theme.ResourcesProvider resourcesProvider, boolean frostedSourceAvailable) {
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
-            .setBackgroundColor((r, isDark) -> Theme.multAlpha(Theme.getColor(Theme.key_dialogBackground, r), isDark ? 0.82f : 0.78f))
-            .setStrokeColorTop(0xFFFFFFFF, 0x20FFFFFF)
+            .setBackgroundColor((r, isDark) -> {
+                if (com.dazewell.gram.helpers.InterfaceStyleController.applyButtons()) {
+                    final int colorBg = Theme.getColor(Theme.key_dialogBackground, r);
+                    if (frostedSourceAvailable && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && checkBlurEnabled(currentAccount, resourcesProvider)) {
+                        return Theme.multAlpha(colorBg, xyz.nextalone.nagram.NaConfig.interfaceStyleBlurAlpha());
+                    }
+                    return ColorUtils.setAlphaComponent(colorBg, 255);
+                }
+                return Theme.multAlpha(Theme.getColor(Theme.key_dialogBackground, r), isDark ? 0.82f : 0.78f);
+            })
+            .setStrokeColorTop((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0x20FFFFFF : 0xFFFFFFFF))
             .setStrokeColorBottom(0, 0)
-            .setShadowColor(0x16333333, 0)
+            .setShadowColor((r, isDark) -> com.dazewell.gram.helpers.InterfaceStyleController.applyButtons() ? 0 : (isDark ? 0 : 0x16333333))
             .setShadowLayer(dpf2(24 / 3f), 0, -dpf2(2f / 3f))
             .setStrokeWidth(dpf2(0.55f), 0)
             .build();

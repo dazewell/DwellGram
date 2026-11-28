@@ -258,7 +258,7 @@ public class InviteContactsActivity extends BaseFragment implements Notification
         public SelectedStrip(Context context) {
             super(context);
             glass = getBaseSimpleGlass().factory.create(this)
-                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(getResourceProvider()))
+                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, getResourceProvider(), getBaseSimpleGlass().hasFrostedGlassSource()))
                 .setPadding(dp(6));
             setWillNotDraw(false);
             addView(scrollView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));

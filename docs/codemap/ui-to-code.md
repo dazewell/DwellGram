@@ -111,16 +111,23 @@ mid-chat, and the factories then wrap the raw wallpaper
 composer's opaque `ROLE_COMPOSER` fill is not the reference to follow, because
 under MD3 `ComposerMd3Surface` paints the frosted island instead.
 
-These factories have no gate. Their callers are what still looks like Glass:
+`messageMenuBackground`, `scrimMenuBackground` and `bulletin` are gated on
+`applyButtons()` and go flat under MD3 Buttons
+(`BlurredBackgroundProviderImpl.java:213-214` message menu, `:225`/`:234-235`
+scrim menu, `:524` bulletin) — they are not examples of the "no gate" factories
+below, despite having sat in that list (`#interface-style`). Their caller lists
+are kept since they're still useful:
 
-- `messageMenuBackground` (`:141-156`): the message menu and reactions bar,
-  the chat and profile ⋮ menus (`ChatActivity.java:5480`, `:34402`, `:35511`;
-  `ProfileActivity.java:4189`).
-- `scrimMenuBackground` (`:158-168`): about 17 call sites, including the
-  app-wide `ItemOptions.java:1534`, `ScrimOptions`, `ContentPreviewViewer`,
+- `messageMenuBackground` (`:204-219`): the message menu
+  (`ChatActivity.java:5379`, `:35004`; `ProfileActivity.java:4151`) and the
+  reactions bar (`messageMenuReactionsBackground`, `ChatActivity.java:36127`).
+- `scrimMenuBackground` (`:221-240`): about 17 call sites, including the
+  app-wide `ItemOptions.java:1635`, `ScrimOptions`, `ContentPreviewViewer`,
   `AvatarPreviewer` and the poll and to-do item menus.
-- `bulletin` (`:309-322`): `ChatActivity.java:32993` and
+- `bulletin` (`:520-540`): `ChatActivity.java:33527` and
   `GiftMessageBottomSheet.java:479`.
+
+These factories have no gate. Their callers are what still looks like Glass:
 - The plain `topPanelChatActivity` (`:223-225`, `:240-242`, never flat) has
   one caller left, `SearchTagsList.java:125`, and only for a premium layout
   that already exists when the factory is set. That is the profile shared-media
@@ -267,6 +274,34 @@ These factories have no gate. Their callers are what still looks like Glass:
   (`setRadius(dp(24))`, `setPadding(dp(7))`, unconditional, no
   `setFlatBackground` call) and shares `attachSheetSearchPanel` with the
   search field above it, so both change together under the same gate.
+- Done (#interface-style, MD3 simple-action-bar slice): `simpleActionBar`
+  and `frostedSheet` (`BlurredBackgroundProviderImpl.java:422-449`,
+  `:451-472`) are gated in place on `applyButtons()`, same call as
+  `attachMenuSearch` — every caller is a floating pill (back/menu/done, a
+  tab bar, a filter chip, a map button, a balance pill) on a simple-ActionBar
+  screen, so none is left ungated. `currentAccount` is threaded through
+  `BaseFragmentSimpleGlass`'s constructor (its only 2 instantiation sites,
+  `BaseFragment.java:1534` and `BottomSheet.java:1102`) rather than through
+  every caller. The frost-or-opaque decision uses a new
+  `hasFrostedGlassSource()` on that class — the *structural* fact ("was a
+  frosted source built for this screen"), not `getFrostedGlassSource() !=
+  null`'s live Lite Mode recheck, because every caller captures the provider
+  once at setup and never again: baking in a live flag would freeze "never
+  frost" for a screen's whole lifetime if Lite Mode's blur flag happened to
+  be off at the exact moment it opened. `SharedMediaLayout`'s two calls
+  (`:3514`/`:3520`, behind `simpleActionBar != null`, i.e. only when the host
+  uses the simple-ActionBar header — `ProfileActivity`, `MediaActivity`,
+  `HashtagActivity` and `LocationActivity` all can) read the same structural
+  fact off the factory the layout actually draws with
+  (`iBlur3FactoryLiquidGlass.getFrostedSource() != …getStaticSource()`, same
+  class), since its `profileActivity` field is typed as the plain
+  `BaseFragment` regardless of the real host. `ProfileActivity.java:8401`'s
+  `headerMenuGlassColors` is in scope too — it feeds `headerButtonsGlassColors`
+  (`:6305-6326`, the *separate*, still out-of-scope hard-coded-white-stroke
+  slice) through `getHeaderSimpleFactor()`'s blend, but only changes that
+  blend's output once the header has scrolled into its collapsed
+  simple-screen look (factor > 0); at factor 0 (full photo header) the
+  blend is unaffected.
 
 `topPanel`, `mainTabs`, `inputFieldDialogActivity`, the 2-arg
 `topPanelChatActivity` and `scrimMenuBackground` are shared across unrelated

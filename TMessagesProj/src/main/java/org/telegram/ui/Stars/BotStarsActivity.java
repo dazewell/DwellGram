@@ -648,7 +648,7 @@ public class BotStarsActivity extends BaseFragment implements NotificationCenter
                     scrollCoordinator.captureScrollingContent(canvas, bounds, capture));
             FrameLayout tabs = transactionTabs;
             tabs.setBackground(getBaseSimpleGlass().factory.create(tabs)
-                    .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider))
+                    .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, getBaseSimpleGlass().hasFrostedGlassSource()))
                     .setPadding(dp(9.66f)).setRadius(dp(18)));
         }
     }

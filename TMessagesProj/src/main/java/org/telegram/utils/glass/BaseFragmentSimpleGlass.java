@@ -41,6 +41,12 @@ import org.telegram.utils.glass.source.GlassSourceEmpty;
 import me.vkryl.core.BitwiseUtils;
 
 public class BaseFragmentSimpleGlass {
+    // NagramX (#interface-style): the account this screen's glass belongs to, for checkBlurEnabled's
+    // per-account light/dark overrides - threaded here once rather than through every simpleActionBar()/
+    // frostedSheet() caller, since both of this class's instantiation sites (BaseFragment, BottomSheet)
+    // already have it in scope.
+    private final int currentAccount;
+
     private final GlassEngine glassEngine;
 
     private final @NonNull GlassSourceColor glassBackgroundSourceColor;
@@ -64,7 +70,8 @@ public class BaseFragmentSimpleGlass {
     private final @NonNull GlassSource glassSourceForFadeDrawable;
 
 
-    public BaseFragmentSimpleGlass(GlassEngine engine, GlassEngine.ThemedColorDelegate themedColor) {
+    public BaseFragmentSimpleGlass(int currentAccount, GlassEngine engine, GlassEngine.ThemedColorDelegate themedColor) {
+        this.currentAccount = currentAccount;
         glassEngine = engine;
         glassEngine.setGlassInvalidationListener(this::invalidate);
         glassEngine.setPositionsMerger(new GlassPositionsMerger(Float.POSITIVE_INFINITY, dp(48)));
@@ -141,6 +148,17 @@ public class BaseFragmentSimpleGlass {
     @Nullable
     public GlassSourceRenderNode getFrostedGlassSource() {
         return GlassEngine.getCurrentGlassSettings().isBlurEnabled ? frostedGlassSource : null;
+    }
+
+    public int getCurrentAccount() {
+        return currentAccount;
+    }
+
+    // NagramX (#interface-style): structural fact ("was a frosted source built for this screen"), unlike
+    // getFrostedGlassSource() above, which also re-checks the live Lite Mode blur flag - wrong for a caller
+    // that captures this once at setup, since nothing re-invokes it on a later settings change.
+    public boolean hasFrostedGlassSource() {
+        return frostedGlassSource != null;
     }
 
     /** After the capture: what draws {@link #getGlassSource} from outside records it again, it holds the offsets of the capture. */
@@ -262,7 +280,7 @@ public class BaseFragmentSimpleGlass {
         if (header instanceof SimpleActionBar) {
             final SimpleActionBar simpleActionBar = (SimpleActionBar) header;
             simpleActionBar.setExtraHeight(dp(6));
-            simpleActionBar.setupGlass(factory, BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider));
+            simpleActionBar.setupGlass(factory, BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, hasFrostedGlassSource()));
             simpleActionBar.setMenuGlass(menuFactory, menuGlassSource);
         } else if (header instanceof ActionBar) {
             final ActionBar actionBar = (ActionBar) header;
@@ -270,7 +288,7 @@ public class BaseFragmentSimpleGlass {
             actionBar.setCenterTitleAndGlass(true);
             actionBar.setExtraHeight(dp(6));
             actionBar.doNotDrawCenterGlass = true;
-            actionBar.setupGlass(factory, BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider));
+            actionBar.setupGlass(factory, BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, hasFrostedGlassSource()));
         }
     }
 

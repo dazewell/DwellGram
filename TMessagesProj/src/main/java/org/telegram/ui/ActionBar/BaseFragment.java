@@ -1531,7 +1531,7 @@ public abstract class BaseFragment {
 
     protected BaseFragmentSimpleGlass getBaseSimpleGlass() {
         if (simpleGlass == null) {
-            simpleGlass = new BaseFragmentSimpleGlass(glassEngine, () -> getThemedColor(Theme.key_windowBackgroundGray));
+            simpleGlass = new BaseFragmentSimpleGlass(currentAccount, glassEngine, () -> getThemedColor(Theme.key_windowBackgroundGray)); // NagramX: so its glass can checkBlurEnabled(account, ...)
         }
         return simpleGlass;
     }

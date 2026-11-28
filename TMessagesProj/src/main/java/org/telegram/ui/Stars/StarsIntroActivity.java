@@ -608,7 +608,7 @@ public class StarsIntroActivity extends GradientHeaderActivity implements Notifi
         });
         updateListTopOverlaySize();
         tabs.setBackground(getBaseSimpleGlass().factory.create(tabs)
-                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider))
+                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, getBaseSimpleGlass().hasFrostedGlassSource()))
                 .setPadding(dp(9.66f))
                 .setRadius(dp(18)));
     }

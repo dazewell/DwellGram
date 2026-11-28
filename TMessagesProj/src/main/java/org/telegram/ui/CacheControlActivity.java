@@ -1494,7 +1494,7 @@ public class CacheControlActivity extends BaseFragment implements NotificationCe
         tabsContainer = cachedMediaLayout.takeTabsContainer();
         tabsContainer.setBackground(getBaseSimpleGlass().factory
                 .create(tabsContainer)
-                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider))
+                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, getBaseSimpleGlass().hasFrostedGlassSource()))
                 .setPadding(dp(9.66f))
                 .setRadius(dp(18)));
         scrollCoordinator.setPager(cachedMediaLayout, cachedMediaLayout.getViewPager(), cachedMediaLayout::getPageListView);
