@@ -134,7 +134,7 @@ public class DataUsage2Activity extends BaseFragment {
         tabsContainer.setPadding(dp(4), dp(4), dp(4), dp(4));
         tabsContainer.setBackground(getBaseSimpleGlass().factory
             .create(tabsContainer)
-            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider))
+            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, getBaseSimpleGlass().hasFrostedGlassSource()))
             .setPadding(dp(9.66f))
             .setRadius(dp(18))
         );

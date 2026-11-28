@@ -32,7 +32,7 @@ public class SimpleButtonMenuHost implements MenuOverlayHost {
         this.overlay = overlay;
         this.glass = glass;
         this.resourcesProvider = resourcesProvider;
-        colors = BlurredBackgroundProviderImpl.simpleActionBar(resourcesProvider);
+        colors = BlurredBackgroundProviderImpl.simpleActionBar(glass.getCurrentAccount(), resourcesProvider, glass.hasFrostedGlassSource());
     }
 
     /** The button the next menu grows out of; not while a menu of this host is shown. */

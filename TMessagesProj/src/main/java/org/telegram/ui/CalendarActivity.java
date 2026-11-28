@@ -353,7 +353,7 @@ public class CalendarActivity extends BaseFragment implements NotificationCenter
         calendarSignatureView.setPadding(dp(4), 0, dp(4), 0);
         calendarSignatureView.setBackground(getBaseSimpleGlass().factory
             .create(calendarSignatureView)
-            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider))
+            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, getBaseSimpleGlass().hasFrostedGlassSource()))
             .setPadding(dp(9.66f))
             .setRadius(dp(18)));
         calendarSignatureView.setTranslationY(BaseFragmentSimpleGlass.getPillGlassTop(0) - dp(9.66f));
@@ -505,7 +505,7 @@ public class CalendarActivity extends BaseFragment implements NotificationCenter
             super(context);
             setWillNotDraw(false);
             glass = getBaseSimpleGlass().factory.create(this)
-                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(resourceProvider))
+                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourceProvider, getBaseSimpleGlass().hasFrostedGlassSource()))
                 .setPadding(dp(BOTTOM_BUTTON_GLASS_PADDING))
                 .setRadius(dp(BOTTOM_BUTTON_HEIGHT / 2f));
         }

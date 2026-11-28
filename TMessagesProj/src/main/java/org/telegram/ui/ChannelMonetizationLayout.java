@@ -2105,7 +2105,7 @@ public class ChannelMonetizationLayout extends SiblingRecyclerPagerLayout implem
     public void configureTabsGlass(BaseFragmentSimpleGlass glass) {
         FrameLayout tabs = transactionsLayout.tabsContainer;
         tabs.setBackground(glass.factory.create(tabs)
-                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(resourcesProvider))
+                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(glass.getCurrentAccount(), resourcesProvider, glass.hasFrostedGlassSource()))
                 .setPadding(dp(9.66f)).setRadius(dp(18)));
     }
 

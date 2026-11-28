@@ -618,7 +618,7 @@ public class LocationActivity extends BaseFragment implements NotificationCenter
         final SimpleTextView titleView = simpleActionBar.getTitleTextView();
         if (titleView != null) {
             titleView.setBackground(getBaseSimpleGlass().factory.create(titleView)
-                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(getResourceProvider()))
+                .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, getResourceProvider(), getBaseSimpleGlass().hasFrostedGlassSource()))
                 .setRadius(dp(MAP_BUTTON_DP / 2f)));
             final Paint.FontMetricsInt metrics = titleView.getTextPaint().getFontMetricsInt();
             final int vertical = Math.max(0, (dp(MAP_BUTTON_DP) - (metrics.descent - metrics.ascent)) / 2);
@@ -795,7 +795,7 @@ public class LocationActivity extends BaseFragment implements NotificationCenter
             }
         };
         sheetGlass = getBaseSimpleGlass().frostedFactory.create(listView)
-            .setColorProvider(BlurredBackgroundProviderImpl.frostedSheet(getResourceProvider()))
+            .setColorProvider(BlurredBackgroundProviderImpl.frostedSheet(currentAccount, getResourceProvider(), getBaseSimpleGlass().hasFrostedGlassSource()))
             .setRadius(dp(SHEET_RADIUS_DP), dp(SHEET_RADIUS_DP), 0, 0)
             .setPadding(dp(12));
         listView.setAdapter(adapter = new LocationActivityAdapter(context, locationType, dialogId, false, getResourceProvider(), false, fromStories, locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_BIZ) {
@@ -1331,7 +1331,7 @@ public class LocationActivity extends BaseFragment implements NotificationCenter
     /** A glass button of the map, like the header's buttons: the view is larger than the glass by its padding. */
     private BlurredBackgroundDrawable setMapButtonGlass(View view) {
         final BlurredBackgroundDrawable glass = getBaseSimpleGlass().factory.create(view)
-            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(getResourceProvider()))
+            .setColorProvider(BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, getResourceProvider(), getBaseSimpleGlass().hasFrostedGlassSource()))
             .setRadius(dp(MAP_BUTTON_DP / 2f))
             .setPadding(dp(MAP_BUTTON_PADDING_DP));
         view.setBackground(glass);

@@ -3502,16 +3502,22 @@ public class SharedMediaLayout extends FrameLayout implements Theme.Colorable, N
         floatingDateView.setTranslationY(-dp(48));
         addView(floatingDateView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 48 + 4, 0, 0));
 
+        // NagramX (#interface-style): simpleActionBar != null doesn't mean the host is ProfileActivity -
+        // MediaActivity/HashtagActivity/LocationActivity also useSimpleActionBar(). Read the structural fact
+        // off the factory this layout actually draws with (distinct frosted/static sources means one was
+        // built), not off the host fragment, which isn't reachable as the right type here either way.
+        final boolean simpleActionBarFrosted = simpleActionBar != null
+                && iBlur3FactoryLiquidGlass.getFrostedSource() != iBlur3FactoryLiquidGlass.getStaticSource();
         for (MediaPage page : mediaPages) {
             final RecyclerListView.FastScroll fastScroll = page.listView.getFastScroll();
             if (fastScroll != null) {
-                fastScroll.applyBlurDrawables(iBlur3FactoryLiquidGlass, simpleActionBar != null ? BlurredBackgroundProviderImpl.simpleActionBar(resourcesProvider) : BlurredBackgroundProviderImpl.topPanel(resourcesProvider));
+                fastScroll.applyBlurDrawables(iBlur3FactoryLiquidGlass, simpleActionBar != null ? BlurredBackgroundProviderImpl.simpleActionBar(profileActivity.getCurrentAccount(), resourcesProvider, simpleActionBarFrosted) : BlurredBackgroundProviderImpl.topPanel(resourcesProvider));
             }
         }
 
         if (!customTabs()) {
             // a simple host's tabs are glass like its header
-            final BlurredBackgroundProvider glassColors = simpleActionBar != null ? BlurredBackgroundProviderImpl.simpleActionBar(resourcesProvider) : BlurredBackgroundProviderImpl.topPanel(resourcesProvider);
+            final BlurredBackgroundProvider glassColors = simpleActionBar != null ? BlurredBackgroundProviderImpl.simpleActionBar(profileActivity.getCurrentAccount(), resourcesProvider, simpleActionBarFrosted) : BlurredBackgroundProviderImpl.topPanel(resourcesProvider);
             topPanelLayout = new DialogsActivityTopPanelLayout(context);
             // the content exactly in the glass: the layout's background starts 14dp in and is inset by 7dp
             topPanelLayout.setPadding(dp(11), TOP_PANEL_GLASS_TOP, dp(11), TOP_PANEL_GLASS_TOP);

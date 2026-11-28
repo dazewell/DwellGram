@@ -8398,7 +8398,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         glass.setViews(contentView, simpleActionBar, resourcesProvider);
         simpleActionBar.setMenuGlass(buttonsGlass.menuFactory, buttonsGlass.menuSource);
         simpleActionBar.setBackground(null);
-        headerMenuGlassColors = BlurredBackgroundProviderImpl.simpleActionBar(resourcesProvider);
+        headerMenuGlassColors = BlurredBackgroundProviderImpl.simpleActionBar(currentAccount, resourcesProvider, glass.hasFrostedGlassSource());
         simpleActionBar.setButtonsGlassColorProvider(headerButtonsGlassColors);
         updateHeaderButtonsColors();
         glass.setCapture(iBlur3Capture);
