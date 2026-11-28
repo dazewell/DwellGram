@@ -1801,7 +1801,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         actionBar.getTitlesContainer().setVisibility(titleAlpha > 0 ? View.VISIBLE : View.INVISIBLE);
         actionBar.getAdditionalSubTitleOverlayContainer().setAlpha(titleAlpha);
         actionBar.getAdditionalSubTitleOverlayContainer().setVisibility(titleAlpha > 0 ? View.VISIBLE : View.INVISIBLE);
+        String naxProbe = "container=" + titleAlpha + " in=" + lastActionBarTitleAlpha + " right=" + getRightSlidingProgress() + " am=" + progressToActionMode + " stories=" + progressToDialogStoriesCell + " has=" + hasStories + "/" + animateToHasStories + " search=" + searchAnimationProgress + " scroll=" + scrollYOffset + " text=" + (actionBar.getTitleTextView() != null ? actionBar.getTitleTextView().getAlpha() : -1f) + " scale=" + actionBar.getTitlesContainer().getScaleX();
+        if (!naxProbe.equals(naxLastTitleProbe)) android.util.Log.i("NAX_SMOKE_title-fade", (naxLastTitleProbe = naxProbe));
     }
+
+    private String naxLastTitleProbe;
 
     public static float viewOffset = 0.0f;
 
@@ -5754,6 +5758,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 }
 
                 if (actionBar.getTitleTextView() != null) {
+                    android.util.Log.i("NAX_SMOKE_title-fade", "setOpenProgress " + progress);
                     actionBar.getTitleTextView().setAlpha(1f - progress);
                     if (actionBar.getTitleTextView().getAlpha() > 0) {
                         actionBar.getTitleTextView().setVisibility(View.VISIBLE);

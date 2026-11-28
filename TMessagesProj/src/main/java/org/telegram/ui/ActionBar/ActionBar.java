@@ -2045,10 +2045,7 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
             }
             overlayTitleAnimationInProgress = true;
             // the new title keeps the alpha the title had, e.g. hidden under the topics opened in the side panel
-            // NagramX: a title still fading in (setTitleAnimated*, e.g. the folder name as title) has a passing alpha;
-            // keeping it left the chat-list title stuck faded or invisible from the start.
-            android.util.Log.i("NAX_SMOKE_title-fade", "swap alpha=" + titleTextView[0].getAlpha() + " titleAnim=" + titleAnimationRunning);
-            final float titleAlpha = adaptiveBackgroundHideTitle ? 1.0f - onTopAnimated : titleAnimationRunning ? 1f : titleTextView[0].getAlpha();
+            final float titleAlpha = adaptiveBackgroundHideTitle ? 1.0f - onTopAnimated : titleTextView[0].getAlpha();
             SimpleTextView tmp = titleTextView[1];
             titleTextView[1] = titleTextView[0];
             titleTextView[0] = tmp;
