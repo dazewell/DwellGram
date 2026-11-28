@@ -133,7 +133,7 @@ if (-not $Intent) { $Intent = Invoke-Native git @('log', '-1', '--format=%s', $H
 $MergeBase = Invoke-Native git @('merge-base', $Base, $Head)
 
 # Process files are left to the architect; this pass is about running code.
-$Spec = @('--', $(if ($Path) { $Path } else { '.' }),
+$Spec = @('--') + @(if ($Path) { $Path } else { '.' }) + @(
     ':(exclude)*.md', ':(exclude)docs/**', ':(exclude).github/**',
     ':(exclude).claude/**', ':(exclude).githooks/**', ':(exclude).codex/**',
     ':(exclude).opencode/**')
