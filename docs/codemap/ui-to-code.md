@@ -302,6 +302,21 @@ These factories have no gate. Their callers are what still looks like Glass:
   blend's output once the header has scrolled into its collapsed
   simple-screen look (factor > 0); at factor 0 (full photo header) the
   blend is unaffected.
+- Done (#interface-style, MD3 simple-fade slice, stacked on the slice above):
+  the same simple-ActionBar screens' progressive-blur fade drawables under the
+  header and above the nav bar (`BaseFragmentSimpleGlass.java:177-224`,
+  `createActionBarFadeDrawable`/`createNavigationBarFadeDrawable`) gained an
+  `applyButtons()` branch on `setOverlayAlpha` (160 → 0 under MD3), same gate
+  as `simpleActionBar`/`frostedSheet` above. This drops only the tint wash
+  drawn over the real blur; `setOverlayOnlyAlpha` (210, the opaque no-blur
+  fallback when blur is off or no frosted capture source exists for that
+  screen) is unchanged in both styles — it alone occludes scrolled content
+  with no blur underneath, so it is functional, not decorative, and isn't
+  covered by MD3's rim/shadow/tint-drop rule. `overlayColor` and
+  `overlayOnlyColor` are both the same `glassBackgroundSourceColor` (the
+  screen's own background) at different baked-in alphas
+  (`GlassFadeBlurredDrawable.java:139-166`), so the opaque fallback's value
+  was never a decorative tint to begin with.
 
 `topPanel`, `mainTabs`, `inputFieldDialogActivity`, the 2-arg
 `topPanelChatActivity` and `scrimMenuBackground` are shared across unrelated
