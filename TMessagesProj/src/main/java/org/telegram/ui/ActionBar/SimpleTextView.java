@@ -144,35 +144,6 @@ public class SimpleTextView extends View implements Drawable.Callback {
         emojiStackColorFilter = new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN);
     }
 
-    // NAX_SMOKE_title-fade probe: the last alpha writes and animations on an action bar title.
-    public boolean naxTitleProbe;
-    public static final java.util.ArrayDeque<String> naxEvents = new java.util.ArrayDeque<>();
-
-    private static void naxRecord(SimpleTextView v, String what) {
-        StringBuilder sb = new StringBuilder(what).append(" id=").append(System.identityHashCode(v));
-        StackTraceElement[] st = new Throwable().getStackTrace();
-        for (int i = 2; i < Math.min(st.length, 12); i++) {
-            String c = st[i].getClassName();
-            sb.append(" < ").append(c.substring(c.lastIndexOf('.') + 1)).append('.').append(st[i].getMethodName()).append(':').append(st[i].getLineNumber());
-        }
-        synchronized (naxEvents) {
-            naxEvents.addLast(sb.toString());
-            while (naxEvents.size() > 12) naxEvents.removeFirst();
-        }
-    }
-
-    @Override
-    public void setAlpha(float alpha) {
-        if (naxTitleProbe && alpha < 1f && alpha != getAlpha()) naxRecord(this, "setAlpha " + alpha + " from " + getAlpha());
-        super.setAlpha(alpha);
-    }
-
-    @Override
-    public android.view.ViewPropertyAnimator animate() {
-        if (naxTitleProbe) naxRecord(this, "animate from " + getAlpha());
-        return super.animate();
-    }
-
     public SimpleTextView(Context context) {
         super(context);
         textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);

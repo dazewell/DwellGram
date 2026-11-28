@@ -1801,11 +1801,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         actionBar.getTitlesContainer().setVisibility(titleAlpha > 0 ? View.VISIBLE : View.INVISIBLE);
         actionBar.getAdditionalSubTitleOverlayContainer().setAlpha(titleAlpha);
         actionBar.getAdditionalSubTitleOverlayContainer().setVisibility(titleAlpha > 0 ? View.VISIBLE : View.INVISIBLE);
-        String naxProbe = "container=" + titleAlpha + " in=" + lastActionBarTitleAlpha + " right=" + getRightSlidingProgress() + " am=" + progressToActionMode + " stories=" + progressToDialogStoriesCell + " has=" + hasStories + "/" + animateToHasStories + " search=" + searchAnimationProgress + " scroll=" + scrollYOffset + " text=" + (actionBar.getTitleTextView() != null ? actionBar.getTitleTextView().getAlpha() : -1f) + " scale=" + actionBar.getTitlesContainer().getScaleX();
-        if (!naxProbe.equals(naxLastTitleProbe)) android.util.Log.i("NAX_SMOKE_title-fade", (naxLastTitleProbe = naxProbe));
     }
-
-    private String naxLastTitleProbe;
 
     public static float viewOffset = 0.0f;
 
@@ -5758,7 +5754,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 }
 
                 if (actionBar.getTitleTextView() != null) {
-                    android.util.Log.i("NAX_SMOKE_title-fade", "setOpenProgress " + progress);
                     actionBar.getTitleTextView().setAlpha(1f - progress);
                     if (actionBar.getTitleTextView().getAlpha() > 0) {
                         actionBar.getTitleTextView().setVisibility(View.VISIBLE);
@@ -7292,13 +7287,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
     @Override
     public void onResume() {
-        if (actionBar != null && actionBar.getTitleTextView() != null) { // NAX_SMOKE_title-fade
-            android.view.View t = actionBar.getTitleTextView();
-            android.util.Log.w("NAX_SMOKE_title-fade", "resume title id=" + System.identityHashCode(t) + " alpha=" + t.getAlpha() + " vis=" + t.getVisibility() + " attached=" + t.isAttachedToWindow() + " parent=" + (t.getParent() == actionBar.getTitlesContainer()) + " container=" + actionBar.getTitlesContainer().getAlpha() + " text=" + ((org.telegram.ui.ActionBar.SimpleTextView) t).getText());
-            synchronized (org.telegram.ui.ActionBar.SimpleTextView.naxEvents) {
-                for (String e : org.telegram.ui.ActionBar.SimpleTextView.naxEvents) android.util.Log.w("NAX_SMOKE_title-fade", e);
-            }
-        }
         super.onResume();
         if (dialogStoriesCell != null) {
             dialogStoriesCell.onResume();
