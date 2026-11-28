@@ -300,6 +300,11 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
         storiesTabsView = new MainTabsLayout(context, getResourceProvider());
         storiesTabsView.setClipChildren(false);
         storiesTabsView.setPadding(dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4), dp(DialogsActivity.MAIN_TABS_MARGIN + 4));
+        // NagramX: caps the width setFillWidth's equal-cell distribution below divides by visibleChildCount - without
+        // it, fillWidth would split this WRAP_CONTENT bar's whole AT_MOST width (the screen) between the two tabs.
+        // 320dp is StatisticActivity's own cap; harmless outside MD3 too, since onMeasure already grows to min(320dp,
+        // available) when fillWidth is off and these two short labels never reach it unaided.
+        storiesTabsView.setMaxWidth(dp(320 + 2 * (DialogsActivity.MAIN_TABS_MARGIN + 4)));
         storiesTabs[0] = GlassTabView.createMainTab(context, getResourceProvider(), GlassTabView.TabAnimation.STORIES_SAVED, R.string.ProfileMyStoriesTab);
         storiesTabs[1] = GlassTabView.createMainTab(context, getResourceProvider(), GlassTabView.TabAnimation.STORIES_ARCHIVE, R.string.ProfileStoriesArchiveTab);
         // NagramX: Apply to -> Bottom navigation (#interface-style) - same three-way indicator StatisticActivity's
@@ -314,6 +319,11 @@ public class MediaActivity extends BaseFragment implements SharedMediaLayout.Sha
         // its own 48dp tab height (MAIN_TABS_HEIGHT 56dp - the same 2x4dp inset MainTabsHelper's formula uses).
         storiesTabsView.setRoundedSelectorHeight(storiesRoundedBottomNavigation
             ? dp(DialogsActivity.MAIN_TABS_HEIGHT - 2 * tw.nekomimi.nekogram.helpers.MainTabsHelper.MD3_NAVIGATION_SCRIM_INSET) : 0);
+        // NagramX: forces the same smallest text pass the real MD3 bar forces for its 32dp indicator (MainTabsLayout
+        // onMeasure) - this bar's 48dp cell leaves the same little room below the indicator's 34dp label offset
+        // (GlassTabView.setNavigationIndicator) that StatisticActivity's identical-height cell does. fillWidth is
+        // dropped back to the chosen pass under Rounded (MainTabsLayout.onMeasure), same as the real nav.
+        storiesTabsView.setFillWidth(storiesMd3BottomNavigation);
         for (int i = 0; i < storiesTabs.length; ++i) {
             final int index = i;
             storiesTabs[i].setOnClickListener(v -> sharedMediaLayout.scrollToPage(SharedMediaLayout.TAB_STORIES + index));
